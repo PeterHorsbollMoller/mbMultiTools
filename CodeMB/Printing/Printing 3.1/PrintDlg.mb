@@ -1,0 +1,2063 @@
+'*******************************************************************************
+'** 	Program:	Alle med udskriftsfunktionalitet
+'** 	Modul:	PrintDlg.mb
+'**			Functions for printing.
+'*******************************************************************************
+
+Include "Mapbasic.def"
+Include "Menu.def"
+
+Include "..\..\Language\PlotDef.lng"
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+
+Include "Globals.def"
+Include "PrintDlg.def"
+Include "PrintValues.def"
+Include "PrintPreView.def"
+Include "Printing.def"
+Include "PrintHlp.def"
+
+Include "..\..\Time\Time.def"
+Include "..\..\FileFunc\FileFunc.def"
+Include "..\..\IniUtil\iniUtil.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\ArrayFunc\ArrayFunc.def"
+Include "..\..\WinFunc\WinFunc.def"
+
+Declare Sub LayoutNameChangedHandler
+Declare Sub PickWorkspacehandler
+
+Declare Sub HandlerQuickPrintLoadDlg
+Declare Sub HandlerCheckScale
+Declare Sub HandlerCheckScaleAndScaleType
+Declare Sub HandlerShowHideSpecialPlotList
+Declare Sub HandlerEnableDisableEditScale
+Declare Sub HandlerEnableSpecialPlotList
+
+Declare Sub HandlerSelectNorthArrowName
+
+Declare Sub HandlerDualPrinterSetupDialog
+Declare Sub StandardPrinterSetupDialog
+Declare Sub StandardPrinterPrefDialog
+
+Declare Sub HandlerAlterScaleRotationStartUp
+
+Declare Sub PrintPickedValue
+Declare Sub HandlerSelectFrames
+Declare Sub HandlerStartUpFramesToPrint
+Declare Sub HandlerFramePicked
+
+Dim	nPrevVal As Integer,
+	arrTemp(10), arrNames(0), arrNamesShown(0) As String,
+	mArrAlias(0), mArrAliasValues(0) As String,
+	nGlobalPicked, nPrevPicked As Integer,
+	arrSpecPlotRowID() As Integer,
+	arrSpecPlot() As String
+
+'**************************************************************
+' Dialog til indtastning af runtime værdier...
+'**************************************************************
+Function PrintEnterAliasValuesDialog(	arrAliasValues(0) As T_ALIAS_AND_VALUE,
+							arrColumnAndValues() As T_COL_AND_VALUES,
+							ByVal bResetValues As Logical) As Logical
+
+Dim	i, k, nTimesToLoop, nScbValue, nParensisValue As Integer,
+	szCol, szParensisValue, szLastvalue, subBuf(0), szAlias, szAliasVal As String,
+	bShowDialog As Logical
+
+OnError GoTo ErrorOccured
+
+PrintEnterAliasValuesDialog = FALSE
+
+	nTimesToLoop = Ubound(arrAliasValues)
+	ReDim marrAliasValues(nTimesToLoop)
+	ReDim marrAlias(nTimesToLoop)
+
+	For i = 1 To nTimesToLoop
+
+		mArrAlias(i)		= arrAliasValues(i).szAlias
+		mArrAliasValues(i)	= arrAliasValues(i).szValue
+
+		Do Case mArrAlias(i)
+			Case "[DATE]", "[DATO]"
+				mArrAliasValues(i) = GetNiceDate$()		'DD.MM.YYYY
+			Case "[LONGDATE]", "[LANGDATO]"
+				mArrAliasValues(i) = GetLongDate$()		'D. MMMMMMMM YYYY
+			Case "[SHORTDATE]", "[KORTDATO]"
+				mArrAliasValues(i) = GetShortDate$()	'D. MMM. YYYY
+			Case "[DAY]", "[DAG]"
+				mArrAliasValues(i) = GetDay$()
+			Case "[WEEKDAY]", "[UGEDAG]"
+				mArrAliasValues(i) = GetWeekDay$()
+			Case "[MONTH#]", "[MÅNEDNR]"
+				mArrAliasValues(i) = GetMonthNumber$()
+			Case "[MNTH]", "[MND]"
+				mArrAliasValues(i) = GetMonthShort$()
+			Case "[MONTH]", "[MÅNED]"
+				mArrAliasValues(i) = GetMonthLong$()
+			Case "[YEAR]", "[ÅR]"
+				mArrAliasValues(i) = GetYear$()
+			Case "[TIME]", "[TID]"
+				mArrAliasValues(i) = GetTime$()
+			Case "[KL]", "[KLOKKEN]"
+				mArrAliasValues(i) = GetTime$()
+		'-------------------
+			Case "[SCALE]", "[MÅLFORHOLD]"
+				mArrAliasValues(i) = PrintGetScale$()
+			Case "[ROTATION]", "[ANGLE]"
+				mArrAliasValues(i) = PrintGetRotation$()
+		'-------------------
+			Case "[USERID]", "[BRUGERID]"
+				mArrAliasValues(i) = PrintGetUserID()
+			Case "[INITIALS]", "[INITIALER]"
+				mArrAliasValues(i) = PrintGetUserID()
+			Case "[USERNAME]", "[BRUGERNAVN]"
+				mArrAliasValues(i) = PrintGetUsername()
+			Case "[FIRM]", "[FIRMA]"
+				mArrAliasValues(i) = PrintGetFirm()
+			Case "[DATAOWNER]"
+				mArrAliasValues(i) = PrintGetFirm()
+			Case "[DEPARTMENT]", "[AFDELING]"
+				mArrAliasValues(i) = PrintGetDepartment()
+			Case "[ADDRESS]", "[ADRESSE]"
+				mArrAliasValues(i) = PrintGetAddress()
+			Case "[ZIPKODE]", "[POSTNR]"
+				mArrAliasValues(i) = PrintGetZipKode()
+			Case "[POSTALDISTRICT]", "[POSTDISTRIKT]", "[POSTBY]"
+				mArrAliasValues(i) = PrintGetZipArea()
+			Case "[TELEPHONE]", "[TELEFON]"
+				mArrAliasValues(i) = PrintGetTelephone()
+			Case "[TEL]", "[TLF]"
+				mArrAliasValues(i) = PrintGetTelephone()
+			Case "[FAXIMIL]", "[TELEFAX]"
+				mArrAliasValues(i) = PrintGetFaximil()
+			Case "[FAX]"
+				mArrAliasValues(i) = PrintGetFaximil()
+		'-------------------
+			Case "[CASENO]", "[SAGSNR]"
+				mArrAliasValues(i) = PrintGetCaseNumber()
+			Case "[JNR]"
+				mArrAliasValues(i) = PrintGetCaseNumber()
+			Case "[CASETITLE]", "[SAGSNAVN]"
+				mArrAliasValues(i) = PrintGetCaseTitle()
+			Case "[TITLE]", "[TITEL]"
+				mArrAliasValues(i) = PrintGetCaseTitle()
+			Case "[OVERSKRIFT]", "[OVERSKRIFT1]"
+				mArrAliasValues(i) = PrintGetCaseTitle()
+			Case "[CASESUBTITLE]", "[SAGSUNDERNAVN]"
+				mArrAliasValues(i) = PrintGetCaseSubTitle()
+			Case "[OVERSKRIFT2]"
+				mArrAliasValues(i) = PrintGetCaseSubTitle()
+			Case "[SUBTITLE]"
+				mArrAliasValues(i) = PrintGetCaseSubTitle()
+		'-------------------
+			Case "[MAPNAME]", "[KORTBLAD]"
+				mArrAliasValues(i) = PrintGetMapName()
+			Case "[MINX]"
+				Set CoordSys Window PrintGetMapWinID()
+				mArrAliasValues(i) = Round(MapperInfo(PrintGetMapWinID(), MAPPER_INFO_MINX), 1)
+			Case "[MINY]"
+				Set CoordSys Window PrintGetMapWinID()
+				mArrAliasValues(i) = Round(MapperInfo(PrintGetMapWinID(), MAPPER_INFO_MINY), 1)
+			Case "[MAXX]"
+				Set CoordSys Window PrintGetMapWinID()
+				mArrAliasValues(i) = Round(MapperInfo(PrintGetMapWinID(), MAPPER_INFO_MAXX), 1)
+			Case "[MAXY]"
+				Set CoordSys Window PrintGetMapWinID()
+				mArrAliasValues(i) = Round(MapperInfo(PrintGetMapWinID(), MAPPER_INFO_MAXY), 1)
+			Case "[CENTERX]"
+				Set CoordSys Window PrintGetMapWinID()
+				mArrAliasValues(i) = Round(MapperInfo(PrintGetMapWinID(), MAPPER_INFO_CENTERX), 1)
+			Case "[CENTERY]"
+				Set CoordSys Window PrintGetMapWinID()
+				mArrAliasValues(i) = Round(MapperInfo(PrintGetMapWinID(), MAPPER_INFO_CENTERY), 1)
+			Case "[COORDSYS]", "[PROJEKTION]"
+				mArrAliasValues(i) = MapperInfo(PrintGetMapWinID(), MAPPER_INFO_COORDSYS_NAME)
+			Case "[COORDSYS_CLAUSE]", "[PROJEKTION_PARAMETRE]"
+				mArrAliasValues(i) = MapperInfo(PrintGetMapWinID(), MAPPER_INFO_COORDSYS_CLAUSE)
+		'-------------------
+			Case Else
+				If Left$(mArrAlias(i), 5) = "[SCB," Then 		'**Scalebar value...
+					If StrSplitKomma(mArrAlias(i), subbuf, 3) = 3 Then
+						nScbValue = Val(subBuf(2)) * PrintGetScale()
+						nScbValue = Round((nScbValue / 1000), 1)
+						If subBuf(3) = "KM]" Then
+							mArrAliasValues(i) = PointToKomma(Str$(nScbValue/1000))
+						Else
+							mArrAliasValues(i) = PointToKomma(Str$(nScbValue))
+						End If
+					End If
+				ElseIf Left$(mArrAlias(i), 3) = "[C=" Then 	'**Possible column value...
+					szCol			= printGetColumnNameFromAlias$(mArrAlias(i))
+					szParensisValue	= ExtractValueInParensis$(mArrAlias(i))
+					For k = 1 To Ubound(arrColumnAndValues)
+						If szCol = arrColumnAndValues(k).szColumnName Then
+							Do Case szParensisValue
+								Case ""
+									mArrAliasValues(i) = arrColumnAndValues(k).szColumnValue
+								Case "GROUPED", "G"
+									mArrAliasValues(i) = RTrimStringList$(GetUniqueStringList$(arrColumnAndValues(k).szColumnValue))
+								Case Else
+									nParensisValue = Val(szParensisValue)
+									If nParensisValue > 0 Then
+										mArrAliasValues(i) = ExtractItemFromStringList$(arrColumnAndValues(k).szColumnValue, nParensisValue)
+									End If
+							End Case
+							Exit For
+						End If
+					Next		'k
+				End If
+		End Case
+	Next	'i
+
+	bShowDialog = FALSE
+	For i = 1 To nTimesToLoop
+		If Left$(marrAliasValues(i), 1) = "[" And Right$(marrAliasValues(i), 1) = "]" Then
+			bShowDialog			= TRUE
+			If bResetValues Then
+				marrAliasValues(i)	= ""
+			End If
+		End If
+	Next
+	If PrintShowRuntimeValuesDialog() Then
+		bShowDialog = TRUE
+	End If
+
+	If PrintBatchPrint() Then
+		bShowDialog = FALSE
+	End If
+
+	If bShowDialog Then
+
+		'*	And now: bubble sort !!!!!!!!!!!!!
+		'*	I know! The performance sucks, but it's simple, easy, fast (to code), 
+		'*	jkhgdk, ,kjhgjhgs, hjgkjh (I'm rambling now), jkhgkfjg, ..........
+		'*	04082000/PEM: And I could easily steal the code from LVN, Thanks Lars !! ;)
+
+		For i = 2 To Ubound(marrAlias)
+			For k = Ubound(marrAlias) To i Step -1
+				If marrAlias(k-1) > marrAlias(k) Then
+					szAlias			= marrAlias(k)
+					szAliasVal			= marrAliasValues(k)
+					marrAlias(k)		= marrAlias(k-1)
+					marrAliasValues(k)	= marrAliasValues(k-1)
+					marrAlias(k-1)		= szAlias
+					marrAliasValues(k-1)	= szAliasVal
+				End If
+			Next
+		Next
+
+		nPrevPicked = 1
+
+		If PrintGetLayoutWinID() > 0 Then
+			If WindowExists(PrintGetLayoutWinID()) Then
+				Set Window PrintGetLayoutWinID()
+					Front
+			End If
+		End If
+		
+		Dialog
+			Title PLTM_DLG_TITLE_INPUT_VALUES
+			' Calling PrintPickedValue
+			Control ListBox		Position 5,5	Width 100	Height 100	ID 100
+				Title From Variable mArrAlias
+				Calling PrintPickedValue
+			Control ListBox		Position 110,5	Width 100	Height 100	ID 101
+				Title From Variable mArrAliasValues
+				Calling PrintPickedValue
+
+			Control StaticText	Position 5,115	Width 205			ID 200
+				Title mArrAlias(1)
+			Control EditText		Position 5,125	Width 205			ID 201
+				Value mArrAliasValues(1)
+				Into szLastValue
+
+			Control Button		Position 5,140	Width 70
+				Title MSG_PRINTSETUP + "..."
+				Calling StandardPrinterSetupDialog
+			Control OKButton		Position 120,140	Width 40
+			Control CancelButton	Position 165,140	Width 40
+
+		If not CommandInfo(CMD_INFO_DLG_OK) Then
+			Exit Function
+		End If
+
+		mArrAliasValues(nPrevPicked) = szLastvalue
+	End If
+
+	ReDim arrAliasValues(nTimesToLoop)
+	For i = 1 To nTimesToLoop
+		arrAliasValues(i).szAlias	= mArrAlias(i)
+		arrAliasValues(i).szValue	= mArrAliasValues(i)
+	Next
+
+PrintEnterAliasValuesDialog = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Handler til styring af udpeget ...
+'**************************************************************
+Sub PrintPickedValue
+
+OnError GoTo ErrorOccured
+
+	mArrAliasValues(nPrevPicked) = ReadControlValue(201)
+
+	nPrevPicked = ReadControlValue(TriggerControl())
+
+	Alter Control 100 Value nPrevPicked
+	Alter Control 101 Title From Variable mArrAliasValues Value nPrevPicked
+
+	Alter Control 200 Title mArrAlias(nPrevPicked)
+	Alter Control 201 Value mArrAliasValues(nPrevPicked) Active
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Setting standard values
+'****************************************
+Function PrintingSetStandardValuesDialog() As Logical
+
+Dim	szUserID, szUserName, szDepartment, szAddress, szTelephone As String,
+	szFaximil, szFirm, szZipKode, szZipArea As String,
+	szCaseNumber, szCaseTitle, szCaseSubTitle As String,
+	bGetUserFromLogon As Logical
+
+OnError GoTo ErrorOccured
+
+PrintingSetStandardValuesDialog = FALSE
+
+	Dialog
+		Title PLTM_DLG_TITLE_DEFAULT_VALUES
+
+		'-----------------------
+		Control GroupBox		Position 5,5	Width 190	Height 60
+			Title PLTM_DLG_TXT_CASE
+		Control StaticText	Position 10,17
+			Title PLTM_DLG_TXT_CASENO
+		Control EditText		Position 70,15	Width 120
+			Value PrintGetCaseNumber()
+			Into szCaseNumber
+		Control StaticText	Position 10,32
+			Title PLTM_DLG_TXT_CASETITLE
+		Control EditText		Position 70,30	Width 120
+			Value PrintGetCaseTitle()
+			Into szCaseTitle
+		Control StaticText	Position 10,47
+			Title PLTM_DLG_TXT_CASESUBTITLE
+		Control EditText		Position 70,45	Width 120
+			Value PrintGetCaseSubTitle()
+			Into szCaseSubTitle
+
+		'-----------------------
+		Control GroupBox		Position 5,70	Width 190	Height 55
+			Title PLTM_DLG_TXT_USER
+		Control StaticText	Position 10,82
+			Title PLTM_DLG_TXT_USERNAME
+		Control EditText		Position 50,80	Width 140
+			Value PrintGetUserName()
+			Into szUserName
+		Control StaticText	Position 10,97
+			Title PLTM_DLG_TXT_USERID
+		Control EditText		Position 50,95	Width 140
+			Value PrintGetUserID()
+			Into szUserID
+		Control CheckBox		Position 50,110
+			Title PLTM_DLG_TXT_USERID_FROM_LOGON
+			Value PrintGetUserIDFromLogon()
+			Into bGetUserFromLogon
+
+		'-----------------------
+		Control GroupBox		Position 5,130	Width 190	Height 105
+			Title PLTM_DLG_TXT_FIRM
+		Control StaticText	Position 10,142
+			Title PLTM_DLG_TXT_FIRMNAME
+		Control EditText		Position 50,140	Width 140
+			Value PrintGetFirm()
+			Into szFirm
+		Control StaticText	Position 10,157
+			Title PLTM_DLG_TXT_FIRM_DEPARTMENT
+		Control EditText		Position 50,155	Width 140
+			Value PrintGetDepartment()
+			Into szDepartment
+		Control StaticText	Position 10,172
+			Title PLTM_DLG_TXT_FIRM_ADDRESS
+		Control EditText		Position 50,170	Width 140
+			Value PrintGetAddress()
+			Into szAddress
+		Control StaticText	Position 10,187
+			Title PLTM_DLG_TXT_FIRM_ZIP
+		Control EditText		Position 50,185	Width 30
+			Value PrintGetZipKode()
+			Into szZipKode
+		Control StaticText	Position 85,187
+			Title PLTM_DLG_TXT_FIRM_ZIPAREA
+		Control EditText		Position 110,185	Width 80
+			Value PrintGetZipArea()
+			Into szZipArea
+		Control StaticText	Position 10,202
+			Title PLTM_DLG_TXT_FIRM_PHONE
+		Control EditText		Position 50,200	Width 140
+			Value PrintGetTelephone()
+			Into szTelephone
+		Control StaticText	Position 10,217
+			Title PLTM_DLG_TXT_FIRM_FAXIMILE
+		Control EditText		Position 50,215	Width 140
+			Value PrintGetFaximil()
+			Into szFaximil
+		Control OKButton
+		Control CancelButton
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	Call PrintSetUsername(szUserName)
+	Call PrintSetUserID(szUserID)
+	Call PrintSetDepartment(szDepartment)
+	Call PrintSetAddress(szAddress)
+	Call PrintSetZipKode(szZipKode)
+	Call PrintSetZipArea(szZipArea)
+	Call PrintSetTelephone(szTelephone)
+	Call PrintSetFaximil(szFaximil)
+	Call PrintSetFirm(szFirm)
+	Call PrintSetCaseNumber(szCaseNumber)
+	Call PrintSetCaseTitle(szCaseTitle)
+	Call PrintSetCaseSubTitle(szCaseSubTitle)
+	Call PrintSetUserIDFromLogon(bGetUserFromLogon)
+
+PrintingSetStandardValuesDialog = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+	
+'****************************************
+'Printeropsætning
+'****************************************
+Function PrintingSetup() As Logical
+
+Dim	i As Integer,
+	snSize, snOrient As SmallInt,
+	bUdskriv, bShowDialog As logical,
+	szLastVal as String
+
+OnError GoTo ErrorOccured
+
+PrintingSetup = FALSE
+
+	For i = 1 To 10
+		arrTemp(i) = arrPrintLayoutFiles(i)
+	Next
+
+	nPrevVal = 1
+	szLastVal = arrTemp(1)
+
+	Dialog
+		Title PLTM_DLG_TITLE_PRINT_SETUP
+		Calling LayoutNameChangedHandler
+		Control GroupBox	Position 5,5	Width 165	Height 50
+			Title PLTM_PRINT_LAYOUTS
+		Control EditText	Position 15,15	Width 145	ID 100	'Disable
+			Value szLastVal
+			Into szLastVal
+		Control PopUpMenu	Position 15,30	Width 100	ID 101
+			Title From Variable arrPrintLayoutText
+			Calling LayoutNameChangedHandler
+		Control Button		Position 120,30	Width 40
+			Title MSG_PICK + "..."
+			Calling PickWorkspacehandler
+
+		Control GroupBox	Position 5,60	Width 165	Height 55
+			Title PLTM_DLG_TXT_CURRENT_FORMAT
+		Control PopUpMenu	Position 15,70	Width 60
+			Title "A4;A3;A2;A1;A0"
+			Value PrintGetPaperSize()
+			Into snSize
+		Control RadioGroup	Position 100,70	Width 60
+			Title PLTM_DLG_CHOISE_ORIENT_BOTH
+			Value PrintGetPageOrientation()
+			Into snOrient
+		Control CheckBox	Position 15,90
+			Title PLTM_DLG_TXT_AUTOPRINT
+			Value PrintAutoPrint()
+			Into bUdskriv
+		Control CheckBox	Position 15,100
+			Title PLTM_DLG_TXT_SHOW_RUNTIME_VAL
+			Value PrintShowRuntimeValuesDialog()
+			Into bShowDialog
+
+		Control Button		Position 105,120	Width 65
+			Title MSG_PRINTSETUP + "..."
+			Calling StandardPrinterSetupDialog
+		Control OKButton	Position 20,120
+		Control CancelButton	Position 60,120 
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	For i = 1 To 10
+		arrPrintLayoutFiles(i) = arrTemp(i)
+	Next
+
+	arrPrintLayoutFiles(nPrevVal) = szLastVal
+
+	Call PrintSetPaperSize(snSize)
+	Call PrintSetPageOrientation(snOrient)
+	Call PrintSetAutoPrint(bUdskriv)
+	Call PrintSetShowRuntimeValuesDialog(bShowDialog)
+
+PrintingSetup = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Printeropsætning - kun udskriftslayout
+'****************************************
+Function PrintingSetupPrintLayouts() As Logical
+
+Dim	i As Integer,
+	szLastVal as String
+
+OnError GoTo ErrorOccured
+
+PrintingSetupPrintLayouts = FALSE
+
+	For i = 1 To 10
+		arrTemp(i) = arrPrintLayoutFiles(i)
+	Next
+
+	nPrevVal = 1
+	szLastVal = arrTemp(1)
+
+	Dialog
+		Title PLTM_DLG_TITLE_PRINTLAYOUT
+		Calling LayoutNameChangedHandler
+		Control StaticText	Position 10,12
+			Title PLTM_DLG_TXT_PAPERFORMAT
+		Control PopUpMenu		Position 75,10	Width 100	ID 101
+			Title From Variable arrPrintLayoutText
+			Calling LayoutNameChangedHandler
+		Control Button		Position 10,25	Width 15	Height 13
+			Title "..."
+			Calling PickWorkspacehandler
+		Control EditText		Position 25,25	Width 150	ID 100	'Disable
+			Value szLastVal
+			Into szLastVal
+
+		Control OKButton	Position 20,45
+		Control CancelButton	Position 60,45 
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	For i = 1 To 10
+		arrPrintLayoutFiles(i) = arrTemp(i)
+	Next
+
+	arrPrintLayoutFiles(nPrevVal) = szLastVal
+
+PrintingSetupPrintLayouts = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Printeropsætning - aktuelt print
+'****************************************
+Function PrintingSetupCurrentPrint() As Logical
+
+OnError GoTo ErrorOccured
+
+	If SystemInfo(SYS_INFO_MIVERSION) >= 600 Then
+		PrintingSetupCurrentPrint = PrintingMI6ZupCurPrint()
+	Else
+		PrintingSetupCurrentPrint = PrintingMI6ZupCurPrint()
+		'PrintingSetupCurrentPrint = PrintingMI4ZupCurPrint()
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Printeropsætning - aktuelt print - MapInfo versions up to 5.5
+'****************************************
+Function PrintingMI4ZupCurPrint() As Logical
+
+Dim	snSize, snOrient As SmallInt,
+	bUdskriv, bShowDialog, bClonMap, bPreView, bReadFromSelection, bUseNorthArrow As logical
+
+OnError GoTo ErrorOccured
+
+PrintingMI4ZupCurPrint = FALSE
+
+	Dialog
+		Title PLTM_DLG_TITLE_CURRENTFORMAT
+		Control PopUpMenu		Position 10,10	Width 60
+			Title "A4;A3;A2;A1;A0"
+			Value PrintGetPaperSize()
+			Into snSize
+		Control RadioGroup	Position 100,10	Width 60
+			Title PLTM_DLG_CHOISE_ORIENT_BOTH
+			Value PrintGetPageOrientation()
+			Into snOrient
+		Control CheckBox		Position 10,30
+			Title PLTM_DLG_TXT_AUTOPRINT
+			Value PrintAutoPrint()
+			Into bUdskriv
+		Control CheckBox		Position 10,40
+			Title PLTM_DLG_TXT_SHOW_RUNTIME_VAL
+			Value PrintShowRuntimeValuesDialog()
+			Into bShowDialog
+		Control CheckBox		Position 10,50
+			Title PLTM_DLG_TXT_USE_CLON_MAP
+			Value PrintClonMapWindow()
+			Into bClonMap
+		Control CheckBox		Position 10,60
+			Title PLTM_DLG_TXT_USE_PREVIEW
+			Value PrintUsePreView()
+			Into bPreView
+		Control CheckBox		Position 10,70
+			Title PLTM_DLG_TXT_READ_FROM_TABLE
+			Value PrintReadFromSelection()
+			Into bReadFromSelection
+
+		Control CheckBox		Position 10,80	Width 125			ID 900
+			Title PLTM_DLG_TXT_USE_NORTH_ARROW + " : " + PrintHlpGetNorthArrowName()
+			Calling HandlerSelectNorthArrowName
+			Value PrintUseNorthArrow()
+			Into bUseNorthArrow
+		Control Button		Position 140,80	Width 15	Height 12	ID 901
+			Title "..."
+			Calling HandlerSelectNorthArrowName
+
+		Control Button		Position 95,95	Width 70
+			Title MSG_PRINTSETUP & "..."
+			Calling StandardPrinterSetupDialog
+		Control OKButton		Position 10,95					ID 1000
+			Calling HandlerSelectNorthArrowName
+		Control CancelButton	Position 50,95 
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	Call PrintSetPaperSize(snSize)
+	Call PrintSetPageOrientation(snOrient)
+	Call PrintSetAutoPrint(bUdskriv)
+	Call PrintSetShowRuntimeValuesDialog(bShowDialog)
+	Call PrintSetClonMapWindow(bClonMap)
+	Call PrintSetPreView(bPreView)
+	Call PrintSetReadFromSelection(bReadFromSelection)
+	Call PrintSetUseNorthArrow(bUseNorthArrow)
+
+PrintingMI4ZupCurPrint = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Printeropsætning - aktuelt print, fra MapInfo v6.0
+'****************************************
+Function PrintingMI6ZupCurPrint() As Logical
+
+Dim	snSize, snOrient As SmallInt,
+	szPrinterBtn, szMinScale, szMaxScale, szRoundScale, szScaleBuffer As String,
+	szMapHeaderTab, szSortCols As String,
+	bUdskriv, bShowDialog, bClonMap, bPreView As Logical,
+	bReadFromSelection, bUseNorthArrow, bWarnOnNoSelect As Logical
+
+OnError GoTo ErrorOccured
+
+PrintingMI6ZupCurPrint = FALSE
+
+	
+	If SystemInfo(SYS_INFO_MIVERSION) >= 600 Then
+		szPrinterBtn = PLTM_DLG_TXT_PRINTERS
+	Else
+		szPrinterBtn = MSG_PRINTSETUP & "..."
+	End If
+
+	Dialog
+		Title PLTM_DLG_TITLE_CURRENTFORMAT
+		Control PopUpMenu		Position 10,10	Width 60
+			Title "A4;A3;A2;A1;A0"
+			Value PrintGetPaperSize()
+			Into snSize
+		Control RadioGroup	Position 100,10	Width 60
+			Title PLTM_DLG_CHOISE_ORIENT_BOTH
+			Value PrintGetPageOrientation()
+			Into snOrient
+
+		'-------------------------
+		Control CheckBox		Position 10,30
+			Title PLTM_DLG_TXT_AUTOPRINT
+			Value PrintAutoPrint()
+			Into bUdskriv
+		Control CheckBox		Position 10,40
+			Title PLTM_DLG_TXT_SHOW_RUNTIME_VAL
+			Value PrintShowRuntimeValuesDialog()
+			Into bShowDialog
+		Control CheckBox		Position 10,50
+			Title PLTM_DLG_TXT_USE_CLON_MAP
+			Value PrintClonMapWindow()
+			Into bClonMap
+		Control CheckBox		Position 10,60
+			Title PLTM_DLG_TXT_USE_PREVIEW
+			Value PrintUsePreView()
+			Into bPreView
+		Control CheckBox		Position 10,70
+			Title PLTM_DLG_TXT_READ_FROM_TABLE
+			Value PrintReadFromSelection()
+			Into bReadFromSelection
+		Control CheckBox		Position 10,80	Width 135			ID 900
+			Title PLTM_DLG_TXT_USE_NORTH_ARROW + " : " + PrintHlpGetNorthArrowName()
+			Calling HandlerSelectNorthArrowName
+			Value PrintUseNorthArrow()
+			Into bUseNorthArrow
+		Control Button		Position 150,80	Width 15	Height 11	ID 901
+			Title "..."
+			Calling HandlerSelectNorthArrowName
+		Control CheckBox		Position 10,90
+			Title PLTM_DLG_TXT_WARN_ON_NO_SELECT
+			Value PrintWarnOnNoSelection()
+			Into bWarnOnNoSelect
+
+		'-------------------------
+		Control GroupBox		Position 5,105	Width 160	Height 40
+			Title PLTM_DLG_TXT_AUTOSCALE_SETTING
+		Control StaticText	Position 15,115
+			Title MSG_MINIMUM
+		Control EditText		Position 15,125	Width 32
+			Value Str$(PrintGetMinimumScale())
+			Into szMinScale
+		Control StaticText	Position 52,115
+			Title MSG_MAXIMUM
+		Control EditText		Position 52,125	Width 32
+			Value Str$(PrintGetMaximumScale())
+			Into szMaxScale
+		Control StaticText	Position 89,115
+			Title MSG_ROUND_TO
+		Control EditText		Position 89,125	Width 30
+			Value Str$(PrintGetScaleRounding())
+			Into szRoundScale
+		Control StaticText	Position 124,115
+			Title MSG_BUFFER_M
+		Control EditText		Position 124,125	Width 31
+			Value Str$(PrintGetBufferWhenAutoScale())
+			Into szScaleBuffer
+
+		'-------------------------
+		Control GroupBox		Position 5,150	Width 160	Height 40
+			Title PLTM_DLG_TXT_MAPHEADER_IN_TAB
+		Control StaticText	Position 15,160
+			Title PLTM_DLG_TXT_MAPHEADER_TABNAME
+		Control EditText		Position 15,170	Width 140
+			Value PrintGetMapHeaderTableName$()
+			Into szMapHeaderTab
+
+		'-------------------------
+		Control GroupBox		Position 5,195	Width 160	Height 40
+			Title PLTM_DLG_TXT_SORTING_COLS
+		Control StaticText	Position 15,205
+			Title PLTM_DLG_TXT_SORTING_COLNAMES
+		Control EditText		Position 15,215	Width 140
+			Value RTrimStringList$(PrintGetColumnNamesToSortBy$())
+			Into szSortCols
+
+		'-------------------------
+		Control Button		Position 95,240	Width 70
+			Title szPrinterBtn
+			Calling HandlerDualPrinterSetupDialog
+		Control OKButton		Position 10,240					ID 1000
+			Calling HandlerSelectNorthArrowName
+		Control CancelButton	Position 50,240 
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	Call PrintSetPaperSize(snSize)
+	Call PrintSetPageOrientation(snOrient)
+	Call PrintSetAutoPrint(bUdskriv)
+	Call PrintSetShowRuntimeValuesDialog(bShowDialog)
+	Call PrintSetClonMapWindow(bClonMap)
+	Call PrintSetPreView(bPreView)
+	Call PrintSetReadFromSelection(bReadFromSelection)
+	Call PrintSetUseNorthArrow(bUseNorthArrow)
+	Call PrintSetWarnOnNoSelection(bWarnOnNoSelect)
+
+	Call PrintSetMinimumScale(Val(szMinScale))
+	Call PrintSetMaximumScale(Val(szMaxScale))
+	Call PrintSetScaleRounding(Val(szRoundScale))
+	Call PrintSetBufferWhenAutoScale(Val(szScaleBuffer))
+
+	Call PrintSetMapHeaderTableName(szMapHeaderTab)
+	Call PrintSetColumnNamesToSortBy(szSortCols)
+	
+PrintingMI6ZupCurPrint = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Nordpil - Udpeg navnet på nordpil
+'****************************************
+Sub HandlerSelectNorthArrowName
+
+OnError GoTo ErrorOccured
+
+	If TriggerControl() = 900 Or TriggerControl() = 1000 Then
+		If PrintHlpGetNorthArrowName() <> "" Or ReadControlValue(900) = FALSE Then
+			Exit Sub
+		End If
+	End If
+
+	If PrintHlpSelectNorthArrowName() Then
+		Alter Control 900 Title PLTM_DLG_TXT_USE_NORTH_ARROW + " : " + PrintHlpGetNorthArrowName()
+	Else
+		If PrintHlpGetNorthArrowName() = "" Then
+			Alter Control 900 Value FALSE
+		End If
+	End if
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Printeropsætning - aktuelt print uden Runtimevalues option
+'****************************************
+Function PrintingSetupCurrentPrintNoRunTimeValues() As Logical
+
+Dim	snSize, snOrient As SmallInt,
+	bUdskriv As logical
+
+OnError GoTo ErrorOccured
+
+PrintingSetupCurrentPrintNoRunTimeValues = FALSE
+
+	Dialog
+		Title PLTM_DLG_TITLE_CURRENTFORMAT
+		Control PopUpMenu	Position 10,10	Width 60
+			Title "A4;A3;A2;A1;A0"
+			Value PrintGetPaperSize()
+			Into snSize
+		Control RadioGroup	Position 100,10	Width 60
+			Title PLTM_DLG_CHOISE_ORIENT_BOTH
+			Value PrintGetPageOrientation()
+			Into snOrient
+		Control CheckBox	Position 10,30
+			Title PLTM_DLG_TXT_AUTOPRINT
+			Value PrintAutoPrint()
+			Into bUdskriv
+
+		Control Button		Position 105,55	Width 65
+			Title MSG_PRINTSETUP + "..."
+			Calling StandardPrinterSetupDialog
+		Control OKButton	Position 20,55
+		Control CancelButton	Position 60,55 
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End if
+
+	Call PrintSetPaperSize(snSize)
+	Call PrintSetPageOrientation(snOrient)
+	Call PrintSetAutoPrint(bUdskriv)
+
+PrintingSetupCurrentPrintNoRunTimeValues = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Printeropsætning - aktuelt print - uden klon kort option
+'****************************************
+Function PrintingSetupCurrentPrintNoClonMap() As Logical
+
+Dim	snSize, snOrient As SmallInt,
+	bUdskriv, bShowDialog As logical
+
+OnError GoTo ErrorOccured
+
+PrintingSetupCurrentPrintNoClonMap = FALSE
+
+	Dialog
+		Title PLTM_DLG_TITLE_CURRENTFORMAT
+		Control PopUpMenu	Position 10,10	Width 60
+			Title "A4;A3;A2;A1;A0"
+			Value PrintGetPaperSize()
+			Into snSize
+		Control RadioGroup	Position 100,10	Width 60
+			Title PLTM_DLG_CHOISE_ORIENT_BOTH
+			Value PrintGetPageOrientation()
+			Into snOrient
+		Control CheckBox	Position 10,30
+			Title PLTM_DLG_TXT_AUTOPRINT
+			Value PrintAutoPrint()
+			Into bUdskriv
+		Control CheckBox	Position 10,40
+			Title PLTM_DLG_TXT_SHOW_RUNTIME_VAL
+			Value PrintShowRuntimeValuesDialog()
+			Into bShowDialog
+
+		Control Button		Position 105,55	Width 65
+			Title MSG_PRINTSETUP + "..."
+			Calling StandardPrinterSetupDialog
+		Control OKButton	Position 20,55
+		Control CancelButton	Position 60,55 
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End if
+
+	Call PrintSetPaperSize(snSize)
+	Call PrintSetPageOrientation(snOrient)
+	Call PrintSetAutoPrint(bUdskriv)
+	Call PrintSetShowRuntimeValuesDialog(bShowDialog)
+
+PrintingSetupCurrentPrintNoClonMap = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Printeropsætning - aktuelt print med målforhold
+'****************************************
+Function PrintingSetupCurrentPrintWithScale() As Logical
+
+OnError GoTo ErrorOccured
+
+	'**This dialog decides itself which things to allow, according to MapInfo version and other settings
+	PrintingSetupCurrentPrintWithScale = PrintingMI6ZupCurPrintWithScale()
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Printeropsætning - aktuelt print med målforhold
+'****************************************
+Function PrintingMI4ZupCurPrintWithScale() As Logical
+
+OnError GoTo ErrorOccured
+
+	'***Checkes automatically for version ...
+	PrintingMI4ZupCurPrintWithScale = PrintingMI6ZupCurPrintWithScale()
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Printeropsætning - aktuelt print med målforhold - MapInfo v6.0
+'****************************************
+Function PrintingMI6ZupCurPrintWithScale() As Logical
+
+Dim	snSize, snOrient, snScaleType As SmallInt,
+	nCount, nDlgHeight, nBtnPosition, nCOffset, nSpecPlotItem As Integer,
+	bPreView, bClonMap, bUdskriv, bShowDialog As Logical,
+	bReadFromSelection, bUseSpecPlot, bUseNorthArrow As logical,
+	szScale, szPath, szRotation As String,
+	szLstScaleTypes As String
+
+OnError GoTo ErrorOccured
+
+PrintingMI6ZupCurPrintWithScale = FALSE
+
+	snScaleType = PrintGetScaleType()
+
+	If SelectionInfo(SEL_INFO_NROWS) > 0 Then
+		szLstScaleTypes	= PLTM_DLG_LST_SEL_AREA_OR_SCALE
+		nCOffset		= 45
+		If snScaleType < 1 Then
+			snScaleType = SCALETYPE_SELECTION
+		End If	
+	Else
+		szLstScaleTypes	= PLTM_DLG_LST_AREA_OR_SCALE
+		nCOffset		= 30
+		snScaleType		= snScaleType - 1
+		If snScaleType < 1 Then
+			snScaleType = SCALETYPE_KEYED_IN_NO_SEL
+		End If	
+	End If
+
+	If Not PrintSpecialPlotIsPossible() Then
+		nDlgHeight		= nCOffset + 145
+		nBtnPosition	= nCOffset + 125
+	Else
+		nDlgHeight		= nCOffset + 180
+		nBtnPosition	= nCOffset + 160
+
+		If SpecPlotGetListOfSpecPlotNames(arrSpecPlot, TRUE) Then
+			If PrintGetSpecPlotName$() <> "" Then
+				bUseSpecPlot	= TRUE
+				nSpecPlotItem	= GetElementNoInStringArray(PrintGetSpecPlotName$(), arrSpecPlot)
+			End If
+		End If
+	End If
+
+	Dialog
+		Title PLTM_DLG_TITLE_QUICK_PRINT
+		Height nDlgHeight
+		Calling HandlerQuickPrintLoadDlg
+		'---------------------------------------------
+		Control RadioGroup	Position 10,10							ID 600
+			Calling HandlerEnableDisableEditScale
+			Title szLstScaleTypes
+			Value snScaleType
+			Into snScaleType
+		'---------------------------------------------
+		Control StaticText	Position 10,(nCOffset + 10)	
+			Title PLTM_DLG_TXT_SCALE_1_TO
+		Control EditText		Position 55,(nCOffset + 8)	Width 40			ID 100
+			Value PrintGetScale$()
+			Into szScale
+
+		Control StaticText	Position 105,(nCOffset + 10)					ID 201
+			Title PLTM_DLG_TXT_ROTATION
+		Control EditText		Position 140,(nCOffset + 8)	Width 25			ID 200
+			Value PrintGetRotation$()
+			Into szRotation
+
+		Control GroupBox		Position 5,(nCOffset + 25)	Width 165	Height 95
+			Title PLTM_DLG_TXT_CURRENT_FORMAT
+		Control PopUpMenu		Position 15,(nCOffset + 35)	Width 60			ID 400
+			Title "A4;A3;A2;A1;A0"
+			Value PrintGetPaperSize()
+			Into snSize
+		Control RadioGroup	Position 105,(nCOffset + 35)	Width 60			ID 410
+			Title PLTM_DLG_CHOISE_ORIENT_BOTH
+			Value PrintGetPageOrientation()
+			Into snOrient
+		'---------------------------------------------
+		Control CheckBox		Position 15,(nCOffset + 55)
+			Title PLTM_DLG_TXT_AUTOPRINT
+			Value PrintAutoPrint()
+			Into bUdskriv
+		Control CheckBox		Position 15,(nCOffset + 65)
+			Title PLTM_DLG_TXT_SHOW_RUNTIME_VAL
+			Value PrintShowRuntimeValuesDialog()
+			Into bShowDialog
+		Control CheckBox		Position 15,(nCOffset + 75)
+			Title PLTM_DLG_TXT_USE_CLON_MAP
+			Value PrintClonMapWindow()
+			Into bClonMap
+		Control CheckBox		Position 15,(nCOffset + 85)
+			Title PLTM_DLG_TXT_USE_PREVIEW
+			Value PrintUsePreView()
+			Into bPreView
+		Control CheckBox		Position 15,(nCOffset + 95)
+			Title PLTM_DLG_TXT_READ_FROM_TABLE
+			Value PrintReadFromSelection()
+			Into bReadFromSelection
+		Control CheckBox		Position 15,(nCOffset + 105)	Width 140			ID 900
+			Title PLTM_DLG_TXT_USE_NORTH_ARROW + " : " + PrintHlpGetNorthArrowName()
+			Calling HandlerSelectNorthArrowName
+			Value PrintUseNorthArrow()
+			Into bUseNorthArrow
+		Control Button		Position 155,(nCOffset + 105)	Width 10	Height 10	ID 901
+			Title ".."
+			Calling HandlerSelectNorthArrowName
+
+		'---------------------------------------------
+		Control GroupBox		Position 5,(nCOffset + 125)	Width 165	Height 30	ID 501	Hide
+			Title PLTM_DLG_TXT_SPECIAL_PLOT
+		Control CheckBox		Position 15,137					ID 502	Hide
+			Calling HandlerEnableSpecialPlotList
+			Value bUseSpecPlot
+			Into bUseSpecPlot
+		Control PopUpMenu		Position 30,(nCOffset + 135)	Width 135			ID 503	Hide
+			Title From Variable arrSpecPlot
+			Value nSpecPlotItem
+			Into nSpecPlotItem
+
+		'---------------------------------------------
+		Control Button		Position 100,nBtnPosition	Width 65
+			Title MSG_PRINTSETUP + "..."
+			Calling HandlerDualPrinterSetupDialog
+
+		Control OKButton		Position 15,nBtnPosition					ID 1000
+			Calling HandlerCheckScaleAndScaleType
+		Control CancelButton	Position 55,nBtnPosition 
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		If TableOpen("SPEC__PLOTS") Then
+			Close Table SPEC__PLOTS
+		End If
+		GoTo CleaningUpOpenedTables
+	End If
+
+	If PrintSpecialPlotIsPossible() And bUseSpecPlot Then
+		If not SpecPlotSetUpPlotUsingSpecPlot(arrSpecPlot(nSpecPlotItem)) Then
+			Note ERR_PLT_SPECPLOT_NOT_FOUND + arrSpecPlot(nSpecPlotItem)
+			Exit Function
+		End If
+	Else
+		Call PrintSetWorFileUsingSpecPlot("")
+		Call PrintSetSpecPlotName("")
+		Call PrintSetPaperSize(snSize)
+		Call PrintSetPageOrientation(snOrient)
+	End If
+	If PrintAllowRotatedPlot() Then
+		If PrintIsRotatedPlotPossible(FrontWindow()) Then
+			Call PrintSetRotation(Val(szRotation))
+		Else
+			Call PrintSetRotation(0)
+		End If
+	End If
+
+	'--Automatic adding one to ScaleType (The first type was not availeble)
+	If SelectionInfo(SEL_INFO_NROWS) = 0 Then
+		snScaleType = snScaleType + 1
+	End If
+
+	Call PrintSetAutoPrint(bUdskriv)
+	Call PrintSetShowRuntimeValuesDialog(bShowDialog)
+	Call PrintSetClonMapWindow(bClonMap)
+	Call PrintSetPreView(bPreView)
+	Call PrintSetReadFromSelection(bReadFromSelection)
+	Call PrintSetScale(Round(Val(szScale),1))
+	Call PrintSetScaleType(snScaleType)
+	Call PrintSetUseNorthArrow(bUseNorthArrow)
+
+PrintingMI6ZupCurPrintWithScale = TRUE
+
+'---------------------------------
+CleaningUpOpenedTables:
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Handler - kaldes når dialogen loades
+'**********************************************************************************************''
+Sub HandlerQuickPrintLoadDlg
+
+OnError GoTo ErrorOccured
+
+	If PrintGetMinimumScale() <= 0 OR PrintGetMaximumScale() <= 0 Then
+		If SelectionInfo(SEL_INFO_NROWS) = 0 Then
+			Alter Control 600 Value SCALETYPE_KEYED_IN_NO_SEL Disable
+		Else
+			Alter Control 600 Value SCALETYPE_KEYED_IN Disable
+		End If
+	End If
+
+	Call HandlerShowHideSpecialPlotList
+	Call HandlerEnableDisableEditScale
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Disabler / Enabler manuel indtastning af målforholdet
+'**********************************************************************************************''
+Sub HandlerEnableDisableEditScale
+
+Dim	nScaleType As Integer
+
+OnError GoTo ErrorOccured
+
+	nScaleType	= ReadControlValue(600)
+
+	If SelectionInfo(SEL_INFO_NROWS) = 0 Then
+		If nScaleType = SCALETYPE_KEYED_IN_NO_SEL Then
+			Alter Control 100 Enable Active
+		Else
+			Alter Control 100 Disable
+		End If
+	Else
+		If nScaleType = SCALETYPE_KEYED_IN Then
+			Alter Control 100 Enable Active
+		Else
+			Alter Control 100 Disable
+		End If
+	End If		
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub HandlerCheckScaleAndScaleType
+
+OnError GoTo ErrorOccured
+
+Dim	nScale, nScaleType As Integer,
+	bCheckScale As Logical
+
+	nScale	= Round(Val(ReadControlValue(100)),1)
+	nScaleType	= ReadControlValue(600)
+
+	If SelectionInfo(SEL_INFO_NROWS) = 0 Then
+		If nScaleType = SCALETYPE_KEYED_IN_NO_SEL Then
+			bCheckScale = TRUE
+		End If
+	Else
+		If nScaleType = SCALETYPE_KEYED_IN Then
+			bCheckScale = TRUE
+		End If
+	End if		
+
+	If bCheckScale Then
+		If nScale <= 1 Then
+			Note ERR_PLT_PRINT_THIS_SCALE + nScale
+			Alter Control 100 Active Value Str$(nScale)
+			Dialog Preserve
+		End If
+	Else
+		Alter Control 100 Value "2"
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Undersøger om det indtaste målforhold er OK
+'****************************************
+Sub HandlerCheckScale
+
+Dim	nScale As Integer
+
+OnError GoTo ErrorOccured
+
+	nScale = Round(Val(ReadControlValue(100)),1)
+	If nScale <= 1 Then
+		Note ERR_PLT_PRINT_THIS_SCALE + nScale
+		Alter Control 100 Active Value Str$(nScale)
+		Dialog Preserve
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Vis/Skjul liste med specialplot
+'****************************************
+Sub HandlerShowHideSpecialPlotList
+
+OnError GoTo ErrorOccured
+
+	If Not PrintSpecialPlotIsPossible() Then
+		Alter Control 501 Hide
+		Alter Control 502 Hide
+		Alter Control 503 Hide
+
+
+	Else
+		If Left$(arrSpecPlot(1), 3) = "-- " Then
+			Alter Control 501 Show	Disable
+			Alter Control 502 Show	Disable	Value FALSE
+			Alter Control 503 Show	Disable
+		Else
+			Alter Control 501 Show
+			Alter Control 502 Show
+			Alter Control 503 Show
+			Call HandlerEnableSpecialPlotList
+		End If
+	End If
+
+	If not PrintAllowRotatedPlot() Then
+		Alter Control 200 Hide
+		Alter Control 201 Hide
+	Else
+		If not PrintIsRotatedPlotPossible(FrontWindow()) Then
+			Alter Control 200 Disable
+		End If
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Aktiver/Deaktiver liste med specialplot
+'****************************************
+Sub HandlerEnableSpecialPlotList
+
+OnError GoTo ErrorOccured
+
+	If ReadControlValue(502) Then
+		Alter Control 503 Enable
+		Alter Control 400 Disable
+		Alter Control 410 Disable
+	Else
+		Alter Control 503 Disable
+		Alter Control 400 Enable
+		Alter Control 410 Enable
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Udpeg udskrivningsarbejdsområde
+'****************************************
+Sub PickWorkspacehandler
+
+Dim	szFile As String,
+	nVal As Integer
+
+OnError GoTo ErrorOccured
+
+	nVal = ReadControlValue(101)
+
+	szFile = FileOpenDlg("","","WOR", PLTM_DLG_TITLE_PICK_PRINTWOR + arrPrintLayoutText(nVal) + "...")
+	If szFile = "" Then
+		Alter Control 100 Active
+		Exit Sub
+	ElseIf not Right$(szFile,4) = ".WOR" Then
+		Note ERR_WOR_NOT_PICKED
+		Alter Control 100 Active
+		Exit Sub
+	End If
+
+	'**Uses only name of file if in applicationdirectory....
+	szFile = GetFileNameRelative$(szFile)
+
+	Alter Control 100 Value szFile Active
+	'Alter Control 101 Active
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Handler til skift af layoutfilnavn
+'****************************************
+Sub LayoutNameChangedHandler
+
+Dim	nVal As Integer
+
+OnError GoTo ErrorOccured
+
+	arrTemp(nPrevVal) = ReadControlValue(100)
+
+	nVal = ReadControlValue(101)
+
+	Alter Control 100 Value arrTemp(nVal) Active
+
+	nPrevVal = nVal
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Vis printerindstillinger: beofre 6.0 and after 6.0
+'****************************************
+Sub HandlerDualPrinterSetupDialog
+
+OnError GoTo ErrorOccured
+
+	If SystemInfo(SYS_INFO_MIVERSION) < 600 Then 
+		Run Menu Command M_FILE_PAGE_SETUP
+	Else
+		Run Menu Command M_EDIT_PREFERENCES_PRINTER
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Standard MapInfo Sideopsætningsdialog
+'****************************************
+Sub StandardPrinterSetupDialog
+
+OnError GoTo ErrorOccured
+
+	Run Menu Command M_FILE_PAGE_SETUP
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Standard MapInfo Sideopsætningsdialog
+'****************************************
+Sub StandardPrinterPrefDialog
+
+	Run Menu Command M_EDIT_PREFERENCES_PRINTER
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Udskriv 1:indtastet
+'****************************************
+Sub PrintInput
+
+Dim	szScale As String
+
+OnError GoTo ErrorOccured
+
+	Dialog
+		Title PLTM_DLG_TITLE_PRINT_SCALE
+		Control EditText		Position 10,10	Width 70	ID 100
+			Value PrintGetScale$()
+			Into szScale
+		Control OKButton
+			Calling HandlerCheckScale
+		Control CancelButton
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	Call PrintScale(Round(Val(szScale),1))
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Ændre målforhold ved PreView
+'****************************************
+Sub PrintAlterScaleForPreview
+
+Dim	szScale As String
+
+OnError GoTo ErrorOccured
+
+	Dialog
+		Title PLTM_DLG_TITLE_PRINT_SCALE
+		Control EditText		Position 10,10	Width 70	ID 100
+			Value PrintGetScale$()
+			Into szScale
+		Control OKButton
+			Calling HandlerCheckScale
+		Control CancelButton
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	Call PrintSetScale(Round(Val(szScale),1))
+
+	If not PreViewShowAreaToPrint(PrintGetMapWinID(), PrintGetFrameWidth(), PrintGetFrameHeight()) Then
+		Note ERR_PLT_CHANGE_OF_SCALE
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Ændre målforhold ved PreView
+'****************************************
+Sub PrintAlterScaleRotationForPreview
+
+Dim	szScale, szRotation As String,
+	nBtnPosition As Integer
+
+OnError GoTo ErrorOccured
+
+	If not PrintAllowRotatedPlot() Then
+		nBtnPosition = 25
+	Else
+		nBtnPosition = 40
+	End If
+
+	Dialog
+		Title PLTM_DLG_TITLE_ALTER_FRAME
+		Calling HandlerAlterScaleRotationStartUp
+
+		Control StaticText	Position 10,7
+			Title PLTM_DLG_TITLE_PRINT_SCALE
+		Control EditText		Position 50,5	Width 50	ID 100
+			Value PrintGetScale$()
+			Into szScale
+		Control StaticText	Position 10,22			ID 201
+			Title PLTM_DLG_TXT_ROTATION
+		Control EditText		Position 50,20	Width 50	ID 200
+			Value PrintGetRotation$()
+			Into szRotation
+		Control OKButton		Position 15,nBtnPosition
+			Calling HandlerCheckScale
+		Control CancelButton	Position 60,nBtnPosition
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	Call PrintSetScale(Round(Val(szScale),1))
+	Call PrintSetRotation(Val(szRotation))
+
+	If not PreViewShowAreaToPrint(PrintGetMapWinID(), PrintGetFrameWidth(), PrintGetFrameHeight()) Then
+		Note ERR_PLT_CHANGE_OF_SCALE
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Indtaste målforhold...
+'****************************************
+Sub HandlerAlterScaleRotationStartUp
+
+OnError GoTo ErrorOccured
+
+	If not PrintAllowRotatedPlot() Then
+		Alter Control 200 Hide
+		Alter Control 201 Hide
+	Else
+		If not PrintIsRotatedPlotPossible(FrontWindow()) Then
+			Alter Control 200 Disable
+		End If
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Indtaste målforhold...
+'****************************************
+Function PrintSetScaleDialog() As Logical
+
+Dim	szScale As String
+
+OnError GoTo ErrorOccured
+
+PrintSetScaleDialog = FALSE
+
+	'----------------------------------
+	ShowScaleDialog:
+
+	Dialog
+		Title PLTM_DLG_TITLE_PRINT_SCALE
+		Control EditText	Position 10,10	Width 70	ID 100
+			Value PrintGetScale$()
+			Into szScale
+		Control OKButton
+			Calling HandlerCheckScale
+		Control CancelButton
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	Call PrintSetScale(Round(Val(szScale),1))
+
+PrintSetScaleDialog = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Udpege udskriftsrammer til udskrift...
+'****************************************
+Function PrintGetFramesToPrint(ByVal szTitle As String) As Logical
+
+PrintGetFramesToPrint = FALSE
+
+OnError GoTo ErrorOccured
+
+	Dialog
+		Title szTitle
+		Calling HandlerStartUpFramesToPrint
+		Control StaticText	Position 5,5
+			Title PLTM_DLG_TITLE_FRAMES_2_PRINT
+		Control MultiListBox	Position 5,15	Width 170	Height 60	ID 100
+			Calling HandlerFramePicked
+
+		Control GroupBox		Position 5,80	Width 170	Height 65
+			Title PLTM_DLG_TXT_CONDITIONS
+		Control StaticText	Position 15,90
+			Title PLTM_DLG_TXT_PAPERFORMAT
+		Control PopUpMenu		Position 15,100	Width 60			ID 200
+			Title PLTM_DLG_CHOISE_PAPERSIZE_ALL
+			Value 1
+		Control StaticText	Position 110,90
+			Title PLTM_DLG_TXT_PAPERORIENTATION
+		Control RadioGroup	Position 110,100	Width 60			ID 300
+			Title PLTM_DLG_CHOISE_ORIENT_TRIPLE
+			Value 1
+		Control StaticText	Position 15,115
+			Title PLTM_DLG_TXT_SCALE_1_TO
+		Control EditText		Position 15,125	Width 60			ID 400
+			Value ""
+
+		Control Button		Position 15,150	Width 40
+			Title MSG_UPDATE
+			Calling HandlerStartUpFramesToPrint
+		Control OKButton		Position 75,150	Width 40			ID 1000
+			Calling HandlerSelectFrames
+		Control CancelButton	Position 125,150	Width 40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	If TableInfo("FRAMES_TO_PRINT", TAB_INFO_NROWS) = 0 Then
+		Close Table FRAMES_TO_PRINT
+		Exit Function
+	End If
+
+PrintGetFramesToPrint = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Handler - Funktion til dis-/enabling af OKButton
+
+'****************************************
+Sub HandlerFramePicked
+
+OnError GoTo ErrorOccured
+
+	nGlobalPicked = ReadControlValue(100)
+
+	If nGlobalPicked > 1 Then
+		Alter Control 1000 Enable
+	ElseIf nGlobalPicked = 0 Then
+		Alter Control 1000 Disable
+	Else
+		If arrNamesShown(nGlobalPicked) = PLTM_TXT_NO_FRAMES Then
+			Alter Control 1000 Disable
+		Else
+			Alter Control 1000 Enable
+		End If
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Handler - Funktion til aflæsning af udvalgte rammer
+'****************************************
+Sub HandlerSelectFrames
+
+Dim	nWidth, nID As Integer,
+	szName As String
+
+OnError GoTo ErrorOccured
+
+	If nGlobalPicked > 0 Then
+		nID = nGlobalPicked
+	Else
+		nID = ReadControlValue(100)
+	End If
+
+
+	If nID = 0 Then
+		ReDim arrNames(0)
+		ReDim arrNamesShown(0)
+		Exit Sub
+	End If
+
+	If TableOpen("FRAMES_SELECTED") Then
+		Drop Table FRAMES_SELECTED
+	End If
+
+	nWidth = ColumnInfo(TAB_STORE_FRAME, "NAME", COL_INFO_WIDTH)
+	Create Table FRAMES_SELECTED
+		(
+		NAME	Char(nWidth)
+		)
+		File TempFileName$("")
+
+	Do Until (nID = 0)
+		szName = arrNames(nID)
+
+		Insert Into FRAMES_SELECTED
+			(NAME)
+			Values (szName)
+
+		nID = ReadControlValue(100)
+	Loop
+
+	ReDim arrNames(0)
+	ReDim arrNamesShown(0)
+	Commit Table FRAMES_SELECTED
+
+	Select * From TAB_STORE_FRAME
+		Where NAME in (Select NAME From FRAMES_SELECTED)
+		Order By PAPERSIZE, ORIENTATION, MAPSCALE
+		Into FRAMES_TO_PRINT NoSelect
+
+	Drop Table FRAMES_SELECTED
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Handler - Opstart af dialog til udpegning af rammer
+'****************************************
+Sub HandlerStartUpFramesToPrint
+
+Dim	szCond, szCmdStr, szName, szSize, szOrient, szScale As String,
+	nCount, nScale As Integer
+
+OnError GoTo ErrorOccured
+
+	Alter Control 1000 Disable
+
+	szCmdStr	= "Select * From " + TAB_STORE_FRAME
+
+	Do Case ReadControlValue(200)
+		Case 1
+			'No condition
+		Case 2
+			szCond = " Where PAPERSIZE = " + eye + "A4" + eye
+		Case 3
+			szCond = " Where PAPERSIZE = " + eye + "A3" + eye
+		Case 4
+			szCond = " Where PAPERSIZE = " + eye + "A2" + eye
+		Case 5
+			szCond = " Where PAPERSIZE = " + eye + "A1" + eye
+		Case 6
+			szCond = " Where PAPERSIZE = " + eye + "A0" + eye
+	End Case
+
+	Do Case ReadControlValue(300)
+		Case 1
+			'No condition
+		Case 2
+			If szCond = "" Then
+				szCond	= " Where ORIENTATION = " + eye + "P" + eye
+			Else
+				szCond	= szCond + " And ORIENTATION = " + eye + "P" + eye
+			End If
+		Case 3
+			If szCond = "" Then
+				szCond	= " Where ORIENTATION = " + eye + "L" + eye
+			Else
+				szCond	= szCond + " And ORIENTATION = " + eye + "L" + eye
+			End If
+	End Case
+
+	nScale = Val(ReadControlValue(400))
+	If nScale > 0 Then
+		If szCond = "" Then
+			szCond	= " Where MAPSCALE = " + nScale
+		Else
+			szCond	= szCond + " And MAPSCALE = " + nScale
+		End If
+	End If
+
+	szCmdStr	= szCmdStr + szCond + " Order By NAME Into POSSIBLE_FRAMES NoSelect"
+	'Print szCmdStr
+	Run Command szCmdStr
+
+	nCount = TableInfo("POSSIBLE_FRAMES", TAB_INFO_NROWS)
+	If nCount = 0 Then
+		ReDim arrNames(1)
+		ReDim arrNamesShown(1)
+		arrNames(1)		= PLTM_TXT_NO_FRAMES
+		arrNamesShown(1)	= PLTM_TXT_NO_FRAMES
+	Else
+		ReDim arrNames(nCount)
+		ReDim arrNamesShown(nCount)
+		nCount = 1
+		Fetch First From POSSIBLE_FRAMES
+		Do Until EOT(POSSIBLE_FRAMES)
+			szName	= POSSIBLE_FRAMES.NAME
+			szSize	= POSSIBLE_FRAMES.PAPERSIZE
+			szOrient	= POSSIBLE_FRAMES.ORIENTATION
+			szScale	= Str$(POSSIBLE_FRAMES.MAPSCALE)
+
+			arrNamesShown(nCount) = szSize + szOrient + ", " + szName + ", 1 : " + szScale
+			arrNames(nCount) = szName
+			nCount = nCount + 1
+	
+			Fetch Next From POSSIBLE_FRAMES
+		Loop
+	End If
+
+	Close Table POSSIBLE_FRAMES
+
+	Alter Control 100 Title From Variable arrNamesShown
+	If nScale > 0 Then
+		Alter Control 400 Value Str$(nScale)
+	Else
+		Alter Control 400 Value ""
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Gem aktuel kortbladsramme til tabel RAMMER...
+'****************************************
+Sub PrintCreateTableForFrames
+
+Dim	szFile, szTab As String
+
+OnError GoTo ErrorOccured
+
+'----------------------
+ShowDialogSaveAs:
+
+	If TableOpen(TAB_STORE_FRAME) Then
+		Note ERR_PLT_CLOSE_FRAMETABLE_FIRST
+		Exit Sub
+	End If
+
+	szFile = FileSaveAsDlg("", TAB_STORE_FRAME, "TAB", PLTM_DLG_TXT_PICK_FRAMETABLE)
+	If szFile = "" Then
+		Exit Sub
+	End If
+
+	If PathToTablename$(szFile) <> TAB_STORE_FRAME Then
+		Note ERR_PLT_NAME_MAY_NOT_BE_CHANGED
+		GoTo ShowDialogSaveAs
+	End If
+
+	szTab = GetTableName( PRNT_DLG_TXT_PICK_COORDTABLE, FALSE, TRUE, TRUE, FALSE, FALSE, 1)
+	If szTab = "" Then
+		Exit Sub
+	End If
+
+	Create Table TAB_STORE_FRAME
+		(
+		NAME		Char(80),
+		PAPERSIZE	Char(2),
+		ORIENTATION	Char(1),
+		MAPSCALE	Integer,
+		ROTATION	Integer
+		)
+		File szFile
+
+	Create Map
+		For TAB_STORE_FRAME
+		CoordSys Table szTab
+
+	If NumWindows() > 0 Then
+		If WindowInfo(FrontWindow(), WIN_INFO_TYPE) = WIN_MAPPER Then
+			Add Map
+				Layer TAB_STORE_FRAME
+		End If
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Gem aktuel kortbladsramme til tabel RAMMER...
+'****************************************
+Function PrintCheckColumnsInFrameTable(ByVal szTab As String) As Logical
+
+Dim	bIsInFrontWindow, bAltered As Logical,
+	nMID, i As Integer
+
+OnError GoTo ErrorOccured
+
+PrintCheckColumnsInFrameTable = FALSE
+
+	nMID = FrontWindow()
+	If nMID > 0 Then
+		If WindowInfo(nMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+			For i = 1 To MapperInfo(nMID, MAPPER_INFO_LAYERS)
+				If LayerInfo(nMID, i, LAYER_INFO_TYPE) = LAYER_INFO_TYPE_NORMAL Then
+					If LayerInfo(nMID, i, LAYER_INFO_NAME) = szTab Then
+						bIsInFrontWindow = TRUE
+						Exit For	
+					End If
+				End If
+			Next			
+		End If
+	End If
+
+	If not ColExist(szTab, "ROTATION") Then
+		If not Ask(ERR_PLT_FRAMETABLE_NEED_COL + "ROTATION", MSG_ADD, MSG_STOP) Then
+			Exit Function
+		End If
+		If TableInfo(szTab, TAB_INFO_EDITED) Then
+			If Ask(MSG_TAB_ASK_SAVE_CHANGES + szTab, MSG_SAVE, MSG_SAVE_NOT) Then
+				Commit Table szTab
+			End If
+		End If
+		Alter Table szTab
+			(Add ROTATION Integer)
+		bAltered = TRUE
+	End If
+
+	If bAltered And bIsInFrontWindow Then
+		Add Map
+			Layer szTab
+	End If
+
+PrintCheckColumnsInFrameTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Simpel dialog med PrinterOpsætningknap og OKknap...
+'****************************************
+Sub PrintChangePrinterSetting(ByVal szCurPaper As String, ByVal szNewPaper As String)
+
+OnError GoTo ErrorOccured
+
+	Dialog
+		Title PLTM_DLG_TITLE_CHANGE_PRINTER
+		Width 100
+
+		Control GroupBox		Position 10,10	Width 80	Height 40
+			Title PLTM_DLG_TXT_PAPERFORMAT
+		Control StaticText	Position 20,20
+			Title PLTM_DLG_TXT_CURRENT
+		Control StaticText	Position 70,20
+			Title szCurPaper
+
+		Control StaticText	Position 20,35
+			Title PLTM_DLG_TXT_NEXT
+		Control StaticText	Position 70,35
+			Title szNewPaper
+
+		Control Button		Position 10,60	Width 80
+			Title PLTM_DLG_BTN_PRINTERSETUP
+			Calling StandardPrinterSetupDialog
+
+		Control OKButton		Position 30,80	Width 40
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

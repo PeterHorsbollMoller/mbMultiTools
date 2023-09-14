@@ -1,0 +1,30 @@
+'Copyright (c) 1996 Software Factory International, Ltd.
+
+Include "MapBasic.Def"
+Include "MI32BIT.Def"
+
+Function MI32BIT() As Logical
+  If SystemInfo(SYS_INFO_MIVERSION) >= 400 Then
+    If SystemInfo(SYS_INFO_APPVERSION) >= 400 Then
+      Do Case SystemInfo(SYS_INFO_MIPLATFORM) '14
+        Case MIPLATFORM_WIN16 '1
+          mi32bit = FALSE
+        Case MIPLATFORM_WIN32 '2
+          mi32bit = TRUE
+        Case Else
+          Exit Sub
+      End Case
+    Else
+      Do Case SystemInfo(14) 'SYS_INFO_MIPLATFORM
+        Case 1 'MIPLATFORM_WIN16
+          mi32bit = FALSE
+        Case 2 'MIPLATFORM_WIN32
+          mi32bit = TRUE
+        Case Else
+          Exit Sub
+      End Case
+    End If
+  Else
+    mi32bit = FALSE
+  End If
+End Function

@@ -1,0 +1,33 @@
+'********************************************************************************************************
+' 16.05.2002/PEM:	Tilføjet:	FILEGetTempDirectory$()
+' 23.07.2202/PEM:	Tilføjet:	FILEGetFileNameNoFileType$()
+'			Tilføjet:	FILEChangeFileType$()
+' 01.08.2002/PEM:	Rettet fejl i FILEGetFileNameNoFileType$()
+' 29.08.2002/PEM:	Tilføjet:	FILECreateAllFoldersInPath()
+'					FILEAddTrailingSlashToPath$()
+' 05.11.2002/PEM:	Tilføjet:	FILERemoveTrailingSlash$()
+'					FILEAddTrailingSlash$() (erstatter FILEAddTrailingSlashToPath$())
+'********************************************************************************************************
+
+Declare Function GetDirectory$(ByVal szPath As String, ByVal szTitle As String) As String
+Declare Function GetFileNameRelative$(ByVal szFile As String) As String
+Declare Function GetFileNameRelativePath$(ByVal szFile As String, ByVal szPath As String) As String
+
+Declare Function GetFileNameAbsolute$(ByVal szFile As String) As String
+Declare Function GetFileNameAbsolutePath$(ByVal szFile As String, ByVal szPath As String) As String
+
+Declare Function GetMungPath$(ByVal szPath As String, ByVal nSize As Integer) As String
+
+Declare Function FILEChangeFileType$(ByVal szFile As String, ByVal szNewType As String) As String
+Declare Function FILEGetFileNameNoFileType$(ByVal szFile As String) As String
+
+Declare Function FILEGetTempDirectory$() As String
+
+Declare Function FILECreateAllFoldersInPath(ByVal szPath As String) As Logical
+Declare Function FILEAddTrailingSlash$(ByVal szPath As String) As String
+Declare Function FILERemoveTrailingSlash$(ByVal szPath As String) As String
+
+Declare Function FILEGetDateTimeAsSystemTime(ByVal szFile As String, stTime As SYSTEMTIME) As Logical
+
+'****  B A C K W A R D S   C O M P A T A B I L I T Y **************************************************
+Declare Function FILEAddTrailingSlashToPath$(ByVal szPath As String) As String

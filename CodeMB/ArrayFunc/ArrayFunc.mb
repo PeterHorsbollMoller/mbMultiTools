@@ -1,0 +1,451 @@
+'************************************************************************************
+'	Modul:	ArrayFunc.mb
+'	Function:	Function for arrays
+'************************************************************************************
+Include "MapBasic.def"
+
+Include "..\Language\Errors.lng"
+
+Include "ArrayFunc.def"
+
+'********************************************************
+'	Returner elementno i array for given værdi...
+'********************************************************
+Function ARRGetItemNoString(ByVal szValue As String, arrValues() As String) As Integer
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	ARRGetItemNoString = 1
+
+	For i = 1 To Ubound(arrValues)
+		If arrValues(i) = szValue Then
+			ARRGetItemNoString = i
+			Exit Function
+		End If
+	Next
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner elementno i array for tilnærmet given værdi...
+'********************************************************
+Function ARRGetItemNoStringFuzzy(ByVal szValue As String, arrValues() As String) As Integer
+
+Dim	i, j, nItem, nCharsFound As Integer
+
+OnError GoTo ErrorOccured
+
+	nItem		= 1
+	nCharsFound	= 1
+
+	'Print "Søger efter :" + szValue
+	For i = 1 To Ubound(arrValues)
+		'Print "Aktuel værdi: " + arrValues(i)
+		If arrValues(i) = szValue Then
+			nItem = i
+			Exit For
+		Else
+			For j = nCharsFound To Len(szValue)
+				If Left$(szValue, j) = Left$(arrValues(i), j) Then
+					nItem		= i
+					nCharsFound	= j
+				Else
+					Exit For
+				End If
+			Next	'j
+		End If
+		'Print i + ": fundet = " + nItem + " : " + arrValues(nItem)
+	Next	'i
+
+	ARRGetItemNoStringFuzzy = nItem
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Adding and Removing a single item from a array of values
+'****************************************
+Sub ARRAddAndRemoveItemString(arrAdd() As String, arrRemove() As String, ByVal szValue As String)
+
+OnError GoTo ErrorOccured
+
+	If not ARRRemoveItemString(arrRemove, szValue) Then
+		'Note "Værdien kunne ikke fjernes: " + szValue
+	End If
+
+	If not ARRAddItemString(arrAdd, szValue) Then
+		'Note "Værdien kunne ikke tilføjes: " + szValue
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Adding (if it isn't allready there) and Removing a single item from a array of values
+'****************************************
+Sub ARRAddAndRemoveItemStringUnique(arrAdd() As String, arrRemove() As String, ByVal szValue As String)
+
+OnError GoTo ErrorOccured
+
+	If not ARRRemoveItemString(arrRemove, szValue) Then
+		'Note "Værdien kunne ikke fjernes: " + szValue
+	End If
+
+	If not ARRAddItemStringUnique(arrAdd, szValue) Then
+		'Note "Værdien kunne ikke tilføjes: " + szValue
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Removing a single item from a array of values
+'****************************************
+Function ARRRemoveItemString(arrValues() As String, ByVal szValue As String) As Logical
+
+Dim	i, j, nNum As Integer
+
+OnError GoTo ErrorOccured
+
+ARRRemoveItemString = FALSE
+
+	nNum = Ubound(arrValues)
+	For i = 1 To nNum
+		If arrValues(i) = szValue Then
+			For j = i To (nNum - 1)		
+				arrValues(j) = arrValues(j + 1)
+			Next
+			ReDim arrValues(nNum - 1)
+			ARRRemoveItemString = TRUE
+			Exit For
+		End If
+	Next
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Removing a single item# from an array of values
+'**********************************************************************************************''
+Function ARRRemoveItemNoString(arrValues() As String, ByVal nItemNo As Integer) As Logical
+
+Dim	i, nNum As Integer
+
+OnError GoTo ErrorOccured
+
+ARRRemoveItemNoString = FALSE
+
+	nNum = Ubound(arrValues)
+	If nItemNo <= nNum Then
+		For i = nItemNo To (nNum - 1)		
+			arrValues(i) = arrValues(i + 1)
+		Next
+		ReDim arrValues(nNum - 1)
+		ARRRemoveItemNoString = TRUE
+	End If
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Adding a single item to a array of values
+'****************************************
+Function ARRAddItemString(arrValues() As String, ByVal szValue As String) As Logical
+
+Dim	nStart As Integer
+
+ARRAddItemString = FALSE
+
+OnError GoTo ErrorOccured
+
+	nStart = Ubound(arrValues)
+	ReDim arrValues(nStart + 1)
+	arrValues(nStart + 1) = szValue
+
+	ARRAddItemString = TRUE
+	Exit Function
+
+'--------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'****************************************
+'Adding a single item to a array of values if it isn't allready there
+'****************************************
+Function ARRAddItemStringUnique(arrValues() As String, ByVal szValue As String) As Logical
+
+Dim	nStart, i As Integer
+
+ARRAddItemStringUnique = FALSE
+
+	OnError GoTo ErrorOccured
+
+	nStart = Ubound(arrValues)
+	For i = 1 To nStart
+		If arrValues(i) = szValue Then
+			'**Well, OK it wasn't added bacause it was there allready...
+			ARRAddItemStringUnique = TRUE
+			Exit Function	
+		End If
+	Next
+	ReDim arrValues(nStart + 1)
+	arrValues(nStart + 1) = szValue
+
+	ARRAddItemStringUnique = TRUE
+
+	Exit Function
+'--------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'****************************************
+'Sorting an array of strings acscending
+'****************************************
+Sub ARRSortStringASC(arrValues() As String)
+
+Dim	i, k As Integer,
+	szValue As String
+
+OnError GoTo ErrorOccured
+
+	For i = 2 To Ubound(arrValues)
+		For k = Ubound(arrValues) To i Step -1
+			If arrValues(k-1) > arrValues(k) Then
+				szValue		= arrValues(k)
+				arrValues(k)	= arrValues(k-1)
+				arrValues(k-1)	= szValue
+			End If
+		Next
+	Next
+
+	Exit Sub
+'--------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'****************************************
+'Sorting an array of strings descending
+'****************************************
+Sub ARRSortStringDESC(arrValues() As String)
+
+Dim	i, k As Integer,
+	szValue As String
+
+OnError GoTo ErrorOccured
+
+	For i = 2 To Ubound(arrValues)
+		For k = Ubound(arrValues) To i Step -1
+			If arrValues(k-1) < arrValues(k) Then
+				szValue		= arrValues(k)
+				arrValues(k)	= arrValues(k-1)
+				arrValues(k-1)	= szValue
+			End If
+		Next
+	Next
+
+	Exit Sub
+'--------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'****************************************
+'Removing a single item from a array of values
+'****************************************
+Function ARRRemoveItemInteger(arrValues() As Integer, ByVal nValue As Integer) As Logical
+
+Dim	i, j, nNum As Integer
+
+OnError GoTo ErrorOccured
+
+ARRRemoveItemInteger = FALSE
+
+	nNum = Ubound(arrValues)
+	For i = 1 To nNum
+		If arrValues(i) = nValue Then
+			For j = i To (nNum - 1)		
+				arrValues(j) = arrValues(j + 1)
+			Next
+			ReDim arrValues(nNum - 1)
+			ARRRemoveItemInteger = TRUE
+			Exit For
+		End If
+	Next
+
+	Exit Function
+'--------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Removing a single item# from an array of values
+'**********************************************************************************************''
+Function ARRRemoveItemNoInteger(arrValues() As Integer, ByVal nItemNo As Integer) As Logical
+
+Dim	i, nNum As Integer
+
+OnError GoTo ErrorOccured
+
+ARRRemoveItemNoInteger = FALSE
+
+	nNum = Ubound(arrValues)
+	If nItemNo <= nNum Then
+		For i = nItemNo To (nNum - 1)		
+			arrValues(i) = arrValues(i + 1)
+		Next
+		ReDim arrValues(nNum - 1)
+		ARRRemoveItemNoInteger = TRUE
+	End If
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Adding a single item to a array of values
+'****************************************
+Function ARRAddItemInteger(arrValues() As Integer, ByVal nValue As Integer) As Logical
+
+Dim	nStart As Integer
+
+ARRAddItemInteger = FALSE
+
+OnError GoTo ErrorOccured
+
+	nStart = Ubound(arrValues)
+	ReDim arrValues(nStart + 1)
+	arrValues(nStart + 1) = nValue
+
+	ARRAddItemInteger = TRUE
+
+	Exit Function
+'--------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'****************************************
+'Adding a single item to a array of values if it isn't allready there
+'****************************************
+Function ARRAddItemIntegerUnique(arrValues() As Integer, ByVal nValue As Integer) As Logical
+
+Dim	nStart, i As Integer
+
+ARRAddItemIntegerUnique = FALSE
+
+	OnError GoTo ErrorOccured
+
+	nStart = Ubound(arrValues)
+	For i = 1 To nStart
+		If arrValues(i) = nValue Then
+			'**Well, OK it wasn't added bacause it was there allready...
+			ARRAddItemIntegerUnique = TRUE
+			Exit Function	
+		End If
+	Next
+	ReDim arrValues(nStart + 1)
+	arrValues(nStart + 1) = nValue
+
+	ARRAddItemIntegerUnique = TRUE
+	Exit Function
+
+'--------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'****************************************
+'Sorting an array of integers acscending
+'****************************************
+Sub ARRSortIntegerASC(arrValues() As Integer)
+
+Dim	i, k As Integer,
+	nValue As Integer
+
+OnError GoTo ErrorOccured
+
+	For i = 2 To Ubound(arrValues)
+		For k = Ubound(arrValues) To i Step -1
+			If arrValues(k-1) > arrValues(k) Then
+				nValue		= arrValues(k)
+				arrValues(k)	= arrValues(k-1)
+				arrValues(k-1)	= nValue
+			End If
+		Next
+	Next
+
+	Exit Sub
+'--------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'****************************************
+'Sorting an array of integers descending
+'****************************************
+Sub ARRSortIntegerDESC(arrValues() As Integer)
+
+Dim	i, k As Integer,
+	nValue As Integer
+
+OnError GoTo ErrorOccured
+
+	For i = 2 To Ubound(arrValues)
+		For k = Ubound(arrValues) To i Step -1
+			If arrValues(k-1) < arrValues(k) Then
+				nValue		= arrValues(k)
+				arrValues(k)	= arrValues(k-1)
+				arrValues(k-1)	= nValue
+			End If
+		Next
+	Next
+
+	Exit Sub
+'--------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+

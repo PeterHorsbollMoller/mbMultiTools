@@ -1,0 +1,1489 @@
+'***********************************************************************
+'**
+'**	RASTHAND.MB, Raster image handler program
+'**
+'**	Reworked to be a Mapbasic module for includement in larger program
+'**
+'**	LVN 980326 (-980403), dash-to-underscore error fixed
+'**	LVN 980611 multiple CD support added
+'**	LVN 980615 more flexible handling of separate path
+'**	LVN 980807 prompt for table if RasterIndex table not present
+'**	LVN 990309 log file messages
+'**	LVN 990920 minor bugfix
+'**	PEM 011208 added procedures for setting up RH from external programs
+'**	PEM 023009 Closing temp rasterindextable after use
+'***********************************************************************
+
+Define XPROGRAM_RH "RasterHandler"
+Define XVERSION_RH "5.2"
+
+Include "MAPBASIC.DEF"
+Include "MENU.DEF"
+
+Include "RASTHAND.DEF"
+Include "RH_MSG.DEF"
+
+Include "..\Time\Time.def"
+Include "..\TabFunc\TabFunc.def"
+Include "..\FileFunc\FileFunc.def"
+Include "..\IniUtil\IniUtil.def"
+
+Include "..\Language\Message.lng"
+Include "..\Language\Kommune.lng"
+Include "..\Language\Errors.lng"
+
+'-----------------------------------------------------------------------
+
+'defaults:
+Define REFFILE 		"CD_KMS"
+Define RH_FILE_INI	ApplicationDirectory$() & "RASTHAND.INI"
+
+
+'LVN 990920: previous meters, now %
+'Define BUFFER_APPEND 100
+Define BUFFER_APPEND 2	'Percent
+
+'Define INDEXCOL_Kort	"KortNr"
+'Define INDEXCOL_MZ_1	"MapZoom1"
+'Define INDEXCOL_MZ_2	"MapZoom2"
+'Define INDEXCOL_STAT	"Status"
+Define INDEXCOL_PRIO	"Prio"
+Define INDEXCOL_DISK	"DiskName"
+
+'-----------------------------------------------------------------------
+
+' Angives i Meter
+Dim	mszRasterIndex As String,
+	mbRHIsRunning, mbRHIsActivated, mbCloseTempRHIndex As Logical,
+	mszRasterPath As String,
+	mnRasterWin As Integer
+
+Dim   mnWinChgFlag As Integer,
+	nTimer As Integer,
+	mbMultiCDsupport As Logical,
+	mszCurrentCD As String,
+	marrRasterDrives(1) As String,
+	mnRasterDrive As Integer
+
+Dim	mbDebug_Enabled As Logical
+
+'-----------------------------------------------------------------------
+
+Declare Function StartRH() As Logical
+Declare Sub SwitchRH
+Declare Sub UnloadRH
+
+Declare function CD_Test(ByVal WinID As Integer) As Integer
+
+Declare Sub RH_Refresh
+Declare Sub RH_CloseAll
+Declare Sub Make_RH_Close_and_Open
+
+Declare Function GetRasterIndexTablenameDlg$(Byval szTab As String) As String
+Declare Function NormalizeTablename (Byval szTab As String) As String
+
+Declare Sub MultiCD_OnOff
+Declare Sub ChangeCD
+
+Declare Function GetMapWindowSpex (oMapRect As Object, fZoomMeter As Float) As Logical
+
+Declare Sub WriteLogMessage (Byval szMsg As String)
+
+'-----------------------------------------------------------------------
+
+Function RH_Main() As Logical
+
+OnError GoTo ErrorOccured
+
+RH_Main = FALSE
+
+	If RH_Initialize() Then
+		If StartRH() Then
+			Call ActivateRHSwitch
+		Else
+			Exit Function
+		End If
+	Else
+		Exit Function
+	End If
+
+RH_Main = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+Sub RH_ReadIniFile(ByVal szFile As String)
+
+Dim	szValue As String,
+	nLine As Integer
+
+OnError GoTo ErrorOccured
+
+	If FileExists(szFile) Then
+
+		OnError Goto INIT_ERROR
+
+		Open File szFile
+			For Input Access Read
+			As #1
+			CharSet SystemInfo(SYS_INFO_CHARSET)
+
+		If not SearchFileForGroup(1, "[RASTERHANDLER]") Then
+			Seek #1, 1
+			Do Until EOF(1)
+				nLine = nLine + 1
+				Line Input #1, szValue
+
+				Do Case nLine
+					Case 1
+						Call RH_SetRasterPath(szValue)
+					Case 2
+						'this value is ignored/not used
+					Case 3
+						Call RH_SetRasterIndex(szValue)
+					Case 4
+						Call RH_SetCloseTempRHIndexAfterUse((szValue = "T"))
+						Exit Do
+				End Case
+				'... more lines read ?
+			Loop
+			Close File #1
+		Else
+			Close File #1
+			szValue	= GetIniKeyValue(szFile, "[RASTERHANDLER]", "RASTERPATH")
+			Call RH_SetRasterPath(szValue)
+			szValue	= GetIniKeyValue(szFile, "[RASTERHANDLER]", "GRIDTABLE")
+			Call RH_SetRasterIndex(szValue)
+			szValue	= GetIniKeyValue(szFile, "[RASTERHANDLER]", "CLOSETABLE")
+			Call RH_SetCloseTempRHIndexAfterUse((szValue = "T"))
+		End If
+
+		OnError GoTo ErrorOccured
+	End If
+	
+	'*	Default:
+	If RH_GetRasterIndex$() = "" Then
+		Call RH_SetRasterIndex(REFFILE)
+	End If
+	
+	Exit Sub
+	
+'-------------------------
+INIT_ERROR:
+	Note ERR_FILE_WHILE_READING
+		+ lf + Error$()
+		+ lf + MSG_TXT_FILE + " : " & szFile
+	Exit Sub
+
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+Sub RH_WriteIniFile(ByVal nFile As Integer)
+
+OnError GoTo ErrorOccured
+
+	Print #nFile, ""
+	Print #nFile, "[RASTERHANDLER]"
+	Print #nFile, "RASTERPATH="	& RH_GetRasterPath$()
+	Print #nFile, "GRIDTABLE="	& RH_GetRasterIndex$()
+	Print #nFile, "CLOSETABLE="	& RH_CloseTempRHIndexAfterUse()
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+Sub RH_SetRasterIndex(ByVal szTab As String)
+
+OnError GoTo ErrorOccured
+
+	Call WriteLogMessage ("RasterIndex: " & szTab)
+	mszRasterIndex	= szTab
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+Function RH_GetRasterIndex$() As String
+
+OnError GoTo ErrorOccured
+
+	RH_GetRasterIndex$ = mszRasterIndex
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+Sub RH_SetRasterPath(ByVal szPath As String)
+
+OnError GoTo ErrorOccured
+
+	Call WriteLogMessage ("RasterPath: " & szPath)
+	mszRasterPath = szPath 
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+Function RH_GetRasterPath$() As String
+
+OnError GoTo ErrorOccured
+
+	RH_GetRasterPath$ = mszRasterPath
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+Sub RH_SetCloseTempRHIndexAfterUse(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	Call WriteLogMessage ("CloseTable: " & Str$(bValue))
+	mbCloseTempRHIndex = bValue
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+Function RH_CloseTempRHIndexAfterUse() As Logical
+
+OnError GoTo ErrorOccured
+
+	RH_CloseTempRHIndexAfterUse = mbCloseTempRHIndex
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+Function RH_IsRunning() As Logical
+
+OnError GoTo ErrorOccured
+
+	RH_IsRunning = mbRHIsRunning
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+Function RH_IsActivated() As Logical
+
+OnError GoTo ErrorOccured
+
+	RH_IsActivated = mbRHIsActivated
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Opretter den midlertidige rhindextabel
+'**********************************************************************************************''
+Function RH_CreateTempRHIndex() As Logical
+
+Dim	szTempFile As String
+
+OnError GoTo ErrorOccured
+
+RH_CreateTempRHIndex = FALSE
+
+	If TABIsOpen("TEMP__RASTERINDEX") Then
+		Close Table TEMP__RASTERINDEX
+	End If
+	If TABIsOpen("TEMP__RASTHAND") Then
+		Close Table TEMP__RASTHAND
+	End If
+	
+	szTempFile	= PathToDirectory$(TempFileName$("")) & "TEMP__RASTHAND.TAB"
+	Commit Table RH_GetRasterIndex$() As szTempFile
+
+	If RH_OpenTempRHIndex() Then
+		Update TEMP__RASTERINDEX
+			Set STATUS = FALSE
+	
+		Commit Table TEMP__RASTERINDEX
+		If RH_CloseTempRHIndexAfterUse() Then
+			Call WriteLogMessage ("Lukker den temporære rasterindekstabel")
+			Close Table TEMP__RASTERINDEX
+		End If
+	Else
+		Exit Function
+	End If
+	
+RH_CreateTempRHIndex = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Åbner den midlertidige rhindextabel
+'**********************************************************************************************''
+Function RH_OpenTempRHIndex() As Logical
+
+Dim	szTempFile As String
+
+OnError GoTo ErrorOccured
+
+RH_OpenTempRHIndex = FALSE
+
+	If TABIsOpen("TEMP__RASTERINDEX") Then
+		RH_OpenTempRHIndex = TRUE
+		Exit Function
+	End If
+
+	szTempFile	= PathToDirectory$(TempFileName$("")) & "TEMP__RASTHAND.TAB"
+
+	Open Table szTempFile
+		As TEMP__RASTERINDEX
+		'Hide	'Hidden for the user
+
+	Set Table TEMP__RASTERINDEX
+		FastEdit		On
+		Undo			Off
+'		UserMap		Off
+'		UserBrowse		Off
+'		UserClose		Off
+'		UserEdit		Off
+'		UserRemoveMap	Off
+'		UserDisplayMap	Off
+	
+RH_OpenTempRHIndex = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+Function RH_GetRHWindowID() As Integer
+
+OnError GoTo ErrorOccured
+
+	RH_GetRHWindowID = mnRasterWin
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer navn på rasterindex tabel
+'**********************************************************************************************''
+Function GetRasterIndexTablenameDlg$(Byval szTab As String) As String
+
+Dim	i, nTab As Integer,
+	arrTab() As String
+
+OnError GoTo ErrorOccured
+
+GetRasterIndexTablenameDlg$ = ""
+
+	If TABIsOpen(szTab) Then
+		GetRasterIndexTablenameDlg$ = szTab
+		Exit Function		
+	Else
+		Redim arrTab(NumTables())
+		For i = 1 To NumTables()
+			If not TableInfo(i, TAB_INFO_TYPE) = TAB_TYPE_IMAGE Then
+				nTab = nTab + 1
+				arrTab(nTab) = TableInfo(i ,TAB_INFO_NAME)
+			End If
+		Next
+
+		If nTab = 0 Then
+			Exit Function
+		End If
+		Redim arrTab(nTab)
+
+		Dialog
+			Title RH_DLG_TITLE_SELECT_GRIDTABLE
+			Control PopupMenu		Position 5,5	Width 150
+				Title From variable arrTab
+				Into nTab
+			Control OKButton
+			Control CancelButton
+
+		If not CommandInfo(CMD_INFO_DLG_OK) Then
+			Exit Function
+		End If
+
+		GetRasterIndexTablenameDlg$ = arrTab(nTab)
+	End If	
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'*********************************************************************************
+Function RH_Initialize() As Logical
+
+OnError GoTo ErrorOccured
+
+RH_Initialize = FALSE
+
+	mbDebug_Enabled = FileExists(ApplicationDirectory$() & "rasthand.log")
+
+	If RH_GetRasterIndex$() = "" Then
+		'-- not initialized yet,
+		Call 	RH_ReadIniFile(RH_FILE_INI)
+	End If
+
+	mbMultiCDsupport	= FALSE
+	mnRasterDrive	= 0
+	mnRasterWin		= 0
+	mbRHIsRunning	= FALSE
+	mnWinChgFlag	= 1
+	Call RH_SetRasterIndex(GetRasterIndexTablenameDlg$(RH_GetRasterIndex$()))
+
+	If RH_GetRasterPath$() = "" Then
+		Call RH_SetRasterPath(PathToDirectory$(TableInfo(RH_GetRasterIndex$(), TAB_INFO_TABFILE)))
+	End If
+	
+	marrRasterDrives(1)	= Left$(RH_GetRasterPath$(),1)
+	mnRasterDrive 		= 1
+
+	If RH_GetRasterPath$() = "" Then
+		Call RH_SetRasterPath(PathToDirectory$(TableInfo(RH_GetRasterIndex$(), TAB_INFO_TABFILE)))
+	End If
+
+	If ColExist(RH_GetRasterIndex$(), INDEXCOL_DISK) Then
+		Alter Button	MultiCD_OnOff Enable
+		Alter Menu Item	MultiCD_OnOff Enable
+		Alter Button	ChangeCD Enable
+		Alter Menu Item	ChangeCD Enable
+	End If
+
+	Call WriteLogMessage ("--------------------------------")
+	Call WriteLogMessage (XPROGRAM_RH+" version "+XVERSION_RH+" started")
+
+	RH_Initialize = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'-----------------------------------------------------------------------
+
+Sub StartStopRH
+
+OnError GoTo ErrorOccured
+
+	Call WriteLogMessage ("Calling RasterHandler from external program")
+
+	If mbRHIsRunning Then
+		Call StopRH
+	Else
+		If RH_Main() Then
+			'**RasterHandler was started successfully...
+			Call WriteLogMessage ("RasterHandler was started. RasterWindow: " + mnRasterWin)
+		Else
+			Call WriteLogMessage ("RH was not started. RasterWindow: " + mnRasterWin)
+			Alter Button	StartStopRH	UnCheck
+			Alter Menu Item	StartStopRH	UnCheck
+		End If
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'-----------------------------------------------------------------------
+
+Sub ActivateRHSwitch
+
+OnError GoTo ErrorOccured
+
+	If not mbRHIsActivated Then
+		mbRHIsActivated = TRUE
+		Alter Button 	ActivateRHSwitch	Check
+		Alter Menu Item	ActivateRHSwitch	Check
+
+		Call WriteLogMessage ("RasterHandler is activated. RasterWindow: " + mnRasterWin)
+		If FrontWindow() = mnRasterWin Then
+			Call RH_WinChangedHandler(mnRasterWin)
+		End If
+	Else
+		Call WriteLogMessage ("RasterHandler is not activated. RasterWindow: " + mnRasterWin)
+		Alter Button 	ActivateRHSwitch	UnCheck
+		Alter Menu Item	ActivateRHSwitch	UnCheck
+		mbRHIsActivated = FALSE
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'-----------------------------------------------------------------------
+
+Function StartRH() As Logical
+
+Dim	nWID As Integer,
+	szTempFile As String
+
+OnError GoTo ErrorOccured
+
+StartRH = FALSE
+
+	nWID  = FrontWindow()
+
+	If nWID = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Function
+	End If
+	If WindowInfo(nWID,WIN_INFO_TYPE) <> WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Function
+	End If
+	If CD_Test(nWID) = 0 Then
+		Note ERR_MAP_LAYER_NOT_IN_FRONTMAP + " " + RH_GetRasterIndex$()
+		Exit Function
+	End If
+
+	mnRasterWin  = nWID
+
+	'mbRHIsRunning  = TRUE
+	If not mbRHIsRunning Then
+		Call SwitchRH  'turn it on !
+	End If
+
+	Set ProgressBars Off
+	Set Event Processing On
+	
+	If NOT RH_CreateTempRHIndex() Then
+		Note "Kunne ikke oprette midlertidig rasterindekstabel!"
+		Exit Sub
+	End If
+	
+	Set ProgressBars On
+	Set Event Processing On
+
+	Alter Menu Item 	SwitchRH		Enable
+	Alter Button 	SwitchRH		Enable
+	Alter Menu Item 	StopRH		Enable
+	Alter Button 	StopRH		Enable
+	Alter Button 	StartStopRH		Check
+	Alter Menu Item 	StartStopRH		Check
+	Alter Button 	ActivateRHSwitch	Enable
+	Alter Menu Item 	ActivateRHSwitch	Enable
+
+	Call WriteLogMessage ("Checking and enabling buttons")
+
+	mnWinChgFlag = 0  'enable RH_WinChangedhandler
+	Call RH_WinChangedHandler (mnRasterWin)
+
+StartRH = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'-----------------------------------------------------------------------
+
+Sub SwitchRH
+
+OnError GoTo ErrorOccured
+
+	If mnRasterWin <> 0 Then
+		mbRHIsRunning = Not mbRHIsRunning
+	Else
+		mbRHIsRunning = FALSE
+	End If
+
+	If mbRHIsRunning Then
+		Alter Button	SwitchRH 		Check
+		Alter Menu Item	SwitchRH 		Check
+		Alter Button 	ActivateRHSwitch	Enable Check
+		Alter Menu Item	ActivateRHSwitch	Enable Check
+
+		'Set Window mnRasterWin Front
+		Call RH_WinChangedHandler (mnRasterWin)
+		'Set Map Window mnRasterWin ReDraw 'to call WinChangedHandler
+
+	Else
+		Alter Button	SwitchRH Uncheck
+		Alter Menu Item	SwitchRH Uncheck
+		Call RH_CloseAll
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'-----------------------------------------------------------------------
+
+Sub StopRH
+
+OnError GoTo ErrorOccured
+
+	Call RH_CloseAll
+
+	mnRasterWin		= 0
+	mbRHIsRunning	= FALSE
+	mbRHIsActivated	= FALSE
+
+	Alter Button	SwitchRH		Uncheck Disable
+	Alter Menu Item	SwitchRH		Uncheck Disable
+	Alter Button	StopRH		Disable
+	Alter Menu Item	StopRH		Disable
+
+	Alter Button	StartStopRH		UnCheck
+	Alter Menu Item	StartStopRH		UnCheck
+	Alter Button	ActivateRHSwitch	UnCheck Disable
+	Alter Menu Item	ActivateRHSwitch	UnCheck Disable
+
+	If TABIsOpen("TEMP__RASTERINDEX") Then
+		Drop Table TEMP__RASTERINDEX
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'-----------------------------------------------------------------------
+
+Sub UnloadRH
+
+OnError GoTo ErrorOccured
+
+	Call StopRH
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'-----------------------------------------------------------------------
+
+Sub RH_EndHandler
+
+OnError GoTo ErrorOccured
+
+	'If mnRasterWin <> 0 Then
+	'	Set Map Window mnRasterWin Redraw On
+	'End If
+	'Set Event Processing On
+
+	If TABIsOpen("TEMP__RASTERINDEX") Then
+		Drop Table TEMP__RASTERINDEX
+	End If
+
+	Call WriteLogMessage (XPROGRAM_RH+" version "+XVERSION_RH+" stopped")
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'-----------------------------------------------------------------------
+
+Function CD_Test(ByVal WinID As Integer) As Integer
+
+Dim	taeller,
+	LastLayer As Integer
+
+OnError GoTo ErrorOccured
+
+	If WinID <> 0 Then
+		LastLayer = MapperInfo(WinID,MAPPER_INFO_LAYERS)
+
+		For Taeller = 1 To LastLayer
+			If LayerInfo(WinID,Taeller,LAYER_INFO_NAME) = RH_GetRasterIndex$() Then 
+				CD_Test = Taeller
+				Exit Function
+			end if 
+		Next
+	End If
+
+	CD_Test = 0
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'-----------------------------------------------------------------------
+
+Sub RH_WinChangedHandler (nWID As Integer)
+
+Dim	nStartRaster As Integer,
+	fZoomMin, fZoomMax, fZoomMap As Float,
+	i As SmallInt,
+	bFound As Logical
+
+OnError GoTo ErrorOccured
+
+	If mnWinChgFlag > 0 Or Not mbRHIsRunning Or Not mbRHIsActivated Then
+''		Print "RH_WCH disabled."  'cox
+		Exit Sub
+	end if
+
+	nTimer = Timer()
+	Call WriteLogMessage ("RH_WinChangedHandler Start")
+
+'	cls  'cox
+
+	If mnRasterWin = 0 Then
+'		Print "No RasterWin ?!?"  'cox
+		GoTo ExitTheSub
+	end if
+
+	If nWID <> mnRasterWin Then
+'		Print "Not the RasterWin !"  'cox
+		GoTo ExitTheSub
+	end if
+
+	bFound = FALSE
+	For i = 1 To MapperInfo(mnRasterWin,MAPPER_INFO_LAYERS)
+		If LayerInfo(mnRasterWin,i,LAYER_INFO_NAME) = RH_GetRasterIndex$() Then
+			bFound = TRUE
+			Exit For
+		End If
+	Next
+
+	If mnRasterWin = 0 or not bFound Then
+		mbRHIsRunning = FALSE
+		mnRasterWin = 0
+		Alter Button	SwitchRH		Disable
+		Alter Menu Item	SwitchRH		Disable
+		Alter Button	StopRH		Disable
+		Alter Menu Item	StopRH		Disable
+		Alter Button	ActivateRHSwitch	Disable UnCheck
+		Alter Menu Item	ActivateRHSwitch	Disable UnCheck
+		Alter Button	StartStopRH		Check
+		Alter Menu Item	StartStopRH		Check
+	End if
+
+	bFound = FALSE
+	For i = 1 To NumWindows()
+		If WindowID(i) = mnRasterWin Then
+			bFound = TRUE
+			exit for
+		end if
+	next
+	If not bFound Then
+		mnRasterWin = 0
+		GoTo ExitTheSub
+	End If
+
+	nStartRaster = CD_Test(mnRasterWin) 
+
+	if nStartRaster = 0 Then
+'		Print "FEJL !! "+RH_GetRasterIndex$()+" eksisterer ikke i Mapper vinduet!!"  'cox
+		Call WriteLogMessage ("Raster index not found in mapper")
+		GoTo ExitTheSub
+	End If
+
+	if LayerInfo(mnRasterWin,nStartRaster,LAYER_INFO_DISPLAY) = LAYER_INFO_DISPLAY_OFF Then
+'		print "Raster display turned off"  'cox
+		Call WriteLogMessage ("Raster index display turned off")
+		GoTo ExitTheSub
+	end if 
+
+	'*	Need to re-evaluate it every time !?
+
+	Set Distance Units "m"
+
+	if LayerInfo(mnRasterWin,nStartRaster,LAYER_INFO_ZOOM_LAYERED) Then
+		fZoomMin = LayerInfo(mnRasterWin,nStartRaster,LAYER_INFO_ZOOM_MIN)
+		fZoomMax = LayerInfo(mnRasterWin,nStartRaster,LAYER_INFO_ZOOM_MAX)
+		fZoomMap = MapperInfo(mnRasterWin,MAPPER_INFO_ZOOM)
+
+		If fZoomMap < fZoomMin Or fZoomMap > fZoomMax Then
+'			print "Raster display outside zoom interval"  'cox
+			Call RH_CloseAll
+			Call WriteLogMessage ("Raster index display outside zoom interval")
+			GoTo ExitTheSub
+		end if
+	End If 
+
+	Call RH_Refresh
+
+'----------------------------
+ExitTheSub:
+	Call WriteLogMessage ("RH_WinChangedHandler Slut : " + (Timer() - nTimer) + " sek")
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'---------------------------------------
+
+Sub RH_Refresh
+
+Dim	fZoomMeter As Float,
+	oMapRect As Object
+
+OnError GoTo ErrorOccured
+
+	Call WriteLogMessage ("RH_Refresh Start : " + (Timer() - nTimer) + " sek")
+
+	If not mbRHIsActivated Then
+		Exit Sub
+	End If
+
+	If not GetMapWindowSpex (oMapRect, fZoomMeter) Then
+		Exit Sub
+	End If
+
+	Call WriteLogMessage ("Select 1 : " + (Timer() - nTimer) + " sek")
+
+	If NOT RH_OpenTempRHIndex() Then
+		Call WriteLogMessage ("Kunne ikke åbne den temporære rasterindekstabel")
+		Exit Sub
+	End If
+
+	'**	Determine which raster tables to close or open
+	Select KORTNR, STATUS
+		From TEMP__RASTERINDEX
+		Where STATUS
+		And (	fZoomMeter < MAPZOOM1
+			or fZoomMeter > MAPZOOM2
+			or not(oMapRect contains part Obj))
+		Into CUR__CLOSE__LIST NoSelect
+
+	Call WriteLogMessage ("Select 2 : " + (Timer() - nTimer) + " sek")
+
+	Select KORTNR, STATUS, BIBLIOTEK
+		From TEMP__RASTERINDEX
+		Where (not STATUS)
+		And (	fZoomMeter >= MAPZOOM1
+			And fZoomMeter <= MAPZOOM2
+			And oMapRect intersects Obj)
+		Into CUR__OPEN__LIST NoSelect
+
+	Call Make_RH_Close_and_Open
+
+	Call WriteLogMessage ("RH_Refresh Slut : " + (Timer() - nTimer) + " sek")
+
+	If RH_CloseTempRHIndexAfterUse() Then
+		Call WriteLogMessage ("Lukker RasterIndex")
+		Close Table TEMP__RASTERINDEX
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'---------------------------------------
+
+Sub RH_CloseAll
+
+OnError GoTo ErrorOccured
+
+	'*	Dummy selections: close all, open nothing
+	If RH_OpenTempRHIndex() Then
+
+		Select KORTNR, STATUS
+			From TEMP__RASTERINDEX
+			Where STATUS  'all opened raster images
+			Into CUR__CLOSE__LIST NoSelect
+	
+		Select KORTNR, STATUS, BIBLIOTEK
+			From TEMP__RASTERINDEX
+			Where ROWID < 1  'returns an empty selection !
+			Into CUR__OPEN__LIST NoSelect
+	
+		Call Make_RH_Close_and_Open
+
+		Drop Table TEMP__RASTERINDEX
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'---------------------------------------
+
+Sub Make_RH_Close_and_Open
+
+Dim	nStartRaster As Integer
+Dim	nRowID As Integer
+Dim	i, j, k1, k2 As SmallInt,
+	bFound As Logical,
+	szTab As String,
+	nLayer As SmallInt
+Dim	priolist(0) As SmallInt,
+	lay_list(0) As SmallInt
+Dim	CmdStr, s As String
+Dim	a As Alias
+Dim	szPath As String
+Dim	fZoom1, fZoom2 As Float
+Dim	n As SmallInt,
+	cdname(0) As String
+
+OnError GoTo ErrorOccured
+
+	Call WriteLogMessage ("RH_Close_And_Open Start : " + (Timer() - nTimer) + " sek")
+
+	nStartRaster = CD_Test(mnRasterWin) 
+
+	If TableInfo(CUR__CLOSE__LIST,TAB_INFO_NROWS)+TableInfo(CUR__OPEN__LIST,TAB_INFO_NROWS) = 0 Then
+		Close Table CUR__CLOSE__LIST
+		Close Table CUR__OPEN__LIST
+		Call WriteLogMessage ("Nothing to do ?!")
+		Exit Sub
+	End If
+
+	'**	Close un-used and open newly used raster images, disable redraw while running
+
+	mnWinChgFlag = mnWinChgFlag + 1  'disable
+	Set Event Processing Off
+	Set Map Window mnRasterWin ReDraw Off
+	Set Table TEMP__RASTERINDEX FastEdit On Undo Off
+
+'	CLS					'COX
+'	Print "Close&Open"	'COX
+
+	'**	Close raster tables that is no longer visible
+
+	Call WriteLogMessage ("Closing : " + (Timer() - nTimer) + " sek")
+	Fetch first from CUR__CLOSE__LIST
+
+	Do Until EOT(CUR__CLOSE__LIST)
+		a = CUR__CLOSE__LIST.KortNr
+		szTab = a
+'		Print "Closing: "+szTab+" => "+NormalizeTablename(szTab)  'COX
+		szTab = NormalizeTablename (szTab)
+
+		bFound = FALSE
+		For i = nStartRaster+1 To MapperInfo(mnRasterWin,MAPPER_INFO_LAYERS)
+			If LayerInfo(mnRasterWin,i,LAYER_INFO_TYPE) = LAYER_INFO_TYPE_IMAGE Then
+				If LayerInfo(mnRasterWin,i,LAYER_INFO_NAME) = szTab Then
+					bFound = TRUE
+					Exit For
+				End If
+			End If
+		Next
+		If bFound Then
+			Close Table szTab
+			Call WriteLogMessage ("Closed table: "+szTab)
+		Else
+			Call WriteLogMessage ("Didn't find table to close: "+szTab)
+		End If
+
+		nRowID = CUR__CLOSE__LIST.RowID
+		UpDate CUR__CLOSE__LIST 
+			Set	STATUS = FALSE
+			Where ROWID = nRowID
+
+		Fetch Next From CUR__CLOSE__LIST
+	Loop
+
+	'**	Open raster tables that now are visible
+
+	Call WriteLogMessage ("Opening : " + (Timer() - nTimer) + " sek")
+	Fetch first from CUR__OPEN__LIST
+
+	Do Until EOT(CUR__OPEN__LIST)
+		a = CUR__OPEN__LIST.KORTNR
+		szTab = a
+
+		'LVN 980615
+		s = CUR__OPEN__LIST.BIBLIOTEK
+		If s = "" Then                           'no path, use default
+			szPath = RH_GetRasterPath$() + szTab+".tab"
+		ElseIf Mid$(s,2,1) = ":" Then            'absolute path incl. drive
+			szPath = s + szTab+".tab"
+		ElseIf Left$(s,1) = "\" Then             'absolute path excl. drive, use default drive
+			szPath = Left$(RH_GetRasterPath$(), 2) + s + szTab+".tab"
+		Else                                     'relative path (excl. drive)
+			szPath = RH_GetRasterPath$() + s + szTab+".tab"
+		End If
+
+		If FileExists(szPath) Then
+'			Print "Opening: "+szTab+" => "+NormalizeTablename(szTab)  'COX
+			szTab = NormalizeTablename (szTab)
+
+			Open Table szPath 'As szTab?
+			Add Map Window
+				mnRasterWin Auto Layer szTab  'Auto => bottom of mapper
+
+			Call WriteLogMessage ("Opened table: "+szTab)
+
+			nRowID = CUR__OPEN__LIST.RowID
+			UpDate CUR__OPEN__LIST 
+				Set	Status = TRUE
+				Where	ROWID = nRowID
+		Else
+'			Print "Opening: not found: "+szPath  'COX
+			Call WriteLogMessage ("File not found: "+szPath)
+		End If
+
+		fetch next from CUR__OPEN__LIST
+	loop
+
+	Close Table CUR__CLOSE__LIST
+	Close Table CUR__OPEN__LIST
+
+	Commit Table TEMP__RASTERINDEX
+
+	'**	Prompt for change of CD ?
+
+	If mbMultiCDsupport Then
+
+		Select * From TEMP__RASTERINDEX
+			Where STATUS
+			Group By INDEXCOL_DISK
+			Into UIYTYUIYT Noselect
+
+		If TableInfo(UIYTYUIYT,TAB_INFO_NROWS) = 1 Then
+			Fetch First From UIYTYUIYT
+			a = "UIYTYUIYT."+INDEXCOL_DISK
+			s = a
+			If s <> mszCurrentCD Then
+				Note RH_DLG_TXT_CD_INSERT + " : " + s + Chr$(10) + RH_DLG_TXT_PUSH_OK_WHEN_READY
+				mszCurrentCD = s
+				Call WriteLogMessage ("Current CD: "+mszCurrentCD)
+			End If
+		ElseIf TableInfo(UIYTYUIYT,TAB_INFO_NROWS) > 1 Then
+			Fetch First From UIYTYUIYT
+			n = 0
+			i = 0
+			Do Until EOT(UIYTYUIYT)
+				a = "UIYTYUIYT."+INDEXCOL_DISK
+				n = n + 1
+				Redim cdname(n)
+				cdname(n) = a
+				If cdname(n) = mszCurrentCD Then
+					i = n
+				End If
+
+				Fetch Next From UIYTYUIYT
+			Loop
+
+			Dialog
+				Title RH_DLG_TITLE_CD_INSERT_ONE_OF
+				Control ListBox
+					Title From Variable cdname
+					Value i
+					Into n
+				Control OkButton
+					Title MSG_TEXT_USE
+				Control CancelButton
+
+			If CommandInfo(CMD_INFO_DLG_OK) Then
+				Note RH_DLG_TXT_CD_INSERT + " : " + cdname(n) + Chr$(10) + RH_DLG_TXT_PUSH_OK_WHEN_READY
+				mszCurrentCD = cdname(n)
+				Call WriteLogMessage ("Current CD: "+mszCurrentCD)
+			End If
+		End If
+
+		Close Table UIYTYUIYT
+	End If
+
+	'**	Check for possible sort before attempting it
+
+	Call WriteLogMessage ("Sorting : " + (Timer() - nTimer) + " sek")
+
+	Select * From TEMP__RASTERINDEX
+		Group By INDEXCOL_PRIO
+		Into UIYTYUIYT Noselect
+
+	If TableInfo(UIYTYUIYT,TAB_INFO_NROWS) > 1 Then
+		'*	Now fix order of raster layers (according to "Prio" column)
+
+		nLayer = MapperInfo(mnRasterWin,MAPPER_INFO_LAYERS)
+		ReDim priolist(nLayer)
+		ReDim lay_list(nLayer)
+
+		For i = 1 To nStartRaster
+			priolist(i) = i - nStartRaster
+			lay_list(i) = i
+		Next
+		For i = nStartRaster+1 To nLayer
+			priolist(i) = 999
+			lay_list(i) = i
+		Next
+
+		Fetch First From TEMP__RASTERINDEX
+		Do Until EOT(TEMP__RASTERINDEX)
+			szTab = TEMP__RASTERINDEX.KORTNR
+
+			szTab = NormalizeTablename (szTab)
+
+			For i = nStartRaster+1 To nLayer
+				If LayerInfo(mnRasterWin,i,LAYER_INFO_NAME) = szTab Then
+					a = "TEMP__RASTERINDEX." & INDEXCOL_PRIO  '1,2,3,...
+					priolist(i) = a
+					Exit For
+				End If
+			Next
+
+			Fetch Next From TEMP__RASTERINDEX
+		Loop
+
+		'*	And now: bubble sort !!!!!!!!!!!!!
+		'*	I know! The performance sucks, but it's simple, easy, fast (to code), jkhgdk, ,kjhgjhgs, hjgkjh (I'm rambling now), jkhgkfjg, ..........
+
+'		CLS
+'		Print "Before sort"
+'		For i = 1 To nLayer
+'			Print "Priolist("+i+") = "+priolist(i)
+'			Print "Lay_list("+i+") = "+lay_list(i)
+'		Next
+
+		For i = 2 To nLayer
+			For j = nLayer To i Step -1
+				If priolist(j-1) > priolist(j) Then
+					k1 = priolist(j)
+					k2 = lay_list(j)
+					priolist(j) = priolist(j-1)
+					lay_list(j) = lay_list(j-1)
+					priolist(j-1) = k1
+					lay_list(j-1) = k2
+				End If
+			Next
+		Next
+
+'		Print "After sort"
+'		For i = 1 To nLayer
+'			Print "Priolist("+i+") = "+priolist(i)
+'			Print "Lay_list("+i+") = "+lay_list(i)
+'		Next
+
+		'*	Naw geet thees theeng on the road !
+
+		CmdStr = "Set Map Window "+mnRasterWin+" Order"
+		s = " "
+		For i = 1 To nLayer
+			CmdStr = CmdStr +s+ Str$(lay_list(i))
+			s = ","
+		Next
+
+		Run Command CmdStr
+'		Print "CmdStr="+CmdStr  'COX
+
+		Call WriteLogMessage ("Reordering: "+CmdStr)
+	End If
+
+	Close Table UIYTYUIYT
+
+	'*	And turn the suckers ON !!!
+
+	Call WriteLogMessage ("Setting Zoom level : " + (Timer() - nTimer) + " sek")
+	For i = nStartRaster+1 To MapperInfo(mnRasterWin,MAPPER_INFO_LAYERS)
+		If LayerInfo(mnRasterWin,i,LAYER_INFO_TYPE) = LAYER_INFO_TYPE_IMAGE Then
+			fZoom1 = LayerInfo(mnRasterWin,i,LAYER_INFO_ZOOM_MIN)
+			fZoom2 = LayerInfo(mnRasterWin,i,LAYER_INFO_ZOOM_MAX)
+			Set Map
+				Window mnRasterWin
+				Layer i
+					'Display Graphic
+					Zoom (fZoom1,fZoom2) Off
+			Call WriteLogMessage ("Set Map Layer "+i+" Zoom("+fZoom1+","+fZoom2+") Off")
+		End If
+	Next
+
+	Set Map Window mnRasterWin ReDraw On
+	Set Event Processing On
+	mnWinChgFlag = mnWinChgFlag - 1  'enable
+
+	Call WriteLogMessage ("RH_Open_and_Close Slut : " + (Timer() - nTimer) + " sek")
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'-----------------------------------------------------------------------
+
+Sub RH_WinFocusChangedHandler (nWID As Integer)
+
+OnError GoTo ErrorOccured
+
+'	If mnRasterWin <> 0 Then
+'		If nWID = mnRasterWin Then
+'			mbRHIsRunning = TRUE
+'		Else
+'			mbRHIsRunning = FALSE  
+'		End If
+'	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'-----------------------------------------------------------------------
+'	If this is called for mnRasterWin,
+'	the main program is probably going down too !!!
+'	(but don't depend on it !)
+
+Sub RH_WinClosedHandler (nWID As Integer)
+
+OnError GoTo ErrorOccured
+
+	If nWID = mnRasterWin Then
+		Call StopRH
+	End If 
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'-----------------------------------------------------------------------
+
+Function NormalizeTablename (Byval szTab As String) As String
+
+Dim	i As SmallInt
+
+OnError GoTo ErrorOccured
+
+	'*	dashes get converted to underscores (LVN 980326)
+	Do While Instr(1, szTab, "-") > 0
+		i = Instr(1, szTab, "-")
+		If i = 1 Then
+			szTab = "_" + Right$(szTab, Len(szTab) - 1)
+		ElseIf i = Len(szTab) Then
+			szTab = Left$(szTab, Len(szTab) - 1) + "_"
+		Else
+			szTab = Left$(szTab, i - 1) + "_" + Right$(szTab, Len(szTab) - i)
+		End If
+	Loop
+
+	'*	if file starts with a numeric, mapInfo prepends an underscore
+	If Asc(szTab) Between 48 And 57 Then
+		szTab = "_" + szTab
+	End If
+
+	NormalizeTablename = szTab
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'-----------------------------------------------------------------------
+
+Sub MultiCD_OnOff
+
+OnError GoTo ErrorOccured
+
+	mbMultiCDsupport = not mbMultiCDsupport
+	If mbMultiCDsupport Then
+		Alter Menu Item MultiCD_OnOff Check
+	Else
+		Alter Menu Item MultiCD_OnOff Uncheck
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'-----------------------------------------------------------------------
+
+Sub ChangeCD
+
+OnError GoTo ErrorOccured
+
+	mnWinChgFlag = mnWinChgFlag + 1  'disable
+	Set Event Processing Off
+	Set Map Window mnRasterWin ReDraw Off
+
+	Call RH_CloseAll
+
+	Note RH_DLG_TXT_CD_CHANGE + " " + RH_DLG_TXT_PUSH_OK_WHEN_READY
+
+	Set Map Window mnRasterWin ReDraw On
+	Set Event Processing On
+	mnWinChgFlag = mnWinChgFlag - 1  'enable
+
+	Call RH_Refresh
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'-----------------------------------------------------------------------
+
+Function GetMapWindowSpex (oMapRect As Object, fZoomMeter As Float) As Logical
+
+Dim	fMultiply As Float,
+	fMinX, fMinY, fMaxX, fMaxY As Float
+Dim	dx, dy As Float
+
+OnError GoTo ErrorOccured
+
+	'*	Need to use actual mapper XY units as coordinate units
+	'*	ASSUME: mapper coordinate units = mapper XY units !!!
+	Do Case MapperInfo(mnRasterWin,MAPPER_INFO_XYUNITS)
+		case "m"
+			fMultiply = 1.0
+		case "km"
+			fMultiply = 0.001  'meters -> map units factor
+		case else
+			Note "Fejl i Koordinatsystemet."
+			GetMapWindowSpex = False
+			Exit Function
+	End Case 
+
+	Set CoordSys Window mnRasterWin
+
+	'LVN 990920, BUFFER_APPEND is now a (unitless) percentage:
+	dx = (fMaxX - fMinX) * BUFFER_APPEND 'Map units !
+	dy = (fMaxY - fMinY) * BUFFER_APPEND
+
+	fMinX = MapperInfo(mnRasterWin,MAPPER_INFO_MINX) - dx '(BUFFER_APPEND * fMultiply)
+	fMinY = MapperInfo(mnRasterWin,MAPPER_INFO_MINY) - dy '(BUFFER_APPEND * fMultiply)
+	fMaxX = MapperInfo(mnRasterWin,MAPPER_INFO_MAXX) + dx '(BUFFER_APPEND * fMultiply)
+	fMaxY = MapperInfo(mnRasterWin,MAPPER_INFO_MAXY) + dy '(BUFFER_APPEND * fMultiply)
+
+	fZoomMeter = (fMaxX - fMinX) / fMultiply  'map units -> meter
+
+'	Print "Min/Max = ("+fMinX+","+fMinY+") ("+fMaxX+","+fMaxY+")"  'cox
+
+	Create Rect Into Variable oMapRect
+		(fMinX,fMinY) (fMaxX,fMaxY)
+
+	GetMapWindowSpex = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'-----------------------------------------------------------------------
+
+Sub WriteLogMessage (ByVal szMsg As String)
+
+OnError GoTo ErrorOccured
+
+	If not mbDebug_Enabled Then
+		Exit Sub
+	End If
+
+	OnError Goto NO_LOGFILE
+
+	Open File ApplicationDirectory$()+"rasthand.log"
+		For Append
+		Access Write
+		As #9
+		Charset "WindowsLatin1"
+
+	OnError Goto NO_ERROR
+
+	Print #9, szMsg
+	Close File #9
+
+EXIT_SUB:
+	Exit Sub
+
+NO_LOGFILE:
+	Note "Warning: Can't open log file - logging turned off"
+	mbDebug_Enabled = False  'turn it off
+	Resume EXIT_SUB
+
+NO_ERROR:
+	Resume Next
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+

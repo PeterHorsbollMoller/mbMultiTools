@@ -1,0 +1,2 @@
+Declare Sub kppShowDialogSelectEditPadGroup
+Declare Function kppDialogSelectEditPadGroup() As Logical

@@ -1,0 +1,116 @@
+Copyright (c) 1996 Software Factory International, Ltd.
+
+Kiev Software Factory's Printer Control Tool (PCT) consists of a DLL (16 and
+32-bit versions are included) and MapBasic sample code to set the control
+values in MapInfo Pro's 'Page Setup' dialog box.
+
+The package includes the following files:
+
+  DLLs:
+    exec_c16.dll    16-bit version.
+    exec_c32.dll    32-bit version.
+
+  MapBasic:
+    exec_lib.def    DLL structures, constants, and functions definitions.
+    prn_opt.mb      SetPrinterOptions and SetPageOrient subroutines source.
+    prn_demo.mb     demonstration program source.
+    prn_demo.mbp    demonstration program project.
+    prn_demo.mbx    demonstration program.
+    prn_land.mb     set printer to landscape mode source.
+    prn_land.mbp    set printer to landscape mode project.
+    prn_land.mbx    set printer to landscape mode program.
+    prn_land.wor    set printer to landscape mode workspace.
+    prn_port.mb     set printer to portrait mode source.
+    prn_port.mbp    set printer to portrait mode project.
+    prn_port.mbx    set printer to portrait mode program.
+    prn_port.wor    set printer to portrait mode workspace.
+    mi32bit.def     platform identification function definition.
+    mi32bit.mb      platform identification function.
+
+There are two MapBasic subroutines in prn_opt.mb:
+
+  SetPageOrient     to set the page orientation to landscape or portrait with
+                    one parameter:
+    OrientType      orientation of the page (ORIENT_PORTRAIT or
+                    ORIENT_LANDSCAPE)
+
+  SetPrinterOptions to set all the printer options available in dialog. Its
+                    parameters are:
+    OrientType      orientation of the page (ORIENT_PORTRAIT or
+                    ORIENT_LANDSCAPE),
+    SizeInd         index of the item in Size combo box, 
+    SrcInd          index of the item in Source combo box, 
+    Smargins        structure describing margins.
+
+    Note that if you don't want to pass some parameter, use 0 for numerical
+    parameters and "" for strings (fields in Margins structure).
+
+MapBasic Demonstration (prn_demo.mbx) Notes
+
+  Run prn_demo and it adds four menu options to the File menu.
+
+  Select "File > All Options" item to see how it works. Unfortunately,
+  it is possible to set up the margins in MapInfo 32-bit only.
+
+DLL (exec_c16.dll and exec_c32.dll) Notes
+
+  The DLL has two exported function: ExecuteCommandScript and GetCommands.
+  You can find the description of the 16 and 32-bit versions in
+  exec_lib.def file.
+
+  ExecuteCommandScript has three parameters:
+
+    WinTitle - title of the window with controls: "Page Setup"
+    Commands - array of the commands: Cmds(NumCmd) As CommandDescr
+    NumCmd - number of commands in Commands array
+
+  Each element of Commands array has the following type:
+
+    Type CommandDescr
+      CtrlID As Integer - ID of the control (use pre-defined values,
+                          as ORIENT_PORTRAIT, or your own which you can find
+                          with a utility such as MS Spy++).
+      CmdType As SmallInt - type of command. Now only pre-defined commands
+                            are supported:
+        WM_COMMAND - click the button (radio- or push-),
+        WM_SETTEXT - set up the value of an edit box (sValue - new text),
+        CB_SETCURSEL - select the string in combo box or list box
+                       (iValue-index, note index is zero based).
+        WM_GETCHECK - to read the status of radio-button/check box.
+        WM_GETTEXT - to read value of edit control.
+        CB_GETCURSEL - to read item number in combo-box.
+      iValue As Integer - integer value used for message. 
+      sValue As String*MAXSTRLEN - string value used for message. 
+    End Type
+
+Writing current settings:
+  1) prepare the commands list (don't forget to close dialog using
+     ID = 1 and WM_COMMAND as last command);
+  2) execute the script with ExecuteCommandScript() function;
+  3) load the dialog with MapBasic's Run Menu Command M_FILE_PAGE_SETUP
+
+
+Reading current settings:
+  1) prepare the commands list as usual (don't forget to close dialog using
+     ID = 1 and WM_COMMAND as last command);
+  2) execute the script with ExecuteCommandScript() function;
+  3) load the dialog with MapBasic's Run Menu Command M_FILE_PAGE_SETUP
+  4) read the results using GetCommands() function with the second
+     parameter set to the number of value you are interested in.
+
+  Then, use iValue field for WM_GETCHECK (0 - clear, 1 - checked, 2 - mixed),
+  sValue for WM_GETTEXT (just string value, use RTrim$ to cut off the space),
+  iValue for CB_GETCURSEL (0-based item number).
+
+  Sample prn_demo shows how to read page orientation (GetPareOrient function),
+  and all printer options (GetPrinterOptions sub).
+
+
+
+
+Software Factory International, Ltd.
+1223 Peoples Ave
+Troy, New York 12180
+Tel: 518 276 2077
+Fax: 518 276 6380
+dressel@sfiltd.com

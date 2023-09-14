@@ -1,0 +1,5 @@
+[LINK]
+Application=prn_port.mbx
+Module=prn_port.mbo
+Module=prn_ctrl.mbo
+Module=MI32BIT.mbo

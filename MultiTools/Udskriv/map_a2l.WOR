@@ -1,0 +1,236 @@
+!Workspace
+!Version 550
+!Charset WindowsLatin1
+Open Table "Logo.TAB" As Logo Interactive
+Map From Logo 
+  Position (0.0520833,0.0520833) Units "in"
+  Width 3.6875 Units "in" Height 3.38542 Units "in" Min
+Set Window FrontWindow() ScrollBars Off Autoscroll On
+Set Map
+  CoordSys NonEarth Units "ft"
+  Center (133.5479499,-119.6565571)
+  Zoom 275.0425822 Units "ft"
+  Preserve Zoom Display Zoom
+  Distance Units "ft" Area Units "sq ft" XY Units "ft"
+  Distance Type Cartesian
+Set Map
+  Layer 1
+    Display Graphic
+    Selectable Off
+    Zoom (25, 10000) Units "ft" 
+Layout
+  Position (0.0625,0.0625) Units "in"
+  Width 3.88542 Units "in" Height 2.77083 Units "in" 
+  Set CoordSys Layout Units "in"
+  Create Frame (0.3604,0.8222) (23.0722,15.759)
+    Pen (2,2,0) 
+    Brush (2,16777215,16777215)
+    Title ""
+    FillFrame On
+  Create Rect (19.1299,14.4299) (23.0722,15.759)
+    Pen (2,2,0) 
+    Brush (2,16777215,16777215)
+  Create Text
+    "[FIRMA]\n[AFDELING]"
+    (19.1799,14.4792) (20.1396,14.8861)
+    Font ("Arial",1,12,0)
+
+  Create Text
+    "[ADRESSE], [POSTNR] [POSTDISTRIKT]\nTlf. [TLF] Fax. [FAX]"
+    (19.1799,14.9458) (20.7264,15.1389)
+    Font ("Arial",0,6,0)
+
+  Create Line (19.1299,15.1687) (23.0667,15.1687)
+    Pen (1,2,0) 
+  Create Text
+    "Målforhold: 1:[MÅLFORHOLD]"
+    (21.5382,15.3785) (23.4417,15.5382)
+    Font ("Arial",0,10,0)
+
+  Create Text
+    "J.Nr. [JNR]"
+    (21.5382,15.1819) (22.225,15.3417)
+    Font ("Arial",0,10,0)
+
+  Create Line (21.4917,15.1687) (21.4917,15.759)
+    Pen (1,2,0) 
+  Create Line (21.4917,15.3653) (23.0667,15.3653)
+    Pen (1,2,0) 
+  Create Text
+    "Dato: [DATO] / [KLOKKEN]"
+    (19.1889,15.5632) (20.8924,15.7229)
+    Font ("Arial",0,10,0)
+
+  Create Text
+    "Init.: [INITIALER]"
+    (21.5382,15.5757) (22.5979,15.7354)
+    Font ("Arial",0,10,0)
+
+  Create Text
+    "[OVERSKRIFT1]\n[OVERSKRIFT2]"
+    (19.1951,15.1882) (20.3715,15.5618)
+    Font ("Arial",1,11,0)
+
+  Create Frame (22.2194,14.4556) (23.0396,15.1701)
+    Pen (1,1,0) 
+    Brush (1,16777215,16777215)
+    Title "Logo Kort"
+    FillFrame On
+  Create Text
+    "X: [MINX]"
+    (0.4167,15.4854) (0.9806,15.6521)
+    Font ("Arial",256,9,0,16777215)
+    Angle 90
+
+  Create Text
+    "Y: [MINY]"
+    (0.5646,15.5389) (1.1278,15.7056)
+    Font ("Arial",256,9,0,16777215)
+
+  Create Text
+    "X: [MAXX]"
+    (23.0236,0.9694) (23.6271,1.1361)
+    Font ("Arial",256,9,0,16777215)
+    Angle 270
+
+  Create Text
+    "Y: [MAXY]"
+    (22.0188,0.8347) (22.6222,1.0014)
+    Font ("Arial",256,9,0,16777215)
+
+  Create Line (19.1299,15.5625) (23.0667,15.5625)
+    Pen (1,2,0) 
+  Create Region  1
+  5
+(16.5292,15.6771)
+(16.9229,15.6771)
+(16.9229,15.6181)
+(16.5292,15.6181)
+(16.5292,15.6771)
+    Pen (1,2,0) 
+    Brush (2,16777215,16777215)
+    Center (16.7257,15.6569)
+  Create Region  1
+  5
+(17.3167,15.559)
+(17.3167,15.6181)
+(17.7104,15.6181)
+(17.7104,15.559)
+(17.3167,15.559)
+    Pen (1,2,0) 
+    Brush (2,0,16777215)
+    Center (17.5132,15.5785)
+  Create Region  1
+  5
+(16.9229,15.559)
+(16.5292,15.559)
+(16.5292,15.6181)
+(16.9229,15.6181)
+(16.9229,15.559)
+    Pen (1,2,0) 
+    Brush (2,0,16777215)
+    Center (16.7257,15.5785)
+  Create Region  1
+  5
+(17.3167,15.6181)
+(17.3167,15.6771)
+(17.7104,15.6771)
+(17.7104,15.6181)
+(17.3167,15.6181)
+    Pen (1,2,0) 
+    Brush (2,16777215,16777215)
+    Center (17.5132,15.6569)
+  Create Region  1
+  5
+(16.9229,15.6181)
+(16.9229,15.6771)
+(17.3167,15.6771)
+(17.3167,15.6181)
+(16.9229,15.6181)
+    Pen (1,2,0) 
+    Brush (2,0,16777215)
+    Center (17.1194,15.6569)
+  Create Region  1
+  5
+(16.5292,15.559)
+(16.1361,15.559)
+(16.1361,15.6181)
+(16.5292,15.6181)
+(16.5292,15.559)
+    Pen (1,2,0) 
+    Brush (2,16777215,16777215)
+    Center (16.3326,15.5785)
+  Create Region  1
+  5
+(17.3167,15.559)
+(16.9229,15.559)
+(16.9229,15.6181)
+(17.3167,15.6181)
+(17.3167,15.559)
+    Pen (1,2,0) 
+    Brush (2,16777215,16777215)
+    Center (17.1194,15.5785)
+  Create Region  1
+  5
+(16.1361,15.6771)
+(16.5292,15.6771)
+(16.5292,15.6181)
+(16.1361,15.6181)
+(16.1361,15.6771)
+    Pen (1,2,0) 
+    Brush (2,0,16777215)
+    Center (16.3326,15.6569)
+  Create Region  1
+  5
+(16.1361,15.559)
+(15.9382,15.559)
+(15.9382,15.6181)
+(16.1361,15.6181)
+(16.1361,15.559)
+    Pen (1,2,0) 
+    Brush (2,0,16777215)
+    Center (15.9389,15.5785)
+  Create Region  1
+  5
+(15.7417,15.559)
+(15.7417,15.6181)
+(15.9382,15.6181)
+(15.9382,15.559)
+(15.7417,15.559)
+    Pen (1,2,0) 
+    Brush (2,16777215,16777215)
+    Center (15.8396,15.5882)
+  Create Region  1
+  5
+(15.9382,15.6181)
+(15.9382,15.6771)
+(16.1361,15.6771)
+(16.1361,15.6181)
+(15.9382,15.6181)
+    Pen (1,2,0) 
+    Brush (2,16777215,16777215)
+    Center (15.9389,15.6569)
+  Create Region  1
+  5
+(15.7417,15.6181)
+(15.7417,15.6771)
+(15.9382,15.6771)
+(15.9382,15.6181)
+(15.7417,15.6181)
+    Pen (1,2,0) 
+    Brush (2,0,16777215)
+    Center (15.8396,15.6472)
+  Create Text
+    "0"
+    (15.7028,15.3938) (15.7931,15.5604)
+    Font ("Arial",256,9,0,16777215)
+
+  Create Text
+    "[SCB,50,M] meter"
+    (17.6243,15.3806) (18.6507,15.5472)
+    Font ("Arial",256,9,0,16777215)
+
+  Set Layout Ruler On Pagebreaks On Frame Contents Active
+  Zoom 14.6799 Center (11.8691,8.05379) Extents To Fit
+  Set Window FrontWindow() Autoscroll On
+  Set CoordSys Earth

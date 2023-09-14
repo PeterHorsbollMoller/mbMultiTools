@@ -1,0 +1,168 @@
+'___________________________________________________________________________
+'
+' 	D E F :		APIfunc.def
+'		D E F	for WIN API call from MapBasic
+'___________________________________________________________________________
+'
+' H I S T O R I K
+'
+'27.05.2002/JAL	Tilføjet:
+'				- CopyFile api
+'20.06.2002/JAL	Tilføjet:
+'				- CreateDirectory
+'10.10.2002/PEM	Tilføjet:
+'				- GetDriveType
+'15.10.2002/PEM	Tilføjet:
+'				- FileTimeToSystemTime
+'				- FileTimeToLocalFileTime
+'				- SystemTimeToFileTime
+'22.11.2002/PEM	Tilføjet:
+'				- APIFileIsADirectory()
+'26.11.2002/PEM	Tilføjet:
+'				- GetDriveType() - igen
+'--- M A P B A S I C   P R O C E D U R E S ----------------
+Declare Sub APISetMIFront
+Declare Sub APILaunchURL(URLFileName As String)		
+Declare Sub APISleep(ByVal nMilisec As Integer)
+
+Declare Function APIGetUserName() As String
+Declare Function APIBrowseFolders(ByVal szTitle As String) As String
+Declare Function APIGetWindowsDirectory$() As String
+
+Declare Function APIFileIsADirectory(ByVal nFileAttributes As Integer) As Logical
+Declare Function APIGetFilesInDirectory (ByVal szPath As String, ByVal szFilespec As String, szarrList() As String) As Logical
+Declare Function APIGetFilesInDirectoryRecursive(	ByVal szPath As String, ByVal szSubPath As String, 
+									ByVal szFilespec As String, szarrList() As String) As Logical
+Declare Function APIGetFoldersInDirectory (ByVal szPath As String, ByVal szFilespec As String, szarrList() As String) As Logical
+'Declare Function APIGetCursorPosition(pCursor As T_POINT) As Logical
+Declare Function APIGetCursorPositionX() As Integer
+Declare Function APIGetCursorPositionY() As Integer
+Declare Function APICopyFile(ByVal sIn, ByVal sOut As string, ByVal n As integer) As logical
+Declare Function APISetFileAttributsNormal(ByVal szFile As String) As Logical
+
+'--- C O N S T A N T S ------------------------------------
+Define BIF_RETURNONLYFSDIRS	1
+Define BIF_DONTGOBELOWDOMAIN	2
+Define MAX_PATH			260
+Define INVALID_HANDLE_VALUE 	-1
+Define HWND 			Integer
+Define BOOL 			SmallInt
+
+Define FILE_ATTRIBUTE_ARCHIVE		&H20	'The archive bit is set for this file.
+Define FILE_ATTRIBUTE_COMPRESSED	&H800	'The file or directory is compressed.
+Define FILE_ATTRIBUTE_DIRECTORY	&H10	'The file is a directory.
+Define FILE_ATTRIBUTE_HIDDEN		&H2	'The file is hidden.
+Define FILE_ATTRIBUTE_NORMAL		&H80	'The file is normal—no other attributes are set.
+Define FILE_ATTRIBUTE_READONLY	&H1	'The file is read only.
+Define FILE_ATTRIBUTE_SYSTEM		&H4	'The file is a system file.
+Define FILE_ATTRIBUTE_TEMPORARY	&H100	'The file is a temporary file.
+
+Define ERROR_NO_MORE_FILES		18&
+
+Define DRIVE_UNKNOWN		0
+Define DRIVE_ABSENT		1
+Define DRIVE_REMOVABLE		2
+Define DRIVE_FIXED		3
+Define DRIVE_REMOTE		4
+Define DRIVE_CDROM		5
+Define DRIVE_RAMDISK		6
+
+'--- T Y P E   D E C L A R A T I O N S --------------------
+Type BrowseInfo
+	hWndOwner		As Integer
+	pIDLRoot		As Integer
+	pszDisplayName	As Integer
+	lpszTitle		As String
+	ulFlags		As Integer
+	lpfnCallBack	As Integer
+	lParam		As Integer
+	iImage		As Integer
+End Type
+
+'64-bit number specifying the elapsed time since January 1, 1601, in 100-nanosecond increments
+Type FILETIME
+        dwLowDateTime As Integer
+        dwHighDateTime As Integer
+End Type
+
+Type POINTAPI  '  8 Bytes 
+     x As Integer
+     y As Integer
+End Type
+
+Type WIN32_FIND_DATA
+	dwFileAttributes	As Integer
+	ftCreationTime	As FILETIME
+	ftLastAccessTime	As FILETIME
+	ftLastWriteTime	As FILETIME
+	nFileSizeHigh	As Integer
+	nFileSizeLow	As Integer
+	dwReserved0		As Integer
+	dwReserved1		As Integer
+	cFileName		As String * MAX_PATH
+	cAlternate		As String * 14
+End Type
+
+'--- A P I   D E C L A R A T I O N S ----------------------
+
+'**Returning type of drive
+Declare Function GetDriveType Lib "kernel32" Alias "GetDriveTypeA" (ByVal szDrive As String) As Integer
+
+'Create a directory
+Declare Function CreateDirectory Lib "kernel32" Alias "CreateDirectoryA" 
+					(ByVal lpPathName As String, ByVal lpSecurityAttributes As Integer) As Integer
+
+'Replacing the damned function from MTU.DEF thats needs MapBasic 400 to compile 
+'lpExistingFileName	String	— Source file name.
+'lpNewFileName		String	— Destination file name.
+'bFailIfExists		Long		— If True (nonzero), the function will fail if the destination file already exists.
+'						  Otherwisethe destination file will be overwritten.
+Declare Function CopyFile Lib "kernel32" Alias "CopyFileA" (	ByVal lpExistingFileName As String, 
+											ByVal lpNewFileName As String, 
+											ByVal nFailIfExists As Integer) As Logical
+Declare Function SetFileAttributes Lib "kernel32" Alias "SetFileAttributesA" (	ByVal lpFileName As String,
+														ByVal dwFileAttributes As Integer) As Logical
+
+'Focusing MI----------------------
+Declare Function SetActiveWindow Lib "user32" Alias "SetActiveWindow" (ByVal hwnd As integer) As Integer
+Declare Function SetForegroundWindow Lib "user32" Alias "SetForegroundWindow" (ByVal hwnd As integer) As Integer
+
+'Open Web Site--------------------
+Declare Function ShellExecute Lib "shell32.dll" Alias "ShellExecuteA"
+		(	ByVal hwnd As Integer, ByVal lpOperation As String, ByVal lpFile As String,
+			ByVal lpParameters As String, ByVal lpDirectory As String, ByVal nShowCmd As Integer) As Integer
+
+'Pause in runtime-----------------
+Declare Sub Sleep Lib "kernel32" Alias "Sleep" (ByVal dwMilliseconds As Integer)
+
+'Get user name--------------------
+Declare Function GetUserName lib "advapi32.dll" alias "GetUserNameA"
+				(lpBuffer As String, nSize As Integer) As Integer
+
+'Browsing folder list
+Declare Function SHBrowseForFolder Lib "shell32" (lpbi As BrowseInfo) As Integer
+Declare Function SHGetPathFromIDList Lib "shell32"  Alias "SHGetPathFromIDList" (
+				Byval pidList As Integer, lpBuffer As String) As Integer
+
+'GetWindowsDirectory----------------
+Declare Function GetWindowsDirectory Lib "kernel32" Alias "GetWindowsDirectoryA" 
+			(lpBuffer As String, ByVal nSize As Integer) As Integer
+
+'Retieving existing files in a folder
+Declare Function FindFirstFile Lib "kernel32" Alias "FindFirstFileA" (ByVal lpFileName As String, 
+				lpFindFileData As WIN32_FIND_DATA) As Integer
+Declare Function FindNextFile Lib "kernel32" Alias "FindNextFileA" (ByVal hFindFile As Integer, 
+				lpFindFileData As WIN32_FIND_DATA) As Integer
+Declare Function FindClose Lib "kernel32" Alias "FindClose" (ByVal hFindFile As Integer) As Integer
+
+Declare Function FileTimeToSystemTime Lib "kernel32" (	lpFileTime As FILETIME,
+										lpSystemTime As SYSTEMTIME) As Integer
+Declare Function FileTimeToLocalFileTime Lib "kernel32" (	lpFileTime As FILETIME,
+										lpLocalFileTime As FILETIME) As Integer
+Declare Function SystemTimeToFileTime Lib "kernel32" (	lpSystemTime As SYSTEMTIME,
+										lpFileTime As FILETIME) As Integer
+
+'Retrieving current cursor location
+Declare Function GetCursorPos Lib "user32" (lpPoint As POINTAPI) As Integer
+
+'---------------END-DEF-------------

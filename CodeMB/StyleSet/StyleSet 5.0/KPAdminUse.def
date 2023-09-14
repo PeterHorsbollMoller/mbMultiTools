@@ -1,0 +1,170 @@
+'*****************************************************************************************
+' H I S T O R I K
+' 09.05.2005/PEM	- kpaDropTableKPTablesByDisplay: Indlagt 5 sekunders ventetid efter sletning af tabel
+'*****************************************************************************************
+
+'Læsning og skrivning af initieringsfil...
+Declare Sub kpaWriteKPIniFile(ByVal nFileNum As Integer)
+Declare Sub kpaReadKPIniFile(ByVal szFileName As String)
+
+'Sætter stien til alle KP tabellerne...
+Declare Sub kpaSetKPPathWithFilename(ByVal szTabFile As String)
+Declare Sub kpaSetKPPath(ByVal szFolder As String)
+Declare Function kpaGetKPPath$() As String
+Declare Function kpaCheckKPPath() As Logical
+
+'Returnerer absolutte/relative filnavne
+Declare Function kpaGetAbsoluteFileName$(ByVal szFile As String) As String
+Declare Function kpaGetRelativeFileName$(ByVal szFile As String) As String
+
+'**Sætter/returnerer navne på standard ikonfiler
+Declare Function kpaGetKPDefaultDLLFile16$() As String
+Declare Function kpaGetKPDefaultDLLFile32$() As String
+Declare Sub kpaSetKPDefaultDLLFile16(ByVal szDLLFile As String)
+Declare Sub kpaSetKPDefaultDLLFile32(ByVal szDLLFile As String)
+Declare Function kpaGetKPToolsDLLFile32$() As String
+Declare Sub kpaSetKPToolsDLLFile32(ByVal szDLLFile As String)
+
+'**Sætter/returnerer om programmet tillader anvendelse af flere visninger pr. tabel
+Declare Sub kpaSetAllowVariousLayerSettings(ByVal bValue As Logical)
+Declare Function kpaGetAllowVariousLayerSettings() As Logical
+
+'**Sætter/returnerer om programmet tillader opsætning af avanceret opdater dialog under oprettelse af objekter
+Declare Sub KPASetAllowUpdateDialogOnCreateSetup(ByVal bValue As Logical)
+Declare Function KPAAllowUpdateDialogOnCreateSetup() As Logical
+
+'**Sætter/returnerer navn på Display ByttonPad /MultiLag
+Declare Sub kpaSetKPDisplayPadName(ByVal szPadName As String)
+Declare Function kpaGetKPDisplayPadName$() As String
+
+'**Checking whether this table is a system table...
+Declare Function kpaTableIsKPSystemTable(ByVal szTab As String) As Logical
+
+'**Settings for KPTables/MultiLag...
+Declare Sub kpaSetDiplayButtonToggle(ByVal bValue As Logical)
+Declare Function kpaGetDiplayButtonToggle() As Logical
+Declare Sub kpaSetOpenTablesWithAlias(ByVal bValue As Logical)
+Declare Function kpaGetOpenTablesWithAlias() As Logical
+Declare Sub kpaSetShowUserInfluenceButton(ByVal bValue As Logical)
+Declare Function kpaShowUserInfluenceButton() As Logical
+
+
+'**Sætter og returnerer værdier for opstartssted
+Declare Sub kpaSetCenterAndZoomForNewMap(ByVal szSetting As String, ByVal fValue As Float)
+Declare Function kpaGetCenterAndZoomForNewMap(ByVal szSetting As String) As Float
+Declare Sub kpaSetNewMapCenterAndZoom(ByVal nMID As Integer)
+
+Declare Function kpaEnableDisplayWinFocusChngHndl() As Logical
+Declare Sub kpaSetEnableDisplayWinFocusChngHndl(ByVal bValue As Logical)
+Declare Function kpaEnableDisplayAutoUpdate() As Logical
+Declare Sub kpaSetEnableDisplayAutoUpdate(ByVal bValue As Logical)
+
+'**Closes automatic all KPSystem tabels, bAutoSave defines whether to save changes if any...
+Declare Sub kpaCloseKPSystemTables(ByVal bAutoSave As Logical)
+
+'Henter navne på KP tabeller....
+Declare Function kpaGetKPStylesTabName$() As String
+Declare Function kpaGetKPTablesTabName$() As String
+Declare Function kpaGetKPIconsTabName$() As String
+Declare Function kpaGetKPGroupTabName$() As String
+Declare Function kpaGetKPTGroupTabName$() As String
+Declare Function kpaGetKPSGroupTabName$() As String
+Declare Function kpaGetKPValuesTabName$() As String
+Declare Function kpaGetKPListValuesTabName$() As String
+Declare Function kpaGetKPLayersTabName$() As String
+Declare Function kpaGetKPDisplayTabname$() As String
+Declare Function kpaGetKPTDisplayTabname$() As String
+Declare Function kpaGetKPLayersOpenTabName$() As String
+Declare Function kpaGetKPLayersToAddTabName$() As String
+Declare Function kpaGetKPTablesByDisplayName$() As String
+
+'Henter filnavne på KP tabeller....
+Declare Function kpaGetKPStylesTabFileName$() As String
+Declare Function kpaGetKPTablesTabFileName$() As String
+Declare Function kpaGetKPIconsTabFileName$() As String
+Declare Function kpaGetKPGroupTabFileName$() As String
+Declare Function kpaGetKPSGroupTabFileName$() As String
+Declare Function kpaGetKPTGroupTabFileName$() As String
+Declare Function kpaGetKPValuesTabFileName$() As String
+Declare Function kpaGetKPListValuesTabFileName$() As String
+Declare Function kpaGetKPLayersTabFileName$() As String
+Declare Function kpaGetKPDisplayTabFileName$() As String
+Declare Function kpaGetKPTDisplayTabFileName$() As String
+Declare Function kpaGetKPLayersOpenTabFileName$() As String
+Declare Function kpaGetKPLayersToAddTabFileName$() As String
+Declare Function kpaGetKPTablesByDisplayFileName$() As String
+
+'Åbner tabeller, hvis de ikke er åbne...
+'Returnerer om de blev åbnet... 	= TRUE
+'eller om de allerede var åbne.... 	= FALSE
+Declare Function kpaOpenKPStylesTable() As Logical
+Declare Function kpaOpenKPTablesTable() As Logical
+Declare Function kpaOpenKPIconsTable() As Logical
+Declare Function kpaOpenKPGroupTable() As Logical
+Declare Function kpaOpenKPSGroupTable() As Logical
+Declare Function kpaOpenKPTGroupTable() As Logical
+Declare Function kpaOpenKPValuesTable() As Logical
+Declare Function kpaOpenKPListValuesTable() As Logical
+Declare Function kpaOpenKPLayersTable() As Logical
+Declare Function kpaOpenKPDisplayTable() As Logical
+Declare Function kpaOpenKPTDisplayTable() As Logical
+Declare Function kpaOpenKPLayersOpenTable() As Logical
+Declare Function kpaOpenKPLayersToAddTable() As Logical
+Declare Function kpaOpenKPTablesByDisplayTable() As Logical
+
+'**Opretter tabeller...
+Declare Sub kpaCreateTableKPStyles
+Declare Sub kpaCreateTableKPTables
+Declare Sub kpaCreateTableKPIcons
+Declare Sub kpaCreateTableKPGroup
+Declare Sub kpaCreateTableKPSGroup
+Declare Sub kpaCreateTableKPTGroup
+Declare Sub kpaCreateTableKPValues
+Declare Sub kpaCreateTableKPListValues
+Declare Sub kpaCreateTableKPLayers
+Declare Sub kpaCreateTableKPDisplay
+Declare Sub kpaCreateTableKPTDisplay
+Declare Sub kpaCreateTableKPLayersOpen
+Declare Sub kpaCreateTableKPLayersToAdd
+Declare Sub kpaCreateTableKPTablesByDisplay
+
+'**Opretter/fjerne indeks
+Declare Sub kpaCreateIndexKPTables
+Declare Sub kpaDropIndexKPTables
+Declare Sub kpaCreateIndexKPTGroup
+Declare Sub kpaDropIndexKPTGroup
+Declare Sub kpaCreateIndexKPValues
+Declare Sub kpaDropIndexKPValues
+Declare Sub kpaCreateIndexKPListValues
+Declare Sub kpaDropIndexKPListValues
+Declare Sub kpaCreateIndexKPLayers
+Declare Sub kpaDropIndexKPLayers
+Declare Sub kpaCreateIndexKPDisplay
+Declare Sub kpaDropIndexKPDisplay
+Declare Sub kpaCreateIndexKPLayersOpen
+Declare Sub kpaDropIndexKPLayersOpen
+
+'**Sletter tabeller
+Declare Sub kpaDropTableKPLayersOpen
+Declare Sub kpaDropTableKPLayersToAdd
+Declare Sub kpaDropTableKPTablesByDisplay
+
+'**Sætter om tabeller skal bruges...
+Declare Sub kpaSetUseStyles(ByVal bValue As Logical)
+Declare Sub kpaSetUseTables(ByVal bValue As Logical)
+Declare Sub kpaSetUseIcons(ByVal bValue As Logical)
+Declare Sub kpaSetUseGrouping(ByVal bValue As Logical)
+Declare Sub kpaSetUseValues(ByVal bValue As Logical)
+Declare Sub kpaSetUseLayers(ByVal bValue As Logical)
+Declare Sub kpaSetUseMultiDisplaying(ByVal bValue As Logical)
+Declare Sub kpaSetUseEditPads(ByVal bValue As Logical)
+
+'**Returnerer om tabeller skal bruges...
+Declare Function kpaUseStyles() As Logical
+Declare Function kpaUseTables() As Logical
+Declare Function kpaUseIcons() As Logical
+Declare Function kpaUseGrouping() As Logical
+Declare Function kpaUseValues() As Logical
+Declare Function kpaUseLayers() As Logical
+Declare Function kpaUseMultiDisplaying() As Logical
+Declare Function kpaUseEditPads() As Logical

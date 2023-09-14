@@ -1,0 +1,445 @@
+'___________________________________________________________________________
+'
+' 	MODULE:		APIfunc.mbo
+'	Function:		WIN API call from MapBasic
+'___________________________________________________________________________
+
+
+Include "MAPBASIC.DEF"
+
+Include "..\Time\Time.DEF"
+Include "APIfunc.DEF"
+
+'-------------------------------------------
+'CopyFile--- example: Call APICopyFile(Inputfile,Outputfile,n)
+'n : If True (nonzero), the function will fail if the destination file already exists. 
+'Otherwise the destination file will be overwritten.
+'-------------------------------------------
+Function APICopyFile(ByVal sIn, ByVal sOut as string, ByVal n as integer) As Logical
+  
+OnError GoTo ErrorOccured
+
+	APICopyFile = CopyFile(sIn, sOut, n)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'-------------------------------------------
+'Focusing MI --- example: Call APISetMIFront
+'-------------------------------------------
+Sub APISetMIFront
+
+Dim	nRc as integer
+
+OnError GoTo ErrorOccured
+
+	'*Force focus tostay with MI	
+	nRc = SetForegroundWindow(WindowInfo(WIN_MAPINFO, WIN_INFO_WND))
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'"Fjerner alle attributter" fra en given en fil, f.eks. READONLY
+'**********************************************************************************************''
+Function APISetFileAttributsNormal(ByVal szFile As String) As Logical
+
+OnError GoTo ErrorOccured
+
+APISetFileAttributsNormal = SetFileAttributes (szFile, FILE_ATTRIBUTE_NORMAL)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'---------------------------------------------------------------------
+'Open Web Site --- example: Call APILaunchURL("http:\\www.mapinfo.dk")
+'---------------------------------------------------------------------
+Sub APILaunchURL(URLFileName As String)
+
+Dim	nRc As Integer,
+	ihwnd As Integer,
+	sOp As String,
+	sFile As String,
+	sParams As Integer,
+	sDir As String,
+	iShowCmd As Integer,
+	Null As Integer
+
+OnError Goto ErrHandler
+
+	ihwnd		= WindowInfo(WIN_MAPINFO, WIN_INFO_WND)
+	sOp		= "open"
+	sFile		= URLFileName
+	sParams	= "" + Chr$(0)
+	sDir		= ApplicationDirectory$()
+	iShowCmd	= 0
+	Null		= 0
+
+	nRc = ShellExecute(ihwnd, sOp, sFile, Null, sDir, iShowCmd)
+	If nRc <= 32 Then
+		Note "Unable to launch" + nRc
+	End If
+
+	Exit Sub
+
+'-------------------
+ErrHandler:
+	Resume Next
+
+End Sub
+
+'----------------------------------------------------------
+'Pause application runtime --- example: Call APISleep(2000)
+'----------------------------------------------------------
+Sub APISleep(ByVal nMmilisec As Integer)
+
+OnError GoTo ErrorOccured
+
+	'Print "Time Start " + Timer()
+	Call Sleep(milisec)
+	'Print "Time Stop " + Timer()
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'--------------------------------------------------------------------
+'Determine the user name --- example: Print "Hej " + APIGetUserName()
+'--------------------------------------------------------------------
+Function APIGetUserName() As String
+
+Dim	nRc As Integer,
+	user_str, lpBuffer As String,
+	BuffSize As Integer
+
+OnError GoTo ErrorOccured
+
+	BuffSize	= 1024
+	lpBuffer	= String$(BuffSize, chr$(32))
+
+	nRc			= GetUserName(lpBuffer, BuffSize)
+	APIGetUserName	= lpBuffer
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	APIGetUserName = "Unknown"
+
+End Function 
+
+'----------------------------------------------------------------------
+'APIBrowseFolders --- example: Print APIBrowseFolders("Vælg bibliotek")
+'----------------------------------------------------------------------
+Function APIBrowseFolders(ByVal szTitle as String) as String
+
+Dim 	lpIDList, retVal As Integer,
+	sBuffer As String,
+	tBrowseInfo As BrowseInfo
+
+OnError GoTo ErrorOccured
+
+	tBrowseInfo.hWndOwner	= SystemInfo(SYS_INFO_MAPINFOWND)
+	tBrowseInfo.lpszTitle	= szTitle
+	tBrowseInfo.ulFlags	= BIF_RETURNONLYFSDIRS + BIF_DONTGOBELOWDOMAIN
+
+	lpIDList 			= SHBrowseForFolder(tBrowseInfo)
+        
+	If (lpIDList) Then
+		sBuffer		= space$(MAX_PATH)
+		retVal		= SHGetPathFromIDList(lpIDList, sBuffer)
+		APIBrowseFolders	= sBuffer
+  	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'----------------------------------------------------------------------
+'APIGetWindowsDirectory --- example: Print APIGetWindowsDirectory$
+'Returner: Windows biblioteket
+'----------------------------------------------------------------------
+Function APIGetWindowsDirectory$() As String
+
+Dim	szDir As String,
+	nReturnLength As Integer
+
+OnError GoTo ErrorOccured
+
+	szDir = String$(100, " ")
+	nReturnLength = GetWindowsDirectory(szDir, 100)
+
+	szDir = LTrim$(RTrim$(szDir)) + "\"
+
+	APIGetWindowsDirectory$ = szDir
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Determinating whether a file is a directory by it fileattributes
+'**********************************************************************************************''
+Function APIFileIsADirectory(ByVal nFileAttributes As Integer) As Logical
+
+OnError GoTo ErrorOccured
+
+APIFileIsADirectory = FALSE
+
+'Print "Attrib: " & nFileAttributes
+
+	If nFileAttributes < FILE_ATTRIBUTE_DIRECTORY Then
+		Exit Function
+	End If
+	
+	If nFileAttributes >= 2048 Then
+		nFileAttributes = nFileAttributes - 2048
+	End If
+	If nFileAttributes >= 1024 Then
+		nFileAttributes = nFileAttributes - 1024
+	End If
+	If nFileAttributes >= 512 Then
+		nFileAttributes = nFileAttributes - 512
+	End If
+	If nFileAttributes >= 256 Then
+		nFileAttributes = nFileAttributes - 256
+	End If
+	If nFileAttributes >= 128 Then
+		nFileAttributes = nFileAttributes - 128
+	End If
+	If nFileAttributes >= 64 Then
+		nFileAttributes = nFileAttributes - 64
+	End If
+	If nFileAttributes >= 32 Then
+		nFileAttributes = nFileAttributes - 32
+	End If
+
+'Print "    Attrib: " & nFileAttributes
+	If nFileAttributes >= FILE_ATTRIBUTE_DIRECTORY Then
+'Print "    Folder = TRUE"
+		APIFileIsADirectory = TRUE
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'----------------------------------------------------------------------
+'GetFilesInDirectory
+'Returner: lister over filer i et givet bibliotek
+'----------------------------------------------------------------------
+Function APIGetFilesInDirectory (ByVal szPath As String, ByVal szFilespec As String, szarrList() As String) As Logical
+
+Dim	hFindFile, nStatus As Integer,
+	f As WIN32_FIND_DATA,
+	nFileNum As integer
+
+OnError GoTo ErrorOccured
+
+APIGetFilesInDirectory = FALSE
+
+	'Print "szPath: " + szPath
+	'Print "szFilespec: " + szFilespec
+
+	hFindFile = FindFirstFile (szPath + szFilespec, f)
+	If hFindFile <> INVALID_HANDLE_VALUE Then
+		Do
+			If NOT APIFileIsADirectory(f.dwFileAttributes) Then
+				nFileNum = nFileNum + 1
+				ReDim szArrList(nFileNum)
+
+				szArrList(nFileNum) = f.cFilename
+			End If
+
+			nStatus = FindNextFile (hFindFile, f)
+
+		Loop While nStatus = 1
+	End If
+
+	nStatus = FindClose (hFindFile)
+
+APIGetFilesInDirectory = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Finder filer i et bibliotek incl. underbibliteker
+'**********************************************************************************************''
+Function APIGetFilesInDirectoryRecursive(	ByVal szPath As String, ByVal szSubPath As String, 
+							ByVal szFilespec As String, szarrList() As String) As Logical
+
+Dim	hFindFile, nStatus As Integer,
+	f As WIN32_FIND_DATA,
+	nFileNum As integer
+
+OnError GoTo ErrorOccured
+
+APIGetFilesInDirectoryRecursive = FALSE
+
+	'Print "szPath: " + szPath
+	'Print "szSubPath: " + szSubPath
+	'Print "szFilespec: " + szFilespec
+	'Print "Searching thru: " & szPath & szSubPath & "\"
+
+	nFileNum	= UBound(szarrList)
+	hFindFile	= FindFirstFile (szPath & szSubPath & szFilespec, f)
+	If hFindFile <> INVALID_HANDLE_VALUE Then
+		Do
+			If NOT APIFileIsADirectory(f.dwFileAttributes) Then
+				nFileNum = nFileNum + 1
+				ReDim szArrList(nFileNum)
+
+				'Print "Found file: " & szSubPath  & f.cFilename
+				szArrList(nFileNum) = szSubPath  & f.cFilename
+			End If
+
+			nStatus = FindNextFile (hFindFile, f)
+
+		Loop While nStatus = 1
+	End If
+
+	hFindFile	= FindFirstFile (szPath & szSubPath & "*", f)
+	If hFindFile <> INVALID_HANDLE_VALUE Then
+		Do
+			If APIFileIsADirectory(f.dwFileAttributes) Then
+				If f.cFilename <> "." AND f.cFilename <> ".." Then
+					'Print "   Found subdir: " & szPath & "\" & f.cFilename & "\"
+					If APIGetFilesInDirectoryRecursive(szPath, szSubPath & f.cFilename & "\", szFilespec, szarrList) Then
+						'Finished OK
+					End If
+				End If
+			End If
+
+			nStatus = FindNextFile (hFindFile, f)
+
+		Loop While nStatus = 1
+	End If
+
+
+	nStatus = FindClose (hFindFile)
+
+APIGetFilesInDirectoryRecursive = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'----------------------------------------------------------------------
+'APIGetFoldersInDirectory
+'Returner: lister over mapper i et givet bibliotek
+'----------------------------------------------------------------------
+Function APIGetFoldersInDirectory (ByVal szPath As String, ByVal szFilespec As String, szarrList() As String) As Logical
+
+Dim	hFindFile, nStatus As Integer,
+	f As WIN32_FIND_DATA,
+	nFileNum As integer
+
+OnError GoTo ErrorOccured
+
+APIGetFoldersInDirectory = FALSE
+
+	'Print "szPath: " + szPath
+	'Print "szFilespec: " + szFilespec
+
+	hFindFile = FindFirstFile (szPath + szFilespec, f)
+	If hFindFile <> INVALID_HANDLE_VALUE Then
+		Do
+			'Print f.cFilename
+			If APIFileIsADirectory(f.dwFileAttributes) Then
+				nFileNum = nFileNum + 1
+				ReDim szArrList(nFileNum)
+
+				szArrList(nFileNum) = f.cFilename
+			End If
+
+			nStatus = FindNextFile (hFindFile, f)
+
+		Loop While nStatus = 1
+	End If
+
+	nStatus = FindClose (hFindFile)
+
+APIGetFoldersInDirectory = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+
+'**********************************************************************************************''
+'Returnerer aktuel placering af musen - X
+'**********************************************************************************************''
+Function APIGetCursorPositionX() As Integer
+'Function APIGetCursorPositionY() As Integer
+
+Dim	pCursor As POINTAPI
+
+OnError GoTo ErrorOccured
+
+	If GetCursorPos (pCursor) <> 0 Then
+		APIGetCursorPositionX = pCursor.X
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer aktuel placering af musen - X
+'**********************************************************************************************''
+Function APIGetCursorPositionY() As Integer
+
+Dim	pCursor As POINTAPI
+
+OnError GoTo ErrorOccured
+
+	If GetCursorPos (pCursor) <> 0 Then
+		APIGetCursorPositionY = pCursor.Y
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'**********************
+'**	END API MODULE  **
+'**********************

@@ -1,0 +1,12 @@
+!table
+!version 300
+!charset WindowsLatin1
+
+Definition Table
+  Type NATIVE Charset "WindowsLatin1"
+  Fields 5
+    TABLEID Integer Index 1 ;
+    DESCRIPTION Char (40) ;
+    TABLENAME Char (40) Index 2 ;
+    PATH Char (80) Index 3 ;
+    ALLOWVARIOUSLAYER Logical ;

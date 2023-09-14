@@ -1,0 +1,2210 @@
+'********************************************************************************************************
+'**	Modul: Diverse fælles kortfunktioner
+'********************************************************************************************************
+
+Include "MapBasic.def"
+Include "Menu.def"
+Include "Icons.def"
+
+Include "MapFunc.def"
+Include "..\ERRFunc\ERRFunc.def"
+Include "..\IniUtil\IniUtil.def"
+Include "..\StyleFunc\StyleFunc.def"
+Include "..\TabFunc\TabFunc.def"
+Include "..\WinFunc\WinFunc.def"
+
+Include "..\Language\Message.lng"
+Include "..\Language\Errors.lng"
+Include "..\Language\Styledef.lng"
+
+Declare Sub MAPHandlerPickedUsingDbl
+
+Dim	mnItemPicked As Integer
+'**********************************************************************************************''
+'Undersøger om lag n findes i kort m
+'**********************************************************************************************''
+Function MAPLayerExists(ByVal nWID As Integer, ByVal szLayer As String) As Logical
+
+Dim	i, nLayers As Integer
+
+OnError GoTo ErrorOccured
+
+MAPLayerExists = FALSE
+
+	If WindowInfo(nWID,WIN_INFO_TYPE) <> WIN_MAPPER Then
+	   Exit Function
+	End If
+
+	nLayers = MapperInfo(nWID,MAPPER_INFO_LAYERS)
+
+	For i = 1 To nLayers
+	   If LayerInfo(nWID,i,LAYER_INFO_NAME) = szLayer Then
+		MAPLayerExists = TRUE
+		Exit Function
+	   End If
+	Next
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Gør udvalgt lag redigerbart
+'**********************************************************************************************''
+Sub MAPMakeSelectionLayerEditable
+
+Dim	nWID As Integer,
+	szTab, szSelName As String
+
+OnError GoTo ErrorOccured
+
+	If NumWindows() > 0 Then
+		If SelectionInfo(SEL_INFO_NROWS) > 0 Then
+			nWID		= FrontWindow()
+			szTab		= SelectionInfo(SEL_INFO_TABLENAME)
+			szSelName	= SelectionInfo(SEL_INFO_SELNAME)
+	   		If MAPLayerExists(nWID, szTab) Then
+				Set Map
+				   	Layer szTab
+				   	Editable On
+			End If
+			If szTab <> szSelName Then
+				Call TABClose(szSelName)
+			End If
+	   	End If
+	End If
+
+	Exit Sub
+'-------------
+ErrorOccured:
+	Note  ERR_MAP_EDITABLE_NOT_POSS + lf
+		+ ERR_TXT_ERRORMSG + lf
+		+ Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'	Gør ingen lag redigerbare
+'**********************************************************************************************''
+Sub MAPMakeNoLayerEditable
+
+Dim	nLayer, nWID As Integer
+
+OnError GoTo ErrorOccured
+
+	nWID = FrontWindow()
+	If nWID = 0 Then
+		'**No open windows
+		Exit Sub
+	ElseIf not WindowInfo(nWID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		'**Not mapper...
+		Exit Sub
+	End If
+
+	nLayer = MapperInfo(nWID, MAPPER_INFO_EDIT_LAYER)
+	If nLayer = -1 Then
+		'**No editable layers...
+		Exit Sub
+	End If
+
+	Set Map
+		Window nWID
+		Layer nLayer
+			Editable Off
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'	Gør udvalgt lag ikke-synligt
+'**********************************************************************************************''
+Sub MAPMakeSelectionLayerNonVisible
+
+Dim	nWID As Integer,
+	szTab, szSelName As String
+
+OnError GoTo ErrorOccured
+
+	If NumWindows() > 0 Then
+		If SelectionInfo(SEL_INFO_NROWS) > 0 Then
+			nWID		= FrontWindow()
+			szTab		= SelectionInfo(SEL_INFO_TABLENAME)
+			szSelName	= SelectionInfo(SEL_INFO_SELNAME)
+	   		If MAPLayerExists(nWID, szTab) Then
+				Set Map
+		   			Layer szTab
+		   			Display Off
+
+				If szTab <> szSelName Then
+					Call TABClose(szSelName)
+				End If
+		   		Run Menu Command M_ANALYZE_UNSELECT
+			End If
+		End If
+	End If
+
+	Exit Sub
+'-------------
+ErrorOccured:
+	Note 	ERR_MAP_NOTVISIBLE_NOT_POSS + lf
+		+ ERR_TXT_ERRORMSG + lf
+		+ Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'	Gør udvalgt lag ikke-valgbart
+'**********************************************************************************************''
+Sub MAPMakeSelectionLayerNonSelectable
+
+Dim	nWID As Integer,
+	szTab, szSelName As String
+
+OnError GoTo ErrorOccured
+
+	If NumWindows() > 0 Then
+		If SelectionInfo(SEL_INFO_NROWS) > 0 Then
+			nWID = FrontWindow()
+			szTab		= SelectionInfo(SEL_INFO_TABLENAME)
+			szSelName	= SelectionInfo(SEL_INFO_SELNAME)
+	   		If MAPLayerExists(nWID, szTab) Then
+				Set Map
+				   	Layer szTab
+				   	Selectable Off
+					Editable Off
+
+				If szTab <> szSelName Then
+					Call TABClose(szSelName)
+				End If
+				Run Menu Command M_ANALYZE_UNSELECT
+			End If
+		End If
+	End If
+
+	Exit Sub
+'-------------
+ErrorOccured:
+	Note 	ERR_MAP_NOTSELECTABLE_NOT_POSS + lf
+		+ ERR_TXT_ERRORMSG + lf
+		+ Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Returnerer ID på lag m i kortvindue nWID
+'**********************************************************************************************''
+Function MAPGetLayerID(ByVal nWID As Integer, ByVal szLayer As String) As Integer
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+MAPGetLayerID = 0
+
+	If nWID = 0 Then
+		Exit Function
+	ElseIf NOT WINExists(nWID) Then
+		Exit Function
+	ElseIf WindowInfo(nWID,WIN_INFO_TYPE) <> WIN_MAPPER Then
+		Exit Function
+	End If
+
+	For i = 1 To MapperInfo(nWID,MAPPER_INFO_LAYERS)
+		If LayerInfo(nWID, i, LAYER_INFO_NAME) = szLayer Then
+			MAPGetLayerID = i
+			Exit For
+		End If
+	Next
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function MAPZoomToObject(	ByVal nMID As Integer, ByVal bTurnRedrawOff As Logical,
+					ByVal oZoom As Object, ByVal fZoomBuffer As Float,
+					ByVal fZoomFactor As Float,
+					ByVal fMinZoom As Float, ByVal fMaxZoom As Float) As Logical
+
+Dim	fX, fY, fWidth, fHeight As Float
+
+OnError GoTo ErrorOccured
+
+MAPZoomToObject = FALSE
+
+	Set CoordSys Window nMID
+	fX	= CentroidX(oZoom)
+	fY	= CentroidY(oZoom)
+	Set Distance Units "m"
+	fWidth	= Abs(ObjectGeography(oZoom, OBJ_GEO_MAXX) - ObjectGeography(oZoom, OBJ_GEO_MINX))
+	fWidth	= fWidth + (2 * fZoomBuffer)
+	fHeight	= Abs(ObjectGeography(oZoom, OBJ_GEO_MAXY) - ObjectGeography(oZoom, OBJ_GEO_MINY))
+	fHeight	= fHeight + (2 * fZoomBuffer)
+
+	If NOT MAPZoomToExtent(nMID, bTurnRedrawOff, fX, fY, fWidth, fHeight, fZoomFactor, fMinZoom, fMaxZoom) Then
+		Exit Function
+	End If
+
+MAPZoomToObject = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function MAPZoomToTable(ByVal nMID As Integer, ByVal bTurnRedrawOff As Logical,
+				ByVal szTab As String, ByVal fZoomBuffer As Float,
+				ByVal fZoomFactor As Float,
+				ByVal fMinZoom As Float, ByVal fMaxZoom As Float) As Logical
+
+Dim	fZoom As Float
+
+OnError GoTo ErrorOccured
+
+MAPZoomToTable = FALSE
+
+	If bTurnRedrawOff Then
+		Set Map
+			Window nMID
+			Redraw Off
+	End If
+
+	Add Map
+		Window nMID
+		Layer szTab
+
+	Set Map
+		Window nMID
+		Zoom Entire Layer szTab
+
+	Remove Map
+		Window nMID
+		Layer szTab
+
+	Set Distance Units "m"
+
+	fZoom		= MapperInfo(nMID, MAPPER_INFO_ZOOM)
+	'**Adding the ZoomBuffer
+	fZoom		= (2 * fZoomBuffer) + fZoom
+	'**Multiplying with the Zoomfactor
+	fZoom		= fZoomFactor * fZoom
+	'**Checking against minimum zoom
+	If fMinZoom > 0 AND fZoom < fMinZoom Then
+		fZoom = fMinZoom
+	End If
+	'**Checking against maximum zoom
+	If fMaxZoom > 0 AND fZoom > fMaxZoom Then
+		fZoom = fMaxZoom
+	End If
+
+	Set Map
+		Window nMID
+		Zoom fZoom Units "m"
+
+	If bTurnRedrawOff Then
+		Set Map
+			Window nMID
+			Redraw On
+	End If
+
+MAPZoomToTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Uses "m" as Distance unit
+'	Uses the projection/coordsys of the Map
+'**********************************************************************************************''
+Function MAPZoomToExtent(	ByVal nMID As Integer, ByVal bTurnRedrawOff As Logical,
+					ByVal fCenterX As Float, ByVal fCenterY As Float,
+					ByVal fWidth As Float, ByVal fHeight As Float,
+					ByVal fZoomFactor As Float,
+					ByVal fMinZoom As Float, ByVal fMaxZoom As Float) As Logical
+
+Dim	fWinWidth, fWinHeight, fWinFactor, fMapFactor, fZoom As Float
+
+OnError GoTo ErrorOccured
+
+MAPZoomToExtent = FALSE
+
+	If fZoomFactor = 0 Then
+		fZoomFactor = 1
+	End If
+
+	Set Paper Units "cm"
+	fWinWidth	= WindowInfo(nMID, WIN_INFO_WIDTH)
+	fWinHeight	= WindowInfo(nMID, WIN_INFO_HEIGHT)
+	fWinFactor	= fWinHeight / fWinWidth
+	fMapFactor	= fHeight / fWidth
+	fZoom		= fWidth
+	If fZoom * fWinFactor < fHeight Then
+		fZoom	= fZoom * (fMapFactor / fWinFactor)
+	End If
+	'**Multiplying with the Zoomfactor
+	fZoom		= fZoomFactor * fZoom
+	'**Checking against minimum zoom
+	If fMinZoom > 0 AND fZoom < fMinZoom Then
+		fZoom = fMinZoom
+	End If
+	'**Checking against maximum zoom
+	If fMaxZoom > 0 AND fZoom > fMaxZoom Then
+		fZoom = fMaxZoom
+	End If
+
+	If bTurnRedrawOff Then
+		Set Map
+			Window nMID
+			Redraw Off
+	End If
+
+	Set Map
+		Window nMID
+		Zoom fZoom Units "m"
+	Set Map
+		Window nMID
+		Center (fCenterX, fCenterY)
+
+	If bTurnRedrawOff Then
+		Set Map
+			Window nMID
+			Redraw On
+	End If
+
+MAPZoomToExtent = TRUE
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer array med vinduesnavne på kortvinduer...
+'**********************************************************************************************''
+Function MAPCreateArrayMapWindows(	arrWin(0) As String,
+						ByVal bUseNew As Logical,
+						ByVal bUseNone As Logical,
+						ByVal bAddNone As Logical) As Logical
+
+Dim	i, nNumWins As Integer
+
+OnError GoTo ErrorOccured
+
+MAPCreateArrayMapWindows = FALSE
+
+	nNumWins = 0
+	If bUseNew Then
+		nNumWins = nNumWins + 1
+		ReDim arrWin(nNumWins)
+		arrWin(nNumWins) = MSG_WIN_CREATE_NEW_MAP
+	End If
+
+	For i = 1 To NumWindows()
+		If WindowInfo(i, WIN_INFO_TYPE) = WIN_MAPPER Then
+			nNumWins = nNumWins + 1
+			ReDim arrWin(nNumWins)
+			arrWin(nNumWins) = WindowInfo(i, WIN_INFO_NAME)
+		End If
+	Next
+
+	If nNumWins = 0 and bUseNone Then
+		nNumWins = nNumWins + 1
+		ReDim arrWin(nNumWins)
+		arrWin(nNumWins) = ERR_WIN_NO_MAP_OPEN
+		Exit Sub
+	End If
+
+	If bAddNone Then
+		nNumWins = nNumWins + 1
+		ReDim arrWin(nNumWins)
+		arrWin(nNumWins) = MSG_NONE
+	End If
+
+	If nNumWins = 0 Then
+		Exit Function
+	End If
+
+MAPCreateArrayMapWindows = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Laver array med navne på kortvinduer + nyt kortvindue
+'**********************************************************************************************''
+Function MAPCreateArrayAllMapWindows(arrNames() As String) As Integer
+
+Dim	i, nNumWins As SmallInt
+
+OnError GoTo ErrorOccured
+
+MAPCreateArrayAllMapWindows = nNumWins
+
+	nNumWins = 1
+	ReDim arrNames(nNumWins)
+	arrNames(nNumWins) = MSG_WIN_CREATE_NEW_MAP
+
+	If NumWindows() = 0 Then
+		Exit Function
+	End If
+
+	For i = 1 To NumWindows()
+		If WindowInfo(WindowID(i),WIN_INFO_TYPE) = WIN_MAPPER Then
+			nNumWins = nNumWins + 1
+			ReDim arrNames(nNumWins)
+			arrNames(nNumWins) = WindowInfo(WindowID(i),WIN_INFO_NAME)
+		End If
+	Next
+
+MAPCreateArrayAllMapWindows = nNumWins
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Laver array med navne på lag i kortvindue
+'**********************************************************************************************''
+Function MAPCreateArrayLayers(nMID As Integer, arrLayer(0) As String,
+					ByVal bUseImage As Logical,
+					ByVal bUseSeamless As Logical,
+					ByVal bUseCosmetic As Logical,
+					ByVal bUseThematic As Logical,
+					ByVal bUseTemp As Logical) As Integer
+
+Dim	i, nLayer As Integer,
+	szName As String,
+	bAddLayer As Logical
+
+OnError GoTo ErrorOccured
+
+MAPCreateArrayLayers = 0
+
+	If not WindowExists(nMID) Then
+		Note ERR_WIN_DOESNT_EXISTS
+		Exit Function
+	ElseIf not WindowInfo(nMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Function
+	End If
+
+	nLayer = 0
+	For i = 1 To MapperInfo(nMID, MAPPER_INFO_LAYERS)
+
+		szName = LayerInfo(nMID, i, LAYER_INFO_NAME)
+		bAddLayer = TRUE
+		'Print i + " : " + szName
+
+
+		If LayerInfo(nMID, i, LAYER_INFO_TYPE) = LAYER_INFO_TYPE_IMAGE Then
+			'Print "Laget er et bitmap"
+			If not bUseImage Then
+				bAddLayer = FALSE
+			End If
+			GoTo AddLayerToArrayOrNot
+		End If
+
+		If LayerInfo(nMID, i, LAYER_INFO_TYPE) = LAYER_INFO_TYPE_COSMETIC Then
+			'Print "Laget er et kosmetisk lag"
+			If not bUseCosmetic Then
+				bAddLayer = FALSE
+			End If
+			GoTo AddLayerToArrayOrNot
+		End If
+
+		If LayerInfo(nMID, i, LAYER_INFO_TYPE) = LAYER_INFO_TYPE_THEMATIC Then
+			'Print "Laget er et tematisk lag"
+			If not bUseThematic Then
+				bAddLayer = FALSE
+			End If
+			GoTo AddLayerToArrayOrNot
+		End If
+
+		If TableInfo(szName, TAB_INFO_SEAMLESS) Then
+			'Print "Laget er et sønløst lag"
+			If not bUseSeamless Then
+				bAddLayer = FALSE
+			End If
+			GoTo AddLayerToArrayOrNot
+		End If
+
+		If TableInfo(szName, TAB_INFO_TEMP) Then
+			'Print "laget er ikke en basetabel"
+			If not bUseTemp Then
+				bAddLayer = FALSE
+			End If
+			GoTo AddLayerToArrayOrNot
+		End If
+
+		'-------------------
+		AddLayerToArrayOrNot:
+
+		If bAddLayer Then
+			nLayer = nLayer + 1
+			ReDim arrLayer(nLayer)
+			arrLayer(nLayer) = szName
+		End If
+
+	Next
+
+MAPCreateArrayLayers = nLayer
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Parameters:
+'
+'**********************************************************************************************''
+Sub MAPSetUseLayerTypeTrue(tUseLayerType As T_USE_LAYER_TYPE)
+
+OnError GoTo ErrorOccured
+
+	tUseLayerType.bUseNormal		= TRUE
+	tUseLayerType.bUseImage			= TRUE
+	tUseLayerType.bUseGrid			= TRUE
+	tUseLayerType.bUseView			= TRUE
+	tUseLayerType.bUseLinked		= TRUE
+	tUseLayerType.bUseSeamless		= TRUE
+	tUseLayerType.bUseCosmetic		= TRUE
+	tUseLayerType.bUseThematic		= TRUE
+	tUseLayerType.bUseTemp			= TRUE
+	tUseLayerType.bUseReadOnly		= TRUE
+	tUseLayerType.bUseNotSelectable	= TRUE
+	tUseLayerType.bUseWMS			= TRUE
+	tUseLayerType.bUseWFS			= TRUE
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreateErrorAndShowDlg(Err(), Error$(), "MAPSetUseLayerTypeTrue")
+
+End Sub
+
+'**********************************************************************************************''
+'	Laver array med navne på lag i kortvindue
+'**********************************************************************************************''
+Function MAPCreateArrayLayersExt(	nMID As Integer, arrLayerNames(0) As String, arrLayerNums(0) As Integer,
+						tUseLayerType As T_USE_LAYER_TYPE) As Integer
+
+Dim	i, nLayer As Integer,
+	szName As String,
+	bAddLayer As Logical
+
+OnError GoTo ErrorOccured
+
+MAPCreateArrayLayersExt = 0
+
+	If not WindowExists(nMID) Then
+		Note ERR_WIN_DOESNT_EXISTS
+		Exit Function
+	ElseIf not WindowInfo(nMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Function
+	End If
+
+	nLayer = 0
+	For i = 1 To MapperInfo(nMID, MAPPER_INFO_LAYERS)
+
+		szName = LayerInfo(nMID, i, LAYER_INFO_NAME)
+		bAddLayer = TRUE
+		'Print i + " : " + szName
+
+		Do Case LayerInfo(nMID, i, LAYER_INFO_TYPE)
+			Case LAYER_INFO_TYPE_IMAGE
+				'Print "Laget er et bitmap"
+				If not tUseLayerType.bUseImage Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case LAYER_INFO_TYPE_COSMETIC
+				'Print "Laget er et kosmetisk lag"
+				If not tUseLayerType.bUseCosmetic Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case LAYER_INFO_TYPE_THEMATIC
+				'Print "Laget er et tematisk lag"
+				If not tUseLayerType.bUseThematic Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case LAYER_INFO_TYPE_GRID
+				'Print "Laget er et grid lag"
+				If not tUseLayerType.bUseGrid Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+		End Case
+
+		If NOT LayerInfo(nMID, i, LAYER_INFO_SELECTABLE) Then
+			'Print "Laget er ikke valgbart"
+			If not tUseLayerType.bUseNotSelectable Then
+				bAddLayer = FALSE
+			End If
+			GoTo AddLayerToArrayOrNot
+		End If
+
+		If TableInfo(szName, TAB_INFO_SEAMLESS) Then
+			'Print "Laget er et sømløst lag"
+			If not tUseLayerType.bUseSeamless Then
+				bAddLayer = FALSE
+			End If
+			GoTo AddLayerToArrayOrNot
+		End If
+
+		If TableInfo(szName, TAB_INFO_TEMP) Then
+			'Print "laget er ikke en basetabel"
+			If not tUseLayerType.bUseTemp Then
+				bAddLayer = FALSE
+			End If
+			GoTo AddLayerToArrayOrNot
+		End If
+
+		If TableInfo(szName, TAB_INFO_READONLY) Then
+			'Print "laget er skrivebeskyttet"
+			If not tUseLayerType.bUseReadOnly Then
+				bAddLayer = FALSE
+			End If
+			GoTo AddLayerToArrayOrNot
+		End If
+
+		Do Case TableInfo(szName, TAB_INFO_TYPE)
+			Case TAB_TYPE_BASE	'(if a normal or seamless table)
+				'Print "laget er normal tabel"
+				If not tUseLayerType.bUseNormal Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case TAB_TYPE_RESULT	'(if results of a query)
+				'Print "laget er et resultat/forespørgsel"
+				If not tUseLayerType.bUseTemp Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case TAB_TYPE_IMAGE	'(if table is a raster image)
+				'Print "laget er IMAGE"
+				If not tUseLayerType.bUseImage Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case TAB_TYPE_VIEW	'(if table is actually a view; for example, StreetInfo tables are actually views)
+				'Print "laget er VIEW"
+				If not tUseLayerType.bUseView Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case TAB_TYPE_LINKED	'(if this table is linked).
+				'Print "laget er LINKED"
+				If not tUseLayerType.bUseLinked Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case TAB_TYPE_WMS		'(if table is from a Web Map Service)
+				'Print "laget er WMS"
+				If not tUseLayerType.bUseWMS Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case TAB_TYPE_WFS		'(if table is from a Web Feature Service)
+				'Print "laget er WFS"
+				If not tUseLayerType.bUseWFS Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+		End Case
+
+		'-------------------
+		AddLayerToArrayOrNot:
+
+		If bAddLayer Then
+			nLayer			= nLayer + 1
+			ReDim arrLayerNames(nLayer)
+			ReDim arrLayerNums(nLayer)
+			arrLayerNames(nLayer)	= szName
+			arrLayerNums(nLayer)	= i
+		End If
+
+	Next
+
+MAPCreateArrayLayersExt = nLayer
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Laver array med navne på lag i kortvindue
+'**********************************************************************************************''
+Function MAPCreateArrayLayerInfoExt(	nMID As Integer, arrLayerInfo(0) As T_MAP_LAYER_INFO,
+							tUseLayerType As T_USE_LAYER_TYPE) As Integer
+
+Dim	i, nLayer, nType As Integer,
+	szName, szTab, szTabFile As String,
+	bAddLayer, bReadOnly As Logical
+
+OnError GoTo ErrorOccured
+
+MAPCreateArrayLayerInfoExt = 0
+
+	If not WindowExists(nMID) Then
+		Note ERR_WIN_DOESNT_EXISTS
+		Exit Function
+	ElseIf not WindowInfo(nMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Function
+	End If
+
+	nLayer = 0
+	For i = 1 To MapperInfo(nMID, MAPPER_INFO_LAYERS)
+
+		szName 	= LayerInfo(nMID, i, LAYER_INFO_NAME)
+		szTabFile	= LayerInfo(nMID, i, LAYER_INFO_PATH)
+		szTab		= TABGetNameFromTabFile$(szTabFile)
+		nType		= LayerInfo(nMID, i, LAYER_INFO_TYPE)
+		bReadOnly	= FALSE
+
+		bAddLayer = TRUE
+		'Print i + " : " + szName
+
+		Do Case LayerInfo(nMID, i, LAYER_INFO_TYPE)
+			Case LAYER_INFO_TYPE_IMAGE
+				'Print "Laget er et bitmap"
+				If not tUseLayerType.bUseImage Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case LAYER_INFO_TYPE_COSMETIC
+				'Print "Laget er et kosmetisk lag"
+				If not tUseLayerType.bUseCosmetic Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case LAYER_INFO_TYPE_THEMATIC
+				'Print "Laget er et tematisk lag"
+				If not tUseLayerType.bUseThematic Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case LAYER_INFO_TYPE_GRID
+				'Print "Laget er et grid lag"
+				If not tUseLayerType.bUseGrid Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+		End Case
+
+		If NOT LayerInfo(nMID, i, LAYER_INFO_SELECTABLE) Then
+			'Print "Laget er ikke valgbart"
+			If not tUseLayerType.bUseNotSelectable Then
+				bAddLayer = FALSE
+			End If
+			GoTo AddLayerToArrayOrNot
+		End If
+
+		If TableInfo(szName, TAB_INFO_SEAMLESS) Then
+			'Print "Laget er et sømløst lag"
+			If not tUseLayerType.bUseSeamless Then
+				bAddLayer = FALSE
+			End If
+			GoTo AddLayerToArrayOrNot
+		End If
+
+		If TableInfo(szName, TAB_INFO_TEMP) Then
+			'Print "laget er ikke en basetabel"
+			If not tUseLayerType.bUseTemp Then
+				bAddLayer = FALSE
+			End If
+			GoTo AddLayerToArrayOrNot
+		End If
+
+		If TableInfo(szName, TAB_INFO_READONLY) Then
+			'Print "laget er skrivebeskyttet"
+			If not tUseLayerType.bUseReadOnly Then
+				bAddLayer = FALSE
+			End If
+			GoTo AddLayerToArrayOrNot
+		End If
+
+		Do Case TableInfo(szName, TAB_INFO_TYPE)
+			Case TAB_TYPE_BASE	'(if a normal or seamless table)
+				'Print "laget er normal tabel"
+				If not tUseLayerType.bUseNormal Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case TAB_TYPE_RESULT	'(if results of a query)
+				'Print "laget er et resultat/forespørgsel"
+				If not tUseLayerType.bUseTemp Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case TAB_TYPE_IMAGE	'(if table is a raster image)
+				'Print "laget er IMAGE"
+				If not tUseLayerType.bUseImage Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case TAB_TYPE_VIEW	'(if table is actually a view; for example, StreetInfo tables are actually views)
+				'Print "laget er VIEW"
+				If not tUseLayerType.bUseView Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case TAB_TYPE_LINKED	'(if this table is linked).
+				'Print "laget er LINKED"
+				If not tUseLayerType.bUseLinked Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case TAB_TYPE_WMS		'(if table is from a Web Map Service)
+				'Print "laget er WMS"
+				If not tUseLayerType.bUseWMS Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+			Case TAB_TYPE_WFS		'(if table is from a Web Feature Service)
+				'Print "laget er WFS"
+				If not tUseLayerType.bUseWFS Then
+					bAddLayer = FALSE
+				End If
+				GoTo AddLayerToArrayOrNot
+		End Case
+
+		'-------------------
+		AddLayerToArrayOrNot:
+
+		If bAddLayer Then
+			nLayer = nLayer + 1
+			ReDim arrLayerInfo(nLayer)
+			arrLayerInfo(nLayer).nLayerID		= i
+			arrLayerInfo(nLayer).szName		= szName
+			arrLayerInfo(nLayer).nType		= nType
+			arrLayerInfo(nLayer).bReadOnly	= bReadOnly
+			arrLayerInfo(nLayer).szTab		= szTab
+			arrLayerInfo(nLayer).szTabFile	= szTabFile
+		End If
+
+	Next
+
+MAPCreateArrayLayerInfoExt = nLayer
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function MAPCreateArrayLayerInfo(	nMID As Integer, arrLayerInfo(0) As T_MAP_LAYER_INFO,
+						ByVal bUseImage As Logical,
+						ByVal bUseGrid As Logical,
+						ByVal bUseSeamless As Logical,
+						ByVal bUseCosmetic As Logical,
+						ByVal bUseThematic As Logical,
+						ByVal bUseTemp As Logical,
+						ByVal bUseReadOnly As Logical) As Integer
+Dim	i, nLayer, nType As Integer,
+	szName, szTab, szTabFile As String,
+	bAddLayer, bReadOnly As Logical
+
+OnError GoTo ErrorOccured
+
+MAPCreateArrayLayerInfo = 0
+
+	If not WindowExists(nMID) Then
+		Note ERR_WIN_DOESNT_EXISTS
+		Exit Function
+	ElseIf not WindowInfo(nMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Function
+	End If
+
+	nLayer = 0
+	For i = 1 To MapperInfo(nMID, MAPPER_INFO_LAYERS)
+
+		szName 	= LayerInfo(nMID, i, LAYER_INFO_NAME)
+		szTabFile	= LayerInfo(nMID, i, LAYER_INFO_PATH)
+		szTab		= TABGetNameFromTabFile$(szTabFile)
+		nType		= LayerInfo(nMID, i, LAYER_INFO_TYPE)
+		bReadOnly	= FALSE
+
+		bAddLayer	= TRUE
+		'Print i + " : " + szName
+
+		Do Case nType
+			Case LAYER_INFO_TYPE_IMAGE
+				'Print "Laget er et bitmap"
+				If not bUseImage Then
+					bAddLayer = FALSE
+				End If
+			Case LAYER_INFO_TYPE_COSMETIC
+				'Print "Laget er et kosmetisk lag"
+				If not bUseCosmetic Then
+					bAddLayer = FALSE
+				End If
+			Case LAYER_INFO_TYPE_THEMATIC
+				'Print "Laget er et tematisk lag"
+				If not bUseThematic Then
+					bAddLayer = FALSE
+				End If
+			Case LAYER_INFO_TYPE_GRID
+				'Print "Laget er et tematisk lag"
+				If not bUseGrid Then
+					bAddLayer = FALSE
+				End If
+			Case LAYER_INFO_TYPE_NORMAL
+				If TableInfo(szName, TAB_INFO_TEMP) Then
+					'Print "laget er ikke en basetabel"
+					nType	= MAP_LAYER_TYPE_TEMP
+					If not bUseTemp Then
+						bAddLayer = FALSE
+					End If
+				End If
+				If TableInfo(szName, TAB_INFO_READONLY) Then
+					'Print "laget er ikke en basetabel"
+					bReadOnly	= TRUE
+					If not bUseReadOnly Then
+						bAddLayer = FALSE
+					End If
+				End If
+				If TableInfo(szName, TAB_INFO_SEAMLESS) Then
+					'Print "Laget er et sømløst lag"
+					If not bUseSeamless Then
+						bAddLayer = FALSE
+					End If
+				End If
+		End Case
+
+		'-------------------
+
+		If bAddLayer Then
+			nLayer = nLayer + 1
+			ReDim arrLayerInfo(nLayer)
+			arrLayerInfo(nLayer).nLayerID		= i
+			arrLayerInfo(nLayer).szName		= szName
+			arrLayerInfo(nLayer).nType		= nType
+			arrLayerInfo(nLayer).bReadOnly	= bReadOnly
+			arrLayerInfo(nLayer).szTab		= szTab
+			arrLayerInfo(nLayer).szTabFile	= szTabFile
+		End If
+	Next
+
+MAPCreateArrayLayerInfo = nLayer
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Parameters:
+'	:
+'Return value:
+'
+'**********************************************************************************************''
+Function MAPGetLayerNumDlg(	ByVal szDlgTitle As String, ByVal nMID As Integer,
+					tUseLayerType As T_USE_LAYER_TYPE) As Integer
+
+Dim	nLayer, arrLayerNums() As Integer,
+	arrLayerNames() As String
+
+OnError GoTo ErrorOccured
+
+MAPGetLayerNumDlg = -1
+
+	If MAPCreateArrayLayersExt(nMID, arrLayerNames, arrLayerNums, tUseLayerType) = 0 Then
+		Note ERR_MAP_NO_LAYER_TO_USE
+		Exit Function
+	End If
+
+	mnItemPicked = 0
+
+	Dialog
+		Title szDlgTitle
+
+		Control StaticText	Position 10,5
+			Title MSG_MAP_LAYERS
+		Control ListBox		Position 10,15	Width 110	Height 75	ID 100
+			Calling MAPHandlerPickedUsingDbl
+			Title From Variable arrLayerNames
+			Into nLayer
+
+		Control OKButton		Position 130,15	Width 45
+		Control CancelButton	Position 130,34	Width 45
+
+
+	If Not CommandInfo(CMD_INFO_DLG_OK) Then
+		If mnItemPicked = 0 Then
+			'***
+		ElseIf mnItemPicked > Ubound(arrLayerNums) Then
+			'***
+		Else
+			MAPGetLayerNumDlg = arrLayerNums(mnItemPicked)
+		End If
+	ElseIf nLayer > 0 Then
+		MAPGetLayerNumDlg = arrLayerNums(nLayer)
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Call ERRCreateErrorAndShowDlg(Err(), Error$(), "MAPGetLayerNumDlg")
+
+End Function
+
+'**********************************************************************************************''
+'Handler - aktiveres fra GetTableName / GetColumnName
+'**********************************************************************************************''
+Sub MAPHandlerPickedUsingDbl
+
+Dim	nCtrl As Integer
+
+OnError GoTo ErrorOccured
+
+	If CommandInfo(CMD_INFO_DLG_DBL) Then
+		nCtrl 		= TriggerControl()
+		mnItemPicked	= ReadControlValue(nCtrl)
+
+		Dialog Remove
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Call ERRCreateErrorAndShowDlg(Err(), Error$(), "MAPHandlerPickedUsingDbl")
+
+End Sub
+
+'**********************************************************************************************''
+'Returnerer ID på det først fundne kortvindue
+'Returnerer 0, hvis der ikke blev fundet et kortvindue
+'**********************************************************************************************''
+Function MAPGetFirstMapWID() As Integer
+
+Dim	nWID, i As Integer
+
+OnError GoTo ErrorOccured
+
+MAPGetFirstMapWID = 0
+
+	nWID = FrontWindow()
+	If nWID > 0 Then
+		If WindowInfo(nWID, WIN_INFO_TYPE) = WIN_MAPPER Then
+			'**Using frontWindow...
+		Else
+			nWID = 0
+			For i = NumWindows() To 1 Step -1
+				If WindowInfo(WindowID(i), WIN_INFO_TYPE) = WIN_MAPPER Then
+					nWID = WindowID(i)
+					Exit For
+				End If
+			Next
+			If nWID = 0 Then
+				Exit Function
+			End If
+		End If
+	Else
+		nWID = 0
+		For i = NumWindows() To 1 Step -1
+			If WindowID(i) > 0 Then
+				If WindowInfo(WindowID(i), WIN_INFO_TYPE) = WIN_MAPPER Then
+					nWID = WindowID(i)
+					Exit For
+				End If
+			End If
+		Next
+		If nWID = 0 Then
+			Exit Function
+		End If
+	End If
+
+MAPGetFirstMapWID = nWID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer ID på det brugervalgte kortvindue
+'Hvis det aktive vindue er et kort returneres ID på dette
+'**********************************************************************************************''
+Function MAPGetMapWIDDialog(ByVal bUseNew As Logical,
+						ByVal bUseNone As Logical,
+						ByVal bAddNone As Logical) As Integer
+
+Dim	nWID, nChosen, nMaps, i As Integer,
+	arrMaps() As String
+
+OnError GoTo ErrorOccured
+
+MAPGetMapWIDDialog = 0
+
+	If NumWindows() > 0 Then
+		nWID = FrontWindow()
+		If WindowInfo(nWID, WIN_INFO_TYPE) = WIN_MAPPER Then
+			'**Using frontWindow...
+		Else
+			nMaps = 0
+			For i = 1 To NumWindows()
+				If WindowInfo(WindowID(i), WIN_INFO_TYPE) = WIN_MAPPER Then
+					nMaps = nMaps + 1
+					If nMaps = 1 Then
+						nWID = WindowID(i)
+					End If
+				End If
+			Next
+			If nMaps = 0 Then
+				'***using the one open map....
+				nWID = MAP_CREATE_NEW
+			ElseIf nMaps = 1 Then
+				'***using the one open map....
+			Else
+				If MAPCreateArrayMapWindows(arrMaps, bUseNew, bUseNone, bAddNone) Then
+					'***Continue....
+				End If
+
+				Dialog
+					Title STYL_DLG_TITLE_OPEN_TAB_IN_MAP
+					Control PopUpMenu		Position 5,5	Width 250
+						Title From Variable arrMaps
+						Into nChosen
+					Control OKButton
+					Control CancelButton
+				If NOT CommandInfo(CMD_INFO_DLG_OK) Then
+					Exit Function
+				End If
+
+				If nChosen = 1 AND bUseNew Then
+					nWID = MAP_CREATE_NEW		'Create a new map
+				Else
+					nWID = GetWindowID(arrMaps(nChosen))
+				End If
+			End If
+		End If
+	Else
+		nWID = MAP_CREATE_NEW
+	End If
+
+	MAPGetMapWIDDialog = nWID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function MAPConvertLayerSetup2String$(laySetup As T_LAYER_SETUP) As String
+
+Dim	szTemp As String
+
+OnError GoTo ErrorOccured
+
+	szTemp	= laySetup.szLayerName
+				& "; " & laySetup.bEditable
+				& "; " & laySetup.bSelectable
+				& "; " & laySetup.bZoomLayered
+				& "; " & KommaToPoint(Str$(laySetup.fMinZoom))
+				& "; " & KommaToPoint(Str$(laySetup.fMaxZoom))
+				& "; " & laySetup.nDisplay
+				& "; " & StyleFuncGetStringFromPen$(laySetup.penGlobalLine)
+				& "; " & StyleFuncGetStringFromPen$(laySetup.penGlobalBorder)
+				& "; " & StyleFuncGetStringFromBrush$(laySetup.brsGlobal)
+				& "; " & StyleFuncGetStringFromFont$(laySetup.fntGlobal)
+				& "; " & StyleFuncGetStringFromSymbol$(laySetup.symGlobal)
+				& "; " & laySetup.bShowArrows
+				& "; " & laySetup.bShowNodes
+				& "; " & laySetup.bShowCentroids
+
+	MAPConvertLayerSetup2String$	= szTemp
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function MAPConvertString2LayerSetup(ByVal szLayerSetup As String, laySetup As T_LAYER_SETUP) As Logical
+
+Dim	arrStrings() As String,
+	i, nNumStr As Integer
+
+OnError GoTo ErrorOccured
+
+MAPConvertString2LayerSetup = FALSE
+
+	nNumStr = StrSplitDefinedChar(szLayerSetup, ";", arrStrings, 99)
+	Call MAPResetLayerSetup(laySetup)
+
+	For i = 1 To nNumStr
+		arrStrings(i)	= LTrim$(RTrim$(arrStrings(i)))
+
+		Do Case i
+			Case 1
+				laySetup.szLayerName		= arrStrings(1)
+			Case 2
+				laySetup.bEditable		= (arrStrings(2) = "T")
+			Case 3
+				laySetup.bSelectable		= (arrStrings(3) = "T")
+			Case 4
+				laySetup.bZoomLayered		= (arrStrings(4) = "T")
+			Case 5
+				laySetup.fMinZoom			= Val(arrStrings(5))
+			Case 6
+				laySetup.fMaxZoom			= Val(arrStrings(6))
+			Case 7
+				laySetup.nDisplay			= Val(arrStrings(7))
+			Case 8
+				laySetup.penGlobalLine		= StyleFuncGetPenFromString(arrStrings(8))
+			Case 9
+				laySetup.penGlobalBorder	= StyleFuncGetPenFromString(arrStrings(9))
+			Case 10
+				laySetup.brsGlobal		= StyleFuncGetBrushFromString(arrStrings(10))
+			Case 11
+				laySetup.fntGlobal		= StyleFuncGetFontFromString(arrStrings(11))
+			Case 12
+				laySetup.symGlobal		= StyleFuncGetSymbolFromString(arrStrings(12))
+			Case 13
+				laySetup.bShowArrows		= (arrStrings(13) = "T")
+			Case 14
+				laySetup.bShowNodes		= (arrStrings(14) = "T")
+			Case 15
+				laySetup.bShowCentroids		= (arrStrings(15) = "T")
+			Case Else
+				Exit For
+		End Case
+	Next
+
+	MAPConvertString2LayerSetup = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Kopierer et Lag setup til et andet
+'**********************************************************************************************''
+Sub MAPCopyLayerSetup(layFromSetup As T_LAYER_SETUP, layToSetup As T_LAYER_SETUP)
+
+OnError GoTo ErrorOccured
+
+	layToSetup.szLayerName		= layFromSetup.szLayerName
+	layToSetup.bEditable		= layFromSetup.bEditable
+	layToSetup.bSelectable		= layFromSetup.bSelectable
+
+	layToSetup.bZoomLayered		= layFromSetup.bZoomLayered
+	layToSetup.fMinZoom		= layFromSetup.fMinZoom
+	layToSetup.fMaxZoom		= layFromSetup.fMaxZoom
+	layToSetup.nDisplay		= layFromSetup.nDisplay
+
+	layToSetup.penGlobalLine	= layFromSetup.penGlobalLine
+	layToSetup.penGlobalBorder	= layFromSetup.penGlobalBorder
+	layToSetup.brsGlobal		= layFromSetup.brsGlobal
+	layToSetup.fntGlobal		= layFromSetup.fntGlobal
+	layToSetup.symGlobal		= layFromSetup.symGlobal
+
+	layToSetup.bShowArrows		= layFromSetup.bShowArrows
+	layToSetup.bShowNodes		= layFromSetup.bShowNodes
+	layToSetup.bShowCentroids	= layFromSetup.bShowCentroids
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Nulstiller et Lag setup
+'**********************************************************************************************''
+Sub MAPResetLayerSetup(laySetup As T_LAYER_SETUP)
+
+OnError GoTo ErrorOccured
+
+	laySetup.szLayerName		= ""
+	laySetup.bEditable		= FALSE
+	laySetup.bSelectable		= TRUE
+
+	laySetup.bZoomLayered		= FALSE
+	laySetup.fMinZoom			= 0
+	laySetup.fMaxZoom			= 30000
+	laySetup.nDisplay			= LAYER_INFO_DISPLAY_GRAPHIC
+
+	laySetup.penGlobalLine		= CurrentPen()
+	laySetup.penGlobalBorder	= CurrentPen()
+	laySetup.brsGlobal		= CurrentBrush()
+	laySetup.fntGlobal		= CurrentFont()
+	laySetup.symGlobal		= CurrentSymbol()
+
+	laySetup.bShowArrows		= FALSE
+	laySetup.bShowNodes		= FALSE
+	laySetup.bShowCentroids		= FALSE
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Læser en tabels lagopsætning
+'**********************************************************************************************''
+Function MAPReadLayerSetup(	ByVal nMID As Integer, ByVal szLayer As String,
+					laySetup As T_LAYER_SETUP) As Logical
+
+Dim	nLayerID As Integer
+
+OnError GoTo ErrorOccured
+
+MAPReadLayerSetup = FALSE
+
+	nLayerID 		= MAPGetLayerID(nMID, szLayer)
+	MAPReadLayerSetup = MAPReadLayerSetupByLayerID(nMID, nLayerID, laySetup)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Print ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Sætter en tabels lagopsætning
+'**********************************************************************************************''
+Function MAPWriteLayerSetup(	ByVal nMID As Integer, ByVal szLayer As String,
+					laySetup As T_LAYER_SETUP) As Logical
+
+Dim	nLayerID As Integer
+
+OnError GoTo ErrorOccured
+
+MAPWriteLayerSetup = FALSE
+
+	nLayerID 			= MAPGetLayerID(nMID, szLayer)
+	MAPWriteLayerSetup	= MAPWriteLayerSetupByLayerID(nMID, nLayerID, laySetup)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Print ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function MAPReadLayerSetupByLayerID(	ByVal nMID As Integer, ByVal nLayer As Integer,
+							laySetup As T_LAYER_SETUP) As Logical
+
+OnError GoTo ErrorOccured
+
+MAPReadLayerSetupByLayerID = FALSE
+
+	Set Distance Units "m"
+
+	If NOT WindowInfo(nMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note "Not af map window"
+		Exit Function
+	ElseIf nLayer = 0 Then
+		Note "Layer = 0"
+		Exit Function
+	End If
+
+	laySetup.szLayerName		= LayerInfo(nMID, nLayer, LAYER_INFO_NAME)
+	laySetup.bEditable		= LayerInfo(nMID, nLayer, LAYER_INFO_EDITABLE)
+	laySetup.bSelectable		= LayerInfo(nMID, nLayer, LAYER_INFO_SELECTABLE)
+
+	laySetup.bZoomLayered		= LayerInfo(nMID, nLayer, LAYER_INFO_ZOOM_LAYERED)
+	laySetup.fMinZoom			= LayerInfo(nMID, nLayer, LAYER_INFO_ZOOM_MIN)
+	laySetup.fMaxZoom			= LayerInfo(nMID, nLayer, LAYER_INFO_ZOOM_MAX)
+	laySetup.nDisplay			= LayerInfo(nMID, nLayer, LAYER_INFO_DISPLAY)
+
+	laySetup.penGlobalLine		= LayerInfo(nMID, nLayer, LAYER_INFO_OVR_LINE)
+	laySetup.penGlobalBorder	= LayerInfo(nMID, nLayer, LAYER_INFO_OVR_PEN)
+	laySetup.brsGlobal		= LayerInfo(nMID, nLayer, LAYER_INFO_OVR_BRUSH)
+	laySetup.fntGlobal		= LayerInfo(nMID, nLayer, LAYER_INFO_OVR_FONT)
+	laySetup.symGlobal		= LayerInfo(nMID, nLayer, LAYER_INFO_OVR_SYMBOL)
+
+	laySetup.bShowArrows		= LayerInfo(nMID, nLayer, LAYER_INFO_ARROWS)
+	laySetup.bShowNodes		= LayerInfo(nMID, nLayer, LAYER_INFO_NODES)
+	laySetup.bShowCentroids		= LayerInfo(nMID, nLayer, LAYER_INFO_CENTROIDS)
+
+MAPReadLayerSetupByLayerID = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Print ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function MAPWriteLayerSetupByLayerID(	ByVal nMID As Integer, ByVal nLayer As Integer,
+							laySetup As T_LAYER_SETUP) As Logical
+
+Dim	szLayer, szCmdStr As String,
+	bNormalLayer As Logical
+
+OnError GoTo ErrorOccured
+
+MAPWriteLayerSetupByLayerID = FALSE
+
+	Set Distance Units "m"
+	szLayer	= LayerInfo(nMID, nLayer, LAYER_INFO_NAME)
+
+	Do Case LayerInfo(nMID, nLayer, LAYER_INFO_TYPE)
+		Case LAYER_INFO_TYPE_NORMAL
+			bNormalLayer = TRUE
+		Case LAYER_INFO_TYPE_COSMETIC
+			bNormalLayer = FALSE
+		Case LAYER_INFO_TYPE_IMAGE
+			bNormalLayer = FALSE
+		Case LAYER_INFO_TYPE_THEMATIC
+			bNormalLayer = FALSE
+		Case LAYER_INFO_TYPE_GRID
+			bNormalLayer = FALSE
+		Case Else
+			bNormalLayer = FALSE
+	End Case
+
+	szCmdStr = "Set Map Window " & nMID
+			& lf & " Layer " & nLayer
+
+	If bNormalLayer Then
+		If laySetup.bEditable Then
+			If TableInfo(szLayer, TAB_INFO_READONLY) Then
+				szCmdStr = szCmdStr & lf & " Editable Off"
+			ElseIf Not TableInfo(szLayer, TAB_INFO_USEREDITABLE) Then
+				szCmdStr = szCmdStr & lf & " Editable Off"
+			Else
+				szCmdStr = szCmdStr & lf & " Editable On"
+			End If
+		Else
+			szCmdStr = szCmdStr & lf & " Editable Off"
+		End If
+		If laySetup.bSelectable Then
+			szCmdStr = szCmdStr & lf & " Selectable On"
+		Else
+			szCmdStr = szCmdStr & lf & " Selectable Off"
+		End If
+	End If
+
+	szCmdStr = szCmdStr & lf & " Zoom (" & laySetup.fMinZoom & ", " & laySetup.fMaxZoom & ") Units " & eye & "m" & eye
+	If laySetup.bZoomLayered Then
+		szCmdStr = szCmdStr & " On"
+	Else
+		szCmdStr = szCmdStr & " Off"
+	End If
+
+	Do Case laySetup.nDisplay
+		Case LAYER_INFO_DISPLAY_OFF
+			szCmdStr = szCmdStr & lf & " Display Off"
+		Case LAYER_INFO_DISPLAY_GRAPHIC
+			szCmdStr = szCmdStr & lf & " Display Graphic"
+		Case LAYER_INFO_DISPLAY_GLOBAL
+			szCmdStr = szCmdStr & lf & " Display Global"
+	End Case
+
+	If bNormalLayer Then
+		szCmdStr = szCmdStr
+					& lf & " Global Line (" & StyleAttr(laySetup.penGlobalLine, PEN_WIDTH)
+								& ", " & StyleAttr(laySetup.penGlobalLine, PEN_PATTERN)
+								& ", " & StyleAttr(laySetup.penGlobalLine, PEN_COLOR) & ")"
+					& lf & " Global " & laySetup.penGlobalBorder
+					& lf & " Global " & laySetup.brsGlobal
+					& lf & " Global " & laySetup.symGlobal
+					& lf & " Global " & laySetup.fntGlobal
+
+		If laySetup.bShowArrows Then
+			szCmdStr = szCmdStr & lf & " Arrows On"
+		Else
+			szCmdStr = szCmdStr & lf & " Arrows Off"
+		End If
+		If laySetup.bShowCentroids Then
+			szCmdStr = szCmdStr & lf & " Centroids On"
+		Else
+			szCmdStr = szCmdStr & lf & " Centroids Off"
+		End If
+		If laySetup.bShowNodes Then
+			szCmdStr = szCmdStr & lf & " Nodes On"
+		Else
+			szCmdStr = szCmdStr & lf & " Nodes Off"
+		End If
+	End If
+
+	'Print szCmdStr
+	Run Command szCmdStr
+
+MAPWriteLayerSetupByLayerID = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Print ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Konverterer et labelsetup til en enkelt tekststreg
+'**********************************************************************************************''
+Function MAPConvertLabelSetup2String$(lblSetup As T_LABEL_SETUP) As String
+
+Dim	szTemp As String
+
+OnError GoTo ErrorOccured
+
+	szTemp	= 	lblSetup.szLayerName
+				& "; " & lblSetup.nLineType
+				& "; " & lblSetup.nPosition
+				& "; " & StyleFuncGetStringFromFont$(lblSetup.fntLabel)
+				& "; " & lblSetup.szExpr
+				& "; " & lblSetup.bParallel
+				& "; " & lblSetup.nVisibility
+				& "; " & KommaToPoint(Str$(lblSetup.fZoomMin))
+				& "; " & KommaToPoint(Str$(lblSetup.fZoomMax))
+				& "; " & lblSetup.bAuto
+				& "; " & lblSetup.bOverlap
+				& "; " & lblSetup.bPartial
+				& "; " & lblSetup.bDuplicate
+				& "; " & lblSetup.nMaxLabels
+				& "; " & lblSetup.nOffSet
+				& "; " & StyleFuncGetStringFromPen$(lblSetup.penLine)
+
+	MAPConvertLabelSetup2String$	= szTemp
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Konverterer en label streng til et Label Setup
+'**********************************************************************************************''
+Function MAPConvertString2LabelSetup(ByVal szLabelSetup As String, lblSetup As T_LABEL_SETUP) As Logical
+
+Dim	arrStrings() As String,
+	i, nNumStr As Integer
+
+OnError GoTo ErrorOccured
+
+MAPConvertString2LabelSetup = FALSE
+
+	nNumStr = StrSplitDefinedChar(szLabelSetup, ";", arrStrings, 99)
+
+	Call MAPResetLabelSetup(lblSetup)
+
+	For i = 1 To nNumStr
+		arrStrings(i)	= Ltrim$(RTrim$(arrStrings(i)))
+
+		Do Case i
+			Case 1
+				lblSetup.szLayerName	= arrStrings(1)
+			Case 2
+				lblSetup.nLineType	= Val(arrStrings(2))
+			Case 3
+				lblSetup.nPosition	= Val(arrStrings(3))
+			Case 4
+				lblSetup.fntLabel		= StyleFuncGetFontFromString(arrStrings(4))
+			Case 5
+				lblSetup.szExpr		= arrStrings(5)
+			Case 6
+				lblSetup.bParallel	= (arrStrings(6) = "T")
+			Case 7
+				lblSetup.nVisibility	= Val(arrStrings(7))
+			Case 8
+				lblSetup.fZoomMin		= Val(arrStrings(8))
+			Case 9
+				lblSetup.fZoomMax		= Val(arrStrings(9))
+			Case 10
+				lblSetup.bAuto		= (arrStrings(10) = "T")
+			Case 11
+				lblSetup.bOverlap		= (arrStrings(11) = "T")
+			Case 12
+				lblSetup.bPartial		= (arrStrings(12) = "T")
+			Case 13
+				lblSetup.bDuplicate	= (arrStrings(13) = "T")
+			Case 14
+				lblSetup.nMaxLabels	= Val(arrStrings(14))
+			Case 15
+				lblSetup.nOffSet		= Val(arrStrings(15))
+			Case 16
+				lblSetup.penLine		= StyleFuncGetPenFromString(arrStrings(16))
+			Case Else
+				Exit For
+		End Case
+	Next
+
+	MAPConvertString2LabelSetup = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Kopierer et Label setup til et andet
+'**********************************************************************************************''
+Sub MAPCopyLabelSetup(lblFromSetup As T_LABEL_SETUP, lblToSetup As T_LABEL_SETUP)
+
+OnError GoTo ErrorOccured
+
+	lblToSetup.szLayerName	= lblFromSetup.szLayerName
+	lblToSetup.nLineType	= lblFromSetup.nLineType
+	lblToSetup.nPosition	= lblFromSetup.nPosition
+	lblToSetup.fntLabel	= lblFromSetup.fntLabel
+	lblToSetup.szExpr		= lblFromSetup.szExpr
+	lblToSetup.bParallel	= lblFromSetup.bParallel
+	lblToSetup.nVisibility	= lblFromSetup.nVisibility
+	lblToSetup.fZoomMin	= lblFromSetup.fZoomMin
+	lblToSetup.fZoomMax	= lblFromSetup.fZoomMax
+	lblToSetup.bAuto		= lblFromSetup.bAuto
+	lblToSetup.bOverlap	= lblFromSetup.bOverlap
+	lblToSetup.bPartial	= lblFromSetup.bPartial
+	lblToSetup.bDuplicate	= lblFromSetup.bDuplicate
+	lblToSetup.nMaxLabels	= lblFromSetup.nMaxLabels
+	lblToSetup.nOffSet	= lblFromSetup.nOffSet
+	lblToSetup.penLine	= lblFromSetup.penLine
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Nulstiller et Label setup
+'**********************************************************************************************''
+Sub MAPResetLabelSetup(lblSetup As T_LABEL_SETUP)
+
+OnError GoTo ErrorOccured
+
+	lblSetup.szLayerName	= ""
+	lblSetup.nLineType	= LAYER_INFO_LBL_LT_NONE
+	lblSetup.nPosition	= LAYER_INFO_LBL_POS_CC
+	lblSetup.fntLabel		= CurrentFont()
+	lblSetup.szExpr		= "COL1"
+	lblSetup.bParallel	= TRUE
+	lblSetup.nVisibility	= LAYER_INFO_LBL_VIS_ON
+	lblSetup.fZoomMin		= 0
+	lblSetup.fZoomMax		= 30000
+	lblSetup.bAuto		= FALSE
+	lblSetup.bOverlap		= FALSE
+	lblSetup.bPartial		= FALSE
+	lblSetup.bDuplicate	= FALSE
+	lblSetup.nMaxLabels	= 2147483647	'No limit
+	lblSetup.nOffSet		= 2
+	lblSetup.penLine		= CurrentPen()
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'***************************************************
+'Læser tabels labelopsætninger
+'***************************************************
+Function MAPReadLabelSetup(	ByVal nMID As Integer, ByVal szLayer As String,
+					lblSetup As T_LABEL_SETUP) As Logical
+
+Dim	nLayerID As Integer
+
+OnError GoTo ErrorOccured
+
+MAPReadLabelSetup = FALSE
+
+	nLayerID		= MAPGetLayerID(nMID, szLayer)
+	MAPReadLabelSetup = MAPReadLabelSetupByLayerID(nMID, nLayerID, lblSetup)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Print ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'***************************************************
+'Sætter tabels labelopsætninger
+'***************************************************
+Function MAPWriteLabelSetup(	ByVal nMID As Integer, ByVal szLayer As String,
+					lblSetup As T_LABEL_SETUP) As Logical
+
+Dim	nLayerID As Integer
+
+OnError GoTo ErrorOccured
+
+MAPWriteLabelSetup = FALSE
+
+	nLayerID			= MAPGetLayerID(nMID, szLayer)
+	MAPWriteLabelSetup	= MAPWriteLabelSetupByLayerID(nMID, nLayerID, lblSetup)
+
+	Exit Function
+'---------
+ErrorOccured:
+	Print ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'***************************************************
+'Læser tabels labelopsætninger
+'***************************************************
+Function MAPReadLabelSetupByLayerID(ByVal nMID As Integer, ByVal nLayer As Integer,
+						lblSetup As T_LABEL_SETUP) As Logical
+
+OnError GoTo ErrorOccured
+
+MAPReadLabelSetupByLayerID = FALSE
+
+	Set Distance Units "m"
+
+	If not WindowInfo(nMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Exit Function
+	End If
+	If nLayer = 0 Then
+		Exit Function
+	End If
+	If NOT LayerInfo(nMID, nLayer, LAYER_INFO_TYPE) = LAYER_INFO_TYPE_NORMAL Then
+		Exit Function
+	End If
+
+	lblSetup.szLayerName	= LayerInfo(nMID, nLayer, LAYER_INFO_NAME)
+
+	lblSetup.nLineType 	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_LT)
+	lblSetup.nPosition	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_POS)
+	lblSetup.fntLabel		= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_FONT)
+	lblSetup.penLine		= CurrentPen()	'LayerInfo(nMID, nLayer, LAYER_INFO_LBL_FONT)
+	lblSetup.szExpr		= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_EXPR)
+	lblSetup.bParallel	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_PARALLEL)
+
+	lblSetup.nVisibility	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_VISIBILITY)
+	lblSetup.fZoomMin		= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_ZOOM_MIN)
+	lblSetup.fZoomMax		= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_ZOOM_MAX)
+
+	lblSetup.bAuto		= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_AUTODISPLAY)
+	lblSetup.bOverlap		= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_OVERLAP)
+	lblSetup.bPartial		= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_PARTIALSEGS)
+	lblSetup.bDuplicate	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_DUPLICATES)
+	lblSetup.nMaxLabels	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_MAX	)
+	lblSetup.nOffSet		= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_OFFSET)
+
+	MAPReadLabelSetupByLayerID = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Print ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function MAPWriteLabelSetupByLayerID(	ByVal nMID As Integer, ByVal nLayer As Integer,
+							lblSetup As T_LABEL_SETUP) As Logical
+
+Dim	szCmdStr, szTab As String
+
+OnError GoTo ErrorOccured
+
+MAPWriteLabelSetupByLayerID = FALSE
+
+	Set Distance Units "m"
+
+	szTab = LayerInfo(nMID, nLayer, LAYER_INFO_NAME)
+	If TableInfo(szTab, TAB_INFO_TYPE) = TAB_TYPE_IMAGE Then
+		MAPWriteLabelSetupByLayerID = TRUE
+		Exit Function
+	ElseIf TableInfo(szTab, TAB_INFO_TYPE) = TAB_TYPE_WMS Then
+		MAPWriteLabelSetupByLayerID = TRUE
+		Exit Function
+	End If
+
+	szCmdStr = "Set Map Window " & nMID
+			& lf & " Layer " & nLayer
+			& lf & " Label"
+
+	Do Case lblSetup.nLineType
+		Case LAYER_INFO_LBL_LT_ARROW
+			szCmdStr = szCmdStr & " Line Arrow"
+		Case LAYER_INFO_LBL_LT_SIMPLE
+			szCmdStr = szCmdStr & " Line Simple"
+		Case LAYER_INFO_LBL_LT_NONE
+	End Case
+
+	Do Case lblSetup.nPosition
+		Case LAYER_INFO_LBL_POS_TL
+			szCmdStr = szCmdStr & " Position Above Left"
+		Case LAYER_INFO_LBL_POS_TC
+			szCmdStr = szCmdStr & " Position Center Above"
+		Case LAYER_INFO_LBL_POS_TR
+			szCmdStr = szCmdStr & " Position Above Right"
+		Case LAYER_INFO_LBL_POS_CL
+			szCmdStr = szCmdStr & " Position Center Left"
+		Case LAYER_INFO_LBL_POS_CC
+			szCmdStr = szCmdStr & " Position Center"
+		Case LAYER_INFO_LBL_POS_CR
+			szCmdStr = szCmdStr & " Position Center Right"
+		Case LAYER_INFO_LBL_POS_BL
+			szCmdStr = szCmdStr & " Position Below Left"
+		Case LAYER_INFO_LBL_POS_BC
+			szCmdStr = szCmdStr & " Position Center Below"
+		Case LAYER_INFO_LBL_POS_BR
+			szCmdStr = szCmdStr & " Position Below Right"
+	End Case
+
+	If lblSetup.szExpr = "" Then
+		szCmdStr = szCmdStr & lf & " " & lblSetup.fntLabel
+				& lf & " With COL1"
+	Else
+		szCmdStr = szCmdStr & lf & " " & lblSetup.fntLabel
+				& lf & " With " & lblSetup.szExpr
+	End If
+
+	If lblSetup.bParallel Then
+		szCmdStr = szCmdStr & lf & " Parallel On"
+	Else
+		szCmdStr = szCmdStr & lf & " Parallel Off"
+	End If
+	Do Case lblSetup.nVisibility
+		Case LAYER_INFO_LBL_VIS_ON
+			szCmdStr = szCmdStr & lf & " Visibility On"
+		Case LAYER_INFO_LBL_VIS_ZOOM
+			szCmdStr = szCmdStr & lf & " Visibility Zoom (" & lblSetup.fZoomMin & ", " & lblSetup.fZoomMax & ") Units " & eye & "m" & eye
+		Case LAYER_INFO_LBL_VIS_OFF
+			szCmdStr = szCmdStr & lf & " Visibility Off"
+	End Case
+	If lblSetup.bAuto Then
+		szCmdStr = szCmdStr & lf & " Auto On"
+	Else
+		szCmdStr = szCmdStr & lf & " Auto Off"
+	End If
+	If lblSetup.bOverlap Then
+		szCmdStr = szCmdStr & lf & " Overlap On"
+	Else
+		szCmdStr = szCmdStr & lf & " Overlap Off"
+	End If
+	If lblSetup.bPartial Then
+		szCmdStr = szCmdStr & lf & " PartialSegments On"
+	Else
+		szCmdStr = szCmdStr & lf & " PartialSegments Off"
+	End If
+	If lblSetup.bDuplicate Then
+		szCmdStr = szCmdStr & lf & " Duplicates On"
+	Else
+		szCmdStr = szCmdStr & lf & " Duplicates Off"
+	End If
+
+	szCmdStr = szCmdStr
+			& lf & " Max " & lblSetup.nMaxLabels
+			& lf & " Offset " & lblSetup.nOffSet
+
+	'Print szCmdStr
+	Run Command szCmdStr
+
+	MAPWriteLabelSetupByLayerID = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Print ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************************************************************
+ 'B A C K W A R D S   C O M P A T A B I L I T Y
+'**************************************************************************************************************
+ '**********************************************************************************************''
+'	Laver array med navne på lag i kortvindue
+'**********************************************************************************************''
+Function CreateArrayMapLayers(nMID As Integer, arrLayer(0) As String,
+					ByVal bUseImage As Logical,
+					ByVal bUseSeamless As Logical,
+					ByVal bUseCosmetic As Logical,
+					ByVal bUseThematic As Logical,
+					ByVal bUseTemp As Logical) As Integer
+
+OnError GoTo ErrorOccured
+
+	CreateArrayMapLayers = MAPCreateArrayLayers(nMID, arrLayer(), bUseImage, bUseSeamless, bUseCosmetic, bUseThematic, bUseTemp)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Undersøger om lag n findes i kort m
+'**********************************************************************************************''
+Function LayerExists(ByVal szLayer As String, ByVal nWID As Integer) As Logical
+
+Dim	i, nLayers As Integer
+
+OnError GoTo ErrorOccured
+
+	LayerExists = MAPLayerExists(nWID, szLayer)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Gør udvalgt lag redigerbart
+'**********************************************************************************************''
+Sub MakeLayerEditable
+
+OnError GoTo ErrorOccured
+
+	Call MAPMakeSelectionLayerEditable
+
+	Exit Sub
+'-------------
+ErrorOccured:
+	Note  ERR_MAP_EDITABLE_NOT_POSS + lf
+		+ ERR_TXT_ERRORMSG + lf
+		+ Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'	Gør ingen lag redigerbare
+'**********************************************************************************************''
+Sub MakeNoLayerEditable
+
+OnError GoTo ErrorOccured
+
+	Call MAPMakeNoLayerEditable
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'	Gør udvalgt lag ikke-synligt
+'**********************************************************************************************''
+Sub MakeLayerNonVisible
+
+OnError GoTo ErrorOccured
+
+	Call MAPMakeSelectionLayerNonVisible
+
+	Exit Sub
+'-------------
+ErrorOccured:
+	Note 	ERR_MAP_NOTVISIBLE_NOT_POSS + lf
+		+ ERR_TXT_ERRORMSG + lf
+		+ Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'	Gør udvalgt lag ikke-valgbart
+'**********************************************************************************************''
+Sub MakeLayerNonSelectable
+
+OnError GoTo ErrorOccured
+
+	Call MAPMakeSelectionLayerNonSelectable
+
+	Exit Sub
+'-------------
+ErrorOccured:
+	Note 	ERR_MAP_NOTSELECTABLE_NOT_POSS + lf
+		+ ERR_TXT_ERRORMSG + lf
+		+ Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Returnerer array med vinduesnavne på kortvinduer...
+'**********************************************************************************************''
+Function CreateArrayMapWindows(	arrWin(0) As String,
+						ByVal bUseNew As Logical,
+						ByVal bUseNone As Logical,
+						ByVal bAddNone As Logical) As Logical
+
+OnError GoTo ErrorOccured
+
+	CreateArrayMapWindows = MAPCreateArrayMapWindows(arrWin(), bUseNew, bUseNone, bAddNone)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer ID på lag m i kortvindue n
+'**********************************************************************************************''
+Function LayerID(ByVal szLayer As String, ByVal nWID As Integer) As Integer
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	LayerID = MAPGetLayerID(nWID, szLayer)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Laver array med navne på kortvinduer + nyt kortvindue
+'**********************************************************************************************''
+Function CreateArrayMapperName(arrCur(0) As String) As Integer
+
+OnError GoTo ErrorOccured
+
+	CreateArrayMapperName = MAPCreateArrayAllMapWindows(arrCur())
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Læser en tabels lagopsætning
+'**********************************************************************************************''
+Function MAPReadLayerSetupByNum(	ByVal nMID As Integer, ByVal nLayer As Integer,
+						laySetup As T_LAYER_SETUP) As Logical
+
+OnError GoTo ErrorOccured
+
+MAPReadLayerSetupByNum = MAPReadLayerSetupByLayerID(nMID, nLayer, laySetup)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Sætter en tabels lagopsætning
+'**********************************************************************************************''
+Function MAPWriteLayerSetupByNum(	ByVal nMID As Integer, ByVal nLayer As Integer,
+						laySetup As T_LAYER_SETUP) As Logical
+
+OnError GoTo ErrorOccured
+
+MAPWriteLayerSetupByNum = MAPWriteLayerSetupByLayerID(nMID, nLayer, laySetup)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'***************************************************
+'Læser tabels labelopsætninger
+'***************************************************
+Function MAPReadLabelSetupByNum(	ByVal nMID As Integer, ByVal nLayer As Integer,
+						lblSetup As T_LABEL_SETUP) As Logical
+
+OnError GoTo ErrorOccured
+
+MAPReadLabelSetupByNum = MAPReadLabelSetupByLayerID(nMID, nLayer, lblSetup)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Print "MAPReadLabelSetupByNum: " & Error$()
+
+End Function
+
+'***************************************************
+'Sætter tabels labelopsætninger
+'***************************************************
+Function MAPWriteLabelSetupByNum(	ByVal nMID As Integer, ByVal nLayer As Integer,
+						lblSetup As T_LABEL_SETUP) As Logical
+
+Dim	szCmdStr As String
+
+OnError GoTo ErrorOccured
+
+MAPWriteLabelSetupByNum = MAPWriteLabelSetupByLayerID(nMID, nLayer, lblSetup)
+
+	Exit Function
+'---------
+ErrorOccured:
+	Print "MAPWriteLabelSetupByNum: " & Error$()
+
+End Function

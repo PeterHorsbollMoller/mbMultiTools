@@ -1,0 +1,15 @@
+Declare Function UpdateColumnSetupDialog() As Logical
+
+Declare Function UpdateColumnGetColumnName$() As String
+Declare Function UpdateColumnGetValue$() As String
+Declare Sub UpdateColumnSetColumnName(ByVal szName As String)
+Declare Sub UpdateColumnSetValue(ByVal szValue As String)
+
+Declare Sub ToolUpdateColumn
+Declare Sub ToolUpdateColumnReadAndWrite
+
+Declare Sub UpdateColumnWriteIniFile(ByVal nFileNo As Integer)
+Declare Sub UpdateColumnReadIniFile(ByVal szFile As String)
+
+Declare Sub CreateUpdateButtonPads(ByVal szButtonPad As String)
+Declare Sub DeleteAndCreateUpdateButtonPads(ByVal szButtonPad As String)

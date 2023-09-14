@@ -1,0 +1,1648 @@
+'***************************************************************************
+'**
+'** Name:	TopoSnap
+'**
+'** Purpose:	Topological snap in objects in multiple Mapinfo tables,
+'** 		with inserting of common/shared points.
+'**
+'** Restrict.:	Only dealing with POLYLINE and REGION objects.
+'**
+'** Developed:	07.04.2000 SØF
+'** Last modi:	03.05.2000 SØF
+'**
+'***************************************************************************
+'
+'
+'	Enable button created by sub:	TopoSnapSetup
+'		Handler routine:	TopoSnapActToggle
+'
+'
+'	TopoSnap activating from WinChangedHandler by calling routine:
+'
+'		TopoSnapDigiObjExec
+'		+-->	TopoSnap
+'			+-->	GetSelectLayerList
+'			+-->	GetSeaList
+'			+-->	GetSelectList
+'			+-->	GetTableInfoList
+'			+-->	TopoSnapBuildRef
+'			+-->	TopoSnapExec
+'				+-->	TopoSnapPolyGeom
+'					+-->	TopoSnapRegSnap
+'					+-->	TopoSnapPrtPoint
+'
+'
+
+Include "MapBasic.def"
+Include "icons.def"
+
+Include "TopoSnap.def"
+'''Include "Snaptab-sub.def"
+
+
+Include "..\GeoFunc\geofunc.def"
+
+'** Native TopoSnap global definitions.
+
+Global strPrgName   as String	'* Program name.
+Global strPrgIden   as String	'* Program identification.
+
+Global gintDebugLev as Integer	'* Debug level.
+
+Global gbooTopoSnapActive as Logical	'* Flag for active Topological Snap (T).
+Global gintTopoSnapButtonId as Integer	'* Id of (first) TopoSnap toggle buttonpad.
+
+
+Global gbooSnapCosmetic	as Logical	'* Flag for snap in Cosmetic layer.
+
+
+Type T_TABINFO		'* Structure with TabInfo information about a table.
+	intTabId    as Integer	'* Table Identification number.
+	strTabName  as String	'* Name of table.
+        booMappable as Logical	'* Flag for Mappable table (T).
+        booReadonly as Logical	'* Flag for Readonly table (T).
+	booSeamless as Logical	'* Flag for a Seamless table (T).
+        booTempTab  as logical	'* Flag for a temporary table (T).
+	intTabType  as SmallInt	'* Code for type of table:
+				'*   TAB_TYPE_BASE (if a normal or seamless table)
+				'*   TAB_TYPE_RESULT (if results of a query)
+				'*   TAB_TYPE_IMAGE (if table is a raster image)
+				'*   TAB_TYPE_VIEW (if table is actually a view)
+				'*   TAB_TYPE_LINKED (if this table is linked).
+	booCosmeticLayer as Logical	'* Flag for cosmetic layer (T).
+End Type
+
+
+Type T_LAYERINFO	'* Structure with TabInfo information about a table.
+	intLayerId  as Integer	'* Layer Identification number.
+	strTabName  as String	'* Name of table.
+	booSelectable as Logical	'* Flag for selectable layer (T).
+        booReadonly as Logical	'* Flag for Readonly table (T).
+	booSeamless as Logical	'* Flag for a Seamless table (T).
+        booTempTab  as logical	'* Flag for a temporary table (T).
+	intTabType  as SmallInt	'* Code for type of table:
+				'*   TAB_TYPE_BASE (if a normal or seamless table)
+				'*   TAB_TYPE_RESULT (if results of a query)
+				'*   TAB_TYPE_IMAGE (if table is a raster image)
+				'*   TAB_TYPE_VIEW (if table is actually a view)
+				'*   TAB_TYPE_LINKED (if this table is linked).
+	booCosmeticLayer as Logical	'* Flag for cosmetic layer (T).
+	booSnap	    as Logical	'* Flag for performing snap in layer table (T).
+
+End Type
+
+
+Type T_SNAPINFO		'* Structure with information about a snapped obj.
+	intTabId    as Integer	'* Table Identification number
+	strTabName  as String	'* Name of table.
+	strFetchName  as String	'* Name of selection/table used for fetching object.
+	booCloseFetch as Logical '* Flag for close selection/fecth table (T)
+	intRowId    as Integer	'* RowID of object in table.
+	intTabInfoIdx as Integer	'* Index to TabInfo array.
+					'*   0 : Not found.
+	booTabEdit  as Logical	'* Flag for editable table (T).
+
+	booSnapAct  as Logical  '* Flag for snap activating object (T).
+	intState    as Integer	'* State code for Snapped object:
+				'*   0 : Raw snapped/selected object.
+				'*   2 : Snap point performed (existing point).
+				'*   3 : Snap line performed (point inserted).
+	intNumPnts  as Integer	'* Number of points snapped to.
+	intIdxPol() as Integer	'* Array with index to snapped polygons.
+	intIdxPnt() as Integer	'* Array with index to snapped/inserted point in polygon.
+	fltSnapDist as Float	'* Snap distance in meter to point or line.
+	pSnapPnt    as T_POINT	'* Coordinates for snapped/inserted point in line.
+End Type
+
+
+Type T_SNAPTAB		'* Structure with information about one snap in current object.
+	booSnapPnt  as Logical	'* Flag for snap to point (T) or line (F).
+	intIdxPol   as Integer	'* Index to snapped polygon.
+	intIdxPnt   as Integer	'* Index to snapped point in polygon.
+				'* If snap to line index to next point in polygon.
+	fltSnapDist as Float	'* Snap distance in meter to point or line.
+	pSnapPnt    as T_POINT	'* Coordinates for snapped point in line.
+End Type
+
+
+Declare Sub TopoSnap (
+		pSearchPnt as T_POINT,		'* Current search/snap point.
+		ByVal strTabName as String,	'* Name of current editable table.
+		ByVal intRowId as Integer	'* Row Id of newly created object (0 if none).
+		)
+
+Declare Sub GetSeaList (
+		pSearchPnt as T_POINT,		'* Current search/snap point.
+		ByVal strTabName as String,	'* Name of current editable table.
+		ByVal intRowId as Integer,	'* Row Id of newly created object (0 if none).
+		intNumSnapObj as Integer,	'* Number of snap objects in SnapTab.
+		pSnapTab() as T_SNAPINFO	'* Table/array with info about snapped objects.
+               )
+
+Declare Sub GetSelectList (
+		pSearchPnt as T_POINT,		'* Current search/snap point.
+		ByVal fltLinSnpDist as Float,	'* Tolerance for line snap.
+		ByVal intNumLayers as Integer,	'* Number of layers.
+		pLayerInfoList() as T_LAYERINFO,	'* LayerInfo list (structure)
+		ByVal strSeaTabName as String,	'* Name of current search event table.
+		ByVal intSeaRowId as Integer,	'* Row Id of newly created object (0 if none).
+		intNumSnapObj as Integer,	'* Number of snap objects in SnapTab.
+		pSnapInfoTab() as T_SNAPINFO	'* Table/array with info about snapped objects.
+               )
+
+Declare Sub GetTableInfoList (
+		intNumTables as Integer,	'* Number of tables.
+		pTableInfoList() as T_TABINFO	'* TableInfo list (structure)
+		)
+
+Declare Sub GetSelectLayerList (
+		ByVal intWinId	as Integer,	'* Current window identifier.
+		intNumLayers as Integer,	'* Number of layers.
+		pLayerInfoList() as T_LAYERINFO	'* LayerInfo list (structure)
+		)
+
+Declare Sub TopoSnapBuildRef (
+		intNumSnapObj as Integer,	'* Number of snap objects in SnapTab.
+		pSnapTab() as T_SNAPINFO,	'* Table/array with info about snapped objects.
+		intNumTables as Integer,	'* Number of tables.
+		pTableInfoList() as T_TABINFO	'* TableInfo list (structure)
+               )
+
+Declare Sub TopoSnapExec (
+		Byval fltLinSnpDist as Float,	'* Tolerance for line snap.
+		Byval fltIdPntDist as Float,	'* Tolerance for identical points.
+		pSearchPnt as T_POINT,		'* Current search/snap point.
+		intNumSnapObj as Integer,	'* Number of snap objects in SnapTab.
+		pSnapTab() as T_SNAPINFO,	'* Table/array with info about snapped objects.
+		intNumTables as Integer,	'* Number of tables.
+		pTableInfoList() as T_TABINFO	'* TableInfo list (structure)
+               )
+
+Declare Sub TopoSnapPolyGeom (
+		Byval fltLinSnpDist as Float,	'* Tolerance for line snap.
+		Byval fltIdPntDist as Float,	'* Tolerance for identical points.
+		pSearchPnt as T_POINT,		'* Current search/snap point.
+		pSnapInfo as T_SNAPINFO,	'* Current snap info rec. for object.
+		objSnap	as Object,		'* Current snapped object.
+		intNumSnp as Integer		'* Number of snap points inserted.
+	       )
+
+Declare Sub TopoSnapRegSnap (
+		ByVal booSnapPnt as Logical,	'* Flag for snap to point (T) or line (F).
+		ByVal intNumPol	as Integer,	'* Number of polygons in current object.
+		ByVal intIdxPol	as Integer,	'* Index to current polygon.
+		ByVal intIdxPnt	as Integer,	'* Index to current point in current polygon.
+		ByVal fltDist as Float,		'* Distance from search point to snap point.
+		pSnapPnt as T_POINT,		'* Point snapped (existing or point on line).
+		intNumSnapTab as Integer,	'* Number of snap' in current object.
+		pSnapTab() as T_SNAPTAB		'* Table/array of snap in object.
+	       )
+
+Declare Sub TopoSnapPrtPoint (
+		ByVal strMes as String,		'* Short message string for print info.
+		pPnt as T_POINT,		'* Point to print x,y coordinates.
+		ByVal fltDist as Float		'* Distance from point (only print if >= 0).
+               )
+
+
+'---------------------------------------------------------------------------
+'**	Topological snap setup, incl. add TopoSnap Enable button.
+'---------------------------------------------------------------------------
+Sub TopoSnapSetup (
+		ByVal strButtonPadName as String,	'* Name of ButtonPad to insert act. button.
+		ByVal intButtonId as Integer		'* Number of (first) button Id
+		)
+
+
+	strPrgName = "TopoSnap"
+	strPrgIden = "Topological snap"
+
+	gintDebugLev = 0		'** Global debug level.
+
+	If gintDebugLev >= 1 then
+		Print "TopoSnapsetup activated -----------------"
+	end if
+
+
+	gbooTopoSnapActive = FALSE	'** Deactivate TopoSnap.
+	
+	'gfltLinSnpDist = 2.0		'** Tolerance for line snap.
+	'gfltIdPntDist  = 1.0		'** Tolerance for identical points.
+	gfltTolIdCoor  = 0.001		'** Tolerance for identical coordinate values.
+
+	gbooSnapCosmetic = FALSE
+
+	gintTopoSnapButtonId = intButtonId
+
+	'Alter ButtonPad strButtonPadName
+	'	Add ToggleButton	Calling TopoSnapActToggle Id gintTopoSnapButtonId
+	'		Icon		MI_ICON_COMMUNICATION_3
+	'		HELPMsg		strPrgName + ": Toggle " + strPrgIden
+	'		Check
+			
+End Sub
+
+
+'---------------------------------------------------------------------------
+'**	Topological snap toggle button
+'---------------------------------------------------------------------------
+Sub TopoSnapActToggle
+
+
+	gbooTopoSnapActive = NOT gbooTopoSnapActive
+
+	If gintDebugLev >= 1 then
+		Print "TopoSnapActToggle -> " + gbooTopoSnapActive
+	end if
+	
+	
+	If gbooTopoSnapActive then
+		Alter Button Id gintTopoSnapButtonId
+			Check
+	else
+		Alter Button Id gintTopoSnapButtonId
+			Uncheck
+	End if
+
+End Sub
+
+
+'---------------------------------------------------------------------------
+'**	Topological snap in existing objects
+'---------------------------------------------------------------------------
+Sub TopoSnapExistObjects
+
+Dim pSearchPnt		as T_POINT	'* Current search/snap point
+Dim intWinId		as Integer	'* Current window identifier.
+Dim idxTab		as Integer	'* Index to current table.
+
+
+	intWinId = FrontWindow()
+	If WindowInfo(intWinId, WIN_INFO_TYPE) <> WIN_MAPPER then
+		Note strPrgName + " only works on a map window"
+		Exit Sub
+	end if
+
+	Set Format Number "Local"
+
+	Set Map Window intWinId Redraw Off
+
+	If gintDebugLev >= 1 then
+		Print "-------------------------------------------------------------------"
+	'	print strPrgName + ": " + strPrgIden + " - Begin: " + Time(24)
+	end if
+
+
+	'** Set MapInfo coord system.
+
+	For idxTab = 1 to NumTables()
+		if TableInfo(idxTab,TAB_INFO_MAPPABLE_TABLE) then
+			Set Map
+				CoordSys Table TableInfo(idxTab,TAB_INFO_NAME)
+				XY Units "m"
+				Distance Units "m"
+			Exit For
+		end if
+	Next	'idxTab
+
+
+	'** Get picked point and perform snap search.
+
+	pSearchPnt.X = CommandInfo(CMD_INFO_X)
+	pSearchPnt.Y = CommandInfo(CMD_INFO_Y)
+
+
+	'** Call Topo Snap routine
+	
+	Call TopoSnap (pSearchPnt, " ", 0)
+
+	If gintDebugLev >= 1 then
+		Print "-------------------------------------------------------------------"
+	'	print strPrgName + ": " + strPrgIden + " - End: " + Time(24)
+	end if
+
+	Set Map Window intWinId Redraw On
+
+End Sub
+
+'---------------------------------------------------------------------------
+'**	Topological snap in/with current digitized object.
+'---------------------------------------------------------------------------
+Sub TopoSnapDigiObjExec (
+		ByVal strTabName as String,	'* Name of current editable table.
+		ByVal intRowId as Integer	'* Row Id of newly created object.
+		)
+
+Dim pSearchPnt		as T_POINT	'* Current search/snap point
+Dim intWinId		as Integer	'* Current window identifier.
+Dim idxTab		as Integer	'* Index to current table.
+Dim aliCol		as Alias	'* Alias for object column.
+Dim objDigi		as Object	'* Current digitized object.
+Dim intObjTyp		as Integer	'* Current object type.
+Dim intNumPol		as Integer	'* Number/Index to current polygon.
+Dim intNumPnt		as Integer	'* Number/Index to last point in current polygon.
+
+
+	If not gbooTopoSnapActive then
+		Exit Sub
+	end if
+
+	intWinId = FrontWindow()
+	If WindowInfo(intWinId, WIN_INFO_TYPE) <> WIN_MAPPER then
+		Note strPrgName + " only works on a map window"
+		Exit Sub
+	end if
+
+	Set Format Number "Local"
+
+	Set Map Window intWinId Redraw Off
+
+	If gintDebugLev >= 1 then
+		Print "-------------------------------------------------------------------"
+	'	print strPrgName + ": ObjExec - Begin: " + Time(24)
+	elseif gintDebugLev >= 0 then
+		print strPrgName + " ..."
+	end if
+
+	'** Set MapInfo coord system.
+
+	For idxTab = 1 to NumTables()
+		if TableInfo(idxTab,TAB_INFO_MAPPABLE_TABLE) then
+			Set Map
+				CoordSys Table TableInfo(idxTab,TAB_INFO_NAME)
+				XY Units "m"
+				Distance Units "m"
+			Exit For
+		end if
+	Next	'idxTab
+
+	'** Fetch current digized object from table.
+
+	Fetch rec intRowId From strTabName
+
+	aliCol  = strTabName + ".obj"
+	objDigi = aliCol
+
+	intObjTyp = ObjectInfo(objDigi, OBJ_INFO_TYPE)
+
+	If gintDebugLev >= 1 then
+		Print "TopoSnapDigiObjExec: intObjTyp=" + intObjTyp
+	end if
+
+	'** Extract digi/snap point depending on object type.
+	
+	Do Case intObjTyp
+
+		Case OBJ_TYPE_PLINE		'** POLYLINE object
+			intNumPol = ObjectInfo(objDigi, OBJ_INFO_NPOLYGONS)
+			intNumPnt = ObjectInfo(objDigi, OBJ_INFO_NPOLYGONS+intNumPol)
+			If gintDebugLev >= 1 then
+				Print "  POLYLINE: Num polygons:  " + intNumPol
+				Print "            Num points:    " + intNumPnt
+			end if
+			pSearchPnt.x = ObjectNodeX(objDigi, intNumPol, intNumPnt)
+			pSearchPnt.y = ObjectNodeY(objDigi, intNumPol, intNumPnt)
+
+		Case OBJ_TYPE_REGION		'** REGION object.
+			intNumPol = ObjectInfo(objDigi, OBJ_INFO_NPOLYGONS)
+			intNumPnt = ObjectInfo(objDigi, OBJ_INFO_NPOLYGONS+intNumPol)
+			If gintDebugLev >= 1 then
+				Print "  REGION: Num polygons:  " + intNumPol
+				Print "          Num points:    " + intNumPnt
+			end if
+			pSearchPnt.x = ObjectNodeX(objDigi, intNumPol, intNumPnt)
+			pSearchPnt.y = ObjectNodeY(objDigi, intNumPol, intNumPnt)
+
+		Case Else
+			Print strPrgName + ": Not implemented Obj_info_type: " + intObjTyp
+			Exit Sub
+			Set Map Window intWinId Redraw On
+
+	End Case
+
+'	'** Set Cosmetic Layer editable (active drawing).
+
+'	If gintDebugLev >= 1 then
+'		Set Map Layer 0
+'			Editable On
+'	End If
+
+	'** Call Topo Snap routine.
+
+	Call TopoSnap (pSearchPnt, strTabName, intRowId)
+
+	'** Set "Original" Layer editable.
+
+'	If gintDebugLev >= 1 then
+'		Set Map Layer strTabName	'**PEM Changed from gszEditLayer...
+'			Editable On
+'	End If
+
+
+	If gintDebugLev >= 1 then
+		Print "-------------------------------------------------------------------"
+	'	print strPrgName + ": " + strPrgIden + " - End: " + Time(24)
+	end if
+
+	Set Map Window intWinId Redraw On
+
+End Sub
+
+
+'---------------------------------------------------------------------------
+'**	Topological snap
+'---------------------------------------------------------------------------
+Sub TopoSnap (
+		pSearchPnt as T_POINT,		'* Current search/snap point.
+		ByVal strTabName as String,	'* Name of current editable table.
+		ByVal intRowId as Integer	'* Row Id of newly created object (0 if none).
+		)
+
+Dim intNumTables	as Integer	'* Number of tables.
+Dim pTableInfoList()	as T_TABINFO	'* TableInfo list (structure).
+Dim intNumLayers	as Integer	'* Number of layers.
+Dim pLayerInfoList()	as T_LAYERINFO	'* LayerInfo list (structure).
+Dim intNumSnapObj	as Integer	'* Number of snap objects in SnapTab.
+Dim pSnapInfoTab()	as T_SNAPINFO	'* Table/array with info about snapped objects.
+Dim intWinId		as Integer	'* Current window identifier.
+Dim fltZLinSnpDist	as Float	'* Actual zoom dependent tolerance for line snap.
+Dim fltZoomVal		as Float	'* Actual Zoom value for map-view.
+Dim fltZoomFac		as Float	'* Zoom correction factor.
+Dim i			as Integer	'* Loop index in arrays.
+
+
+	If gintDebugLev >= 1 then
+		Call TopoSnapPrtPoint ("Search point", pSearchPnt, -1.0)
+	end if
+
+
+	'** Adjust snap tolerances according to zoom level.
+	
+	intWinId = FrontWindow()
+	Set Distance Units "m"
+
+	fltZoomVal = MapperInfo(intWinId, MAPPER_INFO_ZOOM)
+	if gfltRefZoom > 0 then
+		fltZoomFac = fltZoomVal / gfltRefZoom
+	else
+		fltZoomFac = 1.0
+	end if
+
+	fltZLinSnpDist = fltZoomFac * gfltLinSnpDist
+	If gintDebugLev >= 1 then
+		Print "MapView Zoom=" + fltZoomVal + ": Lin snap tol= " + gfltLinSnpDist +
+			" -> " + fltZLinSnpDist
+	end if
+
+
+	'** Perform snap in tables/layers.
+
+	if gintSeaMode = gcSearchCode then
+	'** Using Mapinfo SearchPoint/SearchInfo -> get list of objects found.
+
+		Call GetSeaList (pSearchPnt, strTabName, intRowId, intNumSnapObj, pSnapInfoTab)
+		if intNumSnapObj = 0 then
+			'Note "Nothing snapped !"
+			Goto AdCleanUp
+		end if
+
+		'** Get list over current MapInfo tables.
+		Call GetTableInfoList (intNumTables, pTableInfoList)
+
+		'** Build refernces.
+		Call TopoSnapBuildRef (intNumSnapObj, pSnapInfoTab,
+		                       intNumTables, pTableInfoList)
+		
+	elseif gintSeaMode = gcSelectCode then
+	'** Using Select inside SnapBuf rect.
+
+		Call GetSelectLayerList (intWinId, intNumLayers, pLayerInfoList) 
+		if intNumLayers = 0 then
+			Goto AdCleanUp
+		end if
+
+		'** Select objects by buffer.
+		Call GetSelectList (pSearchPnt, fltZLinSnpDist, intNumLayers, pLayerInfoList,
+					strTabName, intRowId,
+					intNumSnapObj, pSnapInfoTab)
+		if intNumSnapObj = 0 then
+			'Note "Nothing snapped !"
+			Goto AdCleanUp
+		end if
+	end if
+
+
+	'** Perform Topo snap in objects.
+
+	Call TopoSnapExec (fltZLinSnpDist, gfltIdPntDist,
+			   pSearchPnt, intNumSnapObj, pSnapInfoTab,
+	                   intNumTables, pTableInfoList)
+
+'---------------------
+adCleanUp:
+	'** Clean up.
+	
+	Redim pTableInfoList(0)
+	Redim pLayerInfoList(0)
+
+	For i = 1 to intNumSnapObj
+		If pSnapInfoTab(i).BooCloseFetch then
+			If gintDebugLev >= 2 then
+				Print "Close selection: " + pSnapInfoTab(i).strFetchName
+			end if
+			Close table pSnapInfoTab(i).strFetchName
+		end if
+	Next	'i
+	Redim pSnapInfoTab(0)
+	
+End Sub
+
+
+'---------------------------------------------------------------------------
+'**	Perform a Search Point/Object and create list of snapped objects
+'---------------------------------------------------------------------------
+Sub GetSeaList (
+		pSearchPnt as T_POINT,		'* Current search/snap point.
+		ByVal strTabName as String,	'* Name of current editable table.
+		ByVal intRowId as Integer,	'* Row Id of newly created object (0 if none).
+		intNumSnapObj as Integer,	'* Number of snap objects in SnapTab.
+		pSnapInfoTab() as T_SNAPINFO	'* Table/array with info about snapped objects.
+               )
+
+Dim intWinId	as Integer	'* Current window identifier.
+Dim i		as Integer	'* Index variable in arrays.
+
+
+	intNumSnapObj = 0
+
+	intWinId = FrontWindow()
+	If WindowInfo(intWinId, WIN_INFO_TYPE) <> WIN_MAPPER then
+		Note strPrgName + " only works on a map window"
+		Exit Sub
+	end if
+
+
+	intNumSnapObj = SearchPoint(intWinId, pSearchPnt.X, pSearchPnt.Y)
+
+	If gintDebugLev >= 2 then
+		print "Number of found objects: " + intNumSnapObj
+		Print "-----------------------------------------"
+	end if
+
+	'** Redim table/array and prepare for extract of information.
+	Redim pSnapInfoTab(intNumSnapObj)
+
+	For i = 1 to intNumSnapObj
+		pSnapInfoTab(i).intTabId      = 0
+		pSnapInfoTab(i).strTabName    = SearchInfo(i, SEARCH_INFO_TABLE)
+		pSnapInfoTab(i).strFetchName  = pSnapInfoTab(i).strTabName
+		pSnapInfoTab(i).BooCloseFetch = FALSE
+		pSnapInfoTab(i).intRowId      = SearchInfo(i, SEARCH_INFO_ROW)
+		pSnapInfoTab(i).intTabInfoIdx = 0
+		pSnapInfoTab(i).booTabEdit    = FALSE
+		if pSnapInfoTab(i).strTabName = strTabName AND pSnapInfoTab(i).intRowId = intRowId then
+			pSnapInfoTab(i).booSnapAct = TRUE
+		else
+			pSnapInfoTab(i).booSnapAct = FALSE
+		end if
+		pSnapInfoTab(i).intState      = 0
+
+		If gintDebugLev >= 4 then
+			Print i + ". Tabel: " + pSnapInfoTab(i).strTabName + ", RowId: " + pSnapInfoTab(i).intRowId +
+				";" + pSnapInfoTab(i).booSnapAct
+		end if
+	Next	'i
+
+End Sub
+
+
+'---------------------------------------------------------------------------
+'**	Perform a Select inside buffer to get list of snap objects.
+'---------------------------------------------------------------------------
+Sub GetSelectList (
+		pSearchPnt as T_POINT,		'* Current search/snap point.
+		ByVal fltLinSnpDist as Float,	'* Tolerance for line snap.
+		ByVal intNumLayers as Integer,	'* Number of layers.
+		pLayerInfoList() as T_LAYERINFO,	'* LayerInfo list (structure)
+		ByVal strSeaTabName as String,	'* Name of current search event table.
+		ByVal intSeaRowId as Integer,	'* Row Id of newly created object (0 if none).
+		intNumSnapObj as Integer,	'* Number of snap objects in SnapTab.
+		pSnapInfoTab() as T_SNAPINFO	'* Table/array with info about snapped objects.
+               )
+
+Dim objSnapBuf	as object	'* Snap buffer object.
+Dim intLayer	as Integer	'* Index in LayerInfo table/array.
+Dim i		as Integer	'* Index variable in arrays.
+Dim pSearchMinPnt as T_POINT	'* Minimum search point in rect. buffer.
+Dim pSearchMaxPnt as T_POINT	'* Maximum search point in rect. buffer.
+
+Dim strTabName	as String	'* Name of current table.
+Dim strSelectName as String	'* Name of current selection
+Dim intNumSelObj as Integer	'* Number of objects selected from table..
+
+
+	intNumSnapObj = 0
+
+	'** Create snap buffer (rectangle)
+
+	pSearchMinPnt.x = pSearchPnt.x - fltLinSnpDist
+	pSearchMinPnt.y = pSearchPnt.y - fltLinSnpDist
+	pSearchMaxPnt.x = pSearchPnt.x + fltLinSnpDist
+	pSearchMaxPnt.y = pSearchPnt.y + fltLinSnpDist
+	If gintDebugLev >= 6 then
+		Print "fltLinSnpDist=" + fltLinSnpDist
+		Print "pSearchMaxPnt.x;y=" + pSearchMaxPnt.x + "; " + pSearchMaxPnt.y
+		Print "pSearchMinPnt.x;y=" + pSearchMinPnt.x + "; " + pSearchMinPnt.y
+	end if
+
+	Create Rect Into Variable objSnapBuf (pSearchMinPnt.x, pSearchMinPnt.y)
+					     (pSearchMaxPnt.x, pSearchMaxPnt.y)	
+
+	''Insert Into TestDigi (obj) Values (objSnapBuf)
+
+	'** Process layer Info table and set flag for selectable.
+	
+	For intLayer = 1 to intNumLayers
+		if pLayerInfoList(intLayer).booSelectable AND
+		   (NOT (pLayerInfoList(intLayer).booCosmeticLayer OR
+			pLayerInfoList(intLayer).booReadonly OR
+			pLayerInfoList(intLayer).booSeamless)        )	then
+			pLayerInfoList(intLayer).booSnap = TRUE
+		else
+			pLayerInfoList(intLayer).booSnap = FALSE
+		end if
+	Next	'intLayer
+
+
+	'** Loop in layers and try snap.
+
+	For intLayer = 1 to intNumLayers
+		if pLayerInfoList(intLayer).booSnap then
+		'** Select snap objects from current layer/table.
+			strTabName = pLayerInfoList(intLayer).strTabName
+			strSelectName = strTabName + "_SELECT"
+			if gintDebugLev >= 9 then
+				Print "Snap select: " + strTabName + " -> " + strSelectName
+			end if
+
+			If strTabName = strSeaTabName and intSeaRowId <> 0 then
+			'** Snap event table -> exclude new rowid.
+				Select * from strTabName Where obj Partly Within objSnapBuf
+								AND RowId <> intSeaRowId
+					Into strSelectName NOSELECT
+				'** Reg. event activating object.
+				if gintDebugLev >= 2 then
+					Print "Snap event activating obj: strTabName=" + strTabName + "; intSeaRowId=" + intSeaRowId
+				end if
+				Redim pSnapInfoTab(intNumSnapObj+1)
+				intNumSnapObj = intNumSnapObj + 1
+				pSnapInfoTab(intNumSnapObj).intTabId      = 0
+				pSnapInfoTab(intNumSnapObj).strTabName    = strTabName
+				pSnapInfoTab(intNumSnapObj).strFetchName  = strTabName
+				pSnapInfoTab(intNumSnapObj).BooCloseFetch = FALSE
+				pSnapInfoTab(intNumSnapObj).intRowId      = intSeaRowId
+				pSnapInfoTab(intNumSnapObj).intTabInfoIdx = 0
+				pSnapInfoTab(intNumSnapObj).booTabEdit    = TRUE
+				pSnapInfoTab(intNumSnapObj).booSnapAct    = TRUE
+				pSnapInfoTab(intNumSnapObj).intState      = 0
+			else
+			'** Other tables - select all.
+				Select * from strTabName Where obj Partly Within objSnapBuf
+					Into strSelectName NOSELECT
+			end if
+
+''			intNumSelObj = SelectionInfo(SEL_INFO_NROWS) '* Don't work with NOSELECT.
+			intNumSelObj = TableInfo(strSelectName, TAB_INFO_NROWS) 
+			if gintDebugLev >= 2 then
+				if intNumSelObj > 0 then
+					Print "Snap select: " + strTabName + " -> " + strSelectName +
+						"; intNumSelObj=" + intNumSelObj
+				elseif gintDebugLev >= 9 then
+					Print "   intNumSelObj=" + intNumSelObj
+				end if
+			end if
+
+			if intNumSelObj > 0 then
+			'** Redim snap-table and extract information.
+				Redim pSnapInfoTab(intNumSnapObj+intNumSelObj)
+				For i = 1 to intNumSelObj
+					intNumSnapObj = intNumSnapObj + 1
+					pSnapInfoTab(intNumSnapObj).intTabId      = 0
+					pSnapInfoTab(intNumSnapObj).strTabName    = strTabName
+					pSnapInfoTab(intNumSnapObj).strFetchName  = strSelectName
+					pSnapInfoTab(intNumSnapObj).intRowId      = i
+					If i = 1 then	'** If first obj. in selection then flag cleanup close
+						pSnapInfoTab(intNumSnapObj).BooCloseFetch = TRUE
+					else
+						pSnapInfoTab(intNumSnapObj).BooCloseFetch = FALSE
+					end if
+					pSnapInfoTab(intNumSnapObj).intTabInfoIdx = 0
+					pSnapInfoTab(intNumSnapObj).booTabEdit    = TRUE
+					'** Activating object registrated separately.
+					pSnapInfoTab(intNumSnapObj).booSnapAct    = FALSE
+					pSnapInfoTab(intNumSnapObj).intState      = 0
+				Next	'i
+			else
+			'** Clean up - close selection.
+				If gintDebugLev >= 5 then
+					Print "Close selection: " + strSelectName
+				end if
+				Close table strSelectName
+			end if
+		end if
+
+	Next	'intLayer
+
+
+	'** Eventual debug print.	
+	
+	If gintDebugLev >= 2 then
+		print "Number of found objects: " + intNumSnapObj
+		Print "-----------------------------------------"
+		For i = 1 to intNumSnapObj
+			Print i + ". Snap-sel: " + pSnapInfoTab(i).strFetchName + ", RowId: " + pSnapInfoTab(i).intRowId +
+				";" + pSnapInfoTab(i).booSnapAct
+		Next	'i
+	end if
+
+End Sub
+
+
+'---------------------------------------------------------------------------
+'**	Get list of MapInfo table information.
+'---------------------------------------------------------------------------
+Sub GetTableInfoList (
+		intNumTables as Integer,	'* Number of tables.
+		pTableInfoList() as T_TABINFO	'* TableInfo list (structure)
+		)
+
+Dim i		as Integer	'* Index variable in arrays.
+Dim intWinId	as Integer	'* Current window identifier.
+
+
+	'** Get number of MI tables.
+
+	intNumTables = NumTables()
+
+	If gintDebugLev >= 4 then
+		print "Number of tables: " + intNumTables
+		Print "-----------------------------------------"
+	end if
+
+	'** Redim table/array and prepare for extract of information (Last index for cosmetic layer).
+
+	Redim pTableInfoList(intNumTables+1)
+
+	For i = 1 to intNumTables
+		pTableInfoList(i).intTabId    = i
+		pTableInfoList(i).strTabName  = TableInfo(i, TAB_INFO_NAME)
+
+		pTableInfoList(i).booMappable = TableInfo(i, TAB_INFO_MAPPABLE_TABLE)
+		pTableInfoList(i).booReadonly = TableInfo(i, TAB_INFO_READONLY)
+		pTableInfoList(i).booSeamless = TableInfo(i, TAB_INFO_SEAMLESS)
+		pTableInfoList(i).booTempTab  = TableInfo(i, TAB_INFO_TEMP)
+		pTableInfoList(i).intTabType  = TableInfo(i, TAB_INFO_TYPE)
+		pTableInfoList(i).booCosmeticLayer = FALSE
+	Next	'i
+
+
+	'** Insert name of cosmetic layer in table (current Map window - NO CHECK !).
+
+	intWinId = FrontWindow()
+	intNumTables = intNumTables + 1
+	pTableInfoList(i).intTabId    = 0
+	pTableInfoList(i).strTabName  = WindowInfo(intWinId, WIN_INFO_TABLE) 
+	pTableInfoList(i).booMappable = FALSE
+	pTableInfoList(i).booReadonly = FALSE
+	pTableInfoList(i).booSeamless = FALSE
+	pTableInfoList(i).booTempTab  = FALSE
+	pTableInfoList(i).intTabType  = 0
+	pTableInfoList(i).booCosmeticLayer = TRUE
+
+
+	'** If specified then debug print information.
+	If gintDebugLev >= 7 then
+		For i = 1 to intNumTables
+			Print i + ". Table: " + pTableInfoList(i).strTabName + "; " +
+				pTableInfoList(i).booMappable + " ; " +
+				pTableInfoList(i).booReadonly + " ; " +
+				pTableInfoList(i).booSeamless + " ; " +
+				pTableInfoList(i).booTempTab  + " ; " +
+				pTableInfoList(i).intTabType  + " ; " +
+				pTableInfoList(i).booCosmeticLayer
+		Next	'i
+	end if
+
+End Sub
+
+
+'---------------------------------------------------------------------------
+'**	Get list of selectable layers in specified MapView.
+'---------------------------------------------------------------------------
+Sub GetSelectLayerList (
+		ByVal intWinId	as Integer,	'* Current window identifier.
+		intNumLayers as Integer,	'* Number of layers.
+		pLayerInfoList() as T_LAYERINFO	'* LayerInfo list (structure)
+		)
+
+Dim intNumLayersView as Integer	'* Number of layers in View.
+Dim strTabName	as String	'* Name of layer table.
+Dim i		as Integer	'* Index variable in arrays.
+Dim j		as Integer	'* Index in arrays.
+
+	'** Get number of Layers in MapView
+
+	intNumLayersView = MapperInfo(intWinId, MAPPER_INFO_LAYERS)
+
+	If gintDebugLev >= 4 then
+		print "Number of layers in MapView: " + intNumLayersView
+		Print "-----------------------------------------"
+	end if
+
+	'** Redim table/array and prepare for extract of information (an extra index for cosmetic layer).
+
+	Redim pLayerInfoList(intNumLayersView+1)
+	
+	intNumLayers = 0
+	pLayerInfoList(1).strTabName = ""
+
+	For i = 0 to intNumLayersView
+		'**PEM-20000504:
+		'**A layer is selectable if the display is turned off, well done, eh...
+		'**Need to both check visibility and selectability on each layer...
+		If LayerInfo(intWinId, i, LAYER_INFO_DISPLAY) <> LAYER_INFO_DISPLAY_OFF Then
+			If LayerInfo(intWinId, i, LAYER_INFO_SELECTABLE) then
+				strTabName = LayerInfo(intWinId, i, LAYER_INFO_NAME)
+				'** Check if layer already exist in array.
+				j = 1
+				Do While j <= intNumLayers AND strTabName <> pLayerInfoList(j).strTabName
+					j = j + 1
+				Loop
+				if j > intNumLayers then
+				'** Layer name not found - registrate in array.
+					intNumLayers = intNumLayers + 1
+					pLayerInfoList(intNumLayers).intLayerId    = i
+					pLayerInfoList(intNumLayers).booSelectable = TRUE
+					pLayerInfoList(intNumLayers).strTabName  = strTabName
+					pLayerInfoList(intNumLayers).booCosmeticLayer = LayerInfo(intWinId, i, LAYER_INFO_COSMETIC)
+					'** Information about table.
+					pLayerInfoList(intNumLayers).booReadonly = TableInfo(strTabName, TAB_INFO_READONLY)
+					pLayerInfoList(intNumLayers).booSeamless = TableInfo(strTabName, TAB_INFO_SEAMLESS)
+					pLayerInfoList(intNumLayers).booTempTab  = TableInfo(strTabName, TAB_INFO_TEMP)
+					pLayerInfoList(intNumLayers).intTabType  = TableInfo(strTabName, TAB_INFO_TYPE)
+				end if
+			end if
+		end if
+	Next	'i
+
+	'** Redim array to actual neccesary size.
+	
+	Redim pLayerInfoList(intNumLayers)
+
+
+	'** If specified then debug print information.
+	If gintDebugLev >= 7 then
+		For i = 1 to intNumLayers
+			Print i + ". Layer: " + pLayerInfoList(i).strTabName + "; " +
+				pLayerInfoList(i).intLayerId  + " ; " +
+				pLayerInfoList(i).booReadonly + " ; " +
+				pLayerInfoList(i).booSeamless + " ; " +
+				pLayerInfoList(i).booTempTab  + " ; " +
+				pLayerInfoList(i).intTabType  + " ; " +
+				pLayerInfoList(i).booCosmeticLayer
+		Next	'i
+	end if
+
+End Sub
+
+
+'---------------------------------------------------------------------------
+'**	Build reference from snap list/table to Table list.
+'---------------------------------------------------------------------------
+Sub TopoSnapBuildRef (
+		intNumSnapObj as Integer,	'* Number of snap objects in SnapTab.
+		pSnapInfoTab() as T_SNAPINFO,	'* Table/array with info about snapped objects.
+		intNumTables as Integer,	'* Number of tables.
+		pTableInfoList() as T_TABINFO	'* TableInfo list (structure)
+               )
+
+Dim i		as Integer	'* Index in table array/tab
+Dim intSnapIdx	as Integer	'* Index to current object le.
+Dim strTabName	as String	'* Current table name.in snap table.
+
+
+	For intSnapIdx = 1 to intNumSnapObj
+		strTabName = pSnapInfoTab(intSnapIdx).strTabName
+		For i = 1 to intNumTables
+			if strTabName = pTableInfoList(i).strTabName then
+				pSnapInfoTab(intSnapIdx).intTabInfoIdx = i
+'' >> Not working !?
+				If pTableInfoList(i).booMappable AND
+				   (NOT pTableInfoList(i).booReadonly) AND
+				   (NOT pTableInfoList(i).booSeamless) AND
+				   pTableInfoList(i).intTabType = Tab_TYPE_BASE	then
+					pSnapInfoTab(intSnapIdx).booTabEdit = TRUE
+				end if
+				pSnapInfoTab(intSnapIdx).booTabEdit = TRUE
+				if ( NOT gbooSnapCosmetic ) AND pTableInfoList(i).booCosmeticLayer Then
+					pSnapInfoTab(intSnapIdx).booTabEdit = FALSE
+				end if
+				If gintDebugLev >= 5 then
+					print "strTabName=" + strTabName + " -> TabInfoIdx=" + i +
+					      "; TabEdit= " + pSnapInfoTab(intSnapIdx).booTabEdit
+				end if
+				Exit For
+			end if
+		Next	'i
+		If pSnapInfoTab(intSnapIdx).intTabInfoIdx = 0 then
+			Note "Snap tabname=" + strTabName + " not found in table names"
+		end if
+	Next	'intSnapIdx
+
+End Sub
+
+
+'---------------------------------------------------------------------------
+'**	Perform a Topological snap on found/snapped objects in list.
+'---------------------------------------------------------------------------
+Sub TopoSnapExec (
+		Byval fltLinSnpDist as Float,	'* Tolerance for line snap.
+		Byval fltIdPntDist as Float,	'* Tolerance for identical points.
+		pSearchPnt as T_POINT,		'* Current search/snap point.
+		intNumSnapObj as Integer,	'* Number of snap objects in SnapTab.
+		pSnapInfoTab() as T_SNAPINFO,	'* Table/array with info about snapped objects.
+		intNumTables as Integer,	'* Number of tables.
+		pTableInfoList() as T_TABINFO	'* TableInfo list (structure).
+               )
+
+Dim intSnapIdx	as Integer	'* Index to current object in snap table.
+Dim intSnapIdxAct as Integer	'* Index to snap activating object.
+Dim aliCol	as Alias	'* Alias for object column.
+Dim objSnap	as Object	'* Current snapped object.
+Dim intObjTyp	as Integer	'* Current object type.
+
+Dim intNumSnp	as Integer	'* Number of snap points inserted.
+Dim i		as Integer	'* Loop index.
+
+Dim intNumDiffSnap as Integer	'* Number of different snap point.
+Dim intSnapIdxCurr as Integer	'* Index to current snap point.
+Dim intNumSnapPnts as Integer	'* Number of snap points.
+Dim fltDist	as Float	'* Distance between snap points.
+Dim pMeanPnt	as T_POINT	'* Coordinates for mean snap point.
+Dim pSnapPnt	as T_POINT	'* Coordinates for (first) snap point.
+Dim booSnapPntsFlag() as Logical '* Array parallel to pSnapInfoTab with flag for active pnts (T).
+Dim booUpdObj	as Logical	'* Flag for update object.
+Dim str		as String	'* Current print messages string.
+
+
+	If gintDebugLev >= 3 then
+		print "Number of snap objects: " + intNumSnapObj
+		Print "-----------------------------------------"
+	end if
+
+
+	'** Perform snapping - first trial.
+
+	intSnapIdxAct = 0
+
+	For intSnapIdx = 1 to intNumSnapObj
+
+		If pSnapInfoTab(intSnapIdx).booSnapAct then		'** Reg. snap activating object.
+			intSnapIdxAct = intSnapIdx
+			If gintDebugLev >= 3 then
+				print "intSnapIdxAct=" + intSnapIdxAct
+			end if
+'>> Do not perform snap in activating object !!
+		end if
+
+		If NOT pSnapInfoTab(intSnapIdx).booTabEdit then	'** Skip if not editable.
+			If gintDebugLev >= 3 then
+				print "Skipping snap in table: " + pSnapInfoTab(intSnapIdx).strTabName
+			end if
+		else
+			If gintDebugLev >= 1 then
+				print "Snap in table: " + pSnapInfoTab(intSnapIdx).strTabName
+			end if
+
+			Fetch rec pSnapInfoTab(intSnapIdx).intRowId From pSnapInfoTab(intSnapIdx).strFetchName
+
+			aliCol  = pSnapInfoTab(intSnapIdx).strTabName + ".obj"
+			objSnap = aliCol
+
+			If gintDebugLev >= 1 then
+				Print intSnapIdx + ". of " + intNumSnapObj + " objects in snap: " + pSnapInfoTab(intSnapIdx).strTabName
+			end if
+
+			intObjTyp = ObjectInfo(objSnap, OBJ_INFO_TYPE)
+
+			intNumSnp = 0
+
+			'** Excecute depending on current object type.
+
+			Do Case intObjTyp
+
+				Case OBJ_TYPE_LINE
+					Print "OBJ_TYPE_LINE not implemented !!"
+
+				Case OBJ_TYPE_PLINE		'** POLYLINE object
+					call TopoSnapPolyGeom (fltLinSnpDist, fltIdPntDist, pSearchPnt,
+							       pSnapInfoTab(intSnapIdx),
+					                       objSnap, intNumSnp)
+
+				Case OBJ_TYPE_REGION		'** REGION object.
+					call TopoSnapPolyGeom (fltLinSnpDist, fltIdPntDist, pSearchPnt,
+							       pSnapInfoTab(intSnapIdx),
+					                       objSnap, intNumSnp)
+
+				Case OBJ_TYPE_POINT
+					Print "OBJ_TYPE_POINT not implemented yet!!"
+
+				Case OBJ_TYPE_RECT
+					Print "OBJ_TYPE_RECT not implemented !!"
+
+				Case Else
+					Print ">>>> Not implemented Obj_info_type: " + intObjTyp
+
+			End Case
+
+			if intNumSnp > 0 then
+				If gintDebugLev >= 1 then
+					Print "Updateing object: " + pSnapInfoTab(intSnapIdx).strTabName
+				end if
+				Update pSnapInfoTab(intSnapIdx).strFetchName
+					Set Obj = objSnap
+					Where RowId = pSnapInfoTab(intSnapIdx).intRowId
+			end if
+''			Print "---------------------------------------------------------------"
+		end if
+
+	Next	'intSnapIdx
+
+
+	'** Debug print of snap table.
+	If gintDebugLev >= 4 then
+		For intSnapIdx = 1 to intNumSnapObj
+			print "pSnapInfoTab().strTabName=" + pSnapInfoTab(intSnapIdx).strTabName + ": " +
+				pSnapInfoTab(intSnapIdx).intState     + ";" +
+				pSnapInfoTab(intSnapIdx).intNumPnts   + ";" +
+				pSnapInfoTab(intSnapIdx).intIdxPol(1) + ";" +
+				pSnapInfoTab(intSnapIdx).intIdxPnt(1) + ";" +
+				pSnapInfoTab(intSnapIdx).fltSnapDist  + ";" +
+				pSnapInfoTab(intSnapIdx).pSnapPnt.x   + ";" +
+				pSnapInfoTab(intSnapIdx).pSnapPnt.y
+		Next	'intSnapIdx
+	end if
+
+
+	'** Perform snap analyze.
+
+	If gintDebugLev >= 1 then
+		print "Perform snap analyze .........."
+	end if
+
+	intNumDiffSnap = 0
+	intNumSnapPnts = 0
+	intSnapIdxCurr = 0
+	Redim booSnapPntsFlag(intNumSnapObj)
+
+	'** Check for differences between snap points.
+
+	For intSnapIdx = 1 to intNumSnapObj
+		booSnapPntsFlag(intSnapIdx) = FALSE
+		If intSnapIdx <> intSnapIdxAct then
+			If pSnapInfoTab(intSnapIdx).intState = 2 OR pSnapInfoTab(intSnapIdx).intState = 3 then
+				booSnapPntsFlag(intSnapIdx) = TRUE
+				intNumSnapPnts = intNumSnapPnts + 1
+				If intSnapIdxCurr = 0 then
+'>> Eventual introduce a priority between layers / objects.
+					intSnapIdxCurr = intSnapIdx
+					pSnapPnt.x = pSnapInfoTab(intSnapIdx).pSnapPnt.x
+					pSnapPnt.y = pSnapInfoTab(intSnapIdx).pSnapPnt.y
+				else
+					fltDist    = GetPythDistance(pSnapPnt, pSnapInfoTab(intSnapIdx).pSnapPnt)
+					If fltDist > 0.0 then
+						intNumDiffSnap = intNumDiffSnap + 1
+					end if
+				end if
+			end if
+		end if
+	Next	'intSnapIdx
+
+	'** Check differences between snap point in activating object and other snap points.
+	
+	If intSnapIdxAct > 0 AND intSnapIdxCurr > 0 then
+		fltDist = GetPythDistance(pSnapPnt, pSnapInfoTab(intSnapIdxAct).pSnapPnt)
+	else
+		fltDist = -1.0
+	end if
+	If gintDebugLev >= 1 then
+		Print "intSnapIdxAct=" + intSnapIdxAct + "; intNumDiffSnap=" + intNumDiffSnap +
+			"; fltDist=" + fltDist
+	end if
+
+	'** If different snap points - eventual compute mean point and correct points in objects.
+	If intNumDiffSnap > 0 OR fltDist > 0.0 then
+		if intNumDiffSnap > 0 Then
+			pMeanPnt.x = 0.0
+			pMeanPnt.y = 0.0
+			For intSnapIdx = 1 to intNumSnapObj
+				If booSnapPntsFlag(intSnapIdx) then
+					pMeanPnt.x = pMeanPnt.x + pSnapInfoTab(intSnapIdx).pSnapPnt.x / intNumSnapPnts
+					pMeanPnt.y = pMeanPnt.y + pSnapInfoTab(intSnapIdx).pSnapPnt.y / intNumSnapPnts
+				end if
+			Next	'intSnapIdx
+		
+			If gintDebugLev >= 1 then
+				str = "MeanPnt(" + intNumSnapPnts + "):"
+				Call TopoSnapPrtPoint (str, pMeanPnt, 0.0)
+			end if
+		else
+			pMeanPnt.x = pSnapPnt.x
+			pMeanPnt.y = pSnapPnt.y
+		end if
+		'** Correct snap point coordinates in objects.
+		
+		For intSnapIdx = 1 to intNumSnapObj
+			If booSnapPntsFlag(intSnapIdx) OR intSnapIdx = intSnapIdxAct then
+				'** Only correct if different coordinates.
+				If abs(pMeanPnt.x - pSnapInfoTab(intSnapIdx).pSnapPnt.x) < gfltTolIdCoor AND
+				   abs(pMeanPnt.y - pSnapInfoTab(intSnapIdx).pSnapPnt.y) < gfltTolIdCoor then
+					If gintDebugLev >= 1 then
+						Print "No correction - identical: " + pSnapInfoTab(intSnapIdx).strTabName
+						Print " pMeanPnt.x=" + pMeanPnt.x + "; pSnapInfoTab().pSnapPnt.x=" + pSnapInfoTab(intSnapIdx).pSnapPnt.x
+						Print " pMeanPnt.y=" + pMeanPnt.y + "; pSnapInfoTab().pSnapPnt.y=" + pSnapInfoTab(intSnapIdx).pSnapPnt.y
+					end if
+				else
+					If gintDebugLev >= 1 then
+						Print "Correct: " + pSnapInfoTab(intSnapIdx).strTabName
+						Print " pMeanPnt.x=" + pMeanPnt.x + "; pSnapInfoTab().pSnapPnt.x=" + pSnapInfoTab(intSnapIdx).pSnapPnt.x
+						Print " pMeanPnt.y=" + pMeanPnt.y + "; pSnapInfoTab().pSnapPnt.y=" + pSnapInfoTab(intSnapIdx).pSnapPnt.y
+					end if
+
+					Fetch rec pSnapInfoTab(intSnapIdx).intRowId From pSnapInfoTab(intSnapIdx).strFetchName
+
+					aliCol  = pSnapInfoTab(intSnapIdx).strTabName + ".obj"
+					objSnap = aliCol
+
+					intObjTyp = ObjectInfo(objSnap, OBJ_INFO_TYPE)
+
+					'** Excecute depending on current object type.
+
+					booUpdObj = FALSE
+				
+					Do Case intObjTyp
+
+						Case OBJ_TYPE_LINE
+							Print "OBJ_TYPE_LINE not implemented !!"
+
+						Case OBJ_TYPE_PLINE, OBJ_TYPE_REGION	'** POLYLINE or REGION object
+							For i = 1 to pSnapInfoTab(intSnapIdx).intNumPnts
+								Alter Object objSnap
+									Node Set Position pSnapInfoTab(intSnapIdx).intIdxPol(i),
+									                  pSnapInfoTab(intSnapIdx).intIdxPnt(i)
+										         (pMeanPnt.x, pMeanPnt.y)
+							Next	'i
+							booUpdObj = TRUE
+
+						Case OBJ_TYPE_POINT
+							Print "OBJ_TYPE_POINT not implemented yet!!"
+
+						Case OBJ_TYPE_RECT
+							Print "OBJ_TYPE_RECT not implemented !!"
+
+						Case Else
+							Print ">>>> Not implemented Obj_info_type: " + intObjTyp
+
+					End Case
+
+					if booUpdObj then
+						If gintDebugLev >= 1 then
+							Print "Correcting Update object: " + pSnapInfoTab(intSnapIdx).strTabName
+						end if
+						Update pSnapInfoTab(intSnapIdx).strFetchName
+							Set Obj = objSnap
+							Where RowId = pSnapInfoTab(intSnapIdx).intRowId
+					end if
+				end if
+			end if
+		Next	'intSnapIdx
+
+	end if
+
+	'** Show Snap status.
+
+	If gintDebugLev >= 0 then
+		intNumSnp = 0
+		For intSnapIdx = 1 to intNumSnapObj
+			If booSnapPntsFlag(intSnapIdx) AND intSnapIdx <> intSnapIdxAct then
+				intNumSnp = intNumSnp + 1
+				if pSnapInfoTab(intSnapIdx).intState = 3 then
+					print strPrgName + " to line in " + pSnapInfoTab(intSnapIdx).strTabName
+				else
+					print strPrgName + " to point in " + pSnapInfoTab(intSnapIdx).strTabName
+				end if
+			end if
+		Next	'intSnapIdx
+		If intNumSnp = 0 then
+			'Note strPrgName + ": Nothing snapped !"
+		end if
+
+		print "----------------------------------------"
+	end if
+
+
+
+	Redim booSnapPntsFlag(0)
+
+End Sub
+
+
+'---------------------------------------------------------------------------
+'**	Perform topological snap in polygonal objects (Polyline or Region)
+'---------------------------------------------------------------------------
+Sub TopoSnapPolyGeom (
+		Byval fltLinSnpDist as Float,	'* Tolerance for line snap.
+		Byval fltIdPntDist as Float,	'* Tolerance for identical points.
+		pSearchPnt as T_POINT,		'* Current search/snap point.
+		pSnapInfo as T_SNAPINFO,	'* Current snap info rec. for object.
+		objSnap	as Object,		'* Current snapped object.
+		intNumSnp as Integer		'* Number of snap points inserted.
+               )
+
+Dim pCurrPnt	as T_POINT	'* Current point in object.
+Dim pPrevPnt	as T_POINT	'* Previous point in object.
+Dim pSnapPnt	as T_POINT	'* Search point snapped ortogonal to line.
+
+Dim pSearchMinPnt as T_POINT	'* Minimum search point in box.
+Dim pSearchMaxPnt as T_POINT	'* Maximum search point in box.
+
+Dim intNumPol	as Integer	'* Number of polygons in current object.
+
+Dim intNumPnts	as Integer	'* Number of points in current polygon.
+Dim intIdxPol	as Integer	'* Index to current polygon.
+Dim intIdxPnt	as Integer	'* Index to current point in current polygon.
+
+Dim fltDist	as Float	'* Distance from search point to current point.
+Dim fltDistCurrPnt as Float	'* Distance from line snap point til "current" existing point.
+Dim fltDistPrevPnt as Float	'* Distance from line snap point til previous existing point.
+Dim fltVecLen	as Float	'* Length of current vector in object.
+Dim fltDistMin	as Float	'* Minimum distance from search point to snapped point.
+Dim fltMaxTol	as Float	'* Maximum tolerance for snapping.
+Dim str		as String	'* Current print messages string.
+Dim i		as Integer	'* Index in arrays.
+
+Dim symMark	as Symbol	'* Symbol style for marking.
+
+Dim pSnapTab()	as T_SNAPTAB	'* Internal table/array of snap in object.
+Dim intNumSnapTab as Integer	'* Number of snap' in current object.
+Dim intSnapIdx	as Integer	'* Index to current/best snap in snap table.
+
+
+	'** Initialize - setup search box for raw testing.
+
+	fltMaxTol = Maximum(fltLinSnpDist, fltIdPntDist)
+	pSearchMinPnt.x = pSearchPnt.x - fltMaxTol
+	pSearchMinPnt.y = pSearchPnt.y - fltMaxTol
+	pSearchMaxPnt.x = pSearchPnt.x + fltMaxTol
+	pSearchMaxPnt.y = pSearchPnt.y + fltMaxTol
+	If gintDebugLev >= 6 then
+		Print "pSearchMaxPnt.x;y=" + pSearchMaxPnt.x + "; " + pSearchMaxPnt.y
+		Print "pSearchMinPnt.x;y=" + pSearchMinPnt.x + "; " + pSearchMinPnt.y
+	end if
+
+	intNumSnp       = 0
+	intNumSnapTab   = 0
+
+
+	intNumPol     = ObjectInfo(objSnap, OBJ_INFO_NPOLYGONS)
+	If gintDebugLev >= 1 then
+		Print "  Num polygons:  " + intNumPol
+		Print "  Num points:    " + ObjectInfo(objSnap, OBJ_INFO_NPNTS)
+	end if
+
+
+	'** Run through polygons in object and try snap ************
+
+	For intIdxPol = 1 to intNumPol
+		intNumPnts = ObjectInfo(objSnap, OBJ_INFO_NPOLYGONS+intIdxPol)
+		If gintDebugLev >= 4 then
+			Print intIdxPol + ". polygon: Number of points: " + intNumPnts
+		end if
+
+		'** Step through points in current polygon.
+		intIdxPnt = 0
+		Do While intIdxPnt < intNumPnts
+
+			intIdxPnt = intIdxPnt + 1
+
+			pCurrPnt.x = ObjectNodeX(objSnap, intIdxPol, intIdxPnt)
+			pCurrPnt.y = ObjectNodeY(objSnap, intIdxPol, intIdxPnt)
+
+			'** Try point snap - raw test against search box.
+			If pSearchMinPnt.x < pCurrPnt.x AND pSearchMaxPnt.x > pCurrPnt.x AND
+			   pSearchMinPnt.y < pCurrPnt.y AND pSearchMaxPnt.y > pCurrPnt.y then
+				If gintDebugLev >= 9 then
+					str = "Try PNT " + Format$(intIdxPnt,"####") + "/" + Format$(intIdxPol,"####")
+					Call TopoSnapPrtPoint (str, pCurrPnt, fltDist)
+				end if
+				fltDist = GetPythDistance(pCurrPnt, pSearchPnt)
+				If fltDist <= fltLinSnpDist then
+					'** Reg snap to point in object.
+					Call TopoSnapRegSnap (TRUE, intNumPol, intIdxPol, intIdxPnt, fltDist,
+							       pCurrPnt, intNumSnapTab, pSnapTab)
+				end if
+			end if
+
+			'** Try line snap.
+			If intIdxPnt > 1 then
+			    '** Raw test against search box.
+'				If gintDebugLev >= 9 then
+'					Print "pCurrPnt.x,pPrevPnt.x=" + pCurrPnt.x + "; " + pPrevPnt.x + " -> " + Maximum(pCurrPnt.x, pPrevPnt.x)
+'					Print "pCurrPnt.x,pPrevPnt.x=" + pCurrPnt.x + "; " + pPrevPnt.x + " -> " + Minimum(pCurrPnt.x, pPrevPnt.x)
+'					Print "pCurrPnt.y,pPrevPnt.y=" + pCurrPnt.y + "; " + pPrevPnt.y + " -> " + Maximum(pCurrPnt.y, pPrevPnt.y)
+'					Print "pCurrPnt.y,pPrevPnt.y=" + pCurrPnt.y + "; " + pPrevPnt.y + " -> " + Minimum(pCurrPnt.y, pPrevPnt.y)
+'				end if
+				If pSearchMinPnt.x < Maximum(pCurrPnt.x, pPrevPnt.x) AND
+				   pSearchMaxPnt.x > Minimum(pCurrPnt.x, pPrevPnt.x) AND
+				   pSearchMinPnt.y < Maximum(pCurrPnt.y, pPrevPnt.y) AND
+				   pSearchMaxPnt.y > Minimum(pCurrPnt.y, pPrevPnt.y) then
+
+					If gintDebugLev >= 6 then
+						str = "Try LIN " + Format$(intIdxPnt,"####") + "/" + Format$(intIdxPol,"####")
+						Call TopoSnapPrtPoint (str, pCurrPnt, fltDist)
+					end if
+
+					fltVecLen = GetPythDistance(pCurrPnt, pPrevPnt)
+					If fltVecLen > fltIdPntDist then	'** Try ortogonal line snap.
+						If IsPointOnLine(pCurrPnt, pPrevPnt, pSearchPnt, PSnapPnt, fltLinSnpDist) then
+						'** Reg snap to point in object.
+							fltDist = GetPythDistance(pSnapPnt, pSearchPnt)
+							Call TopoSnapRegSnap (FALSE, intNumPol, intIdxPol, intIdxPnt, fltDist,
+									      pSnapPnt, intNumSnapTab, pSnapTab)
+							If gintDebugLev >= 4 then
+							'** Create symbols for line snap information.
+								symMark = MakeSymbol(35, MAGENTA, 10)
+								Create Point
+									(pCurrPnt.x, pCurrPnt.y)
+									Symbol symMark
+								Create Point
+									(pPrevPnt.x, pPrevPnt.y)
+									Symbol symMark
+							end if		
+						end if
+					else
+						If gintDebugLev >= 4 then
+							Print intIdxPnt + ": Skip short vector - len=" + fltVecLen
+					end if
+				end if
+			end if
+
+		    end if
+		    pPrevPnt.x = pCurrPnt.x
+		    pPrevPnt.y = pCurrPnt.y
+
+		Loop	'intIdxPnt
+
+	Next	'intIdxPol
+
+	If gintDebugLev >= 2 then
+		Print "--- pSnapTab: intNumSnapTab=" + intNumSnapTab
+		For i = 1 to intNumSnapTab
+			Print i + ". snap: Pnt= " + pSnapTab(i).booSnapPnt + " ; " +
+
+				pSnapTab(i).intIdxPol   + " ; " +
+				pSnapTab(i).intIdxPnt   + " ; " +
+				Format$(pSnapTab(i).fltSnapDist,"0.##") + " ; " +
+				pSnapTab(i).pSnapPnt.x  + " ; " +
+				pSnapTab(i).pSnapPnt.y
+		Next	'i
+	end if
+
+
+	'** Analyze snapping result - find closest snap - point or line *******
+
+	intNumSnp = 0			'** Apriori: No new snap point in object.
+	Redim pSnapInfo.intIdxPol(1)
+	Redim pSnapInfo.intIdxPnt(1)
+
+	If intNumSnapTab > 0 then
+		If intNumSnapTab = 1 then		'** Only one - set as snap index.
+			intSnapIdx = intNumSnapTab
+		else					'** More than one snap - find closest.
+			intSnapIdx = 0
+			fltDistMin = 100 * Maximum( fltLinSnpDist, fltIdPntDist)
+			For i = 1 to intNumSnapTab
+				if pSnapTab(i).fltSnapDist < fltDistMin then
+					intSnapIdx = i
+					fltDistMin = pSnapTab(i).fltSnapDist
+				end if
+			Next	'i
+		end if
+		If gintDebugLev >= 1 then
+			Print "intSnapIdx=" + intSnapIdx + "; .booSnapPnt=" + pSnapTab(intSnapIdx).booSnapPnt
+		end if
+
+		if pSnapTab(intSnapIdx).booSnapPnt then
+		'** Snap existing point - set SnapInfo
+			pSnapInfo.intState     = 2
+			pSnapInfo.intNumPnts   = 1
+			pSnapInfo.intIdxPol(1) = pSnapTab(intSnapIdx).intIdxPol
+			pSnapInfo.intIdxPnt(1) = pSnapTab(intSnapIdx).intIdxPnt
+			pSnapInfo.fltSnapDist  = pSnapTab(intSnapIdx).fltSnapDist
+			pSnapInfo.pSnapPnt.x   = pSnapTab(intSnapIdx).pSnapPnt.x
+			pSnapInfo.pSnapPnt.y   = pSnapTab(intSnapIdx).pSnapPnt.y
+		else
+		'** Snap line point - check for almost identical with existing curr/prev point.
+
+			intIdxPol  = pSnapTab(intSnapIdx).intIdxPol
+			intIdxPnt  = pSnapTab(intSnapIdx).intIdxPnt
+			pSnapPnt.x = pSnapTab(intSnapIdx).pSnapPnt.x
+			pSnapPnt.y = pSnapTab(intSnapIdx).pSnapPnt.y
+
+			pCurrPnt.x = ObjectNodeX(objSnap, intIdxPol, intIdxPnt)
+			pCurrPnt.y = ObjectNodeY(objSnap, intIdxPol, intIdxPnt)
+			fltDistCurrPnt = GetPythDistance(pSnapPnt, pCurrPnt)
+
+			pPrevPnt.x = ObjectNodeX(objSnap, intIdxPol, intIdxPnt-1)
+			pPrevPnt.y = ObjectNodeY(objSnap, intIdxPol, intIdxPnt-1)
+			fltDistPrevPnt = GetPythDistance(pSnapPnt, pPrevPnt)
+
+			If gintDebugLev >= 1 then
+				Print "fltDistCurrPnt= " + fltDistCurrPnt + "; fltDistPrevPnt=" + fltDistPrevPnt
+			end if
+
+			If fltDistCurrPnt < fltIdPntDist OR fltDistPrevPnt < fltIdPntDist then
+			'** Prefer snap existing point - Set SnapInfo.
+				If gintDebugLev >= 1 then
+					Print "Skip LINE snap - prefer existing point"
+				end if
+				If fltDistCurrPnt < fltDistPrevPnt then
+					pSnapInfo.intState     = 2
+					pSnapInfo.intNumPnts   = 1
+					pSnapInfo.intIdxPol(1) = intIdxPol
+					pSnapInfo.intIdxPnt(1) = intIdxPnt
+					pSnapInfo.fltSnapDist  = GetPythDistance(pSearchPnt, pCurrPnt)
+					pSnapInfo.pSnapPnt.x   = pCurrPnt.x
+					pSnapInfo.pSnapPnt.y   = pCurrPnt.y
+				else
+					pSnapInfo.intState     = 2
+					pSnapInfo.intNumPnts   = 1
+					pSnapInfo.intIdxPol(1) = intIdxPol
+					pSnapInfo.intIdxPnt(1) = intIdxPnt - 1	'** Prev. pnt.
+					pSnapInfo.fltSnapDist  = GetPythDistance(pSearchPnt, pPrevPnt)
+					pSnapInfo.pSnapPnt.x   = pPrevPnt.x
+					pSnapInfo.pSnapPnt.y   = pPrevPnt.y
+				end if
+			else
+			'** Snap line - Insert snap line point in object.
+				Alter Object objSnap
+					Node Add Position intIdxPol, intIdxPnt
+					         (pSnapPnt.x, pSnapPnt.y)
+				intNumSnp = 1
+				pSnapInfo.intState     = 3
+				pSnapInfo.intNumPnts   = 1
+				pSnapInfo.intIdxPol(1) = intIdxPol
+				pSnapInfo.intIdxPnt(1) = intIdxPnt
+				pSnapInfo.fltSnapDist  = pSnapTab(intSnapIdx).fltSnapDist
+				pSnapInfo.pSnapPnt.x   = pSnapPnt.x
+				pSnapInfo.pSnapPnt.y   = pSnapPnt.y
+
+				If gintDebugLev >= 2 then
+					Print "Inserting point: " + intIdxPol + " ; " + intIdxPnt
+					'** Create symbols for information.
+					symMark = MakeSymbol(35, RED, 14)
+					Create Point
+						(pSnapPnt.x, pSnapPnt.y)
+						Symbol symMark
+				end if
+			end if
+		end if
+	
+		'** Look for identical snap points in object.
+	
+		If intNumSnapTab > 1 AND pSnapInfo.intState = 2 then
+
+			For i = 1 to intNumSnapTab
+				if i <> intSnapIdx AND pSnapTab(i).booSnapPnt then
+
+					if abs(pSnapInfo.pSnapPnt.x - pSnapTab(i).pSnapPnt.x) < gfltTolIdCoor AND
+					   abs(pSnapInfo.pSnapPnt.y - pSnapTab(i).pSnapPnt.y) < gfltTolIdCoor then
+					'** Reg. more snap points in object.
+						pSnapInfo.intNumPnts = pSnapInfo.intNumPnts + 1
+						Redim pSnapInfo.intIdxPol(pSnapInfo.intNumPnts)
+						Redim pSnapInfo.intIdxPnt(pSnapInfo.intNumPnts)
+						pSnapInfo.intIdxPol(pSnapInfo.intNumPnts) = pSnapTab(i).intIdxPol
+						pSnapInfo.intIdxPnt(pSnapInfo.intNumPnts) = pSnapTab(i).intIdxPnt
+						If gintDebugLev >= 2 then
+							Print "More snap pnt's in obj(" + pSnapInfo.intNumPnts
+								+ ") ; " + pSnapInfo.intIdxPol(pSnapInfo.intNumPnts)
+								+ " ; " + pSnapInfo.intIdxPnt(pSnapInfo.intNumPnts)
+						end if
+					end if
+				end if
+			Next	'i
+		end if
+	else
+	'** No snap - set zero snap info.
+		pSnapInfo.intState     = -1
+		pSnapInfo.intNumPnts   = 1
+		pSnapInfo.intIdxPol(1) = 0
+		pSnapInfo.intIdxPnt(1) = 0
+		pSnapInfo.fltSnapDist  = -1.0
+	end if
+
+
+	'** Clean up.
+	
+	Redim pSnapTab(0)
+
+End Sub
+
+
+'---------------------------------------------------------------------------
+'**	Registrate snap to point or line in object.
+'---------------------------------------------------------------------------
+Sub TopoSnapRegSnap (
+		ByVal booSnapPnt as Logical,	'* Flag for snap to point (T) or line (F).
+		ByVal intNumPol	as Integer,	'* Number of polygons in current object.
+		ByVal intIdxPol	as Integer,	'* Index to current polygon.
+		ByVal intIdxPnt	as Integer,	'* Index to current point in current polygon.
+		ByVal fltDist as Float,		'* Distance from search point to snap point.
+		pSnapPnt as T_POINT,		'* Point snapped (existing or point on line).
+		intNumSnapTab as Integer,	'* Number of snap' in current object.
+		pSnapTab() as T_SNAPTAB		'* Table/array of snap in object.
+	       )
+
+Dim str		as String	'* Current print messages string.
+Dim symMark	as Symbol	'* Symbol style for marking.
+
+
+	'** Increment number of snaps, redim array and register snap.
+
+	intNumSnapTab = intNumSnapTab + 1
+	Redim pSnapTab(intNumSnapTab)
+	pSnapTab(intNumSnapTab).booSnapPnt  = booSnapPnt
+	pSnapTab(intNumSnapTab).intIdxPol   = intIdxPol
+	pSnapTab(intNumSnapTab).intIdxPnt   = intIdxPnt
+	pSnapTab(intNumSnapTab).fltSnapDist = fltDist
+	pSnapTab(intNumSnapTab).pSnapPnt.x  = pSnapPnt.x
+	pSnapTab(intNumSnapTab).pSnapPnt.y  = pSnapPnt.y
+
+
+	'** Eventual print and display debug information.
+
+	If gintDebugLev >= 3 then
+		If booSnapPnt then
+			If intNumPol>1 then
+				str = Format$(intIdxPnt,"####") + "/" + Format$(intIdxPol,"####") + " Snap PNT/pol"
+			else
+				str = Format$(intIdxPnt,"####") + ". Snap PNT"
+			end if
+			Call TopoSnapPrtPoint (str, pSnapPnt, fltDist)
+			If gintDebugLev >= 4 then
+			'** Create symbol for point snap information.
+				symMark = MakeSymbol(35, GREEN, 12)
+				Create Point
+					(pSnapPnt.x, pSnapPnt.y)
+					Symbol symMark
+			end if
+		else
+			If intNumPol>1 then
+				str = Format$(intIdxPnt,"####") + "/" + Format$(intIdxPol,"####") + " Snap LIN/pol"
+			else
+				str = Format$(intIdxPnt,"####") + ". Snap LIN"
+			end if
+			Call TopoSnapPrtPoint (str, pSnapPnt, fltDist)
+			If gintDebugLev >= 4 then
+			'** Create symbols for line snap information.
+				symMark = MakeSymbol(35, BLUE, 10)
+				Create Point
+					(pSnapPnt.x, pSnapPnt.y)
+					Symbol symMark
+			end if		
+		end if
+	end if
+
+End Sub
+
+
+'---------------------------------------------------------------------------
+'**	Print coordinates of point with short message string.
+'---------------------------------------------------------------------------
+Sub TopoSnapPrtPoint (
+		ByVal strMes as String,		'* Short message string for print info.
+		pPnt as T_POINT,		'* Point to print x,y coordinates.
+		ByVal fltDist as Float		'* Distance from point (only print if >= 0).
+               )
+
+	If fltDist < 0.0 then
+		Print strMes + ": x: " + Format$(pPnt.x,"#.###") + ", y: " + Format$(pPnt.y,"#.###")
+	else
+		Print strMes + ": x: " + Format$(pPnt.x,"#.###") + ", y: " + Format$(pPnt.y,"#.###") +
+			", Dist: " + Format$(fltDist,"#.###")
+	end if
+
+End Sub
+
+
+

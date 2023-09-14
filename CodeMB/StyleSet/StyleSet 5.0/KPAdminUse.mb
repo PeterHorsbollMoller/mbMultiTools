@@ -1,0 +1,3334 @@
+'********************************************************
+'**	Modul:	Læs / skriv stilart fra stilarttabel
+'**			Opsætning af stilarter i dialog
+'********************************************************
+Include "MapBasic.def"
+
+'-----------------------------------------------------------------------------------------------
+'Husk at tilføje nye tabeller til funktionen kpaTableIsKPSystemTable()
+Define	TAB_KPSTYLES		"KPSTYLES"
+Define	TAB_KPTABLES		"KPTABLES"
+Define	TAB_KPICONS			"KPICONS"
+Define	TAB_KPGROUP			"KPGROUP"
+Define	TAB_KPSGROUP		"KPSGROUP"
+Define	TAB_KPTGROUP		"KPTGROUP"			'Defines which tables are within which groups
+Define	TAB_KPVALUES		"KPVALUES"
+Define	TAB_KPLISTVALUES		"KPLISTVALUES"		'Holds listvalues to be used when updating/creating objects
+Define	TAB_KPLAYERS		"KPLAYERS"
+Define	TAB_KPDISPLAY		"KPDISPLAY"
+Define	TAB_KPTDISPLAY		"KPTDISPLAY"		'Define which tables are within which displays
+
+Define	TAB_KPLAYERSOPEN		"KPLAYERSOPEN"		'Holds information on currently open layers
+Define	TAB_KPLAYERSTOADD		"KPLAYERSTOADD"		'Defines which layers to add, tables to open etc...
+Define	TAB_KPTABLESBYDISPLAY	"KPTABLESBYDISPLAY"	'Holds information on tables by display
+'-----------------------------------------------------------------------------------------------
+
+Include "Globals.def"
+
+Include "KPAdminUse.def"
+Include "KPPadUse.def"
+
+Include "..\..\Time\Time.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\FileFunc\FileFunc.def"
+Include "..\..\IniUtil\IniUtil.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+Dim	mszKPFilesPath As String,				'Path to Setup-tables
+	mszKPDefaultDLLFile16 As String,			'Navn på ikonfil med standard ikoner - 16 bit
+	mszKPDefaultDLLFile32 As String,			'Navn på ikonfil med standard ikoner - 32 bit
+	mszKPToolsDLLFile32 As String,			'Navn på DLL med værktøjsknapper
+	mszKPDisplayPadName As String,			'Navn på Display ButtonPad
+	mbUseStyles As Logical,					'Anvend Stilartsstyring...
+	mbUseTables As Logical,					'Anvend Tablestyring...
+	mbUseIcons As Logical,					'Anvend Ikonfilstyring...
+	mbUseGrouping As Logical,				'Anvend Gruppestyring...
+	mbUseValues As Logical,					'Anvend styring af Værditilskrivning...
+	mbUseLayers As Logical,					'Anvend lagstyring
+	mbUseMultiDisplaying As Logical,			'Anvend multilagstyring
+	mbUseEditPad As Logical,				'Anvend Rediger Lag knapper
+	mbUseToggleButton As Logical,				'Anvend Toggle-buttons på MultiLag/Display-paletten
+	mbUseOpenTableAsDescription As Logical,		'Anvend Åbning af tabeller vha deres alias/beskrivelse,
+	mbShowUserInfluenceButton As Logical,		'Vis knap til aktivering/deaktivering af automatisk opdatering af MultiLag
+	mbAllowVariousLayerSettings As Logical,		'Tillad flere visninger pr. tabel
+	mbAllowUpdateDialogOnCreateSetup As Logical,	'Tillad opsætning af avanceret opdater dialog under oprettelse af objekter
+	mfStartCenterX, mfStartCenterY As Float,		'Start centerkoordinat for nye kortvinduer (Længde/bredde)
+	mfStartZoom As Float,					'Start zoom for nye kortvinduer, meter
+	mbEnableDisplayWinFocusChngHndl As Logical,	'Tillad eventstyring af Displayknapper
+	mbEnableDisplayAutoUpdate As Logical		'Tillad eventstyring af Displayknapper
+'********************************************************
+'	Sætter filnavnet på stilartstabellen vha filnavn
+'********************************************************
+Sub kpaSetKPPathWithFilename(ByVal szTabFile As String)
+
+OnError GoTo ErrorOccured
+
+	mszKPFilesPath	= PathToDirectory$(szTabFile)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter filnavnet på stilartstabellen
+'********************************************************
+Sub kpaSetKPPath(ByVal szFolder As String)
+
+OnError GoTo ErrorOccured
+
+	If szFolder = "" Then
+		szFolder = ApplicationDirectory$()
+	ElseIf not Right$(szFolder, 1) = "\" Then
+		szFolder = szFolder + "\"
+	End If
+
+	mszKPFilesPath	= GetFileNameAbsolute$(szFolder)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Returnerer filnavnet på stilartstabellen
+'********************************************************
+Function kpaGetKPPath$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPPath$	= mszKPFilesPath
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer filnavnet på stilartstabellen
+'********************************************************
+Function kpaCheckKPPath() As Logical
+
+Dim	szPath, arrFolders, szTempPath As String
+
+OnError GoTo ErrorOccured
+
+kpaCheckKPPath = FALSE
+
+	szPath = kpaGetKPPath$()
+
+	If FileExists(szPath) Then
+		kpaCheckKPPath = TRUE
+		Exit Function
+	End If
+
+	Note ERR_STYL_PATH_NOT_FOUND_SYSTAB1
+		+ lf + szPath
+		+ lf + lf + ERR_STYL_PATH_NOT_FOUND_SYSTAB2
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer et filnavn med absolut sti i forhold til placering af sys-tables
+'**********************************************************************************************''
+Function kpaGetAbsoluteFileName$(ByVal szFile As String) As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetAbsoluteFileName$	= GetFileNameAbsolutePath$(szFile, kpaGetKPPath$())
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer et filnavn med relativ sti i forhold til placering af sys-tables
+'**********************************************************************************************''
+Function kpaGetRelativeFileName$(ByVal szFile As String) As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetRelativeFileName$	= GetFileNameRelativePath$(szFile, kpaGetKPPath$())
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************************************************************************************
+'********************************************************
+'	Sætter filnavnet på default DLL 16 bit
+'********************************************************
+Sub kpaSetKPDefaultDLLFile16(ByVal szDLLFile As String)
+
+OnError GoTo ErrorOccured
+
+	mszKPDefaultDLLFile16	= szDLLFile
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Returnerer filnavnet på default DLL 16 bit
+'********************************************************
+Function kpaGetKPDefaultDLLFile16$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPDefaultDLLFile16$	= mszKPDefaultDLLFile16
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Sætter filnavnet på default DLL 32 bit
+'********************************************************
+Sub kpaSetKPDefaultDLLFile32(ByVal szDLLFile As String)
+
+OnError GoTo ErrorOccured
+
+	mszKPDefaultDLLFile32	= szDLLFile
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Returnerer filnavnet på DLL 32 bit med værktøjsknapper
+'**********************************************************************************************''
+Function kpaGetKPToolsDLLFile32$() As String
+
+Dim	szFile As String
+
+OnError GoTo ErrorOccured
+
+	If NOT FileExists(mszKPToolsDLLFile32) Then
+		szFile = PathToFileName$(mszKPToolsDLLFile32)
+		If FileExists(kpaGetKPPath$() & szFile) Then
+			kpaGetKPToolsDLLFile32$	= kpaGetKPPath$() & szFile
+		ElseIf FileExists(ApplicationDirectory$() & szFile) Then
+			kpaGetKPToolsDLLFile32$	= ApplicationDirectory$() & szFile
+		ElseIf FileExists(HomeDirectory$() & szFile) Then
+			kpaGetKPToolsDLLFile32$	= HomeDirectory$() & szFile
+		Else
+			kpaGetKPToolsDLLFile32$	= mszKPToolsDLLFile32
+		End If
+	Else
+		kpaGetKPToolsDLLFile32$ = mszKPToolsDLLFile32
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Sætter filnavnet på default DLL 32 bit
+'********************************************************
+Sub kpaSetKPToolsDLLFile32(ByVal szDLLFile As String)
+
+OnError GoTo ErrorOccured
+
+	mszKPToolsDLLFile32	= szDLLFile
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Returnerer filnavnet på default DLL 32 bit
+'********************************************************
+Function kpaGetKPDefaultDLLFile32$() As String
+
+Dim	szFile As String
+
+OnError GoTo ErrorOccured
+
+	If NOT FileExists(mszKPDefaultDLLFile32) Then
+		szFile = PathToFileName$(mszKPDefaultDLLFile32)
+		If FileExists(kpaGetKPPath$() & szFile) Then
+			kpaGetKPDefaultDLLFile32$	= kpaGetKPPath$() & szFile
+		ElseIf FileExists(ApplicationDirectory$() & szFile) Then
+			kpaGetKPDefaultDLLFile32$	= ApplicationDirectory$() & szFile
+		ElseIf FileExists(HomeDirectory$() & szFile) Then
+			kpaGetKPDefaultDLLFile32$	= HomeDirectory$() & szFile
+		Else
+			kpaGetKPDefaultDLLFile32$	= mszKPDefaultDLLFile32
+		End If
+	Else
+		kpaGetKPDefaultDLLFile32$	= mszKPDefaultDLLFile32
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'*Sætter om programmet tillader anvendelse af flere visninger pr. tabel
+'**********************************************************************************************''
+Sub kpaSetAllowVariousLayerSettings(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbAllowVariousLayerSettings = bValue
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'*Returnerer om programmet tillader anvendelse af flere visninger pr. tabel
+'**********************************************************************************************''
+Function kpaGetAllowVariousLayerSettings() As Logical
+
+OnError GoTo ErrorOccured
+
+	kpaGetAllowVariousLayerSettings = mbAllowVariousLayerSettings
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'*Sætter om programmet tillader opsætning af avanceret opdater dialog under oprettelse af objekter
+'**********************************************************************************************''
+Sub KPASetAllowUpdateDialogOnCreateSetup(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbAllowUpdateDialogOnCreateSetup = bValue
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'*Returnerer om programmet tillader opsætning af avanceret opdater dialog under oprettelse af objekter
+'**********************************************************************************************''
+Function KPAAllowUpdateDialogOnCreateSetup() As Logical
+
+OnError GoTo ErrorOccured
+
+	KPAAllowUpdateDialogOnCreateSetup = mbAllowUpdateDialogOnCreateSetup
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Sætter navnet MultiLag/Display-paletten
+'********************************************************
+Sub kpaSetKPDisplayPadName(ByVal szPadName As String)
+
+OnError GoTo ErrorOccured
+
+	mszKPDisplayPadName	= szPadName
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Returnerer navnet MultiLag/Display-paletten
+'********************************************************
+Function kpaGetKPDisplayPadName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPDisplayPadName$	= mszKPDisplayPadName
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Sætter værdi for ToggleButton på MultiLag/Display-paletten
+'********************************************************
+Sub kpaSetDiplayButtonToggle(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbUseToggleButton	= bValue
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Returner værdi for ToggleButton på MultiLag/Display-paletten
+'********************************************************
+Function kpaGetDiplayButtonToggle() As Logical
+
+OnError GoTo ErrorOccured
+
+	kpaGetDiplayButtonToggle = mbUseToggleButton
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Sætter værdi for åbning af tabeller som Beskrivende tekst
+'********************************************************
+Sub kpaSetOpenTablesWithAlias(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbUseOpenTableAsDescription = bValue
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'********************************************************
+Function kpaGetOpenTablesWithAlias() As Logical
+
+OnError GoTo ErrorOccured
+
+	kpaGetOpenTablesWithAlias = mbUseOpenTableAsDescription
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Sætter værdi for om knappen til aktivering/deaktivering af
+'	automatisk opdatering af MultiLag skal vises
+'********************************************************
+Sub kpaSetShowUserInfluenceButton(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbShowUserInfluenceButton = bValue
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'********************************************************
+Function kpaShowUserInfluenceButton() As Logical
+
+OnError GoTo ErrorOccured
+
+	kpaShowUserInfluenceButton = mbShowUserInfluenceButton
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+
+'**********************************************************************************************''
+'**Sætter værdier for opstartssted
+'**********************************************************************************************''
+Sub kpaSetCenterAndZoomForNewMap(ByVal szSetting As String, ByVal fValue As Float)
+
+OnError GoTo ErrorOccured
+
+	Do Case szSetting
+		Case "CENTERX", "CENTX", "X"
+			mfStartCenterX	= fValue
+		Case "CENTERY", "CENTY", "Y"
+			mfStartCenterY	= fValue
+		Case "CENTERZOOM", "ZOOM"
+			mfStartZoom	= fValue
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Sætter og returnerer værdier for opstartssted
+'**********************************************************************************************''
+Function kpaGetCenterAndZoomForNewMap(ByVal szSetting As String) As Float
+
+OnError GoTo ErrorOccured
+
+	Do Case szSetting
+		Case "CENTERX", "CENTX", "X"
+			kpaGetCenterAndZoomForNewMap = mfStartCenterX
+		Case "CENTERY", "CENTY", "Y"
+			kpaGetCenterAndZoomForNewMap = mfStartCenterY
+		Case "CENTERZOOM", "ZOOM"
+			kpaGetCenterAndZoomForNewMap = mfStartZoom
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'**Sætter og returnerer værdier for opstartssted
+'**********************************************************************************************''
+Sub kpaSetNewMapCenterAndZoom(ByVal nMID As Integer)
+
+OnError GoTo ErrorOccured
+
+	If kpaGetCenterAndZoomForNewMap("ZOOM") > 0 Then
+		Set CoordSys Earth
+
+		Set Map
+			Window nMID
+			Zoom kpaGetCenterAndZoomForNewMap("ZOOM") Units "m"
+
+		Set Map
+			Window nMID
+			Center (kpaGetCenterAndZoomForNewMap("X"), kpaGetCenterAndZoomForNewMap("Y"))
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Returnerer om programmet skal rette i DisplayKnapper vha WinFocusChangedhandler
+'**********************************************************************************************''
+Function kpaEnableDisplayWinFocusChngHndl() As Logical
+
+OnError GoTo ErrorOccured
+
+	kpaEnableDisplayWinFocusChngHndl = mbEnableDisplayWinFocusChngHndl
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Sætter om programmet skal rette i DisplayKnapper vha WinFocusChangedhandler
+'**********************************************************************************************''
+Sub kpaSetEnableDisplayWinFocusChngHndl(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbEnableDisplayWinFocusChngHndl = bValue
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Returnerer om programmet skal rette i DisplayKnapper vha WinFocusChangedhandler m.fl.
+'**********************************************************************************************''
+Function kpaEnableDisplayAutoUpdate() As Logical
+
+OnError GoTo ErrorOccured
+
+	kpaEnableDisplayAutoUpdate = mbEnableDisplayAutoUpdate
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Sætter om programmet skal rette i DisplayKnapper vha WinFocusChangedhandler m.fl.
+'**********************************************************************************************''
+Sub kpaSetEnableDisplayAutoUpdate(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbEnableDisplayAutoUpdate = bValue
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'********************************************************
+'********************************************************
+'	Skriver KP inifile...
+'********************************************************
+Sub kpaWriteKPIniFile(ByVal nFileNum As Integer)
+
+OnError GoTo ErrorOccured
+
+	Print #nFileNum, ""
+	Print #nFileNum, "[KPSETTING]"
+	Print #nFileNum, "KPFOLDER=" 			& GetFileNameRelative$(kpaGetKPPath$())
+	Print #nFileNum, "USERBUTTONSTATE=" 	& kpaEnableDisplayAutoUpdate()
+
+	If kpaUseEditPads() Then
+		Print #nFileNum, "EDITPADGROUP=" + kppGetEditGroupName$()
+		Print #nFileNum, "EDITPADSUBGROUP=" + kppGetEditSubGroupName$()
+	End If
+
+	If kpaUseMultiDisplaying() Then
+		Print #nFileNum, "OPENCLOSEBUTTON=" + kpaGetDiplayButtonToggle()
+		Print #nFileNum, "OPENASDESCRIPTION=" + kpaGetOpenTablesWithAlias()
+
+		Print #nFileNum, "CENTERX=" + kpaGetCenterAndZoomForNewMap("X")
+		Print #nFileNum, "CENTERY=" + kpaGetCenterAndZoomForNewMap("Y")
+		Print #nFileNum, "ZOOM=" + kpaGetCenterAndZoomForNewMap("ZOOM")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	læser KP inifile...
+'********************************************************
+Sub kpaReadKPIniFile(ByVal szFileName As String)
+
+Dim	szRead As String
+
+OnError GoTo ErrorOccured
+
+	If kpaUseEditPads() Then
+		Call kppSetEditGroupName(MSG_NONE)
+		Call kppSetEditSubGroupName(MSG_NONE)
+	End If
+
+	If not FileExists(szFileName) Then
+		Exit Sub
+	End If
+
+	szRead = GetFileNameAbsolute$(GetIniKeyValue(szFileName, "[KPSETTING]", "KPFOLDER"))
+	Call kpaSetKPPath(szRead)
+
+	szRead = GetIniKeyValue(szFileName, "[KPSETTING]", "USERBUTTONSTATE")
+'	Print "USERBUTTONSTATE:" & szRead
+	Call kpaSetEnableDisplayAutoUpdate((szRead <> "F"))
+
+	If kpaUseEditPads() Then
+		szRead = GetIniKeyValue(szFileName, "[KPSETTING]", "EDITPADGROUP")
+		If szRead = "" Then
+			Call kppSetEditGroupName(MSG_NONE)
+		Else
+			Call kppSetEditGroupName(szRead)
+		End If
+		szRead = GetIniKeyValue(szFileName, "[KPSETTING]", "EDITPADSUBGROUP")
+		If szRead = "" Then
+			Call kppSetEditSubGroupName(MSG_NONE)
+		Else
+			Call kppSetEditSubGroupName(szRead)
+		End If
+	End If
+
+	If kpaUseMultiDisplaying() Then
+		szRead = GetIniKeyValue(szFileName, "[KPSETTING]", "OPENCLOSEBUTTON")
+		If szRead = "F" Then
+			Call kpaSetDiplayButtonToggle(FALSE)
+		Else
+			Call kpaSetDiplayButtonToggle(TRUE)
+		End If
+
+		szRead = GetIniKeyValue(szFileName, "[KPSETTING]", "OPENASDESCRIPTION")
+		If szRead = "T" Then
+			Call kpaSetOpenTablesWithAlias(TRUE)
+		Else
+			Call kpaSetOpenTablesWithAlias(FALSE)
+		End If
+
+		szRead = GetIniKeyValue(szFileName, "[KPSETTING]", "CENTERX")
+		Call kpaSetCenterAndZoomForNewMap("X", Val(szRead))
+		szRead = GetIniKeyValue(szFileName, "[KPSETTING]", "CENTERY")
+		Call kpaSetCenterAndZoomForNewMap("Y", Val(szRead))
+		szRead = GetIniKeyValue(szFileName, "[KPSETTING]", "ZOOM")
+		Call kpaSetCenterAndZoomForNewMap("ZOOM", Val(szRead))
+	End If
+
+	'**Checking that the system path has been set...
+	'If not kpaCheckKPPath() Then
+	'	Call kpaSetKPPath(ApplicationDirectory$())
+	'End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'********************************************************
+'********************************************************
+'	Henter navnet på stilartstabellen
+'********************************************************
+Function kpaGetKPStylesTabName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPStylesTabName$ = TAB_KPSTYLES
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Henter filnavnet på stilartstabellen
+'********************************************************
+Function kpaGetKPStylesTabFilename$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPStylesTabFilename$ = kpaGetKPPath$() + kpaGetKPStylesTabName$() + ".tab"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Checker om KPStyles er åbne...
+'********************************************************
+Function kpaOpenKPStylesTable() As Logical
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPStylesTabName$()
+	szFile	= kpaGetKPStylesTabFilename$()
+
+	If TableOpen(szTab) Then
+		kpaOpenKPStylesTable = FALSE
+		Exit Function
+	End If
+
+	If not FileExists(szFile) Then
+		Call kpaCreateTableKPStyles
+	End If
+
+	Open Table szFile As szTab
+
+	If NOT TableInfo(szTab, TAB_INFO_READONLY) Then
+		If TableHasDeletedRows(szTab) Then
+			Set ProgressBars Off
+			Pack Table szTab Data
+			Set ProgressBars On
+		End If
+	End If
+
+	kpaOpenKPStylesTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Print "STYLES:"
+	Print "TAB: " & szTab
+	Print "FILE: " & szFile
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Opretter tabel KPSTYLES...
+'********************************************************
+Sub kpaCreateTableKPStyles
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPStylesTabName$()
+	szFile	= kpaGetKPStylesTabFilename$()
+
+	Create Table szTab
+		(
+			STYLEID		Integer,
+			TABLEID		Integer,
+			STYLENAME		Char(40),
+			P_WIDTH		Smallint,
+			P_PATTERN		Smallint,
+			P_COLOR		Integer,
+			P_SHOW		Logical,
+			B_PATTERN		Smallint,
+			B_FORECOLOR		Integer,
+			B_BACKCOLOR		Integer,
+			B_SHOW		Logical,
+			L_WIDTH		Integer,
+			L_PATTERN		Integer,
+			L_COLOR		Integer,
+			L_SHOW		Logical,
+			F_SHOW		Logical,
+			F_FONTNAME		Char (80),
+			F_FONTSTYLE		Integer,
+			F_SIZE		Integer,
+			F_FORECOLOR		Integer,
+			F_BACKCOLOR		Integer,
+			S_SHAPE		Integer,
+			S_COLOR		Integer,
+			S_SIZE		Integer,
+			S_FONTNAME		Char (80),
+			S_FONTSTYLE		Integer,
+			S_ROTATION		Integer,
+			S_FILENAME		Char (31),
+			S_CUSTOMSTYLE	Integer,
+			S_KIND		Smallint,
+			S_SHOW		Logical,
+			ICONFILEID		Integer,
+			ICON			Integer
+		)
+		File szFile
+
+	Create Index On szTab(STYLEID)
+
+	Close Table szTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'********************************************************
+'********************************************************
+'	Henter navnet på tabellen KPTables
+'********************************************************
+Function kpaGetKPTablesTabName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPTablesTabName$ = TAB_KPTABLES
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Henter filnavnet på stilartstabellen
+'********************************************************
+Function kpaGetKPTablesTabFilename$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPTablesTabFilename$ = kpaGetKPPath$() + kpaGetKPTablesTabName$() + ".tab"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Checker om KPTables er åbne...
+'********************************************************
+Function kpaOpenKPTablesTable() As Logical
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPTablesTabName$()
+	szFile	= kpaGetKPTablesTabFilename$()
+
+	If TableOpen(szTab) Then
+		kpaOpenKPTablesTable = FALSE
+		Exit Function
+	End If
+
+	If not FileExists(szFile) Then
+		Call kpaCreateTableKPTables
+	End If
+
+	Open Table szFile As szTab
+
+	Set ProgressBars Off
+
+	If NOT TableInfo(szTab, TAB_INFO_READONLY) Then
+		If TableHasDeletedRows(szTab) Then
+			Pack Table szTab Data
+		End If
+	End If
+
+	If NOT TABColExists(szTab, "ALLOWVARIOUSLAYER") Then
+		Alter Table szTab
+			(Add	ALLOWVARIOUSLAYER	Logical)
+	End If
+
+	Call kpaCreateIndexKPTables
+
+	Set ProgressBars On
+
+	kpaOpenKPTablesTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Opretter indeks på KPTABLES
+'**********************************************************************************************''
+Sub kpaCreateIndexKPTables
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPTablesTabName$()
+
+	If NOT ColumnInfo(szTab, "TABLENAME", COL_INFO_INDEXED) Then
+		Create Index On szTab ("TABLENAME")
+	End If
+	If NOT ColumnInfo(szTab, "TABLEID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("TABLEID")
+	End If
+	If NOT ColumnInfo(szTab, "PATH", COL_INFO_INDEXED) Then
+		Create Index On szTab ("PATH")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Fjerner indeks på KPTABLES
+'**********************************************************************************************''
+Sub kpaDropIndexKPTables
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPTablesTabName$()
+
+	If ColumnInfo(szTab, "TABLENAME", COL_INFO_INDEXED) Then
+		Drop Index szTab ("TABLENAME")
+	End If
+	If ColumnInfo(szTab, "TABLEID", COL_INFO_INDEXED) Then
+		Drop Index szTab ("TABLEID")
+	End If
+	If ColumnInfo(szTab, "PATH", COL_INFO_INDEXED) Then
+		Drop Index szTab ("PATH")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Opretter tabel KPTABLES...
+'********************************************************
+Sub kpaCreateTableKPTables
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPTablesTabName$()
+	szFile	= kpaGetKPTablesTabFilename$()
+
+	Create Table szTab
+		(
+			TABLEID		Integer,
+			DESCRIPTION		Char(40),
+			TABLENAME		Char(40),
+			PATH			Char(80),
+			ALLOWVARIOUSLAYER	Logical
+		)
+		File szFile
+
+	Close Table szTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'********************************************************
+'********************************************************
+'	Henter navnet på tabellen KPIcons
+'********************************************************
+Function kpaGetKPIconsTabName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPIconsTabName$ = TAB_KPICONS
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Henter filnavnet på stilartstabellen
+'********************************************************
+Function kpaGetKPIconsTabFilename$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPIconsTabFilename$ = kpaGetKPPath$() + kpaGetKPIconsTabName$() + ".tab"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Checker om KPIcons er åbne...
+'********************************************************
+Function kpaOpenKPIconsTable() As Logical
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPIconsTabName$()
+	szFile	= kpaGetKPIconsTabFilename$()
+
+	If TableOpen(szTab) Then
+		kpaOpenKPIconsTable = FALSE
+		Exit Function
+	End If
+
+	If not FileExists(szFile) Then
+		Call kpaCreateTableKPIcons
+	End If
+
+	Open Table szFile As szTab
+
+	If NOT TableInfo(szTab, TAB_INFO_READONLY) Then
+		If TableHasDeletedRows(szTab) Then
+			Set ProgressBars Off
+			Pack Table szTab Data
+			Set ProgressBars On
+		End If
+	End If
+
+	kpaOpenKPIconsTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Opretter tabel KPICONS...
+'********************************************************
+Sub kpaCreateTableKPIcons
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPIconsTabName$()
+	szFile	= kpaGetKPIconsTabFilename$()
+
+	Create Table szTab
+		(
+			ICONFILEID		Integer,
+			ICONFILESHORTNAME	Char(40),
+			ICONFILENAME	Char(80)
+		)
+		File szFile
+
+	Create Index On szTab(ICONFILEID)
+
+	Close Table szTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'********************************************************
+'********************************************************
+'	Henter navnet på tabellen KPGroup
+'********************************************************
+Function kpaGetKPGroupTabName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPGroupTabName$ = TAB_KPGROUP
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Henter filnavnet på stilartstabellen
+'********************************************************
+Function kpaGetKPGroupTabFilename$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPGroupTabFilename$ = kpaGetKPPath$() + kpaGetKPGroupTabName$() + ".tab"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Checker om KPGroup er åbne...
+'********************************************************
+Function kpaOpenKPGroupTable() As Logical
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPGroupTabName$()
+	szFile	= kpaGetKPGroupTabFilename$()
+
+	If TableOpen(szTab) Then
+		kpaOpenKPGroupTable = FALSE
+		Exit Function
+	End If
+
+	If not FileExists(szFile) Then
+		Call kpaCreateTableKPGroup
+	End If
+
+	Open Table szFile As szTab
+
+	If NOT TableInfo(szTab, TAB_INFO_READONLY) Then
+		If TableHasDeletedRows(szTab) Then
+			Set ProgressBars Off
+			Pack Table szTab Data
+			Set ProgressBars On
+		End If
+	End If
+
+	kpaOpenKPGroupTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Opretter tabel KPGROUP...
+'********************************************************
+Sub kpaCreateTableKPGroup
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPGroupTabName$()
+	szFile	= kpaGetKPGroupTabFilename$()
+
+	Create Table szTab
+		(
+			GROUPID		Integer,
+			GROUPNAME		Char(40)
+		)
+		File szFile
+
+	Create Index On szTab(GROUPID)
+
+	Close Table szTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'********************************************************
+'********************************************************
+'	Henter navnet på tabellen KPSGroup
+'********************************************************
+Function kpaGetKPSGroupTabName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPSGroupTabName$ = TAB_KPSGROUP
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Henter filnavnet på undergruppe-tabellen
+'********************************************************
+Function kpaGetKPSGroupTabFilename$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPSGroupTabFilename$ = kpaGetKPPath$() + kpaGetKPSGroupTabName$() + ".tab"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Checker om KPSGroup er åbne...
+'********************************************************
+Function kpaOpenKPSGroupTable() As Logical
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPSGroupTabName$()
+	szFile	= kpaGetKPSGroupTabFilename$()
+
+	If TableOpen(szTab) Then
+		kpaOpenKPSGroupTable = FALSE
+		Exit Function
+	End If
+
+	If not FileExists(szFile) Then
+		Call kpaCreateTableKPSGroup
+	End If
+
+	Open Table szFile As szTab
+
+	If NOT TableInfo(szTab, TAB_INFO_READONLY) Then
+		If TableHasDeletedRows(szTab) Then
+			Set ProgressBars Off
+			Pack Table szTab Data
+			Set ProgressBars On
+		End If
+	End If
+
+	kpaOpenKPSGroupTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Opretter tabel KPSGROUP...
+'********************************************************
+Sub kpaCreateTableKPSGroup
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPSGroupTabName$()
+	szFile	= kpaGetKPSGroupTabFilename$()
+
+	Create Table szTab
+		(
+			SUBGROUPID		Integer,
+		'	GROUPID		Integer,
+			SUBGROUPNAME	Char(40)
+		)
+		File szFile
+
+	Create Index On szTab(SUBGROUPID)
+
+	Close Table szTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'********************************************************
+'********************************************************
+'	Henter navnet på tabellen KPTGroup
+'********************************************************
+Function kpaGetKPTGroupTabName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPTGroupTabName$ = TAB_KPTGROUP
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Henter filnavnet på tabellen KPTGroup
+'********************************************************
+Function kpaGetKPTGroupTabFilename$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPTGroupTabFilename$ = kpaGetKPPath$() + kpaGetKPTGroupTabName$() + ".tab"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Checker om KPGroup er åbne...
+'********************************************************
+Function kpaOpenKPTGroupTable() As Logical
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPTGroupTabName$()
+	szFile	= kpaGetKPTGroupTabFilename$()
+
+	If TableOpen(szTab) Then
+		kpaOpenKPTGroupTable = FALSE
+		Exit Function
+	End If
+
+	If not FileExists(szFile) Then
+		Call kpaCreateTableKPTGroup
+	End If
+
+	Open Table szFile As szTab
+
+	Set ProgressBars Off
+	If NOT TableInfo(szTab, TAB_INFO_READONLY) Then
+		If TableHasDeletedRows(szTab) Then
+			Pack Table szTab Data
+		End If
+	End If
+
+	If NOT TABColExists(szTab, "LAYERID") Then
+		Alter Table szTab
+			(Add	LAYERID		Integer)
+	End If
+	If NOT TABColExists(szTab, "TABLELAYERID") Then
+		Alter Table szTab
+			(Add	TABLELAYERID	Char(10))
+
+		Set Table szTab FastEdit On Undo Off
+		Update szTab
+			Set TABLELAYERID = TABLEID & "-" & LAYERID
+		Commit Table szTab
+		Set Table szTab FastEdit Off Undo On
+	End If
+
+	'**Creating index
+	Call kpaCreateIndexKPTGroup
+
+	Set ProgressBars On
+
+	kpaOpenKPTGroupTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Opretter indeks på KPTGROUP
+'**********************************************************************************************''
+Sub kpaCreateIndexKPTGroup
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPTGroupTabName$()
+
+	If NOT ColumnInfo(szTab, "LAYERID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("LAYERID")
+	End If
+	If NOT ColumnInfo(szTab, "TABLEID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("TABLEID")
+	End If
+	If NOT ColumnInfo(szTab, "GROUPID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("GROUPID")
+	End If
+	If NOT ColumnInfo(szTab, "SUBGROUPID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("SUBGROUPID")
+	End If
+	If NOT ColumnInfo(szTab, "TABLELAYERID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("TABLELAYERID")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Fjerner indeks på KPTGROUP
+'**********************************************************************************************''
+Sub kpaDropIndexKPTGroup
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPTGroupTabName$()
+
+	If ColumnInfo(szTab, "LAYERID", COL_INFO_INDEXED) Then
+		Drop Index szTab ("LAYERID")
+	End If
+	If ColumnInfo(szTab, "TABLEID", COL_INFO_INDEXED) Then
+		Drop Index szTab ("TABLEID")
+	End If
+	If ColumnInfo(szTab, "GROUPID", COL_INFO_INDEXED) Then
+		Drop Index szTab ("GROUPID")
+	End If
+	If ColumnInfo(szTab, "SUBGROUPID", COL_INFO_INDEXED) Then
+		Drop Index szTab ("SUBGROUPID")
+	End If
+	If ColumnInfo(szTab, "TABLELAYERID", COL_INFO_INDEXED) Then
+		Drop Index szTab ("TABLELAYERID")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Opretter tabel KPGROUP...
+'********************************************************
+Sub kpaCreateTableKPTGroup
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPTGroupTabName$()
+	szFile	= kpaGetKPTGroupTabFilename$()
+
+	Create Table szTab
+		(
+			TABLEID		Integer,
+			LAYERID		Integer,
+			GROUPID		Integer,
+			SUBGROUPID		Integer,
+			TABLELAYERID	Char(10)
+		)
+		File szFile
+
+	Close Table szTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'********************************************************
+'********************************************************
+'	Henter navnet på tabel med værdier...
+'********************************************************
+Function kpaGetKPValuesTabName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPValuesTabname$ = TAB_KPVALUES
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Henter filnavnet på tabel med værdier...
+'********************************************************
+Function kpaGetKPValuesTabFilename$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPValuesTabFilename$ = kpaGetKPPath$() + kpaGetKPValuesTabName$() + ".tab"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Checker om KPValues er åbne...
+'********************************************************
+Function kpaOpenKPValuesTable() As Logical
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPValuesTabname$()
+	szFile	= kpaGetKPValuesTabFilename$()
+
+	If TableOpen(szTab) Then
+		kpaOpenKPValuesTable = FALSE
+		Exit Function
+	End If
+
+	If not FileExists(szFile) Then
+		Call kpaCreateTableKPValues
+	End If
+
+	Open Table szFile As szTab
+
+	Set ProgressBars Off
+	If NOT TableInfo(szTab, TAB_INFO_READONLY) Then
+		If TableHasDeletedRows(szTab) Then
+			Pack Table szTab Data
+		End If
+	End If
+
+	'**Adding missing column for version 5.0
+	If NOT TABColExists(szTab, "SHOW") Then
+		Alter Table szTab
+			(Add	SHOW		Logical)
+	End If
+	If NOT TABColExists(szTab, "DISABLED") Then
+		Alter Table szTab
+			(Add	DISABLED	Logical)
+	End If
+	If NOT TABColExists(szTab, "ACTIVE") Then
+		Alter Table szTab
+			(Add	ACTIVE		Logical)
+		Set Table szTab FastEdit On Undo Off
+		Update szTab
+			Set ACTIVE = TRUE
+		Commit Table szTab
+		Set Table szTab FastEdit Off Undo On
+	End If
+	If NOT TABColExists(szTab, "COLUMNTEXT") Then
+		Alter Table szTab
+			(Add	COLUMNTEXT		Char(40))
+		Set Table szTab FastEdit On Undo Off
+		Update szTab
+			Set COLUMNTEXT = COLUMNNAME
+		Commit Table szTab
+		Set Table szTab FastEdit Off Undo On
+	End If
+	If NOT TABColExists(szTab, "ORDERBY") Then
+		Alter Table szTab
+			(Add	ORDERBY		Integer)
+	End If
+	If NOT TABColExists(szTab, "REMEMBERLAST") Then
+		Alter Table szTab
+			(Add	REMEMBERLAST	Logical)
+	End If
+	If NOT TABColExists(szTab, "DEFAULTVALUE") Then
+		Alter Table szTab
+			(Add	DEFAULTVALUE	Char (60))
+	End If
+
+	'**Creating index
+	Call kpaCreateIndexKPValues
+
+	Set ProgressBars On
+
+	kpaOpenKPValuesTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Opretter indeks på KPVALUES
+'**********************************************************************************************''
+Sub kpaCreateIndexKPValues
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPValuesTabname$()
+
+	If NOT ColumnInfo(szTab, "VALUEID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("VALUEID")
+	End If
+	If NOT ColumnInfo(szTab, "STYLEID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("STYLEID")
+	End If
+	If NOT ColumnInfo(szTab, "ORDERBY", COL_INFO_INDEXED) Then
+		Create Index On szTab ("ORDERBY")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Fjerner indeks på KPVALUES
+'**********************************************************************************************''
+Sub kpaDropIndexKPValues
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPValuesTabname$()
+
+	If ColumnInfo(szTab, "VALUEID", COL_INFO_INDEXED) Then
+		Drop Index szTab ("VALUEID")
+	End If
+	If ColumnInfo(szTab, "STYLEID", COL_INFO_INDEXED) Then
+		Drop Index szTab ("STYLEID")
+	End If
+	If ColumnInfo(szTab, "ORDERBY", COL_INFO_INDEXED) Then
+		Drop Index szTab ("ORDERBY")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Opretter tabel KPVALUES...
+'********************************************************
+Sub kpaCreateTableKPValues
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPValuesTabname$()
+	szFile	= kpaGetKPValuesTabFilename$()
+
+	Create Table szTab
+		(
+			VALUEID		Integer,
+			STYLEID		Integer,
+			COLUMNNAME		Char(35),
+			COLUMNTEXT		Char(35),
+			VALUE			Char(60),
+			DEFAULTVALUE	Char(60),
+			ACTIVE		Logical,
+			SHOW			Logical,
+			DISABLED		Logical,
+			REMEMBERLAST	Logical
+		)
+		File szFile
+
+	Close Table szTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'********************************************************
+'********************************************************
+'	Henter navnet på tabel med værdier...
+'********************************************************
+Function kpaGetKPListValuesTabName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPListValuesTabname$ = TAB_KPLISTVALUES
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Henter filnavnet på tabel med værdier...
+'********************************************************
+Function kpaGetKPListValuesTabFilename$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPListValuesTabFilename$ = kpaGetKPPath$() + kpaGetKPListValuesTabName$() + ".tab"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Checker om KPLISTVALUES er åbne...
+'********************************************************
+Function kpaOpenKPListValuesTable() As Logical
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPListValuesTabname$()
+	szFile	= kpaGetKPListValuesTabFilename$()
+
+	If TableOpen(szTab) Then
+		kpaOpenKPListValuesTable = FALSE
+		Exit Function
+	End If
+
+	If not FileExists(szFile) Then
+		Call kpaCreateTableKPListValues
+	End If
+
+	Open Table szFile As szTab
+
+	Set ProgressBars Off
+	If NOT TableInfo(szTab, TAB_INFO_READONLY) Then
+		If TableHasDeletedRows(szTab) Then
+			Pack Table szTab Data
+		End If
+	End If
+
+	If NOT TABColExists(szTab, "LISTNAME") Then
+		Alter Table szTab
+			(Add	LISTNAME	Char(40))
+	End If
+
+	'**Creating index
+	Call kpaCreateIndexKPListValues
+
+	Set ProgressBars On
+
+	kpaOpenKPListValuesTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Opretter indeks på KPLISTVALUES
+'**********************************************************************************************''
+Sub kpaCreateIndexKPListValues
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPListValuesTabname$()
+
+	If NOT ColumnInfo(szTab, "LISTID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("LISTID")
+	End If
+	If NOT ColumnInfo(szTab, "ORDERBY", COL_INFO_INDEXED) Then
+		Create Index On szTab ("ORDERBY")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Fjerner indeks på KPLISTVALUES
+'**********************************************************************************************''
+Sub kpaDropIndexKPListValues
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPListValuesTabname$()
+
+	If ColumnInfo(szTab, "LISTID", COL_INFO_INDEXED) Then
+		Drop Index szTab ("LISTID")
+	End If
+	If ColumnInfo(szTab, "ORDERBY", COL_INFO_INDEXED) Then
+		Drop Index szTab ("ORDERBY")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Opretter tabel KPLISTVALUES...
+'********************************************************
+Sub kpaCreateTableKPListValues
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPListValuesTabname$()
+	szFile	= kpaGetKPListValuesTabFilename$()
+
+	Create Table szTab
+		(
+			LISTID	Integer,
+			LISTNAME	Char(40),
+			VALUE		Char(60),
+			VALUETEXT	Char(60),
+			ORDERBY	Integer
+		)
+		File szFile
+
+	Close Table szTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'********************************************************
+'********************************************************
+'	Henter navnet på tabellen KPLayers
+'********************************************************
+Function kpaGetKPLayersTabName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPLayersTabName$ = TAB_KPLAYERS
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Henter filnavnet på tabellen KPLayers
+'********************************************************
+Function kpaGetKPLayersTabFilename$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPLayersTabFilename$ = kpaGetKPPath$() + kpaGetKPLayersTabName$() + ".tab"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Checker om KPLayers er åbne...
+'********************************************************
+Function kpaOpenKPLayersTable() As Logical
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPLayersTabName$()
+	szFile	= kpaGetKPLayersTabFilename$()
+
+	If TableOpen(szTab) Then
+		kpaOpenKPLayersTable = FALSE
+		Exit Function
+	End If
+
+	If not FileExists(szFile) Then
+		Call kpaCreateTableKPLayers
+	End If
+
+	Open Table szFile As szTab
+
+	Set ProgressBars Off
+	If NOT TableInfo(szTab, TAB_INFO_READONLY) Then
+		If TableHasDeletedRows(szTab) Then
+			Pack Table szTab Data
+		End If
+	End If
+
+	If NOT TABColExists(szTab, "LAYERID") Then
+		Alter Table szTab
+			(Add	LAYERID	Integer)
+	End If
+	If NOT TABColExists(szTab, "ORDER") Then
+		Alter Table szTab
+			(Add	ORDER		Integer)
+	End If
+	If NOT TABColExists(szTab, "DESCRIPTION") Then
+		Alter Table szTab
+			(Add	DESCRIPTION	Char(30))
+	End If
+	If NOT TABColExists(szTab, "TABLELAYERID") Then
+		Alter Table szTab
+			(Add	TABLELAYERID	Char(10))
+
+		Set Table szTab FastEdit On Undo Off
+		Update szTab
+			Set TABLELAYERID = TABLEID & "-" & LAYERID
+		Commit Table szTab
+		Set Table szTab FastEdit Off Undo On
+	End If
+
+	Call kpaCreateIndexKPLayers
+
+	Set ProgressBars On
+
+	kpaOpenKPLayersTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Opretter indeks på KPLAYERS
+'**********************************************************************************************''
+Sub kpaCreateIndexKPLayers
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPLayersTabName$()
+
+	If NOT ColumnInfo(szTab, "TABLELAYERID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("TABLELAYERID")
+	End If
+	If NOT ColumnInfo(szTab, "TABLEID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("TABLEID")
+	End If
+	If NOT ColumnInfo(szTab, "LAYERID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("LAYERID")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Fjerner indeks på KPLAYERS
+'**********************************************************************************************''
+Sub kpaDropIndexKPLayers
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPLayersTabName$()
+
+	If ColumnInfo(szTab, "TABLELAYERID", COL_INFO_INDEXED) Then
+		Drop Index szTab ("TABLELAYERID")
+	End If
+	If ColumnInfo(szTab, "TABLEID", COL_INFO_INDEXED) Then
+		Drop Index szTab ("TABLEID")
+	End If
+	If ColumnInfo(szTab, "LAYERID", COL_INFO_INDEXED) Then
+		Drop Index szTab ("LAYERID")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Opretter tabel KPLAYERS...
+'********************************************************
+Sub kpaCreateTableKPLayers
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPLayersTabName$()
+	szFile	= kpaGetKPLayersTabFilename$()
+
+	Create Table szTab
+		(
+			TABLEID		Integer,
+			LAYERID		Integer,
+			TABLELAYERID	Char(10),	'TABLEID & "-" & LAYERID
+			ORDER			Integer,	'0=Undefined
+			DESCRIPTION		Char(30),
+			SELECTABLE		Logical,
+			ZOOM			Logical,
+			ZOOM_MIN		Integer,	'In meters
+			ZOOM_MAX		Integer,	'In meters
+			ARROWS		Logical,
+			CENTROIDS		Logical,
+			NODES			Logical,
+			DISPLAY		Integer,	'0=Off, 1=Grafic, 2=Global
+			P_WIDTH		SmallInt,
+			P_PATTERN		SmallInt,
+			P_COLOR		Integer,
+			P_SHOW		Logical,
+			B_PATTERN		SmallInt,
+			B_FORECOLOR		Integer,
+			B_BACKCOLOR		Integer,
+			B_SHOW		Logical,
+			L_WIDTH		Integer,
+			L_PATTERN		Integer,
+			L_COLOR		Integer,
+			L_SHOW		Logical,
+			F_SHOW		Logical,
+			F_FONTNAME		Char(80),
+			F_FONTSTYLE		Integer,
+			F_SIZE		Integer,
+			F_FORECOLOR		Integer,
+			F_BACKCOLOR		Integer,
+			S_SHAPE		Integer,
+			S_COLOR		Integer,
+			S_SIZE		Integer,
+			S_FONTNAME		Char(80),
+			S_FONTSTYLE		Integer,
+			S_ROTATION		Integer,
+			S_FILENAME		Char(31),
+			S_CUSTOMSTYLE	Integer,
+			S_KIND		SmallInt,
+			S_SHOW		Logical,
+			LBL_LINE		Integer,	'0=None, 1=Simple, 2=Arrow
+			LBL_POSITION	Char(2),	'LA, CA, RA, LC, CC, RC, LB, CB, RB
+			LBL_L_WIDTH		Integer,
+			LBL_L_PATTERN	Integer,
+			LBL_L_COLOR		Integer,
+			LBL_F_FONTNAME	Char (80),
+			LBL_F_FONTSTYLE	Integer,
+			LBL_F_SIZE		Integer,
+			LBL_F_FORECOLOR	Integer,
+			LBL_F_BACKCOLOR	Integer,
+			LBL_EXPR		Char(100),
+			LBL_PARALLEL	Logical,
+			LBL_VISIBILITY	Integer,	'0=Off, 1=On, 2=Zoom
+			LBL_ZOOM_MIN	Integer,	'In meters
+			LBL_ZOOM_MAX	Integer,	'In meters
+			LBL_AUTO		Logical,
+			LBL_OVERLAP		Logical,
+			LBL_PART_SEGMENTS	Logical,
+			LBL_DUPLICATES	Logical,
+			LBL_MAX		Integer,	'-1=No max
+			LBL_OFFSET		Integer
+		)
+		File szFile
+
+	Close Table szTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'********************************************************
+'********************************************************
+'	Henter navnet på tabel med multidisplay...
+'********************************************************
+Function kpaGetKPDisplayTabName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPDisplayTabname$ = TAB_KPDISPLAY
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Henter filnavnet på tabel med multidisplay...
+'********************************************************
+Function kpaGetKPDisplayTabFilename$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPDisplayTabFilename$ = kpaGetKPPath$() + kpaGetKPDisplayTabName$() + ".tab"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Checker om KPDisplay er åbne...
+'********************************************************
+Function kpaOpenKPDisplayTable() As Logical
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPDisplayTabName$()
+	szFile	= kpaGetKPDisplayTabFilename$()
+
+	If TableOpen(szTab) Then
+		kpaOpenKPDisplayTable = FALSE
+		Exit Function
+	End If
+
+	If not FileExists(szFile) Then
+		Call kpaCreateTableKPDisplay
+	End If
+
+	Open Table szFile As szTab
+
+	Set ProgressBars Off
+	If NOT TableInfo(szTab, TAB_INFO_READONLY) Then
+		If TableHasDeletedRows(szTab) Then
+			Pack Table szTab Data
+		End If
+	End If
+
+	If NOT TABColExists(szTab, "CLOSEALL") Then
+		Alter Table szTab
+			(Add	CLOSEALL	Logical)
+	End If
+	If NOT TABColExists(szTab, "WORFILE") Then
+		Alter Table szTab
+			(Add	WORFILE	Char(220))
+	End If
+	If NOT TABColExists(szTab, "ORDER") Then
+		Alter Table szTab
+			(Add	ORDER		Integer)
+	End If
+	If NOT TABColExists(szTab, "ACTIVE") Then
+		Alter Table szTab
+			(Add	ACTIVE	Logical)
+
+		Update szTab
+			Set	ACTIVE	= TRUE
+		Commit Table szTab
+	End If
+
+	'**Creating index
+	Call kpaCreateIndexKPDisplay
+
+	Set ProgressBars On
+
+	kpaOpenKPDisplayTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Opretter indeks på KPLAYERS
+'**********************************************************************************************''
+Sub kpaCreateIndexKPDisplay
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPDisplayTabName$()
+
+	If NOT ColumnInfo(szTab, "DISPLAYID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("DISPLAYID")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Fjerner indeks på KPLAYERS
+'**********************************************************************************************''
+Sub kpaDropIndexKPDisplay
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPDisplayTabName$()
+
+	If ColumnInfo(szTab, "DISPLAYID", COL_INFO_INDEXED) Then
+		Drop Index szTab ("DISPLAYID")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Opretter tabel KPDISPLAY...
+'********************************************************
+Sub kpaCreateTableKPDisplay
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPDisplayTabName$()
+	szFile	= kpaGetKPDisplayTabFilename$()
+
+	Create Table szTab
+		(
+			DISPLAYID	Integer,
+			DISPLAYNAME	Char(35),
+			ICONFILEID	Integer,
+			ICONNO	Integer,
+			CLOSEALL	Logical,
+			WORFILE	Char(220)
+		)
+		File szFile
+
+	Close Table szTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'********************************************************
+'********************************************************
+'	Henter navnet på tabel med kombination mllm multidisplay og tabeller...
+'********************************************************
+Function kpaGetKPTDisplayTabname$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPTDisplayTabname$ = TAB_KPTDISPLAY
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Henter filnavnet på tabel med kombination mllm multidisplay og tabeller...
+'********************************************************
+Function kpaGetKPTDisplayTabFilename$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPTDisplayTabFilename$ = kpaGetKPPath$() + kpaGetKPTDisplayTabname$() + ".tab"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Checker om KPTDisplay er åbne...
+'********************************************************
+Function kpaOpenKPTDisplayTable() As Logical
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPTDisplayTabName$()
+	szFile	= kpaGetKPTDisplayTabFilename$()
+
+	If TableOpen(szTab) Then
+		kpaOpenKPTDisplayTable = FALSE
+		Exit Function
+	End If
+
+	If not FileExists(szFile) Then
+		Call kpaCreateTableKPTDisplay
+	End If
+
+	Open Table szFile As szTab
+
+	Set ProgressBars Off
+	If NOT TableInfo(szTab, TAB_INFO_READONLY) Then
+		If TableHasDeletedRows(szTab) Then
+			Pack Table szTab Data
+		End If
+	End If
+
+	If NOT TABColExists(szTab, "LAYERID") Then
+		Alter Table szTab
+			(Add	LAYERID	Integer)
+	End If
+
+	Set ProgressBars On
+
+	kpaOpenKPTDisplayTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Opretter tabel KPTDISPLAY...
+'********************************************************
+Sub kpaCreateTableKPTDisplay
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPTDisplayTabName$()
+	szFile	= kpaGetKPTDisplayTabFilename$()
+
+	Create Table szTab
+		(
+			DISPLAYID	Integer,
+			TABLEID	Integer,
+			LAYERID	Integer,
+			GROUPID	Integer,
+			SUBGROUPID	Integer
+		)
+		File szFile
+
+	Create Index On szTab(DISPLAYID)
+
+	Close Table szTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'**********************************************************************************************''
+'Henter navnet på tabel med aktuelt åbne lag...
+'**********************************************************************************************''
+Function kpaGetKPLayersOpenTabName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPLayersOpenTabName$	= TAB_KPLAYERSOPEN
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Henter navnet på tabel med aktuelt åbne lag...
+'**********************************************************************************************''
+Function kpaGetKPLayersOpenTabFileName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPLayersOpenTabFileName$	= FILEGetTempDirectory$() & kpaGetKPLayersOpenTabName$() & ".tab"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Checker om KPTLayersOpen er åbne...
+'********************************************************
+Function kpaOpenKPLayersOpenTable() As Logical
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPLayersOpenTabName$()
+	szFile	= kpaGetKPLayersOpenTabFileName$()
+
+	If TableOpen(szTab) Then
+		kpaOpenKPLayersOpenTable = FALSE
+		Exit Function
+	End If
+
+	If not FileExists(szFile) Then
+		Call kpaCreateTableKPLayersOpen
+	End If
+
+	Open Table szFile As szTab 'Hide
+
+	Set ProgressBars Off
+	If NOT TableInfo(szTab, TAB_INFO_READONLY) Then
+		If TableHasDeletedRows(szTab) Then
+			Pack Table szTab Data
+		End If
+	End If
+
+	If NOT TABColExists(szTab, "TABLELAYERID") Then
+		Alter Table szTab
+			(
+				Add	TABLELAYERID	Char(10)
+				Order WINDOWID, TABLEID, LAYERID, TABLELAYERID,
+					TABLENAME, TABFILENAME, LAYERNAME, LAYERTYPE,
+					DEFAULTORDER, CURRENTORDER, NEWORDER
+			)
+
+		Set Table szTab FastEdit On Undo Off
+		Update szTab
+			Set TABLELAYERID = TABLEID & "-" & LAYERID
+		Commit Table szTab
+		Set Table szTab FastEdit Off Undo On
+	End If
+
+	'**Indexing
+	Call kpaCreateIndexKPLayersOpen
+	Set ProgressBars On
+
+	kpaOpenKPLayersOpenTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Opretter eventuelt manglende indekser...
+'********************************************************
+Sub kpaCreateIndexKPLayersOpen
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPLayersOpenTabName$()
+
+	If NOT ColumnInfo(szTab, "TABLELAYERID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("TABLELAYERID")
+	End If
+	If NOT ColumnInfo(szTab, "WINDOWID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("WINDOWID")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Fjerne eventuelle eksisterende indekser...
+'********************************************************
+Sub kpaDropIndexKPLayersOpen
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPLayersOpenTabName$()
+
+	If ColumnInfo(szTab, "TABLELAYERID", COL_INFO_INDEXED) Then
+		Drop Index szTab ("TABLELAYERID")
+	End If
+	If ColumnInfo(szTab, "WINDOWID", COL_INFO_INDEXED) Then
+		Drop Index szTab ("WINDOWID")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Opretter tabel KPLAYERSOPEN...
+'********************************************************
+Sub kpaCreateTableKPLayersOpen
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPLayersOpenTabName$()
+	szFile	= kpaGetKPLayersOpenTabFileName$()
+
+	Create Table szTab
+		(
+			WINDOWID		Integer,
+			TABLEID		Integer,
+			LAYERID		Integer,
+			TABLELAYERID	Char(10),
+			TABLENAME		Char(40),
+			TABFILENAME		Char(200),
+			LAYERNAME		Char(40),
+			LAYERTYPE		Integer,
+			DEFAULTORDER	Integer,
+			CURRENTORDER	Integer,
+			NEWORDER		Integer
+		)
+		File szFile
+
+	Close Table szTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Sletter denne midlertidige tabel, hvis den findes
+'**********************************************************************************************''
+Sub kpaDropTableKPLayersOpen
+
+Dim	szTab, szFile As String,
+	bWasOpen As Logical
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPLayersOpenTabName$()
+	szFile	= kpaGetKPLayersOpenTabFileName$()
+
+	If FileExists(szFile) Then
+		bWasOpen = kpaOpenKPLayersOpenTable()
+		Drop Table szTab
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'**********************************************************************************************''
+'Henter navnet på tabel med lag som skal tilføjes...
+'**********************************************************************************************''
+Function kpaGetKPLayersToAddTabName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPLayersToAddTabName$	= TAB_KPLAYERSTOADD
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Henter navnet på tabel med lag som skal tilføjes...
+'**********************************************************************************************''
+Function kpaGetKPLayersToAddTabFileName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPLayersToAddTabFileName$	= FILEGetTempDirectory$() & kpaGetKPLayersToAddTabName$() & ".tab"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Checker om KPTLayersToAdd er åbne...
+'********************************************************
+Function kpaOpenKPLayersToAddTable() As Logical
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPLayersToAddTabName$()
+	szFile	= kpaGetKPLayersToAddTabFileName$()
+
+	If TableOpen(szTab) Then
+		kpaOpenKPLayersToAddTable = FALSE
+		Exit Function
+	End If
+
+	If not FileExists(szFile) Then
+		Call kpaCreateTableKPLayersToAdd
+	End If
+
+	Open Table szFile As szTab
+
+	Set ProgressBars Off
+'	If NOT TableInfo(szTab, TAB_INFO_READONLY) Then
+'		If TableHasDeletedRows(szTab) Then
+'			Pack Table szTab Data
+'		End If
+'	End If
+
+	If NOT TABColExists(szTab, "TABLELAYERID") Then
+		Alter Table szTab
+			(
+				Add	TABLELAYERID	Char(10)
+				Order WINDOWID, TABLEID, LAYERID, TABLELAYERID,
+					TABLENAME, TABFILENAME, LAYERNAME, LAYERTYPE,
+					DEFAULTORDER, CURRENTORDER, NEWORDER
+			)
+
+		Set Table szTab FastEdit On Undo Off
+		Update szTab
+			Set TABLELAYERID = TABLEID & "-" & LAYERID
+		Commit Table szTab
+		Set Table szTab FastEdit Off Undo On
+	End If
+
+	Set ProgressBars On
+
+	kpaOpenKPLayersToAddTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Opretter tabel KPLAYERSTOADD...
+'********************************************************
+Sub kpaCreateTableKPLayersToAdd
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPLayersToAddTabName$()
+	szFile	= kpaGetKPLayersToAddTabFileName$()
+
+	Create Table szTab
+		(
+			WINDOWID		Integer,
+			TABLEID		Integer,
+			LAYERID		Integer,
+			TABLELAYERID	Char(10),
+			TABLENAME		Char(40),
+			TABFILENAME		Char(200),
+			LAYERNAME		Char(40),
+			LAYERTYPE		Integer,
+			DEFAULTORDER	Integer,
+			CURRENTORDER	Integer,
+			NEWORDER		Integer
+		)
+		File szFile
+
+	Close Table szTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'**********************************************************************************************''
+'Sletter denne midlertidige tabel, hvis den findes
+'**********************************************************************************************''
+Sub kpaDropTableKPLayersToAdd
+
+Dim	szTab, szFile As String,
+	bWasOpen As Logical
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPLayersToAddTabName$()
+	szFile	= kpaGetKPLayersToAddTabFileName$()
+
+	If FileExists(szFile) Then
+		bWasOpen = kpaOpenKPLayersToAddTable()
+		Drop Table szTab
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'**********************************************************************************************''
+'Henter navnet på tabel med lag som skal tilføjes...
+'**********************************************************************************************''
+Function kpaGetKPTablesByDisplayName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPTablesByDisplayName$	= TAB_KPTABLESBYDISPLAY
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Henter navnet på tabel med lag som skal tilføjes...
+'**********************************************************************************************''
+Function kpaGetKPTablesByDisplayFileName$() As String
+
+OnError GoTo ErrorOccured
+
+	kpaGetKPTablesByDisplayFileName$	= kpaGetKPPath$() & kpaGetKPTablesByDisplayName$() & ".tab"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Checker om KPTLayersToAdd er åbne...
+'********************************************************
+Function kpaOpenKPTablesByDisplayTable() As Logical
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPTablesByDisplayName$()
+	szFile	= kpaGetKPTablesByDisplayFileName$()
+
+	If TABIsOpen(szTab) Then
+		kpaOpenKPTablesByDisplayTable = FALSE
+		Exit Function
+	End If
+
+'	Print "kpaOpenKPTablesByDisplayTable: " & szFile
+	If NOT FileExists(szFile) Then
+		Call kpaCreateTableKPTablesByDisplay
+	End If
+
+	Open Table szFile As szTab
+
+	Set ProgressBars Off
+'	If NOT TableInfo(szTab, TAB_INFO_READONLY) Then
+'		If TableHasDeletedRows(szTab) Then
+'			Pack Table szTab Data
+'		End If
+'	End If
+
+	'**Indexing
+	If NOT ColumnInfo(szTab, "TABLELAYERID", COL_INFO_INDEXED) Then
+		Create Index On szTab ("TABLELAYERID")
+	End If
+
+	Set ProgressBars On
+
+	kpaOpenKPTablesByDisplayTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Opretter tabel KPLAYERSTOADD...
+'********************************************************
+Sub kpaCreateTableKPTablesByDisplay
+
+Dim	szTab, szFile As String
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPTablesByDisplayName$()
+	szFile	= kpaGetKPTablesByDisplayFileName$()
+
+	Create Table szTab
+		(
+			DISPLAYID		Integer,
+			TABLEID		Integer,
+			LAYERID		Integer,
+			TABLELAYERID	Char(10)
+		)
+		File szFile
+
+	Close Table szTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'**********************************************************************************************''
+'Sletter denne midlertidige tabel, hvis den findes
+'**********************************************************************************************''
+Sub kpaDropTableKPTablesByDisplay
+
+Dim	szTab, szFile As String,
+	nTime As Integer,
+	bWasOpen As Logical
+
+OnError GoTo ErrorOccured
+
+	szTab		= kpaGetKPTablesByDisplayName$()
+	szFile	= kpaGetKPTablesByDisplayFileName$()
+
+	If FileExists(szFile) Then
+		bWasOpen = kpaOpenKPTablesByDisplayTable()
+		Drop Table szTab
+	End If
+
+	nTime = Timer() + 5	'secs
+	Do Until (Timer() > nTime)
+		'**Let's wait a while
+		'**This has been added because Novell can be slow deteckting a file has been deleted
+	Loop
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************************************************************************************
+'**Definening whether to use certain parts of the setup...
+'********************************************************
+'********************************************************
+'**Anvend stilarter... Skriv
+'********************************************************
+Sub kpaSetUseStyles(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbUseStyles = bValue
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'**Anvend stilarter... Læs
+'********************************************************
+Function kpaUseStyles() As Logical
+
+OnError GoTo ErrorOccured
+
+	kpaUseStyles = mbUseStyles
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'**Anvend tabeller... Skriv
+'********************************************************
+Sub kpaSetUseTables(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbUseTables = bValue
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'**Anvend tabeller... Læs
+'********************************************************
+Function kpaUseTables() As Logical
+
+OnError GoTo ErrorOccured
+
+	kpaUseTables = mbUseTables
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'**Anvend ikonfiler... Skriv
+'********************************************************
+Sub kpaSetUseIcons(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbUseIcons = bValue
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'**Anvend ikonfiler... Læs
+'********************************************************
+Function kpaUseIcons() As Logical
+
+OnError GoTo ErrorOccured
+
+	kpaUseIcons = mbUseIcons
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'**Anvend grupperinger... Skriv
+'********************************************************
+Sub kpaSetUseGrouping(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbUseGrouping = bValue
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'**Anvend grupperinger... Læs
+'********************************************************
+Function kpaUseGrouping() As Logical
+
+OnError GoTo ErrorOccured
+
+	kpaUseGrouping = mbUseGrouping
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'**Anvend værditilskrivning... Skriv
+'********************************************************
+Sub kpaSetUseValues(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbUseValues = bValue
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'**Anvend værditilskrivning... Læs
+'********************************************************
+Function kpaUseValues() As Logical
+
+OnError GoTo ErrorOccured
+
+	kpaUseValues = mbUseValues
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'**Anvend lagstyring... Skriv
+'********************************************************
+Sub kpaSetUseLayers(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbUseLayers = bValue
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'**Anvend lagstyring... Læs
+'********************************************************
+Function kpaUseLayers() As Logical
+
+OnError GoTo ErrorOccured
+
+	kpaUseLayers = mbUseLayers
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'**Anvend åbning af flere tabeller... Skriv
+'********************************************************
+Sub kpaSetUseMultiDisplaying(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbUseMultiDisplaying = bValue
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'**Anvend åbning af flere tabeller... Læs
+'********************************************************
+Function kpaUseMultiDisplaying() As Logical
+
+OnError GoTo ErrorOccured
+
+	kpaUseMultiDisplaying = mbUseMultiDisplaying
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'**Anvend Rediger-Lag-knapper... Skriv
+'********************************************************
+Sub kpaSetUseEditPads(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbUseEditPad = bValue
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'**Anvend Rediger-Lag-knapper... Læs
+'********************************************************
+Function kpaUseEditPads() As Logical
+
+OnError GoTo ErrorOccured
+
+	kpaUseEditPads = mbUseEditPad
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'**Anvend åbning af flere tabeller... Læs
+'********************************************************
+Function kpaTableIsKPSystemTable(ByVal szTab As String) As Logical
+
+OnError GoTo ErrorOccured
+
+	kpaTableIsKPSystemTable = TRUE
+
+	Do Case szTab
+		Case TAB_KPSTYLES, TAB_KPTABLES
+			Exit Function
+		Case TAB_KPICONS
+			Exit Function
+		Case TAB_KPGROUP, TAB_KPSGROUP, TAB_KPTGROUP
+			Exit Function
+		Case TAB_KPVALUES, TAB_KPLISTVALUES
+			Exit Function
+		Case TAB_KPLAYERS
+			Exit Function
+		Case TAB_KPDISPLAY, TAB_KPTDISPLAY
+			Exit Function
+		Case TAB_KPLAYERSOPEN, TAB_KPLAYERSTOADD
+			Exit Function
+		Case TAB_KPTABLESBYDISPLAY
+			Exit Function
+		Case Else
+			kpaTableIsKPSystemTable = FALSE
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'**Luk alle systemtabeller...
+'********************************************************
+Sub kpaCloseKPSystemTables(ByVal bAutoSave As Logical)
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab = kpaGetKPStylesTabName$()
+	If bAutoSave Then
+		Call TABSaveAndClose(szTab)
+	Else
+		Call TABClose(szTab)
+	End If
+
+	szTab = kpaGetKPTablesTabName$()
+	If bAutoSave Then
+		Call TABSaveAndClose(szTab)
+	Else
+		Call TABClose(szTab)
+	End If
+
+	szTab = kpaGetKPIconsTabName$()
+	If bAutoSave Then
+		Call TABSaveAndClose(szTab)
+	Else
+		Call TABClose(szTab)
+	End If
+
+	szTab = kpaGetKPGroupTabName$()
+	If bAutoSave Then
+		Call TABSaveAndClose(szTab)
+	Else
+		Call TABClose(szTab)
+	End If
+
+	szTab = kpaGetKPSGroupTabName$()
+	If bAutoSave Then
+		Call TABSaveAndClose(szTab)
+	Else
+		Call TABClose(szTab)
+	End If
+
+	szTab = kpaGetKPTGroupTabName$()
+	If bAutoSave Then
+		Call TABSaveAndClose(szTab)
+	Else
+		Call TABClose(szTab)
+	End If
+
+	szTab = kpaGetKPValuesTabName$()
+	If bAutoSave Then
+		Call TABSaveAndClose(szTab)
+	Else
+		Call TABClose(szTab)
+	End If
+
+	szTab = kpaGetKPLayersTabName$()
+	If bAutoSave Then
+		Call TABSaveAndClose(szTab)
+	Else
+		Call TABClose(szTab)
+	End If
+
+	szTab = kpaGetKPDisplayTabname$()
+	If bAutoSave Then
+		Call TABSaveAndClose(szTab)
+	Else
+		Call TABClose(szTab)
+	End If
+
+	szTab = kpaGetKPTDisplayTabname$()
+	If bAutoSave Then
+		Call TABSaveAndClose(szTab)
+	Else
+		Call TABClose(szTab)
+	End If
+
+	szTab = kpaGetKPLayersOpenTabName$()
+	If bAutoSave Then
+		Call TABSaveAndClose(szTab)
+	Else
+		Call TABClose(szTab)
+	End If
+
+	szTab = kpaGetKPLayersToAddTabName$()
+	If bAutoSave Then
+		Call TABSaveAndClose(szTab)
+	Else
+		Call TABClose(szTab)
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

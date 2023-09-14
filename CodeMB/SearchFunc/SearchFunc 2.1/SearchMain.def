@@ -1,0 +1,31 @@
+'--- P R O C E D U R E S ------------------------------------------ 
+
+Declare Function SRCHSetupDialog() As Logical
+
+'------------
+Declare Sub SRCHWriteIniFile(ByVal nFileNo As Integer)
+Declare Sub SRCHReadIniFile(ByVal szFile As String)
+'------------
+
+Declare Sub SRCHToolHandler
+Declare Sub SRCHMenuHandler
+
+'------------
+Declare Function SRCHUseMenus() As Logical
+Declare Sub SRCHSetUseMenus(ByVal fValue As Logical)
+Declare Function SRCHUseButtons() As Logical
+Declare Sub SRCHSetUseButtons(ByVal fValue As Logical)
+
+Declare Function SRCHPrintIndexImprovement() As Logical
+Declare Sub SRCHSetPrintIndexImprovement(ByVal bValue As Logical)
+
+Declare Function SRCHAutoCloseSearchDialog() As Logical
+Declare Sub SRCHSetAutoCloseSearchDialog(ByVal bValue As Logical)
+
+'------------
+Declare Function SRCHCreateMenuAndButtonPad(ByVal szMenuName As String, ByVal szButtonPad As String) As Logical
+Declare Function SRCHCreateButtonPad(ByVal szButtonPad As String) As Logical
+Declare Function SRCHCreateMenu(ByVal szMenuName As String) As Logical
+Declare Function SRCHAlterMenu(ByVal szMenuName As String) As Logical
+
+Declare Sub SRCHRemoveButtons(ByVal szButtonPad As String)

@@ -1,0 +1,7 @@
+Declare Function WINExists(ByVal nWID As Integer) As Logical
+Declare Function WINGetWindowID(ByVal szWinName As String) As Integer
+Declare Function WINGetNumMapWindows() As Integer
+
+'********  B A C K W A R D S   C O M P A T A B I L I T Y ************************
+Declare Function WindowExists(ByVal nWin As Integer) As Logical
+Declare Function GetWindowID(ByVal szWinName As String) As Integer

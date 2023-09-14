@@ -1,0 +1,236 @@
+'-----------------------------------------------------------------------
+'Copyright (c) 1996 Software Factory International, Ltd.
+'-----------------------------------------------------------------------
+
+Include "MapBasic.Def"
+Include "Menu.Def"
+Include "exec_lib.Def"
+Include "mi32bit.def"
+
+'-----------------------------------------------------------------------
+'Appended LVN 970122:
+'The Windows Print Setup dialog box titlebar text is language dependent !!!
+'Appended PEm 990917
+'MapInfo has chenged the name for the Page Setup dialog...stupid them !!!!
+
+Dim CurrentLanguage As SmallInt  'default = 0 = US
+Dim AlternateDialogText As String  'default = ""
+
+Declare Function GetDialogTitle() As String
+
+'---------------------------------------
+
+Function GetDialogTitle() As String
+	If AlternateDialogText = "" Then
+		Do Case CurrentLanguage
+			Case LANG_US
+				GetDialogTitle = "Page Setup"
+			Case LANG_DK
+				Do Case (Int(SystemInfo(SYS_INFO_MIVERSION) / 10))
+					Case 40, 41, 50
+						GetDialogTitle = "Printeropsætning"
+					Case 55
+						GetDialogTitle = "Sideopsætning"
+					Case Else
+						GetDialogTitle = "Printeropsætning"
+				End Case
+			Case Else
+				GetDialogTitle = "Page Setup"  'US
+		End Case
+	Else
+		GetDialogTitle = AlternateDialogText
+	End If
+End Function
+
+'---------------------------------------
+
+Sub SetLibraryLanguage (ByVal lang As SmallInt)
+	CurrentLanguage     = lang
+	AlternateDialogText = ""  'disable explicit setting
+End Sub
+
+'---------------------------------------
+
+Sub SetDialogTitle (ByVal dlgtxt As String)
+	AlternateDialogText = dlgtxt
+End Sub
+
+'-----------------------------------------------------------------------
+
+Sub SetPageOrient(ByVal OrientType As SmallInt)
+  Dim siCommands(2) As SmallInt, iCommands(2) As Integer
+  Dim Cmds(3) As CommandDescr
+
+  Cmds(1).CtrlID  = OrientType
+  Cmds(1).CmdType = WM_COMMAND
+  Cmds(2).CtrlID  = 1
+  Cmds(2).CmdType = WM_COMMAND
+
+  If MI32BIT() Then
+    Call ExecuteCommandScript32(GetDialogTitle(), Cmds, 2)
+  Else
+    Call ExecuteCommandScript16(GetDialogTitle(), Cmds, 2)
+  End If
+
+  Run Menu Command M_FILE_PRINT_SETUP
+End Sub
+
+'-----------------------------------------------------------------------
+
+Function GetPageOrient() As SmallInt
+  Dim siCommands(2) As SmallInt, iCommands(2) As Integer
+  Dim Cmds(3) As CommandDescr, l32 As Logical
+
+  Cmds(1).CtrlID = ORIENT_PORTRAIT
+  Cmds(1).CmdType = BM_GETCHECK
+  Cmds(2).CtrlID = 1
+  Cmds(2).CmdType = WM_COMMAND
+
+  l32 = MI32BIT()
+  If l32 Then
+    Call ExecuteCommandScript32(GetDialogTitle(), Cmds, 2)
+  Else
+    Call ExecuteCommandScript16(GetDialogTitle(), Cmds, 2)
+  End If
+
+  Run Menu Command M_FILE_PRINT_SETUP
+
+  If l32 Then
+	Call GetCommands32(Cmds, 1)
+  Else
+	Call GetCommands16(Cmds, 1)
+  End If
+
+  If Cmds(1).iValue = 1 Then
+	GetPageOrient = ORIENT_PORTRAIT
+  Else
+	GetPageOrient = ORIENT_LANDSCAPE
+  End If
+End Function
+
+'-----------------------------------------------------------------------
+
+Sub SetPrinterOptions(ByVal OrientType, ByVal SizeInd, ByVal SrcInd As SmallInt, SMargins As Margins)
+  Dim Cmds(8) As CommandDescr, CurCmd As SmallInt
+
+  CurCmd = 0
+
+  If OrientType <> 0 Then
+    CurCmd = CurCmd + 1
+    Cmds(CurCmd).CtrlID = OrientType
+    Cmds(CurCmd).CmdType = WM_COMMAND
+  End If
+
+  If SizeInd <> 0 Then
+    CurCmd = CurCmd + 1
+    Cmds(CurCmd).CtrlID = PAGE_ID
+    Cmds(CurCmd).iValue = SizeInd - 1
+    Cmds(CurCmd).CmdType = CB_SETCURSEL
+  End If
+
+  If SrcInd <> 0 Then
+    CurCmd = CurCmd + 1
+    Cmds(CurCmd).CtrlID = SOURCE_ID
+    Cmds(CurCmd).iValue = SrcInd - 1
+    Cmds(CurCmd).CmdType = CB_SETCURSEL
+  End If
+
+  If MI32BIT() Then
+    If SMargins.Left <> "" Then
+      CurCmd = CurCmd + 1
+      Cmds(CurCmd).CtrlID = LEFT_MAR
+      Cmds(CurCmd).sValue = SMargins.Left
+      Cmds(CurCmd).CmdType = WM_SETTEXT
+    End If
+    If SMargins.Top <> "" Then
+      CurCmd = CurCmd + 1
+      Cmds(CurCmd).CtrlID = TOP_MAR
+      Cmds(CurCmd).sValue = SMargins.Top
+      Cmds(CurCmd).CmdType = WM_SETTEXT
+    End If
+    If SMargins.Right <> "" Then
+      CurCmd = CurCmd + 1
+      Cmds(CurCmd).CtrlID = RIGHT_MAR
+      Cmds(CurCmd).sValue = SMargins.Right
+      Cmds(CurCmd).CmdType = WM_SETTEXT
+    End If
+    If SMargins.Bottom <> "" Then
+      CurCmd = CurCmd + 1
+      Cmds(CurCmd).CtrlID = BOTTOM_MAR
+      Cmds(CurCmd).sValue = SMargins.Bottom
+      Cmds(CurCmd).CmdType = WM_SETTEXT
+    End If
+  End If
+
+  If CurCmd = 0 Then
+    Exit Sub
+  End If
+
+  CurCmd = CurCmd + 1
+  Cmds(CurCmd).CtrlID = 1
+  Cmds(CurCmd).CmdType = WM_COMMAND
+
+  If MI32BIT() Then
+    Call ExecuteCommandScript32(GetDialogTitle(), Cmds, CurCmd)
+  Else
+    Call ExecuteCommandScript16(GetDialogTitle(), Cmds, CurCmd)
+  End If
+End Sub
+
+'-----------------------------------------------------------------------
+
+Sub GetPrinterOptions(iOrient, iSize, iSrc As SmallInt, Mgn As Margins)
+  Dim Cmds(8) As CommandDescr, l32 As Logical
+
+  Cmds(1).CtrlID = ORIENT_PORTRAIT
+  Cmds(1).CmdType = BM_GETCHECK
+  Cmds(2).CtrlID = PAGE_ID
+  Cmds(2).CmdType = CB_GETCURSEL
+  Cmds(3).CtrlID = SOURCE_ID
+  Cmds(3).CmdType = CB_GETCURSEL
+  l32 = MI32BIT()
+  If l32 Then
+	Cmds(4).CtrlID = LEFT_MAR
+	Cmds(4).CmdType = WM_GETTEXT
+	Cmds(5).CtrlID = RIGHT_MAR
+	Cmds(5).CmdType = WM_GETTEXT
+	Cmds(6).CtrlID = TOP_MAR
+	Cmds(6).CmdType = WM_GETTEXT
+	Cmds(7).CtrlID = BOTTOM_MAR
+	Cmds(7).CmdType = WM_GETTEXT
+  End If
+  Cmds(8).CtrlID = 1
+  Cmds(8).CmdType = WM_COMMAND
+  If l32 Then
+    Call ExecuteCommandScript32(GetDialogTitle(), Cmds, 8)
+  Else
+    Call ExecuteCommandScript16(GetDialogTitle(), Cmds, 8)
+  End If
+
+  Run Menu Command M_FILE_PRINT_SETUP
+
+  If l32 Then
+	Call GetCommands32(Cmds, 7)
+  Else
+	Call GetCommands16(Cmds, 7)
+  End If
+  If Cmds(1).iValue = 1 Then
+	iOrient = ORIENT_PORTRAIT
+  Else
+	iOrient = ORIENT_LANDSCAPE
+  End If
+  iSize = Cmds(2).iValue + 1
+  iSrc = Cmds(3).iValue + 1
+  If l32 Then
+	Mgn.Left = LTrim$(RTrim$(Cmds(4).sValue))
+	Mgn.Right = LTrim$(RTrim$(Cmds(5).sValue))
+	Mgn.Top = LTrim$(RTrim$(Cmds(6).sValue))
+	Mgn.Bottom = LTrim$(RTrim$(Cmds(7).sValue))
+  Else
+	Mgn.Left = ""
+	Mgn.Right = ""
+	Mgn.Top = ""
+	Mgn.Bottom = ""
+  End If
+End Sub
+

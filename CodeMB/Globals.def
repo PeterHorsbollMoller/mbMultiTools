@@ -1,0 +1,34 @@
+'*******************************************************************************
+'** 	Program:	Kommunepakken
+'** 	Modul:	Globals.def	
+'**			Globale variabler og definitioner...
+'*******************************************************************************
+'**Setup files...
+
+'**Type-definition for tools...
+'Type ICONTYPE
+'   ButtonType	As String
+'   Iconnumber	As Integer
+'   Cursornumber	As Integer
+'   Funktion		As String
+'   Text		As String
+'   Streng		As String
+'End Type
+
+'**type-definition for styletables...
+Type PADRECREATE
+   AnyPad		As Logical
+   LinePad		As Logical
+   RegionPad	As Logical
+   SymbolPad	As Logical
+   FontPad		As Logical
+End Type
+
+'**Definitions for the system...
+Global	gbCreateTemaButtonpads As Logical,
+		gbCreateMarkingButtonpads As Logical
+
+'**Definitions for themecontrol...
+Global	gszStyleFile As String,
+		garrStyleFiles(0), garrStyleNames(0) As String,
+		gsnSetupToUse As SmallInt

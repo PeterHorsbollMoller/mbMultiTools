@@ -1,0 +1,134 @@
+
+Define	SEARCH_BTN_ID		3500
+Define	SYM_DEFAULT_MARKER	MakeSymbol(32,RED,12)
+
+Define	VALUE_DEFAULT_ZOOM		1000
+Define	VALUE_WIDTH_PR_CHAR		2
+
+Define	STYPE_MAPINFO_FIND_1T		100
+Define	STYPE_MAPINFO_FIND_2T		200
+Define	STYPE_ADRESSE_OPSLAG_1T		300
+Define	STYPE_ADRESSE_OPSLAG_2T		400
+Define	STYPE_MATRIKEL_OPSLAG_1T	500
+Define	STYPE_MATRIKEL_OPSLAG_2T	600
+
+Define	SSTYPE_1_1T					101
+
+Define	SSTYPE_2_2T					201
+
+'Adresser - 1 tabel
+Define	SSTYPE_3_VNVN_HNR				301
+Define	SSTYPE_3_VNVN_HNR_B			302
+Define	SSTYPE_3_VNR_VNVN_HNR			303
+Define	SSTYPE_3_VNR_VNVN_HNR_B			304
+Define	SSTYPE_3_KNR_VNVN_HNR			305
+Define	SSTYPE_3_KNR_VNVN_HNR_B			306
+Define	SSTYPE_3_KNR_VNR_VNVN_HNR		307
+Define	SSTYPE_3_KNR_VNR_VNVN_HNR_B		308
+Define	SSTYPE_3_PNR_VNVN_HNR			309
+Define	SSTYPE_3_PNR_VNVN_HNR_B			310
+
+'Adresser - 2 tabeller
+Define	SSTYPE_4_VNR_VNVN_HNR			401
+Define	SSTYPE_4_VNR_VNVN_HNR_B			402
+Define	SSTYPE_4_KNR_VNR_VNVN_HNR		403
+Define	SSTYPE_4_KNR_VNR_VNVN_HNR_B		404
+
+'Matrikler - 1 tabel
+Define	SSTYPE_5_ELAV_MNR				501
+Define	SSTYPE_5_ENR_ELAV_MNR			502
+Define	SSTYPE_5_KNR_ELAV_MNR			503
+Define	SSTYPE_5_KNR_ENR_ELAV_MNR		504
+
+'Matrikler - 2 tabeller
+Define	SSTYPE_6_ENR_ELAV_MNR			601
+Define	SSTYPE_6_ENR_KENR_ELAV_MNR		602
+Define	SSTYPE_6_KNR_ENR_ELAV_MNR		603
+Define	SSTYPE_6_KNR_ENR_KENR_ELAV_MNR	604
+
+'-- T Y P E   D E C L A R A T I O N S -----------------------------------
+Type T_SEARCHCOL
+	szName		As String
+	szDescription	As String
+	bOneToOne		As Logical
+End Type
+
+Type T_SEARCHTAB
+	szName		As String
+	scolCols()	As T_SEARCHCOL
+End Type
+
+Type T_SEARCHBTN
+	szDescription	As String
+	bShowAsMenu		As Logical
+	bShowAsButton	As Logical	
+	szIconFile		As String
+	nIcon			As Integer
+	nSearchType		As Integer
+	nZoom			As Integer
+	bShowMarker		As Logical
+	symMarker		As Symbol		
+	bSelect		As Logical
+	stabTabs()		As T_SEARCHTAB
+End Type		
+
+'-- Holds information for the dialog
+Type T_SRCH_SETTINGS_DIALOG
+	szTab		As String
+	szCol		As String
+	szCond	As String
+	szDesc	As String
+End Type
+
+'--- P R O C E D U R E S ------------------------------------------ 
+
+'------------
+Declare Function SRCHGetSearchType(ByVal nSuperSearchType As Integer, ByVal nSubSearchType As Integer) As Integer
+Declare Function SRCHGetSuperSearchType(ByVal nSearchType As Integer) As Integer
+Declare Function SRCHGetSubSearchType(ByVal nSearchType As Integer) As Integer
+Declare Function SRCHGetSuperSearchItem(ByVal nSearchType As Integer) As Integer
+Declare Function SRCHGetSubSearchItem(ByVal nSearchType As Integer) As Integer
+Declare Function SRCHUseSecondTable(ByVal nSearchType As Integer) As Logical
+
+Declare Function SRCHGetStringWithColNameAndDescr$(stabCur As T_SEARCHTAB) As String
+
+Declare Function SRCHGetConditionFromValue$(	ByVal szTab As String, ByVal szCol As String,
+								ByVal szOperator As String, ByVal szValue As String) As String
+Declare Function SRCHCombineConditions$(ByVal szCond1 As String, ByVal szCond2 As String) As String
+
+'**Sorterer værdierne lige ud af landevejen
+Declare Function SRCHLoadUniqueValuesFromCol(ByVal szTab As String, ByVal szCol As String,
+								ByVal szCondition As String, arrValues() As String) As Logical
+'**Splitter værdierne i tal og tekster og sorterer disse adskilt
+Declare Function SRCHLoadUniqueValuesFromColExt(	ByVal szTab As String, ByVal szCol As String,
+									ByVal szCondition As String, arrValues() As String) As Logical
+Declare Function SRCHLoadUniqueValuesFrom2ColsExt(	ByVal szTab As String, ByVal szCol1 As String, ByVal szCol2 As String,
+									ByVal szCondition As String, arrValues() As String) As Logical
+
+Declare Function SRCHGetMatchingValueInOtherCol$(ByVal szTab As String, ByVal szCol As String,
+									ByVal szMatchCol As String, ByVal szCondition As String) As String
+
+'------------
+Declare Sub SRCHResetSearchButton(sbtnCur As T_SEARCHBTN)
+Declare Sub SRCHCopySearchButton(sbtnFrom As T_SEARCHBTN, sbtnTo As T_SEARCHBTN)
+Declare Function SRCHConvertString2SearchButton(ByVal szText As String, sbtnNew As T_SEARCHBTN) As Logical
+Declare Function SRCHConvertSearchButton2String$(sbtnCur As T_SEARCHBTN) As String
+
+Declare Sub SRCHSearchButtonSetTable(sbtnCur As T_SEARCHBTN, ByVal nNumTab As Integer, ByVal szTabName As String)
+
+'------------
+Declare Sub SRCHResetSearchTable(stabCur As T_SEARCHTAB)
+Declare Sub SRCHCopySearchTable(stabFrom As T_SEARCHTAB, stabTo As T_SEARCHTAB)
+Declare Function SRCHConvertString2SearchTable(ByVal szText As String, stabNew As T_SEARCHTAB) As Logical
+Declare Function SRCHConvertSearchTable2String$(stabCur As T_SEARCHTAB) As String
+
+Declare Sub SRCHSearchTableSetColumn(	stabCur As T_SEARCHTAB, ByVal nNumCol As Integer,
+							ByVal szCol As String, ByVal szDesc As String)
+Declare Sub SRCHSearchTableSetColumnDescr(stabCur As T_SEARCHTAB, ByVal nNumCol As Integer,
+							ByVal szDesc As String)
+
+'------------
+Declare Sub SRCHResetSearchColumn(scolCur As T_SEARCHCOL)
+Declare Sub SRCHCopySearchColumn(scolFrom As T_SEARCHCOL, scolTo As T_SEARCHCOL)
+Declare Function SRCHConvertString2SearchColumn(ByVal szText As String, scolNew As T_SEARCHCOL) As Logical
+Declare Function SRCHConvertSearchColumn2String$(scolCur As T_SEARCHCOL) As String

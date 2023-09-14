@@ -1,0 +1,70 @@
+Type T_POINT
+	X As Float
+	Y As Float
+End Type
+
+Declare Function GetAngle(aX As Float, aY As Float, bX As Float, bY As float) As Float
+Declare Function GetMathDegAngle(aX As Float, aY As Float, bX As Float, bY As float) As Float
+Declare Function GetNorthDegAngle(aX As Float, aY As Float, bX As Float, bY As float) As Float
+
+Declare Function CalcNorth2MathAngle(ByVal fNorthAngle As Float) As Float
+Declare Function CalcMath2NorthAngle(ByVal fMathAngle As Float) As Float
+Declare Function CalcNorth2WestAngle(ByVal fNorthAngle As Float) As Float
+Declare Function CalcWest2NorthAngle(ByVal fWestAngle As Float) As Float
+Declare Function CalcWest2MathAngle(ByVal fWestAngle As Float) As Float
+Declare Function CalcMath2WestAngle(ByVal fEastAngle As Float) As Float
+
+Declare Function CalcDistanceMeters(aX As Float, aY As Float, bX As Float, bY As float) As Float
+Declare Function GetDirection(aX As Float, aY As Float, bx As Float, by As Float) As String
+
+Declare Function GeoFuncMoveObject(ByVal dX As Float, ByVal dY as Float, ByVal oldObj As Object) As Object
+Declare Function GeoFuncMoveObjectDiffCoordSys(	ByVal dX As Float, ByVal dY as Float, ByVal oOld As Object,
+								ByVal szFromCoordSys As String, ByVal szToCoordSys As String) As Object
+
+Declare Function GeoFuncRotateObject(ByVal oOldObject As Object, pCenter As T_POINT, ByVal fRotation As Float) As Object
+Declare Function GeoFuncRotateAndScaleObject(ByVal oOldObject As Object, pCenter As T_POINT, ByVal fRotation As Float, ByVal fScale As Float) As Object
+
+Declare Function GeoFuncCalcX(byVal fX As Float, byVal fMathAngel As Float, byVal fLength As Float) As Float
+Declare Function GeoFuncCalcY(byVal fY As Float, byVal fMathAngel As Float, byVal fLength As Float) As Float
+
+Declare Sub ReverseLines
+
+Declare Function GetScaleFactor(ByVal fX As Float, ByVal fY As Float) as float
+
+Declare Function CalcDeg2Gon(ByVal fAngleDeg As Float) As Float
+Declare Function CalcGon2Deg(ByVal fAngleGon As Float) As Float
+
+Declare Function IsPointOnLine(	pStart As T_POINT, pEnd As T_POINT,
+						pSearch As T_POINT, pResult As T_POINT, ByVal fMaxDistance As Float) As Logical
+Declare Sub CreatePointOnLine(	pBegin As T_POINT, pEnd As T_POINT,
+						ByVal fDistance As Float, pResult As T_POINT)
+Declare Function GetPythDistance(pBegin As T_POINT, pEnd As T_POINT) As Float
+
+Declare Function GetCoordBeginLine(ByVal oLine As Object, pCoord As T_POINT) As Logical
+Declare Function GetCoordEndLine(ByVal oLine As Object, pCoord As T_POINT) As Logical
+Declare Function GetCoordCenter(ByVal oObject As Object, pCoord As T_POINT) As Logical
+
+Declare Function CreateOrthoPoint(	pA As T_POINT, pB As T_POINT,
+						ByVal fDFP As Float, ByVal fDDP As Float,
+						pResult As T_POINT) As Logical
+'	Line is named AB, Point is named P, P's foot point is called Q
+'
+'	:---dfp---:
+'	A---------Q--------------->B
+'	  \       |
+'	    \     |=dpp
+'	      \   |
+'	        \ |
+'	          P
+
+Declare Sub CalcLeftMarkerPoint(	p1 As T_POINT, p2 As T_POINT, 
+						ByVal fDist As Float, pLeft As T_POINT)
+Declare Function Sign(Byval fv as float) As Float
+
+Declare Function GeoFuncOffSetPLine2(ByVal oOffsetPLine As Object, ByVal fOffsetDistance As Float) As Object
+Declare Function GeoFuncOffSetPLine(ByVal oOffsetPLine As Object, ByVal fOffsetDistance As Float) As Object
+Declare Sub GeoFuncOffSetTwoPoints(	pBegin As T_POINT, pEnd As T_POINT, ByVal fOffsetDistance As Float,
+						pNewBegin As T_POINT, pNewEnd As T_POINT)
+Declare Function GeoFuncCalcIntersectionPoint(	pABegin As T_POINT, pAEnd As T_POINT,
+							pBBegin As T_POINT, pBEnd As T_POINT,
+							pIntersect As T_POINT) As Logical

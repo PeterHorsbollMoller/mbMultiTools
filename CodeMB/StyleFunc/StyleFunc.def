@@ -1,0 +1,19 @@
+Declare Function StyleFuncGetStringFromFont$(ByVal fntValue As Font) As String
+Declare Function StyleFuncGetStringFromSymbol$(ByVal symValue As Symbol) As String
+Declare Function StyleFuncGetStringFromPen$(ByVal penValue As Pen) As String
+Declare Function StyleFuncGetStringFromBrush$(ByVal brsValue As Brush) As String
+
+Declare Function StyleFuncGetFontFromString(ByVal szStyleStr As String) As Font
+Declare Function StyleFuncGetSymbolFromString(ByVal szStyleStr As String) As Symbol
+Declare Function StyleFuncGetPenFromString(ByVal szStyleStr As String) As Pen
+Declare Function StyleFuncGetBrushFromString(ByVal szStyleStr As String) As Brush
+
+Declare Function StyleFuncGetOKBrush(ByVal nPattern As Integer, ByVal nForeColor As Integer, ByVal nBackColor As Integer) As Brush
+Declare Function StyleFuncGetOKPen(ByVal nWidth As Integer, ByVal nPattern As Integer, ByVal nColor As Integer) As Pen
+Declare Function StyleFuncGetOKLine(ByVal nWidth As Integer, ByVal nPattern As Integer, ByVal nColor As Integer) As Pen
+Declare Function StyleFuncGetOKFont(ByVal szName As String, ByVal nStyle As Integer,
+				 ByVal nSize As Integer, ByVal nForeColor As Integer,
+				 ByVal nBackColor As Integer) As Font
+Declare Function StyleFuncGetOKSymbol(ByVal nShape As Integer, ByVal nColor As Integer, ByVal nSize As Integer) As Symbol
+Declare Function StyleFuncGetOKCustomSymbol(ByVal szFilename As String, ByVal nColor As Integer, ByVal nSize As Integer, ByVal nCustomStyle As Integer) As Symbol
+Declare Function StyleFuncGetOKFontSymbol(ByVal nShape As Integer, ByVal nColor As Integer, ByVal nSize As Integer, ByVal szFontname As String, ByVal nFontstyle As Integer, ByVal fRotation As Float) As Symbol

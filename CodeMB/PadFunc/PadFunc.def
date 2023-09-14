@@ -1,0 +1,54 @@
+'****************************************************************************************************************
+'19.03.2002/PEM:	- Ændret filnumre og charset til 199 og SYS_INFO_CHARSET
+'31.05.2002/PEM:	- Ændret funktionsnavn til PAD...
+'				- ButtonPadExists()			-> 	PADExists()
+'				- ShowHideAnyButtonPad()		->	PADShowHide()
+'				- DestroyAnyButtonPad()		->	PADDestroy()
+'				- ReadButtonPadSetup()		->	PADReadSetupAll()
+'				- ReadButtonPadSetupOnePad()	->	PADReadSetupSingle()
+'				- WriteButtonPadSetup()		->	PADWriteSetup()
+'				- WriteButtonPadSetupOnePad()	->	PADWriteSetupSingle()
+'				OBS !!! Bemærk at nogle af procedurerne også har fået ændret rækkefølgende af parametrene
+'01.08.2002/PEM:	- Fejl i PADWriteSetupSingle() rettet, så filen ikke altid overskrives
+'29.04.2003/PEM:	- Tilføjet:
+'				- Type T_BUTTONPAD
+'				- PADGetSettings(ByVal szPadName As String, piCur As T_BUTTONPAD)
+'				- PADSetSettings(ByVal szPadName As String, piCur As T_BUTTONPAD)
+'18.04.2005/PEM	- Rettet PADGetSettings/PADSetSettings så de undersøger om paletten findes
+'****************************************************************************************************************
+
+Type T_BUTTONPAD
+	nWinID	As Integer
+	szName 	As String
+	bFloating 	As Logical
+	fPositionX 	As Float
+	fPositionY 	As Float
+	nWidth 	As Integer
+	bHidden 	As Logical
+End Type
+
+Declare Function PADExists(ByVal szPadName As String) As Logical
+
+Declare Sub PADShowHide(ByVal szPadName As String)
+Declare Sub PADDestroy(ByVal szPadName As String)
+
+Declare Sub PADReadSetupAll(ByVal szFile As String)
+Declare Sub PADReadSetupSingle(ByVal szFile As String, ByVal szPadName As String)
+Declare Sub PADWriteSetup(ByVal nFile As Integer, ByVal szPadName As String)
+Declare Sub PADWriteSetupSingle(ByVal szFile As String, ByVal szPadName As String, ByVal bOverWrite As Logical)
+
+Declare Sub PADGetSettings(ByVal szPadName As String, piCur As T_BUTTONPAD)
+Declare Sub PADSetSettings(ByVal szPadName As String, piCur As T_BUTTONPAD)
+
+'**************************************************************************************************************
+ 'B A C K W A R D S   C O M P A T A B I L I T Y
+'**************************************************************************************************************
+Declare Function ButtonPadExists (ByVal szPadName As String) As Logical
+
+Declare Sub ShowHideAnyButtonPad(ByVal szPadName As String)
+Declare Sub DestroyAnyButtonPad(ByVal szPadName As String)
+
+Declare Sub ReadButtonPadSetup(ByVal szFile As String)
+Declare Sub ReadButtonPadSetupOnePad(ByVal szPadName As String, ByVal szFile As String)
+Declare Sub WriteButtonPadSetup(ByVal szPadName As String, ByVal nFile As Integer)
+Declare Sub WriteButtonPadSetupOnePad(ByVal szPadName As String, ByVal szFile As String, ByVal bOverWrite As Logical)

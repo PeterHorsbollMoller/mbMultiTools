@@ -1,0 +1,600 @@
+'*********************************************************************************************************************
+'**	Modul:	StrFunc.mb
+'**			Functions for handling strings
+'*********************************************************************************************************************
+Include "MapBasic.def"
+
+Include "StrFunc.def"
+Include "..\Language\Message.lng"
+Include "..\Language\Errors.lng"
+
+'***************************************************
+'Opdeler streng ved mellemrum(space)
+'***************************************************
+Function STRSplitAtSpace (	szText As String, arrTexts (0 ) As String,
+				 	ByVal nMaxItems As Integer ) As Integer
+
+OnError GoTo ErrorOccured
+
+	STRSplitAtSpace = STRSplitAtChar (szText, " ", arrTexts, nMaxItems)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'***************************************************
+'Opdeler streng ved kommaer
+'***************************************************
+Function STRSplitAtKomma (	szText As String, arrTexts (0 ) As String,
+				 	ByVal nMaxItems As Integer ) As Integer
+
+OnError GoTo ErrorOccured
+
+	STRSplitAtKomma = STRSplitAtChar (szText, ",", arrTexts, nMaxItems)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'***************************************************
+'Opdeler streng ved punktum
+'***************************************************
+Function STRSplitAtPoint (	szText As String, arrTexts (0 ) As String,
+				 	ByVal nMaxItems As Integer ) As Integer
+
+OnError GoTo ErrorOccured
+
+	STRSplitAtPoint = STRSplitAtChar (szText, ".", arrTexts, nMaxItems)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'***************************************************
+'Opdeler streng ved defineret tegn
+'***************************************************
+Function STRSplitAtChar(szText As String, ByVal szChar As String,
+				arrTexts(0) As String, ByVal nMaxItems As Integer) As Integer
+						
+Dim	nBeg, nEnd, nItem As Integer,
+	szCopy As String
+
+OnError GoTo ErrorOccured
+
+	nEnd		= 0
+	nItem		= 0
+	szCopy	= UCase$(szText)
+	
+	Do While nEnd <= Len(szCopy)
+		nBeg = nEnd + 1
+		nEnd = InStr(nBeg, szCopy, szChar)
+		If nEnd = 0 Then
+			nEnd = Len(szCopy) + 1
+		End If
+	
+		nItem = nItem + 1
+		ReDim arrTexts(nItem)
+		If nBeg = nEnd Then
+			arrTexts(nItem) = ""
+		Else
+			arrTexts(nItem) = LTrim$(RTrim$(Mid$(szText, nBeg, nEnd - nBeg)))
+		End If
+
+		If nItem = nMaxItems Then
+			Exit Do
+		End If
+	Loop
+	
+	STRSplitAtChar = nItem
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'**********************************************************************************************''
+'STRRTrimAtChar$ - Fjerner alt fra given karakter og mod højre
+' f.eks. STRRTrimAtChar$("TESTING1;TESTING2;TESTING3", ";") => "TESTING1"
+'**********************************************************************************************''
+Function STRRTrimAtChar$(ByVal szText As String, ByVal szChar As String) As String
+
+Dim	nChar As Integer
+
+OnError GoTo ErrorOccured
+
+	nChar = InStr(1, szText, szChar)
+
+	If nChar > 0 Then
+		STRRTrimAtChar$ = Left$(szText, nChar - 1)
+	Else
+		STRRTrimAtChar$ = szText		
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'***************************************************
+'*	Change entered commas to points (national standard decimal point)
+'***************************************************
+Function STRKommaToPoint$(ByVal szText As String) As String
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	i = InStr(1, szText, ",")
+	Do While i > 0
+		If i = 1 Then
+			szText = "." + Right$(szText, Len(szText) - i)
+		Else
+			szText = Left$(szText, i - 1) + "." + Right$(szText, Len(szText) - i)
+		End If
+		i = InStr(i + 1, szText, ",")
+	Loop
+
+STRKommaToPoint$ = szText
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'***************************************************
+'*	Change entered points to commas
+'***************************************************
+Function STRPointToKomma$(ByVal szText As String) As String
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	i = InStr(1, szText, ".")
+	Do While i > 0
+		If i = 1 Then
+			szText = "," + Right$(szText, Len(szText) - i)
+		Else
+			szText = Left$(szText, i - 1) + "," + Right$(szText, Len(szText) - i)
+		End If
+		i = InStr(i + 1, szText, ",")
+	Loop
+	
+STRPointToKomma$ = szText
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'***************************************************
+'*	Search And replace
+'***************************************************
+Function STRSearchAndReplace$(ByVal szText As String, ByVal szSearch As String, ByVal szReplace As String) As String
+
+Dim	i As Integer,
+	szTextU, szSearchU As String
+
+OnError GoTo ErrorOccured
+
+	'**Enables Case sensitivity in Instr(...)
+	szTextU 	= UCase$(szText)
+	szSearchU	= UCase$(szSearch)
+	
+	i = InStr(1, szTextU, szSearchU)
+	Do While i > 0
+		If i = 1 Then
+			szText = szReplace + Right$(szText, Len(szText) - (i + Len(szSearch)))
+		Else
+			szText = Left$(szText,i-1) + szReplace + Right$(szText, Len(szText) - ((i - 1) + Len(szSearch)))
+		End If
+		szTextU 	= UCase$(szText)
+		i 	= InStr(i + 1, szTextU, szSearchU)
+	Loop
+	
+STRSearchAndReplace$ = szText
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'**********************************************************************************************''
+'returnerer værdien før '=' i en KeyStreng
+'**********************************************************************************************''
+Function STRGetKeyFromKeyString$(ByVal szKeyString As String) As String
+
+Dim	szKey As String,
+	nChar As Integer
+
+OnError GoTo ErrorOccured
+
+STRGetKeyFromKeyString$ = ""
+
+	nChar = InStr(1, szKeyString, "=")
+
+	If nChar = 0 Then
+		Print "Error reading keyvalue: " & szKeyString
+		szKey	= ""
+	Else	
+		szKey	= Right$(szKeyString, nChar - 1)
+	End If
+
+STRGetKeyFromKeyString$ = szKey
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'returnerer værdien efter '=' i en KeyStreng
+'**********************************************************************************************''
+Function STRGetValueFromKeyString$(ByVal szKeyString As String) As String
+
+Dim	szValue As String,
+	nChar As Integer
+
+OnError GoTo ErrorOccured
+
+STRGetValueFromKeyString$ = ""
+
+	nChar = InStr(1, szKeyString, "=")
+
+	If nChar = 0 Then
+		Print "Error reading keyvalue: " & szKeyString
+		szValue	= ""
+	Else	
+		SzValue	= Right$(szKeyString, Len(szKeyString) - nChar)
+	End If
+
+STRGetValueFromKeyString$ = szValue
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Konverters a number to a string - if zero it will return ""
+'**********************************************************************************************''
+Function STRInteger2StringNoZero$(ByVal nNumber As Integer) As String
+
+OnError GoTo ErrorOccured
+
+	If nNumber = 0 Then
+		STRInteger2StringNoZero$ = ""
+	Else
+		STRInteger2StringNoZero$ = Str$(nNumber)
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'****************************************************************************************
+' Counts number of items in the list - semikolon-separated (;)
+'****************************************************************************************
+Function STRListNumItems(szStringList As String) As Integer
+
+Dim	i, nCount as Integer
+
+OnError GoTo ErrorOccured
+
+	For i = 1 to Len(szStringList)
+		If Mid$(szStringList, i, 1) = ";" Then
+			nCount = nCount + 1
+		End If
+	Next
+
+STRListNumItems = nCount
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'****************************************************************************
+' Extract given item from StringList - semikolon-separated (;)
+'****************************************************************************
+Function STRListExtractItem$(ByVal szStringList As String, ByVal nItem As Integer) As String
+
+Dim	nBeg, nEnd, i As Integer
+
+OnError GoTo ErrorOccured
+
+STRListExtractItem$ = ""
+
+	nBeg = 1
+	nEnd = InStr(nBeg, szStringList, ";" )
+
+	For i = 2 To nItem
+		nBeg = nEnd + 1
+		If nBeg > Len(szStringList) Then
+			Exit Function
+		End If
+		nEnd = InStr(nBeg, szStringList, ";" )
+	Next
+	
+	If nBeg > Len(szStringList) Then
+		Exit Function
+	ElseIf nEnd = 0 And nBeg = 0 Then
+		Exit Function
+	ElseIf nEnd = 0 Then
+		nEnd = 32767
+	End If
+
+STRListExtractItem$ = Mid$(szStringList, nBeg, nEnd - nBeg)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'****************************************************************************
+' Extract given item from StringList - semikolon-separated (;)
+'****************************************************************************
+Function STRListAddItem$(ByVal szStringList As String, ByVal szItem As String) As String
+
+OnError GoTo ErrorOccured
+
+STRListAddItem$ = ""
+	
+	If szStringList = "" Then
+		szStringList = szItem & ";"
+	Else
+		If Right$(szStringList, 1) = ";" Then
+			szStringList = szStringList & szItem & ";"
+		Else
+			szStringList = szStringList & ";" & szItem & ";"
+		End If
+	End If
+
+STRListAddItem$ = szStringList
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'****************************************************************************
+' Extract given item from StringList - semikolon-separated (;)
+'****************************************************************************
+Function STRListRTrim$(ByVal szStringList As String) As String
+
+OnError GoTo ErrorOccured
+
+STRListRTrim$ = ""
+	
+	If Right$(szStringList, 1) = ";" Then
+		szStringList = Left$(szStringList, Len(szStringList) - 1)
+	End If
+
+STRListRTrim$ = szStringList
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returning a string with unique values from the stringlist
+'**********************************************************************************************''
+Function STRListGetUnique$(ByVal szStringList As String) As String
+
+Dim	i, j, nCount, nNumItems As Integer,
+	arrStrings(), szItem, szUniqueString As String,
+	bAdd As Logical
+	
+OnError GoTo ErrorOccured
+
+	nNumItems 	= STRListNumItems(szStringList)
+	nCount	= 0
+	ReDim	arrStrings(nNumItems)
+	
+	For i = 1 To nNumItems
+		szItem 	= STRListExtractItem$(szStringList, i)
+		bAdd		= TRUE
+		
+		For j = 1 To nCount
+			If arrStrings(j) = szItem Then
+				bAdd	= FALSE
+				Exit For
+			End If
+		Next	'j
+		
+		If bAdd Then
+			nCount = nCount + 1
+			arrStrings(nCount) 	= szItem
+			szUniqueString 		= STRListAddItem$(szUniqueString, szItem)
+		End If
+	Next	'i
+
+STRListGetUnique$ = szUniqueString
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Henter værdien i parantes () i en given tekst
+'**********************************************************************************************''
+Function STRGetValueInBrackets$(ByVal szText As String) As String
+
+Dim	nBeg, nEnd As Integer,
+	szValue As String
+
+OnError GoTo ErrorOccured
+
+	nBeg = InStr(1, szText, "(" ) + 1
+	nEnd = InStr(nBeg, szText, ")" )
+
+	If nEnd = 0 Then
+		szValue = ""
+	ElseIf nBeg = 0 Then
+		szValue = ""
+	Else
+		szValue = Mid$(szText, nBeg, nEnd - nBeg)
+	End If
+
+STRGetValueInBrackets$ = szValue
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Henter værdien i skarp parantes [] i en given tekst
+'**********************************************************************************************''
+Function STRGetValueInSquareBrackets$(ByVal szText As String) As String
+
+Dim	nBeg, nEnd As Integer,
+	szValue As String
+
+OnError GoTo ErrorOccured
+
+	nBeg = InStr(1, szText, "[" ) + 1
+	nEnd = InStr(nBeg, szText, "]" )
+
+	If nEnd = 0 Then
+		szValue = ""
+	ElseIf nBeg = 0 Then
+		szValue = ""
+	Else
+		szValue = Mid$(szText, nBeg, nEnd - nBeg)
+	End If
+
+STRGetValueInSquareBrackets$ = szValue
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'*********************************************************************************************
+Function STRSetSpaceAfter$(ByVal szText As String, ByVal nNumChars As Integer) As String
+
+OnError GoTo ErrorOccured
+
+	szText		= szText & Space$(nNumChars)
+	STRSetSpaceAfter$ = Left$(szTekst, nNumChars)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'*********************************************************************************************
+'
+'*********************************************************************************************
+Function STRSetZeroBefore$(ByVal nValue As Integer, ByVal nNumChars As Integer) As String
+
+Dim	szText As String
+
+OnError GoTo ErrorOccured
+
+	szText		= String$(nNumChars, "0") & Str$(nValue)
+	STRSetZeroBefore$	= Right$(Str$(nValue), nNumChars)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Oversætter decimaltal til tekst med n antal decimaler
+'**********************************************************************************************''
+Function STRFloatToStringWithNDecimals$(	ByVal fValue As Float, ByVal nDecimals As Integer,
+							ByVal szDecimalChar As String) As String
+
+Dim	nInteger, nDec As Integer,
+	fDec As Float
+
+OnError GoTo ErrorOccured
+
+STRFloatToStringWithNDecimals$ = Str$(fValue)
+
+	nInteger	= Fix(fValue)
+	
+	If nDecimals > 0 Then
+		fDec		= fValue - nInteger
+		nDec		= fDec * (10 ^ nDecimals)
+
+		STRFloatToStringWithNDecimals$ = Str$(nInteger) 
+								& szDecimalChar
+								& Right$(String$(nDecimals, "0") & Str$(nDec), nDecimals)
+	Else
+		STRFloatToStringWithNDecimals$ = Str$(nInteger)
+	End If
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function STRLogicalToYesNo$(ByVal bValue As Logical) As String
+
+OnError GoTo ErrorOccured
+
+	If bValue Then
+		STRLogicalToYesNo$ = MSG_YES
+	Else
+		STRLogicalToYesNo$ = MSG_NO
+	End If
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function

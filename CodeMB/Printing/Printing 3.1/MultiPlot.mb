@@ -1,0 +1,1020 @@
+'*******************************************************************************
+'** 	Program:		PlotModul Pro
+'** 	Modul:		MultiPlot
+'**	Function		Udskrivning af plots via tabel med centerkoordinater...
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\IniUtil\IniUtil.def"
+Include "..\..\StyleFunc\StyleFunc.def"
+Include "..\..\MapFunc\MapFunc.def"
+Include "..\..\WinFunc\WinFunc.def"
+Include "..\..\FileFunc\FileFunc.def"
+
+Include "Globals.def"
+
+Include "Printing.def"
+Include "PrintValues.def"
+Include "PrintDlg.def"
+Include "MultiPlot.def"
+
+'***Language definitions:
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\PlotDef.lng"
+Include "..\..\Language\StyleDef.lng"
+
+Declare Sub HandlerPickWorkspace
+Declare Sub HandlerDialogStartUp
+Declare Sub HandlerScale1TypePicked
+Declare Sub HandlerScale2TypePicked
+Declare Sub HandlerStartAtTypePicked
+Declare Sub HandlerMap2Picked
+
+Declare Function CheckLayoutBeforePrinting(ByVal szLayoutFile As String) As Integer
+Declare Function GetTableAndColumns() As Logical
+Declare Sub HandlerTablePicked
+Declare Sub HandlerPrinterSetupDialog
+
+Declare Sub CreatePointOnMap(ByVal fX As Float, fY As Float, arrMaps() As Integer, symPoint As Symbol)
+Declare Sub SaveCurrentSetupAsWorkspace(ByVal szFileName As String)
+
+Dim	arrColumns(0), arrTables(0) As String,
+	gszPrintTab, gszValueCol As String,
+	gnMaximumMap2, gnStartType, gnFirstRowID, gnNumFrames As Integer,
+	gszFirstValue As String,
+	gszLayoutFile, gszSingleLayoutFile As String,
+	arrMapID(2), arrMapScale(2) As Integer,
+	nPrintAtATime As Integer,
+	gsymCenterPoint As Symbol,
+	arrReadScaleFromTable(2), gbUseCenterSymbol, gbMoreThanOneMapOpen, gbSavePlotAsWorkspace As Logical,
+	tValuesInRows() As T_ROW_AND_VALUES
+
+'****************************************
+'Skriv ini-fil til MultiPlot...
+'****************************************
+Sub MultiPlotWriteIniFile(ByVal nFileNo As Integer)
+
+Dim	i As Integer
+
+	Print #nFileNo, ""
+	Print #nFileNo, "[MULTIPLOT]"
+	Print #nFileNo, "PRINTINGTABLE="	+ gszPrintTab
+	Print #nFileNo, "VALUECOLUMN="	+ gszValueCol
+	Print #nFileNo, "PRINTINGLAYOUT="	+ gszLayoutFile
+	Print #nFileNo, "PRINTATATIME="	+ nPrintAtATime
+	Print #nFileNo, "STARTTYPE="		+ gnStartType
+	Print #nFileNo, "STARTVALUE="		+ gszFirstValue
+	Print #nFileNo, "STARTROWID="		+ gnFirstRowID
+
+	For i = 1 To Ubound(arrMapScale)
+		Print #nFileNo, "MAPSCALE" + i + "="	+ arrMapScale(i)
+	Next
+	For i = 1 To Ubound(arrReadScaleFromTable)
+		Print #nFileNo, "SCALEINCOLUMN" + i + "=" + arrReadScaleFromTable(i)
+	Next
+
+	Print #nFileNo, "USESYMBOL="		+ gbUseCenterSymbol
+	Print #nFileNo, "CENTERSYMBOL="	+ StyleFuncGetStringFromSymbol$(gsymCenterPoint)
+
+End Sub
+
+'****************************************
+'Læs MultiPlot ini-fil...
+'****************************************
+Sub MultiPlotReadIniFile(ByVal szIniFile As String)
+
+Dim	i As Integer,
+	szRead, szRead2, szRead3, szRead4, szRead5, szRead6 As String
+
+	gszPrintTab				= "PlotTabel"
+	gszValueCol				= "Navn"
+	gszLayoutFile			= ApplicationDirectory$() + "MultiPlot.wor"
+	nPrintAtATime			= 20
+	arrMapScale(1)			= 1000	
+	arrMapScale(2)			= 1000	
+	arrReadScaleFromTable(1)	= FALSE
+	arrReadScaleFromTable(2)	= FALSE
+	gsymCenterPoint			= MakeSymbol(49,RED,18)
+	gbUseCenterSymbol			= FALSE
+	gnStartType				= 1
+
+	If not FileExists(szIniFile) Then
+		Exit Sub
+	End If
+
+	gszPrintTab			= GetIniKeyValue(szIniFile, "[MULTIPLOT]", "PRINTINGTABLE")
+	gszValueCol			= GetIniKeyValue(szIniFile, "[MULTIPLOT]", "VALUECOLUMN")
+	gszLayoutFile		= GetIniKeyValue(szIniFile, "[MULTIPLOT]", "PRINTINGLAYOUT")
+
+	nPrintAtATime		= Val(GetIniKeyValue(szIniFile, "[MULTIPLOT]", "PRINTATATIME"))
+	gnStartType			= Val(GetIniKeyValue(szIniFile, "[MULTIPLOT]", "STARTTYPE"))
+	gszFirstValue		= GetIniKeyValue(szIniFile, "[MULTIPLOT]", "STARTVALUE")
+	gnFirstRowID		= Val(GetIniKeyValue(szIniFile, "[MULTIPLOT]", "STARTROWID"))
+
+	For i = 1 To Ubound(arrMapScale)
+		arrMapScale(i)	= Val(GetIniKeyValue(szIniFile, "[MULTIPLOT]", "MAPSCALE" + i))
+		If arrMapScale(i) < 1 Then
+			arrMapScale(i) = 1000
+		End If
+	Next
+	For i = 1 To Ubound(arrReadScaleFromTable)
+		If GetIniKeyValue(szIniFile, "[MULTIPLOT]", "SCALEINCOLUMN" + i) = "T" Then	
+			arrReadScaleFromTable(i)	= TRUE
+		Else
+			arrReadScaleFromTable(i)	= FALSE
+		End If
+	Next
+
+	If GetIniKeyValue(szIniFile, "[MULTIPLOT]", "USESYMBOL") = "T" Then	
+		gbUseCenterSymbol	= TRUE
+	Else
+		gbUseCenterSymbol	= FALSE
+	End If
+
+	gsymCenterPoint = StyleFuncGetSymbolFromString(GetIniKeyValue(szIniFile, "[MULTIPLOT]", "CENTERSYMBOL"))
+
+End Sub
+
+'****************************************
+'Opsætning af MultiPlot...
+'****************************************
+Function MultiPlotSetup() As Logical
+
+MultiPlotSetup = FALSE
+
+	Dialog
+		Title PLTM_DLG_TITLE_MULTIPLOT_SETUP
+
+		Control GroupBox	Position 5,5	Width 220	Height 30
+			Title PLTM_DLG_TXT_LAYOUTS
+		Control Button		Position 15,15	Width 15	Height 12
+			Title "..."
+			Calling HandlerPickWorkspace
+		Control EditText		Position 30,15	Width 180	ID 100
+			Value gszLayoutFile
+			Into gszLayoutFile
+
+		Control GroupBox		Position 175,40	Width 50	Height 40
+			Title STYL_SYMBOL
+		Control CheckBox		Position 180,50
+			Title MSG_USE
+			Value gbUseCenterSymbol
+			Into gbUseCenterSymbol
+		Control SymbolPicker	Position 190,60	Width 15	Height 15
+			Value gsymCenterPoint
+			Into gsymCenterPoint
+
+		Control OKButton		Position 115,90
+		Control CancelButton	Position 160,90
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+MultiPlotSetup = TRUE
+
+End Function
+
+'****************************************
+'Handler - Udpeg arbejdsområde...
+'****************************************
+Sub HandlerPickWorkspace
+
+Dim	szTabFile, szFile, szPath As String
+
+	szTabFile	= ReadControlValue(100)
+	If szTabFile <> "" Then
+		szTabFile	= GetFileNameAbsolute$(szTabFile)
+		szFile	= PathToTableName$(szTabFile)
+		szPath	= PathToDirectory$(szTabFile)
+	Else
+		szFile	= ""
+		szPath	= ""
+	End If
+
+	szTabFile = FileOpenDlg(szPath, szFile, "WOR", PLTM_DLG_TITLE_PICK_PRINTWOR)
+	If szTabFile = "" Then
+		Exit Sub
+	End If
+
+	Alter Control 100 Value GetFileNameRelative$(szTabFile)
+
+End Sub
+
+'****************************************
+'Udskriv objekter fra valgt tabel...
+'****************************************
+Function MultiPlotStartPrinting() As Logical
+
+Dim	nPrintNumber, nRec, nLayoutRec, i, j, nLID, nMapID, nWin, nTab As Integer,
+ 	arrWidth(), arrHeight(), fX, fY As Float,
+	szColName, szValue As String,
+	szLayoutFile, szSaveWorkspaceFileName As String,
+	arrColAndVal() As T_COL_AND_VALUES,
+	arrAliasValues(0) As T_ALIAS_AND_VALUE,
+	arrAliasText() As T_ROW_AND_VALUES,
+	szLayoutTab As String,
+	a As Alias,
+	oSymbol, oCenterPoint As Object,
+	bRuntimeValuesFound As Logical
+
+MultiPlotStartPrinting = FALSE
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Function
+	End If
+
+	If not MultiPlotSetup() Then
+		Exit Function
+	End If
+
+	szLayoutFile	= GetFileNameAbsolute$(gszLayoutFile)
+	If gszLayoutFile = "" Then
+		Note ERR_PRINTLAYOUT_NOT_NAMED
+		Exit Function
+	ElseIf not FileExists(szLayoutFile) Then
+		Note ERR_PRINTLAYOUT_NOT_FOUND
+		Exit Function
+	End If
+
+	'Print "Åbner layout"
+	nLID = CheckLayoutBeforePrinting(szLayoutFile)
+	If nLID = 0 Then
+		GoTo ExitingThisSub
+	End If
+	Set Window nLID
+		Min
+
+	'Print "Læser alle rammestørrelse"
+	If not PrintGetAllFrameSizes(nLID, arrWidth, arrHeight) Then
+		Note ERR_PRINTLAYOUT_NO_FRAMES
+		Close Window nLID
+		GoTo ExitingThisSub
+	End If
+	gnNumFrames = Ubound(arrWidth)
+
+	If not GetTableAndColumns() Then
+		GoTo ExitingThisSub
+	End If
+
+	nMapID = arrMapID(1)
+
+	If TableOpen("OIDFLKDFLK") Then
+		Drop Table OIDFLKDFLK
+	End If
+
+	Select * From gszPrintTab
+		Order By gszValueCol
+		Into KDFLPSLOIAS NoSelect
+
+	'***Søger efter startværdi hvis en sådan er angivet...
+	Fetch First From KDFLPSLOIAS
+	Do Case gnStartType
+		Case 1	'Print all objects...
+			'Do nothing...
+		Case 2	'Print from sorted value...
+			Fetch First From KDFLPSLOIAS
+			Do 
+				a = "KDFLPSLOIAS." + gszValueCol		szValue = a
+				If szValue = gszFirstValue Then
+					Exit Do
+				End If
+				Fetch Next From KDFLPSLOIAS			
+			Loop While not EOT(KDFLPSLOIAS)
+
+			If EOT(KDFLPSLOIAS) Then
+				Note ERR_PLT_MULTI_VAL_NOT_FOUND + gszFirstValue
+				GoTo ExitingThisSub
+			End If
+	
+		Case 3	'Print from RowID...
+			If gnFirstRowID > TableInfo("KDFLPSLOIAS", TAB_INFO_NROWS) Then
+				Note ERR_PLT_MULTI_FEWER_REC_IN_TAB + gnFirstRowID
+				GoTo ExitingThisSub
+			End If
+
+			Fetch First From KDFLPSLOIAS
+			Do 
+				nRec = KDFLPSLOIAS.RowID
+				If nRec >= gnFirstRowID Then
+					Exit Do
+				End If
+				Fetch Next From KDFLPSLOIAS			
+			Loop While not EOT(KDFLPSLOIAS)
+	
+			If EOT(KDFLPSLOIAS) Then
+				Note ERR_PLT_MULTI_FEWER_REC_IN_TAB + gnFirstRowID
+				GoTo ExitingThisSub
+			End If
+	End Case
+
+	'***Settings for printting functions etc...
+	Call PrintSetPreView(FALSE)
+	Call PrintSetAskSaveFrameToTable(FALSE)
+	Call PrintSetClonMapWindow(FALSE)
+	Call PrintSetBatchPrint(TRUE)
+	Call PrintSetAskSaveFrameToTable(FALSE)
+	nPrintNumber = 0
+
+	For i = 1 To Ubound(arrMapID)
+		nMapID = arrMapID(i)
+
+		If not PrintAlterMapperWidth(nMapID, arrWidth(i), arrHeight(i)) Then
+			Note ERR_WIN_MAP_WIDTH
+			Close Window nLID
+			GoTo ExitingThisSub
+		End If
+
+		'Print i + " : Indsætter kort i ramme"
+		If not PrintInsertMapInFrame(nLID, nMapID) Then
+			Note ERR_WIN_LAYOUT_INSERT_MAP
+			Close Window nLID
+			GoTo ExitingThisSub
+		End If
+	Next
+
+	bRuntimeValuesFound = FALSE
+	'Print "Læser tekster med runtime værdier fra layout"
+	If PrintReadTextFromLayoutToArray(nLID, arrAliasText) Then
+		'Print "Finder runtime værdier i teksterne"
+		If PrintReadAliasesFromTextArray(arrAliasText, arrAliasValues) Then
+			bRuntimeValuesFound  = TRUE
+		End If
+	End If
+
+	'**Gør plads til værdierne i kolonnerne...
+	ReDim arrColAndVal(NumCols(gszPrintTab))
+
+	Do Until EOT(KDFLPSLOIAS)
+
+		'Print "Læser kolonneværdier..."
+		'**Reading Columnnames and values....
+		For i = 1 To NumCols(KDFLPSLOIAS)
+
+			szColName	= ColumnInfo(KDFLPSLOIAS, "COL" + i, COL_INFO_NAME)
+			a		= "KDFLPSLOIAS.COL" + i
+
+			'**No need to write values to array if there is no runtime values
+			If bRuntimeValuesFound Then
+				arrColAndVal(i).szColumnName	= szColName
+
+				If ColumnInfo(KDFLPSLOIAS, szColName, COL_INFO_TYPE) = COL_TYPE_CHAR Then
+					arrColAndVal(i).szColumnValue	= a
+				Else
+					arrColAndVal(i).szColumnValue	= Str$(a)
+				End If
+			End If
+
+			For j = 1 To Ubound(arrMapID)
+				If arrReadScaleFromTable(j) Then
+					If j = 1 Then
+						If szColName = "MAPSCALE" Then
+							arrMapScale(j)	= a
+						ElseIf szColName = "MAPSCALE1" Then
+							arrMapScale(j)	= a
+						ElseIf szColName = "SCALE" Then
+							arrMapScale(j)	= a
+						ElseIf szColName = "SCALE1" Then
+							arrMapScale(j)	= a
+						ElseIf szColName = "MÅLFORHOLD" Then
+							arrMapScale(j)	= a
+						ElseIf szColName = "MÅLFORHOLD1" Then
+							arrMapScale(j)	= a
+						End If
+					Else
+						If szColName = "MAPSCALE" + j Then
+							arrMapScale(j)	= a
+						ElseIf szColName = "SCALE" + j Then
+							arrMapScale(j)	= a
+						ElseIf szColName = "MÅLFORHOLD" + j Then
+							arrMapScale(j)	= a
+						End If
+					End If
+				End If
+			Next
+			If szColName = PLTM_MULTI_COL_WORKSPACE_SAVE Then
+				szSaveWorkspaceFileName = a
+			End If
+
+			'Print "Kolonne : " + arrColAndVal(i).szColumnName + " = " + arrColAndVal(i).szColumnValue
+		Next
+
+		nPrintNumber = nPrintNumber + 1
+
+		a	= "KDFLPSLOIAS.ROWID"		nRec		= a
+		a	= "KDFLPSLOIAS.OBJ"
+
+		If a Then
+			oCenterPoint 		= a
+
+			'Print "Læser koordinater fra tabellen"
+			Set CoordSys Window nMapID
+			fX = CentroidX(oCenterPoint)
+			fY = CentroidY(oCenterPoint)
+
+			If gbUseCenterSymbol Then
+				Call CreatePointOnMap(fX, fY, arrMapID, gsymCenterPoint)
+			End If
+
+			For i = 1 To Ubound(arrMapID)
+	
+				nMapID = arrMapID(i)
+				Call PrintSetScale(arrMapScale(i))
+
+				'Print i + " : Ændrer zoom"
+				If not PrintAlterMapperZoom(nMapID, fX, fY, arrWidth(i)) Then
+					Note ERR_WIN_MAP_XY_ZOOM
+					Close Window nLID
+					GoTo ExitingThisSub
+				End If
+				Update Window nMapID
+			Next
+
+			Call PrintSetMapWinID(arrMapID(1))
+			Call PrintSetScale(arrMapScale(1))
+
+			'Print "Opret array med runtime værdier"
+			Call PrintSetShowRuntimeValuesDialog(FALSE)
+	
+			If bRuntimeValuesFound Then
+				'Print "Erstatter runtime værdier, fundet " + Ubound(arrAliasValues)
+				If not PrintEnterAliasValuesDialog(arrAliasValues, arrColAndVal, FALSE) Then
+					Close Window nLID
+					GoTo ExitingThisSub
+				End If
+
+				'Print "Erstatter med kolonneværdier"
+				For i = 1 To Ubound(arrAliasValues)
+					'If Left$(arrAliasValues(i).szValue, 1) = "[" Then
+						For j = 1 To Ubound(arrColAndVal)
+							Do Case arrAliasValues(i).szAlias
+								Case "[SCALE]", "[SCALE1]"
+									arrAliasValues(i).szValue = arrMapScale(1)
+									Exit For
+								Case "[MÅLFORHOLD]", "[MÅLFORHOLD1]"
+									arrAliasValues(i).szValue = arrMapScale(1)
+									Exit For
+								Case "[MAPSCALE]", "[MAPSCALE1]"
+									arrAliasValues(i).szValue = arrMapScale(1)
+									Exit For
+								Case "[SCALE2]", "[MAPSCALE2]"
+									arrAliasValues(i).szValue = arrMapScale(2)
+									Exit For
+								Case "[MÅLFORHOLD2]" 
+									arrAliasValues(i).szValue = arrMapScale(2)
+									Exit For
+							End Case
+						Next	'j
+					'End If
+				Next		'i
+
+				'Print "Erstatter værdier i layout og korthovedtabel"	
+				If not PrintWriteTextFromArrayToTable(arrAliasText, arrAliasValues) Then
+					Note ERR_PLT_REPLACE_RUNTIME_VAL
+					Close Window nLID
+					GoTo ExitingThisSub
+				End If
+			End If
+
+			'Print "Udskriver nu layoutet..."
+			Set Window nLID
+				Restore
+			Update Window nLID
+
+			PrintWin Window nLID
+
+			'**Saving windows etc. as workspace
+			If gbSavePlotAsWorkspace And szSaveWorkspaceFileName <> "" Then
+				If gbUseCenterSymbol Then
+					Drop Table OIDFLKDFLK
+				End If
+
+				Call SaveCurrentSetupAsWorkspace(szSaveWorkspaceFileName )
+			End If
+
+			Set Window nLID
+				Min
+
+			'----------------------
+			FetchNextRec:
+
+			CLS
+			Print "Print: " + nRec + " / " + TableInfo(KDFLPSLOIAS, TAB_INFO_NROWS)
+			If nPrintNumber Mod nPrintAtATime = 0 Then
+				If nRec < TableInfo(KDFLPSLOIAS, TAB_INFO_NROWS) Then
+					If not Ask(nPrintNumber + PLTM_DLG_N_PLOT_PRINT_CONTINUE, MSG_CONTINUE, MSG_STOP) Then
+						GoTo ExitingThisSub
+					End If
+				End If
+			End If
+		End If
+
+		Fetch Rec nRec From KDFLPSLOIAS
+		Fetch Next From KDFLPSLOIAS
+	Loop
+
+'---------------------------
+ExitingThisSub:
+
+	If TableOpen("KDFLPSLOIAS") Then
+		Close Table KDFLPSLOIAS
+	End If
+	If TableOpen("OIDFLKDFLK") Then
+		Drop Table OIDFLKDFLK
+	End If
+
+	MultiPlotStartPrinting = TRUE
+
+End Function
+
+'****************************************
+'Udvælg tabel og kolonner...
+'****************************************
+Function GetTableAndColumns() As Logical
+
+Dim	i, nTab, nCol1, nMap1, nMap2, nScale1, nScale2 As Integer, 
+	arrMap1Names(0), arrMap2Names(0) As String,
+	szScale1, szScale2, szNumber, szFirstValue, szFirstRowID As String
+
+	GetTableAndColumns = FALSE
+
+	If not CreateArrayTables(arrTables, TRUE, TRUE, FALSE, FALSE, FALSE) Then
+		Note ERR_TAB_NONE
+		Exit Function
+	End If
+
+	If not CreateArrayMapWindows(arrMap1Names, FALSE, FALSE, FALSE) Then
+		Note ERR_WIN_NO_MAP_OPEN
+		Exit Function
+	End If
+	If not CreateArrayMapWindows(arrMap2Names, FALSE, FALSE, TRUE) Then
+		Note ERR_WIN_NO_MAP_OPEN
+		Exit Function
+	End If
+	If UBound(arrMap1Names) > 1 And gnNumFrames > 1 Then
+		gbMoreThanOneMapOpen = TRUE
+		gnMaximumMap2 = Ubound(arrMap2Names)
+		ReDim arrMapID(2)
+	Else
+		gbMoreThanOneMapOpen = FALSE
+	End If
+
+	nMap1 = 1
+	If arrMapID(1) <> 0 Then
+		For i = 1 To UBound(arrMap1Names)
+			If arrMapID(1) = GetWindowID(arrMap1Names(i)) Then
+				nMap1 = i
+				Exit For
+			End If 
+		Next
+	End If
+	nMap2 = Ubound(arrMap2Names)
+	If gbMoreThanOneMapOpen Then
+		If arrMapID(2) <> 0 Then
+
+			For i = 1 To UBound(arrMap2Names)
+				If arrMapID(2) = GetWindowID(arrMap2Names(i)) Then
+					nMap2 = i
+					Exit For
+				End If 
+			Next
+		End If
+	End If
+
+	nTab = 1
+	For i = 1 To Ubound(arrTables)
+		If gszPrintTab = arrTables(i) Then
+			nTab = i
+			Exit For
+		End If
+	Next
+
+	If gnStartType < 1 Or gnStartType > 3 Then
+		gnStartType = 1
+	End If
+
+	If gnFirstRowID < 1 Then
+		gnFirstRowID = 1
+	End If
+
+	If arrReadScaleFromTable(1) Then
+		nScale1 = 2
+	Else
+		nScale1 = 1
+	End If
+	If arrReadScaleFromTable(2) Then
+		nScale2 = 2
+	Else
+		nScale2 = 1
+	End If
+
+'--------------------
+ShowTableAndColumnDialog:
+
+	Dialog
+		Title PLTM_DLG_TITLE_MULTIPLOT
+		Calling HandlerDialogStartUp
+
+		Control GroupBox		Position 5,5	Width 160	Height 60
+			Title PLTM_DLG_TAB_WITH_COORDINATES
+		Control StaticText	Position 15,17
+			Title MSG_TAB_TABLE
+		Control PopUpMenu		Position 65,15	Width 90			ID 100
+			Title From Variable arrTables
+			Value nTab
+			Into nTab
+			Calling HandlerTablePicked
+
+		Control StaticText	Position 15,32
+			Title MSG_COL_COLUMN
+		Control PopUpMenu		Position 65,30	Width 90			ID 101
+			Into nCol1
+
+		Control StaticText	Position 15,47
+			Title PLTM_DLG_TXT_PRINTS_AT_A_TIME
+		Control EditText		Position 115,45	Width 40
+			Value Str$(nPrintAtATime)
+			Into szNumber
+
+		Control GroupBox		Position 170,5	Width 155	Height 60
+			Title PLTM_DLG_TXT_START_ROW
+		Control RadioGroup	Position 180,17					ID 300
+			Title PLTM_DLG_CHOISE_START_ROW
+			Calling HandlerStartAtTypePicked
+			Value gnStartType
+			Into gnStartType
+		Control EditText		Position 255,30	Width 60			ID 301
+			Value gszFirstValue
+			Into szFirstValue
+		Control EditText		Position 255,45	Width 60			ID 302
+			Value Str$(gnFirstRowID)
+			Into szFirstRowID
+
+		Control GroupBox		Position 5,70	Width 320	Height 75
+			Title PLTM_DLG_TXT_MAPS_TO_PRINT
+		Control PopUpMenu		Position 15,80	Width 150			ID 400
+			Title From Variable arrMap1Names
+			Value nMap1
+			Into nMap1
+		Control PopUpMenu		Position 15,110	Width 150			ID 500
+			Title From Variable arrMap2Names
+			Calling HandlerMap2Picked
+			Value nMap2
+			Into nMap2
+
+		Control RadioGroup	Position 180,82					ID 410
+			Title PLTM_DLG_CHOISE_SCALE_OR_COLUMN
+			Calling HandlerScale1TypePicked
+			Value nScale1
+			Into nScale1
+		Control EditText		Position 275,80	Width 40			ID 411
+			Value Str$(arrMapScale(1))
+			Into szScale1
+
+		Control RadioGroup	Position 180,112					ID 510
+			Title PLTM_DLG_CHOISE_SCALE_OR_COLUMN
+			Calling HandlerScale2TypePicked
+			Value nScale2
+			Into nScale2
+		Control EditText		Position 275,110	Width 40			ID 511
+			Value Str$(arrMapScale(2))
+			Into szScale2
+
+		Control CheckBox		Position 15,150					ID 600
+			Title PLTM_DLG_TXT_SAVE_PLOT_AS_WOR
+			Value gbSavePlotAsWorkspace
+			Into gbSavePlotAsWorkspace
+
+		Control OKButton		Position 135,150	Width 60
+		Control CancelButton	Position 205,150	Width 60
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	ElseIf Ubound(arrColumns) = 1 And arrColumns(1) = ERR_COL_NO_USABLE Then
+		Note ERR_TAB_NO_USABLE_COLUMNS
+		Exit Function
+	End If
+
+	If nMap2 = Ubound(arrMap2Names) Then
+		gbMoreThanOneMapOpen = FALSE
+	End If
+
+	gszPrintTab		= arrTables(nTab)
+	gszValueCol		= arrColumns(nCol1)
+	gszFirstValue	= szFirstValue
+	gnFirstRowID	= szFirstRowID
+
+	nPrintAtATime	= Val(szNumber)
+	arrMapScale(1)	= Val(szScale1)
+	arrMapScale(2)	= Val(szScale2)
+
+	'**Reads WindowID of mapwindows
+	If gbMoreThanOneMapOpen Then
+		ReDim arrMapID(2)
+	Else
+		ReDim arrMapID(1)
+	End If
+	
+	arrMapID(1)		= GetWindowID(arrMap1Names(nMap1))
+	If gbMoreThanOneMapOpen Then
+		arrMapID(2)		= GetWindowID(arrMap2Names(nMap2))
+	End If
+
+	If nScale1 = 2 Then
+		arrReadScaleFromTable(1) = TRUE
+	Else
+		arrReadScaleFromTable(1) = FALSE
+	End If
+	If nScale2 = 2 Then
+		arrReadScaleFromTable(2) = TRUE
+	Else
+		arrReadScaleFromTable(2) = FALSE
+	End If
+
+	If nPrintAtATime < 1 Then
+		Note ERR_PLT_NUM_PLOTS_LARGER_THAN_0
+		GoTo ShowTableAndColumnDialog
+	ElseIf gnFirstRowID < 1 And gnStartType = 3 Then
+		Note ERR_PLT_ROWID_LARGER_THAN_0
+		GoTo ShowTableAndColumnDialog
+	ElseIf gszFirstValue = "" And gnStartType = 2 Then
+		Note ERR_PLT_START_VALUE_NOT_ENTERED
+		GoTo ShowTableAndColumnDialog
+	End If
+
+GetTableAndColumns = TRUE
+
+End Function
+
+'****************************************
+'Opstart af dialogen
+'****************************************
+Sub HandlerDialogStartUp
+
+	Call HandlerTablePicked
+	Call HandlerScale1TypePicked
+	Call HandlerScale2TypePicked
+	Call HandlerStartAtTypePicked
+
+	If gbMoreThanOneMapOpen Then
+		Alter Control 500 Enable
+		If ReadControlValue(500) <> gnMaximumMap2 Then
+			Alter Control 510 Enable
+			If ReadControlValue(510) = 1 Then
+				Alter Control 511 Enable
+			Else
+				Alter Control 511 Disable
+			End If
+		Else
+			Alter Control 510 Disable
+			Alter Control 511 Disable
+		End If
+	Else
+		Alter Control 500 Disable
+		Alter Control 510 Disable
+		Alter Control 511 Disable
+	End If
+
+End Sub
+
+'****************************************
+'Ændring i listen med kort 2...
+'****************************************
+Sub HandlerMap2Picked
+
+	If ReadControlValue(500) <> gnMaximumMap2 Then
+		Alter Control 510 Enable
+		If ReadControlValue(510) = 1 Then
+			Alter Control 511 Enable
+		End If
+	Else
+		Alter Control 510 Disable
+		Alter Control 511 Disable
+	End If
+
+End Sub
+
+'****************************************
+'Udvælg tabel og kolonner...
+'****************************************
+Sub HandlerTablePicked
+
+Dim	szTab As String,
+	i, nCol1, nCol2, nCol3 As Integer
+
+	szTab = arrTables(ReadControlValue(100))
+
+	nCol1	= 1
+	nCol2	= 1
+	nCol3	= 1
+
+	If not CreateArrayColumns(szTab, arrColumns, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE, FALSE) Then
+		ReDim arrColumns(1)
+		arrColumns(1)	= ERR_COL_NO_USABLE
+	Else
+		For i = 1 To Ubound(arrColumns)
+			If arrColumns(i) = gszValueCol Then
+				nCol1 = i
+			End If
+			If arrColumns(i) = PLTM_MULTI_COL_WORKSPACE_SAVE Then
+				Alter Control 600 Enable
+			Else
+				Alter Control 600 Disable Value FALSE
+			End If
+		Next
+	End If
+
+	Alter Control 101 Title From Variable arrColumns Value nCol1
+
+End Sub
+
+'****************************************
+'Handler - Målforholdstype udpeget - Kort 1
+'****************************************
+Sub HandlerScale1TypePicked
+
+	If ReadControlValue(410) = 1 Then
+		Alter Control 411 Enable
+	Else
+		Alter Control 411 Disable
+	End If
+
+End Sub
+
+'****************************************
+'Handler - Målforholdstype udpeget - Kort 2
+'****************************************
+Sub HandlerScale2TypePicked
+
+	If ReadControlValue(510) = 1 Then
+		Alter Control 511 Enable
+	Else
+		Alter Control 511 Disable
+	End If
+
+End Sub
+
+'****************************************
+'Handler - Målforholdstype udpeget
+'****************************************
+Sub HandlerStartAtTypePicked
+
+	Alter Control 301 Disable
+	Alter Control 302 Disable
+
+	If ReadControlValue(300) = 2 Then
+		Alter Control 301 Enable Active
+	ElseIf ReadControlValue(300) = 3 Then
+		Alter Control 302 Enable Active
+	End If
+
+End Sub
+
+'****************************************
+'Check af valgt udskriftslayout
+'****************************************
+Function CheckLayoutBeforePrinting(ByVal szLayoutFile As String) As Integer
+
+Dim	nLID, nTab, nWin As Integer
+
+CheckLayoutBeforePrinting = 0
+
+	nWin	= NumWindows()
+	nTab	= NumTables()
+
+	nLID = PrintOpenWorkspace(szLayoutFile)
+	If nLID = 0 Then
+		Note ERR_PRINT_LAYOUT_ERROR
+		GoTo BeforeExitFunction
+	End If
+
+	Call PrintCreateHiddenOpenedTables(nTab)
+	Call PrintCreateHiddenOpenedWindows(nWin)
+
+	Set Window nLID
+		Max
+
+	Set Layout
+		Window nLID
+		Zoom To Fit
+
+	Dialog
+		Width 130
+		Title PLTM_DLG_TITLE_LAYOUT_SETTING
+
+		Control StaticText	Position 10,10
+			Title PLTM_DLG_ASK_LAYOUT_SETUP_OK_1
+		Control StaticText	Position 10,20
+			Title PLTM_DLG_ASK_LAYOUT_SETUP_OK_2
+
+		Control Button		Position 10,40	Width 110
+			Title MSG_PRINTSETUP + "..."
+			Calling HandlerPrinterSetupDialog
+
+		Control OKButton	Position 20,65	Width 40
+			Title MSG_CONTINUE
+		Control CancelButton	Position 70,65	Width 40
+			Title MSG_STOP
+
+	If CommandInfo(CMD_INFO_DLG_OK) Then
+		CheckLayoutBeforePrinting = nLID
+	Else
+		GoTo BeforeExitFunction
+	End If 
+
+	Run Menu Command M_LAYOUT_PREVIOUS
+	Set Window nLID
+		Restore
+	Exit Function
+
+'------------------------
+BeforeExitFunction:
+
+	Call PrintCloseHiddenOpenedTables(FALSE)
+	Call PrintCloseHiddenOpenedWindows(FALSE)
+
+End Function
+
+'****************************************
+'Standard MapInfo Sideopsætningsdialog
+'****************************************
+Sub HandlerPrinterSetupDialog
+
+	Run Menu Command M_FILE_PAGE_SETUP
+
+End Sub
+
+'****************************************
+'Gemmer som arbejdsområde
+'****************************************
+Sub CreatePointOnMap(ByVal fX As Float, fY As Float, arrMaps() As Integer, symPoint As Symbol)
+
+Dim	oPoint As Object,
+	i As Integer
+
+	If TableOpen("OIDFLKDFLK") Then
+		Fetch First From OIDFLKDFLK
+		oPoint = OIDFLKDFLK.OBJ
+
+		Alter Object oPoint
+			Geography OBJ_GEO_POINTX, fX
+		Alter Object oPoint
+			Geography OBJ_GEO_POINTY, fY
+
+		Update OIDFLKDFLK
+			Set 	OBJ	= oPoint
+			Where	RowID	= 1
+	Else
+		Create Table OIDFLKDFLK
+			(
+				ID Integer
+			)
+			File TempFileName$("")
+
+		Create Map
+			For OIDFLKDFLK
+			CoordSys Window arrMaps(1)
+
+		For i = 1 To UBound(arrMaps)
+			Add Map
+				Window arrMaps(i)
+				Auto
+				Layer OIDFLKDFLK
+		Next
+
+		Create Point  
+			Into Variable oPoint
+			(fX, fY)
+			Symbol symPoint
+
+		Insert Into OIDFLKDFLK
+			(OBJ)
+			Values (oPoint)
+	End If
+
+End Sub
+
+'****************************************
+'Gemmer som arbejdsområde
+'****************************************
+Sub SaveCurrentSetupAsWorkspace(ByVal szFileName As String)
+
+	OnError GoTo ErrorOccured
+
+	'Print "Gemmer arbejdsområde som: " + GetFileNameAbsolute$(szFileName)
+	Save Workspace As GetFileNameAbsolute$(szFileName)
+
+	OnError GoTo 0
+
+	Exit Sub
+'----------------------
+ErrorOccured:
+	Print szFileName + " : " + Error$()
+
+End Sub

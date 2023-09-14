@@ -1,0 +1,185 @@
+'********************************************************
+'**	Modul:	Læs stilart fra stilarttabel
+'**			Opret buttonpads dertil
+'********************************************************
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+Include "Globals.def"
+
+Include "KPAdminUse.def"
+Include "KPStyleUse.def"
+Include "KPTableUse.def"
+Include "KPGroupUse.def"
+Include "KPPadDlg.def"
+Include "KPPadUse.def"
+
+'**Functions from Printing...
+Include "..\..\Printing\Printing 3.1\PrintValues.def"
+
+'**Predefined tekstvalues
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+Include "..\..\Time\Time.def"
+Include "..\..\PadFunc\PadFunc.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\FileFunc\FileFunc.def"
+Include "..\..\MapFunc\MapFunc.def"
+
+Declare Sub HandlerGroupSelected
+Declare Sub HandlerDialogStartUp
+
+Dim	gszTemaIconFile, gszStyleTab As String,
+	gnActiveButton As Integer,
+	arrGroupNames(0), arrSubGroupNames(0) As String
+
+'********************************************************
+'	Kalder dialog til udvælgelse af EditPad gruppe
+'********************************************************
+Sub kppShowDialogSelectEditPadGroup
+
+Dim	bCloseGroupTab, bCloseSGroupTab, bCloseTGroupTab As Logical
+
+	bCloseGroupTab	= kpaOpenKPGroupTable()
+	bCloseSGroupTab	= kpaOpenKPSGroupTable()	
+	bCloseTGroupTab	= kpaOpenKPTGroupTable()
+
+	If kppDialogSelectEditPadGroup() Then
+		'**User pushed OKButton
+	Else
+		'**User pushed CancelButton
+	End If
+
+	If bCloseGroupTab Then
+		Close Table KPGROUP
+	Else
+		Close Table CUR_LIST_OF_GROUPS
+	End If
+	If bCloseSGroupTab Then
+		Close Table KPSGROUP
+	Else
+		Close Table CUR_LIST_OF_SUBGROUPS
+	End If
+	If bCloseTGroupTab Then
+		Close Table KPTGROUP
+	End If
+
+End Sub
+
+'********************************************************
+'	Dialog - Udvælgelse af EditPad gruppe
+'********************************************************
+Function kppDialogSelectEditPadGroup() As Logical
+
+Dim	nGroup, nSubGroup As Integer,
+	bCloseGroupTab, bCloseSGroupTab, bCloseTGroupTab As Logical
+
+	kppDialogSelectEditPadGroup = FALSE
+
+	bCloseGroupTab	= kpaOpenKPGroupTable()
+	bCloseSGroupTab	= kpaOpenKPSGroupTable()	
+	bCloseTGroupTab	= kpaOpenKPTGroupTable()
+
+	Call kpgCreateListOfGroupNamesLocked(arrGroupNames)
+	nGroup = kpgGetGroupElementNo(kppGetEditGroupName$(), arrGroupNames)
+
+	Dialog
+		Title STYL_DLG_TITLE_THEME_BUTTONPADS
+		Calling HandlerDialogStartUp
+
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_GROUPS
+		Control PopUpMenu		Position 5,15	Width 120	ID 100
+			Calling HandlerGroupSelected
+			Title From Variable arrGroupNames
+			Value nGroup
+			Into nGroup
+
+		Control StaticText	Position 5,30
+			Title STYL_DLG_TXT_SUBGROUPS
+		Control PopUpMenu		Position 5,40	Width 120	ID 200
+			Title From Variable arrGroupNames
+			Into nSubGroup
+
+		Control OKButton
+		Control CancelButton
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		GoTo BeforeExitTheFunction
+	End If
+
+	Call kppsetEditGroupName(arrGroupNames(nGroup))
+	Call kppsetEditSubGroupName(arrSubGroupNames(nSubGroup))
+
+	kppDialogSelectEditPadGroup = TRUE
+
+'---------------------------------
+BeforeExitTheFunction:
+
+	If bCloseGroupTab Then
+		Close Table KPGROUP
+	Else
+		Close Table CUR_LIST_OF_GROUPS
+	End If
+	If bCloseSGroupTab Then
+		Close Table KPSGROUP
+	Else
+		Close Table CUR_LIST_OF_SUBGROUPS
+	End If
+	If bCloseTGroupTab Then
+		Close Table KPTGROUP
+	End If
+
+End Function
+
+'********************************************************
+'	Handler - Opstart af dialog
+'********************************************************
+Sub HandlerDialogStartUp
+
+Dim	nPick, nSubGroup, nGroupID As Integer
+
+	nPick = ReadControlValue(100)
+
+	nGroupID = kpgGetGroupIDFromElementNoLocked(nPick)
+
+	Call kpgCreateListOfSubGroupNamesLocked(nGroupID, arrSubGroupNames)
+	nSubGroup = kpgGetGroupElementNo(kppGetEditSubGroupName$(), arrSubGroupNames)
+	If nSubGroup < 1 Or nSubGroup > Ubound(arrSubGroupNames) Then
+		nSubGroup = 1
+	End If
+
+	Alter Control 200 Title From Variable arrSubGroupNames Value nSubGroup
+
+	If nPick = 1 Then
+		Alter Control 200 Title MSG_NONE		Value 1	Disable
+	ElseIf nPick = 2 Then
+		Alter Control 200 Title STYL_ALL_SUBGROUPS	Value 1	Disable
+	End If
+
+End Sub
+
+'********************************************************
+'	Handler - Gruppe blev udvalgt
+'********************************************************
+Sub HandlerGroupSelected
+
+Dim	nPick, nSubGroup, nGroupID As Integer
+
+	nPick = ReadControlValue(100)
+
+	nGroupID = kpgGetGroupIDFromElementNoLocked(nPick)
+	Alter Control 200 Enable
+
+	Call kpgCreateListOfSubGroupNamesLocked(nGroupID, arrSubGroupNames)
+	Alter Control 200 Title From Variable arrSubGroupNames
+
+	If nPick = 1 Then
+		Alter Control 200 Title MSG_NONE		Value 1	Disable
+	ElseIf nPick = 2 Then
+		Alter Control 200 Title STYL_ALL_SUBGROUPS	Value 1	Disable
+	End If
+
+End Sub

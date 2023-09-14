@@ -1,0 +1,2301 @@
+'********************************************************
+'**	Modul:	Læs skriv stilart fra stilarttabel
+'**			Opsætning af lagstyring/label
+'********************************************************
+Include "MapBasic.def"
+
+Include "KPAdminUse.def"
+Include "KPStyleUse.def"
+Include "KPTableUse.def"
+Include "KPLayerUse.def"
+
+Include "KPGroupUse.def"
+Include "KPDisplayUse.def"
+
+Include "Globals.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\WinFunc\WinFunc.def"
+Include "..\..\MapFunc\MapFunc.def"
+
+'*******************  A R R A Y S ***************************************************
+'**********************************************************************************************''
+'Opretter en liste med alle ikke-sorterede lag
+'**********************************************************************************************''
+Sub kplCreateListOfLayersNoOrder(arrLayers() As String)
+
+Dim	nCount As Integer,
+	bShowLayerDescr As Logical
+
+OnError GoTo ErrorOccured
+
+	Select	KPTABLES.TABLEID "TABLEID", KPTABLES.DESCRIPTION "T_DESCR", KPTABLES.TABLENAME "T_NAME",
+			KPLAYERS.LAYERID "LAYERID", KPLAYERS.DESCRIPTION "L_DESCR", KPLAYERS.ORDER "ORDER"
+		From KPLAYERS, KPTABLES
+		Where KPLAYERS.TABLEID 	= KPTABLES.TABLEID
+		AND	KPLAYERS.ORDER	<= VAL_LAYER_UNSORTED
+		Order By ORDER Asc, T_DESCR, L_DESCR
+		Into CUR_LIST_OF_LAYERS_NO_ORDER NoSelect
+
+	ReDim arrLayers(TableInfo("CUR_LIST_OF_LAYERS_NO_ORDER", TAB_INFO_NROWS))
+
+	bShowLayerDescr = kpaGetAllowVariousLayerSettings()
+
+	If TableInfo("CUR_LIST_OF_LAYERS_NO_ORDER", TAB_INFO_NROWS) > 0 Then
+
+		Fetch First From CUR_LIST_OF_LAYERS_NO_ORDER
+		Do Until EOT(CUR_LIST_OF_LAYERS_NO_ORDER)
+
+			nCount 		= nCount + 1
+			If bShowLayerDescr Then
+				arrLayers(nCount)	= CUR_LIST_OF_LAYERS_NO_ORDER.T_DESCR & " - " & CUR_LIST_OF_LAYERS_NO_ORDER.L_DESCR
+			Else
+				arrLayers(nCount)	= CUR_LIST_OF_LAYERS_NO_ORDER.T_DESCR & " - " & CUR_LIST_OF_LAYERS_NO_ORDER.T_NAME
+			End If
+
+			Fetch Next From CUR_LIST_OF_LAYERS_NO_ORDER
+		Loop
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Opretter en liste med alle sorterede lag
+'**********************************************************************************************''
+Sub kplCreateListOfLayersOrder(arrLayers() As String)
+
+Dim	nCount As Integer,
+	bShowLayerDescr As Logical
+
+OnError GoTo ErrorOccured
+
+	Select	KPTABLES.TABLEID "TABLEID", KPTABLES.DESCRIPTION "T_DESCR", KPTABLES.TABLENAME "T_NAME",
+			KPLAYERS.LAYERID "LAYERID", KPLAYERS.DESCRIPTION "L_DESCR", KPLAYERS.ORDER "ORDER"
+		From KPLAYERS, KPTABLES
+		Where KPLAYERS.TABLEID 	= KPTABLES.TABLEID
+		AND	KPLAYERS.ORDER	> VAL_LAYER_UNSORTED
+		Order By ORDER, T_DESCR, L_DESCR
+		Into CUR_LIST_OF_LAYERS_ORDER NoSelect
+
+	ReDim arrLayers(TableInfo("CUR_LIST_OF_LAYERS_ORDER", TAB_INFO_NROWS))
+
+	bShowLayerDescr = kpaGetAllowVariousLayerSettings()
+
+	If TableInfo("CUR_LIST_OF_LAYERS_ORDER", TAB_INFO_NROWS) > 0 Then
+		Set ProgressBars Off
+		Update CUR_LIST_OF_LAYERS_ORDER
+			Set ORDER	= (ROWID * 500)
+		Set ProgressBars On
+
+		Fetch First From CUR_LIST_OF_LAYERS_ORDER
+		Do Until EOT(CUR_LIST_OF_LAYERS_ORDER)
+
+			nCount 		= nCount + 1
+			If bShowLayerDescr Then
+				arrLayers(nCount)	= CUR_LIST_OF_LAYERS_ORDER.T_DESCR & " - " & CUR_LIST_OF_LAYERS_ORDER.L_DESCR
+			Else
+				arrLayers(nCount)	= CUR_LIST_OF_LAYERS_ORDER.T_DESCR & " - " & CUR_LIST_OF_LAYERS_ORDER.T_NAME
+			End If
+			Fetch Next From CUR_LIST_OF_LAYERS_ORDER
+		Loop
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Opretter en liste med alle sorterede lag
+'**********************************************************************************************''
+Sub kplCreateListOfLayersByTable(ByVal nTableID As Integer, arrLayers() As String)
+
+Dim	nCount As Integer,
+	szDescr As String
+
+OnError GoTo ErrorOccured
+
+	If NOT kpaGetAllowVariousLayerSettings() Then
+		ReDim arrLayers(1)
+		arrLayers(1)	= MSG_DEFAULT
+		Exit Sub
+	End If
+
+	Select * From KPLAYERS
+		Where TABLEID 	= nTableID
+		Order By ORDER
+		Into CUR_LIST_OF_LAYERS_TAB NoSelect
+
+	ReDim arrLayers(TableInfo("CUR_LIST_OF_LAYERS_TAB", TAB_INFO_NROWS))
+
+	If TableInfo("CUR_LIST_OF_LAYERS_TAB", TAB_INFO_NROWS) > 0 Then
+		Fetch First From CUR_LIST_OF_LAYERS_TAB
+		Do Until EOT(CUR_LIST_OF_LAYERS_TAB)
+
+			nCount 	= nCount + 1
+			szDescr	= CUR_LIST_OF_LAYERS_TAB.DESCRIPTION
+
+			If szDescr = "" Then
+				If CUR_LIST_OF_LAYERS_TAB.LAYERID = 0 Then
+					arrLayers(nCount)	= MSG_DEFAULT
+				Else
+					arrLayers(nCount)	= MSG_UNDEFINED
+				End If
+			Else
+				arrLayers(nCount)	= szDescr
+			End If
+			Fetch Next From CUR_LIST_OF_LAYERS_TAB
+		Loop
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Opretter liste med table + lag for en given gruppering
+'**********************************************************************************************''
+Sub kplCreateListOfLayersByGroup(ByVal nGroupID As Integer, ByVal nSubGroupID As Integer, arrLayers() As String)
+
+Dim	nCount As Integer,
+	bShowLayerDescr As Logical
+
+OnError GoTo ErrorOccured
+
+	If nSubGroupID = SUBGROUPID_ALL Then
+		Select	KPTABLES.TABLEID "TABLEID", KPTABLES.DESCRIPTION "T_DESCR", KPTABLES.TABLENAME "T_NAME",
+				KPLAYERS.LAYERID "LAYERID", KPLAYERS.DESCRIPTION "L_DESCR", KPLAYERS.ORDER "ORDER"
+			From KPLAYERS, KPTABLES
+			Where KPLAYERS.TABLEID 	= KPTABLES.TABLEID
+			AND	KPLAYERS.TABLELAYERID In (Select TABLELAYERID From KPTGROUP
+									Where GROUPID	= nGroupID)
+			Order By T_DESCR, L_DESCR
+			Into CUR_LIST_OF_LAYERS_GROUP NoSelect
+	Else
+		Select	KPTABLES.TABLEID "TABLEID", KPTABLES.DESCRIPTION "T_DESCR", KPTABLES.TABLENAME "T_NAME",
+				KPLAYERS.LAYERID "LAYERID", KPLAYERS.DESCRIPTION "L_DESCR", KPLAYERS.ORDER "ORDER"
+			From KPLAYERS, KPTABLES
+			Where KPLAYERS.TABLEID 	= KPTABLES.TABLEID
+			AND	KPLAYERS.TABLELAYERID In (Select TABLELAYERID From KPTGROUP
+									Where GROUPID	= nGroupID
+									AND	SUBGROUPID	= nSubGroupID)
+			Order By T_DESCR, L_DESCR
+			Into CUR_LIST_OF_LAYERS_GROUP NoSelect
+	End If
+
+	ReDim arrLayers(TableInfo("CUR_LIST_OF_LAYERS_GROUP", TAB_INFO_NROWS))
+	bShowLayerDescr = kpaGetAllowVariousLayerSettings()
+
+	If TableInfo("CUR_LIST_OF_LAYERS_GROUP", TAB_INFO_NROWS) > 0 Then
+		Fetch First From CUR_LIST_OF_LAYERS_GROUP
+		Do Until EOT(CUR_LIST_OF_LAYERS_GROUP)
+
+			nCount 		= nCount + 1
+			If bShowLayerDescr Then
+				arrLayers(nCount)	= CUR_LIST_OF_LAYERS_GROUP.T_DESCR & " - " & CUR_LIST_OF_LAYERS_GROUP.L_DESCR
+			Else
+				arrLayers(nCount)	= CUR_LIST_OF_LAYERS_GROUP.T_DESCR & " - " & CUR_LIST_OF_LAYERS_GROUP.T_NAME
+			End If
+			Fetch Next From CUR_LIST_OF_LAYERS_GROUP
+		Loop
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Returnerer LayerID på usorteret lag udfra elementnr
+'**********************************************************************************************''
+Function kplGetLayerIDFromElementNoNoOrder(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Fetch Rec nElementNo From CUR_LIST_OF_LAYERS_NO_ORDER
+	kplGetLayerIDFromElementNoNoOrder	= CUR_LIST_OF_LAYERS_NO_ORDER.LAYERID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer TableID på usorteret lag udfra elementnr
+'**********************************************************************************************''
+Function kplGetTableIDFromElementNoNoOrder(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Fetch Rec nElementNo From CUR_LIST_OF_LAYERS_NO_ORDER
+	kplGetTableIDFromElementNoNoOrder	= CUR_LIST_OF_LAYERS_NO_ORDER.TABLEID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer LayerID på sorteret lag udfra elementnr
+'**********************************************************************************************''
+Function kplGetLayerIDFromElementNoOrder(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Fetch Rec nElementNo From CUR_LIST_OF_LAYERS_ORDER
+	kplGetLayerIDFromElementNoOrder	= CUR_LIST_OF_LAYERS_ORDER.LAYERID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer TABLEID på sorteret lag udfra elementnr
+'**********************************************************************************************''
+Function kplGetTableIDFromElementNoOrder(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Fetch Rec nElementNo From CUR_LIST_OF_LAYERS_ORDER
+	kplGetTableIDFromElementNoOrder	= CUR_LIST_OF_LAYERS_ORDER.TABLEID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer ORDER på sorteret lag udfra elementnr
+'**********************************************************************************************''
+Function kplGetLayerOrderFromElementNoOrder(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Fetch Rec nElementNo From CUR_LIST_OF_LAYERS_ORDER
+	kplGetLayerOrderFromElementNoOrder	= CUR_LIST_OF_LAYERS_ORDER.ORDER
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer LAYERID lag pr tabel udfra elementnr
+'**********************************************************************************************''
+Function kplGetLayerIDFromElementNoByTable(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	If NOT kpaGetAllowVariousLayerSettings() Then
+		kplGetLayerIDFromElementNoByTable	= 0
+	Else
+		Fetch Rec nElementNo From CUR_LIST_OF_LAYERS_TAB
+		kplGetLayerIDFromElementNoByTable	= CUR_LIST_OF_LAYERS_TAB.LAYERID
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer LAYERID for en given gruppe udfra elementnr
+'**********************************************************************************************''
+Function kplGetLayerIDFromElementNoByGroup(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	If NOT kpaGetAllowVariousLayerSettings() Then
+		kplGetLayerIDFromElementNoByGroup	= 0
+	Else
+		Fetch Rec nElementNo From CUR_LIST_OF_LAYERS_GROUP
+		kplGetLayerIDFromElementNoByGroup	= CUR_LIST_OF_LAYERS_GROUP.LAYERID
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer TABLEID for en given gruppe udfra elementnr
+'**********************************************************************************************''
+Function kplGetTableIDFromElementNoByGroup(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Fetch Rec nElementNo From CUR_LIST_OF_LAYERS_GROUP
+	kplGetTableIDFromElementNoByGroup	= CUR_LIST_OF_LAYERS_GROUP.TABLEID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Sætter lag- og labelindstillinger på tabellen navnet szTableName og tableID
+'********************************************************
+Function kplGetEntireLayerSettings(	ByVal nMID As Integer, ByVal szTableName As String,
+						ByVal nLayer As Integer,
+						ByVal nTableID As Integer, ByVal nLayerID As Integer) As Logical
+
+Dim	szCmdStr, szLayer, szLabel As String,
+	bCloseTab As Logical
+
+kplGetEntireLayerSettings = FALSE
+
+	bCloseTab = kpaOpenKPLayersTable()
+
+	If TableInfo(szTableName, TAB_INFO_TYPE) = TAB_TYPE_IMAGE Then
+		'Print "Tabel " & szTableName & " er en rastertabel!"
+	ElseIf TableInfo(szTableName, TAB_INFO_TYPE) = TAB_TYPE_WMS Then
+		'Print "Tabel " & szTableName & " er en WMS-tabel!"
+	ElseIf LayerInfo(nMID, nLayer, LAYER_INFO_TYPE) = LAYER_INFO_TYPE_GRID Then
+		'Print "Tabel " & szTableName & " er en gridtabel!"
+	Else
+		szLabel = kplGetLabelSettings$(nTableID, nLayerID, szTableName)
+		'Print "Labelopsætning: " & szLabel
+	End If
+
+	szLayer = kplGetLayerSettings$(nTableID, nLayerID, szTableName)
+
+	szCmdStr 	= "Set Map Window " & nMID
+	If nLayer = 0 Then
+		szCmdStr  = szCmdStr & lf & " Layer " & szTableName
+	Else
+		szCmdStr  = szCmdStr & lf & " Layer " & nLayer
+	End If
+	szCmdStr 	= szCmdStr	& lf & szLayer
+					& lf & szLabel
+
+	OnError GoTo ErrorOccured
+	'Print szCmdStr
+	Run Command szCmdStr
+
+	kplGetEntireLayerSettings = TRUE
+	GoTo BeforeExitTheFunction
+
+'-----------------------
+ErrorOccured:
+	Note ERR_TXT_ERRORMSG + lf + Error$()
+
+'-----------------------
+BeforeExitTheFunction:
+	If bCloseTab Then
+		Call TABClose("KPLAYERS")
+	End If
+
+End Function
+
+'**********************************************************************************************''
+'Opretter et nyt lagsetup med standardværdier
+'**********************************************************************************************''
+Sub kplCreateLayerSettingsDefault(	ByVal nTableID As Integer, ByVal nLayerID As Integer,
+						ByVal nOrder As Integer, ByVal szDescription As String)
+
+Dim	penCur As Pen,
+	brsCur As Brush,
+	fntCur As Font,
+	symCur As Symbol
+
+OnError GoTo ErrorOccured
+
+	If NOT kplLayerSettingExists(nTableID, nLayerID) Then
+		penCur 	= CurrentPen()
+		brsCur	= CurrentBrush()
+		fntCur 	= CurrentFont()
+		symCur	= CurrentSymbol()
+
+		If szDescription = "" Then
+			szDescription = MSG_DEFAULT
+		End If
+		Insert Into KPLAYERS
+			(TABLEID, LAYERID, ORDER, DESCRIPTION, TABLELAYERID)
+			Values (nTableID, nLayerID, nOrder, szDescription, nTableID & "-" & nLayerID)
+
+		Select * From KPLAYERS
+			Where TABLEID	= nTableID
+			AND	LAYERID	= nLayerID
+			Into LAYER__TO__UPDATE NoSelect
+
+		Update LAYER__TO__UPDATE
+			Set	SELECTABLE		= TRUE,
+				ZOOM			= FALSE,
+				ZOOM_MIN		= 0,		'In meters
+				ZOOM_MAX		= 100000,	'In meters
+				DISPLAY		= 1,		'0=Off, 1=Grafic, 2=Global
+				P_WIDTH		= 1,
+				P_PATTERN		= 2,
+				P_COLOR		= BLACK,
+				B_PATTERN		= 1,
+				B_FORECOLOR		= BLACK,
+				B_BACKCOLOR		= BLACK,
+				L_WIDTH		= 1,
+				L_PATTERN		= 2,
+				L_COLOR		= BLACK,
+				F_FONTNAME		= "Times",
+				F_FONTSTYLE		= 1,
+				F_SIZE		= 10,
+				F_FORECOLOR		= BLACK,
+				F_BACKCOLOR		= BLACK,
+				S_SHAPE		= 31,
+				S_COLOR		= BLACK,
+				S_SIZE		= 12,
+				S_FONTNAME		= "",
+				S_FONTSTYLE		= 0,
+				S_ROTATION		= 0,
+				S_FILENAME		= "",
+				S_CUSTOMSTYLE	= 0,
+				S_KIND		= 1,
+				LBL_POSITION	= "CC",		'LA, CA, RA, LC, CC, RC, LB, CB, RB
+				LBL_L_WIDTH		= 2,
+				LBL_L_PATTERN	= 1,
+				LBL_L_COLOR		= BLACK,
+				LBL_F_FONTNAME	= "Times",
+				LBL_F_FONTSTYLE	= 1,
+				LBL_F_SIZE		= 10,
+				LBL_F_FORECOLOR	= BLACK,
+				LBL_F_BACKCOLOR	= BLACK,
+				LBL_EXPR		= "COL1",
+				LBL_PARALLEL	= TRUE,
+				LBL_PART_SEGMENTS	= TRUE,
+				LBL_MAX		= -1,			'-1=No max
+				LBL_OFFSET		= 2
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Skriver lag- og labelindstillinger på tabellen navnet szTableName og tableID
+'********************************************************
+Sub kplSetEntireLayerSettings(ByVal nMID As Integer, ByVal szTableName As String, ByVal nLayer As Integer,
+					ByVal nTableID As Integer, ByVal nLayerID As Integer,
+					ByVal nOrder As Integer, ByVal szDescription As String)
+
+OnError GoTo ErrorOccured
+
+	'Call kplSetLabelSettings(nMID, szTableName, nTableID)
+	Call kplSetLabelSettings(nMID, szTableName, nLayer, nTableID, nLayerID, nOrder, szDescription)
+
+	'Call kplSetLayerSettings(nMID, szTableName, nTableID)
+	Call kplSetLayerSettings(nMID, szTableName, nLayer, nTableID, nLayerID, nOrder, szDescription)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter lagindstillinger på tabellen navnet szTableName og tableID
+'********************************************************
+Sub kplSetLayerSettings(ByVal nMID As Integer, ByVal szTableName As String, ByVal nLayer As Integer,
+				ByVal nTableID As Integer, ByVal nLayerID As Integer,
+				ByVal nOrder As Integer, ByVal szDescription As String)
+
+OnError GoTo ErrorOccured
+
+	If not WindowExists(nMID) Then
+		Exit Sub
+	ElseIf not TableOpen(szTablename) Then
+		Exit Sub
+	End If
+
+	Select * From KPLAYERS
+		Where TABLEID 	= nTableID
+		AND	LAYERID	= nLayerID
+		Into CURR_LAYER_SETTING NoSelect
+
+	If TableInfo("CURR_LAYER_SETTING", TAB_INFO_NROWS) = 0 Then
+		Insert Into KPLAYERS
+			(TABLEID, LAYERID, ORDER, DESCRIPTION, TABLELAYERID)
+			Values (nTableID, nLayerID, nOrder, szDescription, nTableID & "-" & nLayerID)
+
+		Select * From KPLAYERS
+			Where TABLEID	= nTableID
+			AND	LAYERID	= nLayerID
+			Into CURR_LAYER_SETTING NoSelect
+	End If
+
+	If nLayer = 0 Then
+		nLayer = MAPGetLayerID(nMID, szTableName)
+	End If
+
+	'***Reading from layer and writing to table...
+	Call kplSetSelectable(	"CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetZoom(		"CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetArrows(	"CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetCentroids(	"CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetNodes(		"CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetDisplay(	"CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetGlobalPen(	"CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetGlobalLine(	"CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetGlobalBrush(	"CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetGlobalFont(	"CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetGlobalSymbol("CURR_LAYER_SETTING", nMID, nLayer)
+
+	Call TABClose("CURR_LAYER_SETTING")
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Returner lagindstillinger på tabellen med ID nTableID
+'********************************************************
+Function kplGetLayerSettings$(ByVal nTableID As Integer, ByVal nLayerID As Integer, ByVal szTable As String) As String
+
+Dim	szCmdStr As String
+
+OnError GoTo ErrorOccured
+
+	Select * From KPLAYERS
+		Where TABLEID 	= nTableID
+		AND	LAYERID	= nLayerID
+		Into CURR_LAYER_SETTING NoSelect
+
+	If TableInfo("CURR_LAYER_SETTING", TAB_INFO_NROWS) = 1 Then
+
+		Fetch First From CURR_LAYER_SETTING
+		If TableInfo(szTable, TAB_INFO_TYPE) = TAB_TYPE_IMAGE Then
+			szCmdStr =
+				" Selectable " + kplGetSelectable$("CURR_LAYER_SETTING")
+				+ " Zoom " + kplGetZoom$("CURR_LAYER_SETTING")
+		Else
+			szCmdStr =
+				" Selectable " + kplGetSelectable$("CURR_LAYER_SETTING")
+				+ " Zoom " + kplGetZoom$("CURR_LAYER_SETTING")
+				+ " Arrows " + kplGetArrows$("CURR_LAYER_SETTING")
+				+ " Centroids " + kplGetCentroids$("CURR_LAYER_SETTING")
+				+ " Nodes " + kplGetNodes$("CURR_LAYER_SETTING")
+				+ " Display " + kplGetDisplay$("CURR_LAYER_SETTING")
+				+ " Global " + kplGetGlobalLine$("CURR_LAYER_SETTING")
+				+ " Global " + kplGetGlobalPen$("CURR_LAYER_SETTING")
+				+ " Global " + kplGetGlobalBrush("CURR_LAYER_SETTING")
+				+ " Global " + kplGetGlobalSymbol("CURR_LAYER_SETTING")
+				+ " Global " + kplGetGlobalFont("CURR_LAYER_SETTING")
+		End If
+
+		kplGetLayerSettings$ = szCmdStr
+
+		Close Table CURR_LAYER_SETTING
+	Else
+		kplGetLayerSettings$ = ""
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+
+'********************************************************
+'	Sætter labelindstillinger på tabellen navnet szTableName og tableID
+'********************************************************
+Sub kplSetLabelSettings(ByVal nMID As Integer, ByVal szTableName As String, ByVal nLayer As Integer,
+				ByVal nTableID As Integer, ByVal nLayerID As Integer,
+				ByVal nOrder As Integer, ByVal szDescription As String)
+
+OnError GoTo ErrorOccured
+
+	If not WindowExists(nMID) Then
+		Exit Sub
+	ElseIf not TableOpen(szTablename) Then
+		Exit Sub
+	End If
+
+	Select * From KPLAYERS
+		Where TABLEID 	= nTableID
+		AND	LAYERID	= nLayerID
+		Into CURR_LAYER_SETTING NoSelect
+
+	If TableInfo("CURR_LAYER_SETTING", TAB_INFO_NROWS) = 0 Then
+		Insert Into KPLAYERS
+			(TABLEID, LAYERID, ORDER, DESCRIPTION, TABLELAYERID)
+			Values (nTableID, nLayerID, nOrder, szDescription, nTableID & "-" & nLayerID)
+
+		Select * From KPLAYERS
+			Where TABLEID 	= nTableID
+			AND	LAYERID	= nLayerID
+			Into CURR_LAYER_SETTING NoSelect
+	End If
+
+	'***Reading from layer and writing to table...
+	If nLayer = 0 Then
+		nLayer = MAPGetLayerID(nMID, szTableName)
+	End If
+
+	Call kplSetLabelLine("CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetLabelPosition("CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetLabelFont("CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetLabelPen("CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetLabelExpression("CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetLabelParallel("CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetLabelVisibility("CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetLabelAuto("CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetLabelOverlap("CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetLabelDuplicates("CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetLabelPartSegements("CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetLabelMax("CURR_LAYER_SETTING", nMID, nLayer)
+	Call kplSetLabelOffset("CURR_LAYER_SETTING", nMID, nLayer)
+
+	Close Table CURR_LAYER_SETTING
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Returner labelindstillinger på tabellen med ID nTableID
+'********************************************************
+Function kplGetLabelSettings$(ByVal nTableID As Integer, ByVal nLayerID As Integer, ByVal szTable As String) As String
+
+Dim	szCmdStr As String
+
+OnError GoTo ErrorOccured
+
+	If TableInfo(szTable, TAB_INFO_TYPE) = TAB_TYPE_IMAGE Then
+		kplGetLabelSettings$ = ""
+		Exit Function
+	End If
+
+	Select * From KPLAYERS
+		Where TABLEID 	= nTableID
+		AND	LAYERID	= nLayerID
+		Into CURR_LAYER_SETTING NoSelect
+
+	If TableInfo("CURR_LAYER_SETTING", TAB_INFO_NROWS) = 1 Then
+
+		szCmdStr =
+			"Label"
+			+ " Line " + kplGetLabelLine$("CURR_LAYER_SETTING")
+			+ " Position " + kplGetLabelPosition$("CURR_LAYER_SETTING")
+			+ " " + kplGetLabelFont("CURR_LAYER_SETTING")
+			+ " " + kplGetLabelPen("CURR_LAYER_SETTING")
+			+ " With " + kplGetLabelExpression$("CURR_LAYER_SETTING", szTable)
+			+ " Parallel " + kplGetLabelParallel$("CURR_LAYER_SETTING")
+			+ " Visibility " + kplGetLabelVisibility$("CURR_LAYER_SETTING")
+			+ " Auto " + kplGetLabelAuto$("CURR_LAYER_SETTING")
+			+ " Overlap " + kplGetLabelOverlap$("CURR_LAYER_SETTING")
+			+ " Duplicates " + kplGetLabelDuplicates$("CURR_LAYER_SETTING")
+			+ " PartialSegments " + kplGetLabelPartSegments$("CURR_LAYER_SETTING")
+			+ " Max " + kplGetLabelMax$("CURR_LAYER_SETTING")
+			+ " Offset " + kplGetLabelOffset("CURR_LAYER_SETTING")
+
+		kplGetLabelSettings$ = szCmdStr
+
+		Close Table CURR_LAYER_SETTING
+		'Print "Layer setup found: " & szTable & ", " & nTableID & ", " & nLayerID
+		'		& lf & szCmdStr
+	Else
+		Print "Layer setup not found: " & szTable & ", " & nTableID & ", " & nLayerID
+		kplGetLabelSettings$ = ""
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Fjerner et eksisterende lagopsætning
+'**********************************************************************************************''
+Function kplRemoveLayerSetting(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+kplRemoveLayerSetting = RESULT_LAYER_SETUP_NOT_ERASED
+
+	If nLayerID = VAL_LAYERID_ALL_BY_TAB Then
+		Select * From KPLAYERS
+			Where TABLEID	= nTableID
+			Into LAYER_SETUP_DELETE NoSelect
+	Else
+		Select * From KPLAYERS
+			Where TABLEID	= nTableID
+			AND	LAYERID	= nLayerID
+			Into LAYER_SETUP_DELETE NoSelect
+	End If
+
+	If GetNumRows("LAYER_SETUP_DELETE") > 0 Then
+		Delete From LAYER_SETUP_DELETE
+
+		kplRemoveLayerSetting = RESULT_LAYER_SETUP_ERASED
+	Else
+		kplRemoveLayerSetting = RESULT_LAYER_SETUP_DIDNOT_EXIST
+	End If
+
+	Call TABClose("LAYER_SETUP_DELETE")
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Fjerner et lagvisning og referencer til dette
+'**********************************************************************************************''
+Function kplRemoveLayerSettingRef(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Logical
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+kplRemoveLayerSettingRef = FALSE
+
+	If kpgRemoveGroupSetupByTable(nTableID, nLayerID) = RESULT_GROUP_SETUP_ERASED Then
+		'**Existing groups were delete
+	End If
+
+	If kpdRemoveDisplayByTable(nTableID, nLayerID) = RESULT_DISPLAY_SETUP_ERASED Then
+		'**Relations to KPTDISPLAY removed
+	End If
+
+	If kplRemoveLayerSetting(nTableID, nLayerID) = RESULT_LAYER_SETUP_ERASED Then
+		'**Layersetting removed
+	End If
+
+kplRemoveLayerSettingRef = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'*******************  L A Y E R   I N F O R M A T I O N ***************************************************
+'**********************************************************************************************''
+'Finder LayerID udfra et givent lag i et kortvindue
+'**********************************************************************************************''
+Function kplGetLayerIDFromLayerSetting(	ByVal nTableID As Integer,
+							ByVal nMID As Integer, ByVal nLayerNum As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+kplGetLayerIDFromLayerSetting = 0
+
+	If NOT kpaGetAllowVariousLayerSettings() Then
+		Exit Function
+	ElseIf NOT kptGetTableAllowVariousLayerSetting(nTableID) Then
+		Exit Function
+	End If
+
+	'******
+	'Here there should be a test that found the best fitting layer setting for the given layer
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'**********************************************************************************************''
+'Returnerer beskrivelse på givent lag (TABLEID + LAYERID)
+'**********************************************************************************************''
+Function kplGetDescription$(ByVal nTableID As Integer, ByVal nLayerID As Integer) As String
+
+OnError GoTo ErrorOccured
+
+	If nLayerID = VAL_LAYERID_ALL_BY_TAB Then
+		kplGetDescription$	= "Alle lag"
+		Exit Function
+	End If
+
+	Select * From KPLAYERS
+		Where TABLEID	= nTableID
+		AND	LAYERID	= nLayerID
+		Into LAYER__TO__READ NoSelect
+
+	Do Case GetNumRows("LAYER__TO__READ")
+		Case 0
+			Print "Dette lag er ikke registreret: TabelID: " & nTableID & " LagID: " & nLayerID
+			kplGetDescription$ = MSG_NONE_GIVEN
+		Case 1
+			kplGetDescription$ = LAYER__TO__READ.DESCRIPTION
+		Case Else
+			Print "Dette lag er registreret flere gange: TabelID: " & nTableID & " LagID: " & nLayerID
+			kplGetDescription$ = ""
+	End Case
+
+	Call TABClose("LAYER__TO__READ")
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer rækkefølge på givent lag (TABLEID + LAYERID)
+'**********************************************************************************************''
+Function kplGetOrder(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Integer
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPLayersTable()
+
+	Select * From KPLAYERS
+	'	Where TABLEID	= nTableID
+	'	AND	LAYERID	= nLayerID
+		Where	TABLELAYERID	= nTableID & "-" & nLayerID
+		Into LAYER__TO__READ NoSelect
+
+	Do Case GetNumRows("LAYER__TO__READ")
+		Case 0
+			Print "Dette lag er ikke registreret: TabelID: " & nTableID & " LagID: " & nLayerID
+			kplGetOrder = VAL_LAYER_UNSORTED
+		Case 1
+			kplGetOrder = LAYER__TO__READ.ORDER
+		Case Else
+			Print "Dette lag er registreret flere gange: TabelID: " & nTableID & " LagID: " & nLayerID
+			kplGetOrder = VAL_LAYER_UNSORTED
+	End Case
+
+	If bCloseTab Then
+		Call TABClose("KPLAYERS")
+	Else
+		Call TABClose("LAYER__TO__READ")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer antal lag til en given tabel(TABLEID)
+'**********************************************************************************************''
+Function kplGetNumLayers(ByVal nTableID As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPLAYERS
+		Where TABLEID	= nTableID
+		Into LAYER__TO__COUNT NoSelect
+
+	kplGetNumLayers	= GetNumRows("LAYER__TO__COUNT")
+
+	Call TABClose("LAYER__TO__COUNT")
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer største LAYERID til en given tabel(TABLEID)
+'**********************************************************************************************''
+Function kplGetMaxLayerID(ByVal nTableID As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Select Max(LAYERID) "MAX_VAL" From KPLAYERS
+		Where TABLEID	= nTableID
+		Into LAYER__TO__COUNT NoSelect
+
+	kplGetMaxLayerID	= LAYER__TO__COUNT.MAX_VAL
+
+	Call TABClose("LAYER__TO__COUNT")
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer næste ledige LAYERID til en given tabel(TABLEID)
+'**********************************************************************************************''
+Function kplGetNextLayerID(ByVal nTableID As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	kplGetNextLayerID	= kplGetMaxLayerID(nTableID) + 1
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer mindste ORDER
+'**********************************************************************************************''
+Function kplGetMinOrder() As Integer
+
+OnError GoTo ErrorOccured
+
+	Select Min(ORDER) "MIN_VAL" From KPLAYERS
+		Into LAYER__TO__COUNT NoSelect
+
+	kplGetMinOrder	= LAYER__TO__COUNT.MIN_VAL
+
+	Call TABClose("LAYER__TO__COUNT")
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+' Sætter beskrivelse for et given lag (TableID + LayerID)
+'**********************************************************************************************''
+Sub kplSetDescription(ByVal nTableID As Integer, ByVal nLayerID As Integer, ByVal szDescr As String)
+
+OnError GoTo ErrorOccured
+
+	Select * From KPLAYERS
+		Where TABLEID	= nTableID
+		AND	LAYERID	= nLayerID
+		Into LAYER__TO__UPDATE NoSelect
+
+	Do Case GetNumRows("LAYER__TO__UPDATE")
+		Case 0
+			Print "Dette lag er ikke registreret: TabelID: " & nTableID & " LagID: " & nLayerID
+		Case 1
+			Update LAYER__TO__UPDATE
+				Set DESCRIPTION	= szDescr
+		Case Else
+			Print "Dette lag er registreret flere gange: TabelID: " & nTableID & " LagID: " & nLayerID
+	End Case
+
+	Call TABClose("LAYER__TO__UPDATE")
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Sætter Rækkefølge for et given lag (TableID + LayerID)
+'**********************************************************************************************''
+Sub kplSetOrder(ByVal nTableID As Integer, ByVal nLayerID As Integer, ByVal nOrder As Integer)
+
+OnError GoTo ErrorOccured
+
+	Select * From KPLAYERS
+		Where TABLEID	= nTableID
+		AND	LAYERID	= nLayerID
+		Into LAYER__TO__UPDATE NoSelect
+
+	Do Case GetNumRows("LAYER__TO__UPDATE")
+		Case 0
+			Print "Dette lag er ikke registreret: TabelID: " & nTableID & " LagID: " & nLayerID
+		Case 1
+			Update LAYER__TO__UPDATE
+				Set ORDER	= nOrder
+		Case Else
+			Print "Dette lag er registreret flere gange: TabelID: " & nTableID & " LagID: " & nLayerID
+	End Case
+
+	Call TABClose("LAYER__TO__UPDATE")
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Undersøger om et givent LayerSetting findes
+'**********************************************************************************************''
+Function kplLayerSettingExists(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Logical
+
+OnError GoTo ErrorOccured
+
+kplLayerSettingExists = FALSE
+
+	Select * From KPLAYERS
+		Where TABLEID	= nTableID
+		AND	LayerID	= nLayerID
+		Into CHECKING__EXISTENCE NoSelect
+
+	If GetNumRows("CHECKING__EXISTENCE") > 0 Then
+		kplLayerSettingExists = TRUE
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'*******************  L A Y E R   S E T T I N G S ****************************************************************
+'********************************************************
+'	Returner om laget er valgbart
+'********************************************************
+Function kplGetSelectable$(ByVal szTab As String) As String
+
+Dim	a As Alias
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".SELECTABLE"
+	If a Then
+		kplGetSelectable$ = "On"
+	Else
+		kplGetSelectable$ = "Off"
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner zoomniveau
+'********************************************************
+Function kplGetZoom$(ByVal szTab As String) As String
+
+Dim	a, b, c As Alias
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".ZOOM"
+	b = szTab + ".ZOOM_MIN"
+	c = szTab + ".ZOOM_MAX"
+
+	If a Then
+		kplGetZoom$ = "(" + b + ", " + c + ") Units " + eye + "m" + eye + " On"
+	Else
+		kplGetZoom$ = "(" + b + ", " + c + ") Units " + eye + "m" + eye + " Off"
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner om linieretning skal vises
+'********************************************************
+Function kplGetArrows$(ByVal szTab As String) As String
+
+Dim	a As Alias
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".ARROWS"
+	If a Then
+		kplGetArrows$ = "On"
+	Else
+		kplGetArrows$ = "Off"
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner om centroid skal vises
+'********************************************************
+Function kplGetCentroids$(ByVal szTab As String) As String
+
+Dim	a As Alias
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".CENTROIDS"
+	If a Then
+		kplGetCentroids$ = "On"
+	Else
+		kplGetCentroids$ = "Off"
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner om knudepunkter skal vises
+'********************************************************
+Function kplGetNodes$(ByVal szTab As String) As String
+
+Dim	a As Alias
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".NODES"
+	If a Then
+		kplGetNodes$ = "On"
+	Else
+		kplGetNodes$ = "Off"
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner visningen
+'********************************************************
+Function kplGetDisplay$(ByVal szTab As String) As String
+
+Dim	a As Alias
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".DISPLAY"
+	Do Case a
+		Case 0
+			kplGetDisplay$ = "Off"
+		Case 1
+			kplGetDisplay$ = "Graphic"
+		Case 2
+			kplGetDisplay$ = "Global"
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner stilart for global linien
+'********************************************************
+Function kplGetGlobalLine(ByVal szTab As String) As Pen
+
+Dim	a, b, c As Alias
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".L_WIDTH"
+	b = szTab + ".L_PATTERN"
+	c = szTab + ".L_COLOR"
+	kplGetGlobalLine = MakePen(a, b, c)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner stilart for global linien
+'********************************************************
+Function kplGetGlobalLine$(ByVal szTab As String) As String
+
+Dim	a, b, c As Alias
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".L_WIDTH"
+	b = szTab + ".L_PATTERN"
+	c = szTab + ".L_COLOR"
+	kplGetGlobalLine$ = "Line (" & a & ", " & b & ", " & c & ")"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner stilart for global fladeafgrænsning
+'********************************************************
+Function kplGetGlobalPen(ByVal szTab As String) As Pen
+
+Dim	a, b, c As Alias
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".P_WIDTH"
+	b = szTab + ".P_PATTERN"
+	c = szTab + ".P_COLOR"
+	kplGetGlobalPen = MakePen(a, b, c)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner stilart for global fladeafgrænsning
+'********************************************************
+Function kplGetGlobalPen$(ByVal szTab As String) As String
+
+Dim	a, b, c As Alias
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".P_WIDTH"
+	b = szTab + ".P_PATTERN"
+	c = szTab + ".P_COLOR"
+	kplGetGlobalPen$ = "Pen (" & a & ", " & b & ", " & c & ")"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner stilart for global fladeudfyldning
+'********************************************************
+Function kplGetGlobalBrush(ByVal szTab As String) As Brush
+
+Dim	a, b, c As Alias
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".B_PATTERN"
+	b = szTab + ".B_FORECOLOR"
+	c = szTab + ".B_BACKCOLOR"
+	kplGetGlobalBrush = MakeBrush(a, b, c)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner stilart for global tekst
+'********************************************************
+Function kplGetGlobalFont(ByVal szTab As String) As Font
+
+Dim	a, b, c, d, e As Alias
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".F_FONTNAME"
+	b = szTab + ".F_FONTSTYLE"
+	c = szTab + ".F_SIZE"
+	d = szTab + ".F_FORECOLOR"
+	e = szTab + ".F_BACKCOLOR"
+
+	kplGetGlobalFont = MakeFont(a,b,c,d,e)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner stilart for global symbol
+'********************************************************
+Function kplGetGlobalSymbol(ByVal szTab As String) As Symbol
+
+Dim	a, b, c, d, e, f, g As Alias
+
+OnError GoTo ErrorOccured
+
+	g = szTab + ".S_KIND"
+	Do Case g
+	   Case 1			'MapInfo 3.0 symbol
+		a = szTab + ".S_SHAPE"
+		b = szTab + ".S_COLOR"
+		c = szTab + ".S_SIZE"
+
+		kplGetGlobalSymbol = MakeSymbol(a,b,c)
+
+	   Case 2			'TrueType symbol
+		a = szTab + ".S_SHAPE"
+		b = szTab + ".S_COLOR"
+		c = szTab + ".S_SIZE"
+		d = szTab + ".S_FONTNAME"
+		e = szTab + ".S_FONTSTYLE"
+		f = szTab + ".S_ROTATION"
+
+		kplGetGlobalSymbol = MakeFontSymbol(a,b,c,d,e,f)
+
+	   Case 3			'Bitmap file symbol
+		a = szTab + ".S_FILENAME"
+		b = szTab + ".S_COLOR"
+		c = szTab + ".S_SIZE"
+		d = szTab + ".S_CUSTOMSTYLE"
+
+		kplGetGlobalSymbol = MakeCustomSymbol(a,b,c,d)
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Sætter valgbarhed til/fra
+'********************************************************
+Sub kplSetSelectable(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+OnError GoTo ErrorOccured
+
+	Update szTab
+		Set SELECTABLE	= LayerInfo(nMID, nLayer, LAYER_INFO_SELECTABLE)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter zoomniveau
+'********************************************************
+Sub kplSetZoom(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+OnError GoTo ErrorOccured
+
+	Set Distance Units "m"
+
+	If LayerInfo(nMID, nLayer, LAYER_INFO_ZOOM_LAYERED) Then
+		Update szTab
+			Set 	ZOOM		= TRUE,
+				ZOOM_MIN	= LayerInfo(nMID, nLayer, LAYER_INFO_ZOOM_MIN),
+				ZOOM_MAX	= LayerInfo(nMID, nLayer, LAYER_INFO_ZOOM_MAX)
+	Else
+		Update szTab
+			Set 	ZOOM		= FALSE
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter linieretning skal vises
+'********************************************************
+Sub kplSetArrows(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+OnError GoTo ErrorOccured
+
+	Update szTab
+		Set ARROWS = LayerInfo(nMID, nLayer, LAYER_INFO_ARROWS)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter centroid skal vises
+'********************************************************
+Sub kplSetCentroids(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+OnError GoTo ErrorOccured
+
+	Update szTab
+		Set CENTROIDS = LayerInfo(nMID, nLayer, LAYER_INFO_CENTROIDS)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter om knudepunkter skal vises
+'********************************************************
+Sub kplSetNodes(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+OnError GoTo ErrorOccured
+
+	Update szTab
+		Set NODES = LayerInfo(nMID, nLayer, LAYER_INFO_NODES)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter værdi for visning (global eller det enkelte objekt)
+'********************************************************
+Sub kplSetDisplay(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+Dim	nValue As Integer
+
+OnError GoTo ErrorOccured
+
+	Do Case LayerInfo(nMID, nLayer, LAYER_INFO_DISPLAY)
+		Case LAYER_INFO_DISPLAY_OFF		'(the layer is not displayed)
+			nValue = 0
+		Case LAYER_INFO_DISPLAY_GRAPHIC	'(objects in this layer appear in their "default" style-the style saved in the table)
+			nValue = 1
+		Case LAYER_INFO_DISPLAY_GLOBAL	'(objects in this layer are displayed with a "style override" specified in Layer Control)
+			nValue = 2
+	End Case
+
+	Update szTab
+		Set DISPLAY	= nValue
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter stilart for det globale liniestilart
+'********************************************************
+Sub kplSetGlobalLine(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+Dim	penGLayer As Pen
+
+OnError GoTo ErrorOccured
+
+	penGLayer = LayerInfo(nMID, nLayer, LAYER_INFO_OVR_LINE)
+
+	Update szTab
+		Set	L_WIDTH	= StyleAttr(penGLayer, PEN_WIDTH),
+			L_PATTERN	= StyleAttr(penGLayer, PEN_PATTERN),
+			L_COLOR	= StyleAttr(penGLayer, PEN_COLOR)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter stilart for det globale fladeafgrænsning
+'********************************************************
+Sub kplSetGlobalPen(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+Dim	penGLayer As Pen
+
+OnError GoTo ErrorOccured
+
+	penGLayer = LayerInfo(nMID, nLayer, LAYER_INFO_OVR_PEN)
+
+	Update szTab
+		Set	P_WIDTH	= StyleAttr(penGLayer, PEN_WIDTH),
+			P_PATTERN	= StyleAttr(penGLayer, PEN_PATTERN),
+			P_COLOR	= StyleAttr(penGLayer, PEN_COLOR)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter stilart for det globale fladeudfyldning
+'********************************************************
+Sub kplSetGlobalBrush(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+Dim	brsGLayer As Brush
+
+OnError GoTo ErrorOccured
+
+	brsGLayer = LayerInfo(nMID, nLayer, LAYER_INFO_OVR_BRUSH)
+
+	Update szTab
+		Set	B_PATTERN	= StyleAttr(brsGLayer, BRUSH_PATTERN),
+			B_FORECOLOR	= StyleAttr(brsGLayer, BRUSH_FORECOLOR),
+			B_BACKCOLOR	= StyleAttr(brsGLayer, BRUSH_BACKCOLOR)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter stilart for det globale tekststil
+'********************************************************
+Sub kplSetGlobalFont(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+Dim	fntGLayer As Font
+
+OnError GoTo ErrorOccured
+
+	fntGLayer = LayerInfo(nMID, nLayer, LAYER_INFO_OVR_FONT)
+
+	Update szTab
+		Set 	F_FONTNAME	= StyleAttr(fntGLayer, FONT_NAME),
+			F_FONTSTYLE	= StyleAttr(fntGLayer, FONT_STYLE),
+			F_SIZE	= StyleAttr(fntGLayer, FONT_POINTSIZE),
+			F_FORECOLOR	= StyleAttr(fntGLayer, FONT_FORECOLOR),
+			F_BACKCOLOR	= StyleAttr(fntGLayer, FONT_BACKCOLOR)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter stilart for det globale symbol
+'********************************************************
+Sub kplSetGlobalSymbol(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+Dim	symGLayer As Symbol
+
+OnError GoTo ErrorOccured
+
+	symGLayer = LayerInfo(nMID, nLayer, LAYER_INFO_OVR_SYMBOL)
+
+	Do Case StyleAttr(symGLayer, SYMBOL_KIND)
+
+		Case 1			'MapInfo 3.0 symbol
+			Update szTab
+			   Set	S_SHAPE		= StyleAttr(symGLayer, SYMBOL_CODE),
+					S_COLOR		= StyleAttr(symGLayer, SYMBOL_COLOR),
+					S_SIZE		= StyleAttr(symGLayer, SYMBOL_POINTSIZE),
+					S_KIND		= StyleAttr(symGLayer, SYMBOL_KIND)
+
+		Case 2			'TrueType symbol
+			Update szTab
+			   Set	S_SHAPE		= StyleAttr(symGLayer, SYMBOL_CODE),
+					S_COLOR		= StyleAttr(symGLayer, SYMBOL_COLOR),
+					S_SIZE		= StyleAttr(symGLayer, SYMBOL_POINTSIZE),
+					S_FONTNAME		= StyleAttr(symGLayer, SYMBOL_FONT_NAME),
+					S_FONTSTYLE		= StyleAttr(symGLayer, SYMBOL_FONT_STYLE),
+					S_ROTATION		= StyleAttr(symGLayer, SYMBOL_ANGLE),
+					S_KIND		= StyleAttr(symGLayer, SYMBOL_KIND)
+
+		Case 3			'Bitmap file symbol
+			Update szTab
+			   Set	S_FILENAME		= StyleAttr(symGLayer, SYMBOL_CUSTOM_NAME),
+					S_COLOR		= StyleAttr(symGLayer, SYMBOL_COLOR),
+					S_SIZE		= StyleAttr(symGLayer, SYMBOL_POINTSIZE),
+					S_CUSTOMSTYLE	= StyleAttr(symGLayer, SYMBOL_CUSTOM_STYLE),
+					S_KIND		= StyleAttr(symGLayer, SYMBOL_KIND)
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'*******************  L A B E L S ****************************************************************
+'********************************************************
+'	Returner Linieindstilling for label
+'********************************************************
+Function kplGetLabelLine$(ByVal szTab As String) As String
+
+Dim	a As Alias,
+	nValue As Integer
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".LBL_LINE"
+	nValue = a
+
+	Do Case nValue
+		Case 0
+			kplGetLabelLine$ = "None"
+		Case 1
+			kplGetLabelLine$ = "Simple"
+		Case 2
+			kplGetLabelLine$ = "Arrow"
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner position for label
+'********************************************************
+Function kplGetLabelPosition$(ByVal szTab As String) As String
+
+Dim	a As Alias,
+	szValue As String
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".LBL_POSITION"
+	szValue = a
+
+	Do Case szValue
+		Case "LA", "AL"
+			kplGetLabelPosition$ = "Above Left"
+		Case "CA", "AC"
+			kplGetLabelPosition$ = "Center Above"
+		Case "RA", "AR"
+			kplGetLabelPosition$ = "Above Right"
+		Case "LC", "CL"
+			kplGetLabelPosition$ = "Center Left"
+		Case "CC", "C"
+			kplGetLabelPosition$ = "Center"
+		Case "RC", "CR"
+			kplGetLabelPosition$ = "Center Right"
+		Case "LB", "BL"
+			kplGetLabelPosition$ = "Below Left"
+		Case "CB", "BC"
+			kplGetLabelPosition$ = "Center Below"
+		Case "RB", "BR"
+			kplGetLabelPosition$ = "Below Right"
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner label tekststilarten
+'********************************************************
+Function kplGetLabelFont(ByVal szTab As String) As Font
+
+
+Dim	a, b, c, d, e As Alias
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".LBL_F_FONTNAME"
+	b = szTab + ".LBL_F_FONTSTYLE"
+	c = szTab + ".LBL_F_SIZE"
+	d = szTab + ".LBL_F_FORECOLOR"
+	e = szTab + ".LBL_F_BACKCOLOR"
+
+	kplGetLabelFont = MakeFont(a, b, c, d, e)
+
+	Exit Function
+'--------------------
+ErrorOccured:
+	kplGetLabelFont = STYLE_PRE_FONT
+
+End Function
+
+'********************************************************
+'	Returner stilart på linie fra objekt til label
+'********************************************************
+Function kplGetLabelPen(ByVal szTab As String) As Pen
+
+Dim	a, b, c As Alias
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".LBL_L_WIDTH"
+	b = szTab + ".LBL_L_PATTERN"
+	c = szTab + ".LBL_L_COLOR"
+
+	kplGetLabelPen = MakePen(a, b, c)
+
+	Exit Function
+'--------------------
+ErrorOccured:
+	kplGetLabelPen = STYLE_PRE_PEN
+
+End Function
+
+'********************************************************
+'	Returner label værdien som udtryk
+'********************************************************
+Function kplGetLabelExpression$(ByVal szTab As String, ByVal szLayer As String) As String
+
+Dim	a As Alias,
+	szValue As String
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".LBL_EXPR"
+	szValue = a
+	If szValue = "" Then
+		kplGetLabelExpression$ = ColumnInfo(szLayer, "COL1", COL_INFO_NAME)
+	Else
+		kplGetLabelExpression$ = szValue
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner om label skal følge linier
+'********************************************************
+Function kplGetLabelParallel$(ByVal szTab As String) As String
+
+Dim	a As Alias,
+	bOn As Logical
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".LBL_PARALLEL"
+	bOn = a
+	If bOn Then
+		kplGetLabelParallel$ = "On"
+	Else
+		kplGetLabelParallel$ = "Off"
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner synlighed
+'********************************************************
+Function kplGetLabelVisibility$(ByVal szTab As String) As String
+
+Dim	a, b, c As Alias,
+	nValue As Integer
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".LBL_VISIBILITY"
+	nValue = a
+	Do Case nValue
+		Case 0
+			kplGetLabelVisibility$ = "Off"
+		Case 1
+			kplGetLabelVisibility$ = "On"
+		Case 2
+			b = szTab + ".LBL_ZOOM_MIN"
+			c = szTab + ".LBL_ZOOM_MAX"
+			kplGetLabelVisibility$ = "Zoom (" + b + ", " + c + ") Units " + eye + "m" + eye
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner der skal foretages automatisk label påsætning
+'********************************************************
+Function kplGetLabelAuto$(ByVal szTab As String) As String
+
+Dim	a As Alias,
+	bOn As Logical
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".LBL_AUTO"
+	'bOn = a
+	If a Then
+		kplGetLabelAuto$ = "On"
+	Else
+		kplGetLabelAuto$ = "Off"
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner Overlap skal slåes til eller fra
+'********************************************************
+Function kplGetLabelOverlap$(ByVal szTab As String) As String
+
+Dim	a As Alias,
+	bOn As Logical
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".LBL_OVERLAP"
+	bOn = a
+	If bOn Then
+		kplGetLabelOverlap$ = "On"
+	Else
+		kplGetLabelOverlap$ = "Off"
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner Om duplicates skal slåes til eller fra
+'********************************************************
+Function kplGetLabelDuplicates$(ByVal szTab As String) As String
+
+Dim	a As Alias,
+	bOn As Logical
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".LBL_DUPLICATES"
+	bOn = a
+	If bOn Then
+		kplGetLabelDuplicates$ = "On"
+	Else
+		kplGetLabelDuplicates$ = "Off"
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner Om duplicates skal slåes til eller fra
+'********************************************************
+Function kplGetLabelPartSegments$(ByVal szTab As String) As String
+
+Dim	a As Alias,
+	bOn As Logical
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".LBL_PART_SEGMENTS"
+	bOn = a
+	If bOn Then
+		kplGetLabelPartSegments$ = "On"
+	Else
+		kplGetLabelPartSegments$ = "Off"
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner det maximale antal labels
+'********************************************************
+Function kplGetLabelMax$(ByVal szTab As String) As String
+
+Dim	a As Alias,
+	nValue As Integer
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".LBL_MAX"
+	nValue = a
+	If nValue = -1 Then
+		kplGetLabelMax$ = ""
+	Else
+		kplGetLabelMax$ = Str$(nValue)
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner Offset-værdien
+'********************************************************
+Function kplGetLabelOffset(ByVal szTab As String) As Integer
+
+Dim	a As Alias
+
+OnError GoTo ErrorOccured
+
+	a = szTab + ".LBL_OFFSET"
+	kplGetLabelOffset = a
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Sætter værdien for selv "udstikkeren"
+'********************************************************
+Sub kplSetLabelLine(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+Dim	nValue As Integer
+
+OnError GoTo ErrorOccured
+
+	Do Case LayerInfo(nMID, nLayer, LAYER_INFO_LBL_LT)
+		Case LAYER_INFO_LBL_LT_NONE		'(no line)
+			nValue = 0
+		Case LAYER_INFO_LBL_LT_SIMPLE		'(simple line)
+			nValue = 1
+		Case LAYER_INFO_LBL_LT_ARROW		'(arrow)
+			nValue = 2
+	End Case
+
+	Update szTab
+		Set LBL_LINE = nValue
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter positionen
+'********************************************************
+Sub kplSetLabelPosition(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+Dim	szValue As String
+
+OnError GoTo ErrorOccured
+
+	Do Case LayerInfo(nMID, nLayer, LAYER_INFO_LBL_POS)
+		Case LAYER_INFO_LBL_POS_TL
+			szValue = "AL"
+		Case LAYER_INFO_LBL_POS_TC
+			szValue = "CA"
+		Case LAYER_INFO_LBL_POS_TR
+			szValue = "AR"
+		Case LAYER_INFO_LBL_POS_CL
+			szValue = "CL"
+		Case LAYER_INFO_LBL_POS_CC
+			szValue = "CC"
+		Case LAYER_INFO_LBL_POS_CR
+			szValue = "CR"
+		Case LAYER_INFO_LBL_POS_BL
+			szValue = "BL"
+		Case LAYER_INFO_LBL_POS_BC
+			szValue = "CB"
+		Case LAYER_INFO_LBL_POS_BR
+			szValue = "BR"
+	End Case
+
+	Update szTab
+		Set LBL_POSITION = szValue
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter fonten på label
+'********************************************************
+Sub kplSetLabelFont(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+Dim	fntLabel As Font
+
+OnError GoTo ErrorOccured
+
+	fntLabel	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_FONT)
+
+	Update szTab
+		Set	LBL_F_FONTNAME	= StyleAttr(fntLabel, FONT_NAME),
+			LBL_F_FONTSTYLE	= StyleAttr(fntLabel, FONT_STYLE),
+			LBL_F_SIZE		= StyleAttr(fntLabel, FONT_POINTSIZE),
+			LBL_F_FORECOLOR	= StyleAttr(fntLabel, FONT_FORECOLOR),
+			LBL_F_BACKCOLOR	= StyleAttr(fntLabel, FONT_BACKCOLOR)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter stilarten for liinien mellem objekt og label
+'********************************************************
+Sub kplSetLabelPen(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+OnError GoTo ErrorOccured
+
+	Update szTab
+		Set	LBL_L_WIDTH		= 1,
+			LBL_L_PATTERN	= 2,
+			LBL_L_COLOR		= 0
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter udtrykket
+'********************************************************
+Sub kplSetLabelExpression(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+OnError GoTo ErrorOccured
+
+'	If LayerInfo(nMID, nLayer, LAYER_INFO_LBL_AUTODISPLAY) Then
+		Update szTab
+			Set LBL_EXPR	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_EXPR)
+'	Else
+'		Update szTab
+'			Set LBL_EXPR	= ""
+'	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter værdi for parallel
+'********************************************************
+Sub kplSetLabelParallel(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+OnError GoTo ErrorOccured
+
+	Update szTab
+		Set	LBL_PARALLEL	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_PARALLEL)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter værdi for synlighed
+'********************************************************
+Sub kplSetLabelVisibility(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+OnError GoTo ErrorOccured
+
+	Do Case LayerInfo(nMID, nLayer, LAYER_INFO_LBL_VISIBILITY)
+		Case LAYER_INFO_LBL_VIS_ON		'(labels always visible)
+			Update SzTab
+				Set LBL_VISIBILITY	= 1
+		Case LAYER_INFO_LBL_VIS_OFF		'(labels never visible)
+			Update SzTab
+				Set LBL_VISIBILITY	= 0
+		Case LAYER_INFO_LBL_VIS_ZOOM 		'(labels visible in certain zoom)
+			Set Distance Units "m"
+			Update SzTab
+				Set 	LBL_VISIBILITY	= 2,
+					LBL_ZOOM_MIN	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_ZOOM_MIN),
+					LBL_ZOOM_MAX	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_ZOOM_MAX)
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter værid for autolabels
+'********************************************************
+Sub kplSetLabelAuto(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+OnError GoTo ErrorOccured
+
+	Update szTab
+		Set	LBL_AUTO	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_AUTODISPLAY)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter værdi for overlap
+'********************************************************
+Sub kplSetLabelOverlap(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+OnError GoTo ErrorOccured
+
+	Update szTab
+		Set	LBL_OVERLAP	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_OVERLAP)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter værdien for duplicates
+'********************************************************
+Sub kplSetLabelDuplicates(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+OnError GoTo ErrorOccured
+
+	Update szTab
+		Set	LBL_DUPLICATES	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_DUPLICATES)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter værdien for duplicates
+'********************************************************
+Sub kplSetLabelPartSegements(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+OnError GoTo ErrorOccured
+
+	Update szTab
+		Set	LBL_PART_SEGMENTS	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_PARTIALSEGS)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter maximale antal labels
+'********************************************************
+Sub kplSetLabelMax(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+Dim	nValue As Integer
+
+OnError GoTo ErrorOccured
+
+	nValue = LayerInfo(nMID, nLayer, LAYER_INFO_LBL_MAX)
+
+	If nValue = 2147483647 Then
+		nValue = -1
+	End If
+
+	Update szTab
+		Set LBL_MAX	= nValue
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter værdien for offset
+'********************************************************
+Sub kplSetLabelOffset(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+OnError GoTo ErrorOccured
+
+	Update szTab
+		Set	LBL_OFFSET	= LayerInfo(nMID, nLayer, LAYER_INFO_LBL_OFFSET)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+

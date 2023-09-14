@@ -1,0 +1,4 @@
+[Link]
+Application=TEST_API.mbx
+Module=TEST_API.MBO
+Module=APIfunc.MBO

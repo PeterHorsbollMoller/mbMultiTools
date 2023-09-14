@@ -1,0 +1,172 @@
+'****************************************************
+'**       Program: Find&Replace TIL MAPINFO 4.0 DK
+'**		Modul: PeplChar
+'****************************************************
+Include "MAPBASIC.DEF"
+
+Include "ReplChar.def"
+
+Include "..\..\Language\Kommune.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\Message.lng"
+
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\ArrayFunc\ArrayFunc.def"
+
+Dim	marrTab(0), marrCol(0), mszTabName, mszColName As String,
+	mszOldChars, mszNewChars As String,
+	mnNumRecs As Integer,
+	maRowID, maColName As Alias
+
+'****************************************
+'Dialog til Søg og Erstat
+'****************************************
+Sub FindAndReplaceDialog
+
+OnError GoTo ErrorOccured
+
+	If mszOldChars = "" Then
+		mszOldChars = "&"  
+	End If
+
+	If mszNewChars = "" Then
+		mszNewChars = "&&"  
+	End If
+
+	ReDim marrTab(0)
+	ReDim marrCol(0)
+
+	If not CreateArrayTables(marrTab, TRUE, FALSE, FALSE, FALSE, FALSE) Then
+		Note ERR_TAB_NO_OPEN
+		Exit Sub
+	End If
+
+	Dialog
+		Title KPAK_DLG_TITLE_SEARCH_REPLACE
+		Calling ReplaceDialogCheck
+
+		Control StaticText	Position 10,10
+			Title MSG_TAB_TABLE
+		Control PopUpMenu		Position 10,20	Width 80 	ID 1
+			Title From Variable marrTab
+			Value ARRGetItemNoString(mszTabName, marrTab)
+			Calling ReplaceDialogCheck
+
+		Control StaticText  	Position 100,10
+			Title MSG_TXT_COLUMN
+		Control PopUpMenu		Position 100,20	Width 80	ID 2
+	
+		Control StaticText  	Position 10,52
+			Title KPAK_DLG_TXT_SEARCH_FOR
+		Control EditText    	Position 80,50	Width 100	ID 10
+			Value mszOldChars
+		Control StaticText  	Position 10,67
+			Title KPAK_DLG_TXT_REPLACE_WITH
+		Control EditText    	Position 80,65	Width 100 	ID 11
+			Value mszNewChars
+
+		Control OKButton
+			Calling ReplaceDialogCheck
+		Control CancelButton
+			Title MSG_CLOSE
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Dialog til Søg og Erstat
+'****************************************
+Sub ReplaceDialogCheck
+
+OnError GoTo ErrorOccured
+
+	If TriggerControl() = 0 Or TriggerControl() = 1 Then
+		mszTabName	= marrTab(ReadControlValue(1))
+		If mszTabName = "Selection" Then
+			mszTabName = SelectionInfo(SEL_INFO_SELNAME)
+		End If
+		If CreateArrayAllColumns(mszTabName, marrCol) Then End If
+		Alter Control 2	Title From Variable marrCol	Value ARRGetItemNoString(mszColName, marrCol)
+
+	Else  
+		mszOldChars	= ReadControlValue(10)
+		mszNewChars	= ReadControlValue(11)
+
+		mszColName	= marrCol(ReadControlValue(2))
+    		mnNumRecs	= TableInfo(mszTabName,TAB_INFO_NROWS)
+
+		maRowID	= mszTabName + ".RowID"
+		maColName	= mszTabName + "." + mszColName
+
+		Fetch First From mszTabName
+		ProgressBar KPAK_DLG_TXT_SEARCH_REPLACE_IN + mszTabName + "(" + mszColName + ")..."
+			Calling FindAndReplace_Single
+			Range mnNumRecs
+
+		If not CommandInfo(CMD_INFO_STATUS) then
+			Note KPAK_DLG_TXT_SRCH_REPLACE_ABORT
+			Exit Sub
+		End If
+		
+		Dialog Preserve
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Søg og Erstat, en ad gangen...
+'****************************************
+Sub FindAndReplace_Single
+
+Dim	szTempStr As String,
+	nStartPos, nRowID As Integer
+
+OnError GoTo ErrorOccured
+
+	nRowID	= maRowID		'table + ".ROWID"
+	szTempStr	= maColName		'table + "." + column
+	nStartPos	= InStr(1, szTempStr, mszOldChars)
+	'Print "Start position : " + nStartPos
+
+	If nStartPos = 0 Then			'If oldchars not found, check if whole word = oldchars...
+		If szTempStr = mszOldChars Then
+			szTempStr = mszNewChars
+		End If
+	Else
+		While nStartPos > 0
+
+			szTempStr = Left$(szTempStr, nStartPos - 1) 
+					& mszNewChars
+					& Mid$(szTempStr, nStartPos + Len(mszOldChars), Len(szTempStr) - nStartPos)
+
+			nStartPos = InStr(nStartPos + Len(mszNewChars), szTempStr, mszOldChars)
+		Wend
+	End If
+
+	Update mszTabName
+		Set	mszColName	= szTempStr
+		Where RowID		= nRowID
+
+	Fetch Next From mszTabName
+
+	If EOT(mszTabName) Then
+		ProgressBar = -1
+	Else
+		ProgressBar = nRowID
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

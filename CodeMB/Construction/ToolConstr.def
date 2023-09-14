@@ -1,0 +1,8 @@
+Declare Function ConstrSetupDialog() As Logical
+
+Declare Sub ConstrCreateButtonPad(ByVal szButtonPadName As String)
+
+Declare Sub ConstrShowLine
+
+Declare Sub ConstrWriteIniFile(Byval nFile As integer)
+Declare Sub ConstrReadIniFile(Byval szFile As String)

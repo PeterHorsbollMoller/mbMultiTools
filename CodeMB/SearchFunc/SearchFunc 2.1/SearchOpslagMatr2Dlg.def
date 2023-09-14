@@ -1,0 +1,8 @@
+Declare Sub srchOpslagMatrTwoTables(sbtnCur As T_SEARCHBTN)
+
+Declare Sub SRCHOpslagMatr2EnrElavMnr(sbtnCur As T_SEARCHBTN)
+Declare Sub SRCHOpslagMatr2EnrKenrElavMnr(sbtnCur As T_SEARCHBTN)
+Declare Sub SRCHOpslagMatr2KnrEnrElavMnr(sbtnCur As T_SEARCHBTN)
+Declare Sub SRCHOpslagMatr2KnrEnrKenrElavMnr(sbtnCur As T_SEARCHBTN)
+
+

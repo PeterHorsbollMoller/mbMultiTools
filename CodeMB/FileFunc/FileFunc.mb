@@ -1,0 +1,327 @@
+'********************************************************************************************************
+'**	Modul: Diverse fællesfunktioner
+'********************************************************************************************************
+
+Include "MapBasic.def"
+Include "Menu.def"
+Include "Icons.def"
+
+Include "..\Language\Message.lng"
+
+Include "..\Time\Time.def"
+Include "..\APIFunc\APIFunc.def"
+Include "..\IniUtil\IniUtil.def"
+Include "..\MIUtil\MTU.def"
+
+Include "FileFunc.def"
+
+'******************************************************************************************
+'	Returner navn på ønsket mappe...
+'******************************************************************************************
+Function GetDirectory$(ByVal szPath As String, ByVal szTitle As String) As String
+
+Dim	szFolder As String
+
+	GetDirectory$ = ""
+
+	szFolder	= FileSaveAsDlg(szPath, "x", "X", szTitle)
+	If szFolder = "" Then
+		Exit Function
+	End If
+
+	GetDirectory$ = PathToDirectory$(szFolder)
+
+End Function
+
+'******************************************************************************************
+'	Returner navn på fil - uden unødvendige biblioteker...
+'******************************************************************************************
+Function GetFileNameRelative$(ByVal szFile As String) As String
+
+	GetFileNameRelative$ = GetFileNameRelativePath$(szFile, ApplicationDirectory$())
+
+End Function
+
+'******************************************************************************************
+'	Returner navn på fil - uden unødvendige biblioteker...
+'******************************************************************************************
+Function GetFileNameRelativePath$(ByVal szFile As String, ByVal szPath As String) As String
+
+	If Left$(szFile, Len(szPath)) = szPath Then
+		GetFileNameRelativePath$ = Right$(szFile, ( Len(szFile) - Len(szPath) ) )
+	Else
+		GetFileNameRelativePath$ = szFile
+	End If
+
+End Function
+
+'******************************************************************************************
+'	Returner navn på fil - med alle biblioteker...
+'******************************************************************************************
+Function GetFileNameAbsolute$(ByVal szFile As String) As String
+
+	GetFileNameAbsolute$ = GetFileNameAbsolutePath$(szFile, ApplicationDirectory$())
+
+End Function
+
+'******************************************************************************************
+'	Returner navn på fil - med alle biblioteker...
+'******************************************************************************************
+Function GetFileNameAbsolutePath$(ByVal szFile As String, ByVal szPath As String) As String
+
+	If szFile = "" Then
+		GetFileNameAbsolutePath$ = szFile
+	ElseIf szFile = MSG_NONE Then
+		GetFileNameAbsolutePath$ = szFile
+	ElseIf not Mid$(szFile, 2, 2) = ":\" And not Left$(szFile, 2) = "\\" Then
+		GetFileNameAbsolutePath$ = szPath + szFile
+	Else
+		GetFileNameAbsolutePath$ = szFile
+	End If
+
+End Function
+
+'******************************************************************************************
+'	Returner afkortet navn på fil
+'	"C:\TESTdata\Alfabet\demo\kortdata\amerikanske stater.tab"
+'	-->	"C:\...\kortdata\amerikanske stater.tab"
+'******************************************************************************************
+Function GetMungPath$(ByVal szPath As String, ByVal nSize As Integer) As String
+
+Dim	szNewPath As String,
+	i, j, j0 as Integer
+
+	szNewPath = szPath
+	If Len(szNewPath) >= nSize Then
+		i = InStr(1, szNewPath, "\\")
+		If i = 0 Then 
+			i = InStr(1, szNewPath, "\") 
+		End If
+		If i = Len(szNewPath) Then
+			goto Xit
+		End If
+
+		j0 = i
+		j = InStr(i + 1, szNewPath, "\")
+
+		Do While Len(szNewPath) - j >= nSize-5
+			j0	= j
+			j	= InStr(j + 1, szNewPath, "\")
+		Loop
+
+		If j = Len(szNewPath) Then
+			j	= j0
+		End If
+
+		szNewPath = Left$(szNewPath, i) + "..." + Right$(szNewPath, Len(szNewPath) - j + 1)
+	End If
+
+'---------
+Xit:
+	GetMungPath$ = szNewPath
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer filnavn med ny filtype
+'**********************************************************************************************''
+Function FILEChangeFileType$(ByVal szFile As String, ByVal szNewType As String) As String
+
+OnError GoTo ErrorOccured
+
+	FILEChangeFileType$ = FILEGetFileNameNoFileType$(szFile) & "." & szNewType
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer filnavn uden filtype (xxxxxxx.ttt  -> xxxxxxx)
+'**********************************************************************************************''
+Function FILEGetFileNameNoFileType$(ByVal szFile As String) As String
+
+Dim	nChar, nPrevChar As Integer
+
+OnError GoTo ErrorOccured
+
+FILEGetFileNameNoFileType$ = ""
+
+	nChar = InStr(1, szFile, ".")	
+	Do While nChar > 0
+		nPrevChar	= nChar
+		nChar		= InStr(nPrevChar + 1, szFile, ".")	
+	Loop
+
+	If nPrevChar = 0 Then
+		FILEGetFileNameNoFileType$	= szFile
+	Else
+		FILEGetFileNameNoFileType$	= Left$(szFile, nPrevChar - 1)
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer stien til Windows TEMP
+'**********************************************************************************************''
+Function FILEGetTempDirectory$() As String
+
+OnError GoTo ErrorOccured
+
+	FILEGetTempDirectory$ = PathToDirectory$(TempFileName$(""))
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Opretter alle ikke-eksisterende mapper i en given sti
+'**********************************************************************************************''
+Function FILECreateAllFoldersInPath(ByVal szPath As String) As Logical
+
+Dim	szTempPath, szCurPath, arrFolders() As String,
+	nNumFolders, nCurFolder As Integer
+
+OnError GoTo ErrorOccured
+
+FILECreateAllFoldersInPath = FALSE
+
+	nNumFolders = StrSplitDefinedChar(szPath, "\", arrFolders(), 999)
+	
+	If RTrim$(LTrim$(arrFolders(nNumFolders))) = "" Then
+		'Print "Ignorerer sidste mapper: ''"
+		nNumFolders = nNumFolders - 1
+	End If
+	
+	szCurPath = arrFolders(1) 
+	For nCurFolder = 2 To nNumFolders
+		szTempPath = szCurPath & "\" & arrFolders(nCurFolder)
+		If not FileExists(szTempPath) Then
+			If SetCurrentDirectory(szCurPath) Then
+				If not MTU_CreateDirectory(arrFolders(nCurFolder)) Then
+					Note ERR_FILE_CREATING_FOLDER & lf & szTempPath
+					Exit Function
+				End If
+			End If
+			If not FileExists(szTempPath) Then
+				Note ERR_FILE_CREATING_FOLDER & lf & szTempPath
+				Exit Function
+			End If
+		End If
+		szCurPath = szTempPath
+	Next
+
+FILECreateAllFoldersInPath = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Tilføjer en evt. manglende slash (\) efter stinavnet
+'**********************************************************************************************''
+Function FILEAddTrailingSlash$(ByVal szPath As String) As String
+
+OnError GoTo ErrorOccured
+
+	If NOT Right$(szPath, 1) = "\" Then
+		FILEAddTrailingSlash$ = szPath & "\"
+	Else
+		FILEAddTrailingSlash$ = szPath
+	End If
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Fjerner en evt. eksisterende slash (\) efter stinavnet
+'**********************************************************************************************''
+Function FILERemoveTrailingSlash$(ByVal szPath As String) As String
+
+OnError GoTo ErrorOccured
+
+	If Right$(szPath, 1) = "\" Then
+		FILERemoveTrailingSlash$ = Left$(szPath, Len(szPath) - 1)
+	Else
+		FILERemoveTrailingSlash$ = szPath
+	End If
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returner dato/tid for sidste skrivning til given fil
+'**********************************************************************************************''
+Function FILEGetDateTimeAsSystemTime(ByVal szFile As String, stTime As SYSTEMTIME) As Logical
+
+Dim	hFindFile, nStatus As Integer,
+	fdFile As WIN32_FIND_DATA,
+	ftLocale As FILETIME,
+	nFileNum As integer
+
+OnError GoTo ErrorOccured
+
+FILEGetDateTimeAsSystemTime = FALSE
+
+	hFindFile = FindFirstFile (szFile, fdFile)
+	If hFindFile <> INVALID_HANDLE_VALUE Then
+		If FileTimeToLocalFileTime(fdFile.ftLastWriteTime, ftLocale) = 0 Then
+			Note "Fejl ved konvertering af FILETIME til lokal FILETIME!"
+			Exit Function
+		End If
+
+		If FileTimeToSystemTime(ftLocale, stTime) = 0 Then
+			Note "Fejl ved konvertering af lokal FILETIME til SYSTEMTIME!"
+			Exit Function
+		End If
+'		Print "Lokal system tid: " & TIMEGetNiceSystemTime$(stTime)
+		FILEGetDateTimeAsSystemTime	= TRUE
+	End If
+	
+	If FindClose(hFindFile) Then
+		'**File Handle closed
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Tilføjer en evt. manglende slash (\) efter stinavnet
+'**********************************************************************************************''
+Function FILEAddTrailingSlashToPath$(ByVal szPath As String) As String
+
+OnError GoTo ErrorOccured
+
+	FILEAddtrailingSlashToPath$ = FILEAddTrailingSlash$(szPath)
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function

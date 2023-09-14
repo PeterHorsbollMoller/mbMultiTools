@@ -1,0 +1,204 @@
+Define GLUP_MNU_TITLE_OPEN_MAP                           "&Åbn Kort...\tCtrl+O/W^O/Mo/XCtrl+o"
+Define GLUP_MNU_HLP_OPEN_MAP                             "Åbn kort til ruteregistrering."
+
+Define GLUP_MNU_TITLE_OPEN_TAF                           "Å&bn TAF databasen\tCtrl+N/W^N/Mn/XCtrl+n"
+Define GLUP_MNU_HLP_OPEN_TAF                             "Åben TAF databasen."
+
+Define GLUP_MNU_TITLE_SAVE_TABLE                         "(&Gem\tCtrl+S/W^S/Ms/XCtrl+s"
+Define GLUP_MNU_HLP_SAVE_TABLE                           "Gem ruteregistreringer."
+Define GLUP_MNU_TITLE_SAVE_MAP                           "Gem &kort"
+Define GLUP_MNU_HLP_SAVE_MAP                             "Gem kort opsætning."
+
+Define GLUP_MNU_TITLE_IMPORT_TAF                         "&Importer TAF"
+Define GLUP_MNU_HLP_IMPORT_TAF                           "Importer data fra CAPI system til tabellen TAF"
+
+Define GLUP_MNU_TITLE_END                                "Af&slut\tAlt+F4"
+Define GLUP_MNU_HLP_END                                  "Afslut Gallup OutDoor-GIS."
+
+
+Define GLUP_MENU_ROUTEREG                                "&Ruteregistrering"
+Define GLUP_MNU_TITLE_RESPONDENT_INFO                    "Respondent data..."
+Define GLUP_MNU_HLP_RESPONDENT_INFO                      "Registrér respondent data (step 1)."
+Define GLUP_MNU_TITLE_PRIMARY_ROUTE                      "Registrér hovedrute..."
+Define GLUP_MNU_HLP_PRIMARY_ROUTE                        "Registrér respondents hovedrute (step 2)."
+Define GLUP_MNU_TITLE_SECONDARY_ROUTE                    "Registrér delrute..."
+Define GLUP_MNU_HLP_SECONDARY_ROUTE                      "Registrér respondents delrute (step 3)."
+
+Define GLUP_MNU_HLP_HELP                                 "Åben online hjælp til Gallup OutDoor-GIS."
+
+Define GLUP_BTP_OUTDOOR                                  "Tegn"
+
+Define GLUP_BTN_OPEN_MAP                                 "Åbn kort til ruteregistrering.\nÅbn kort"
+Define GLUP_BTN_OPEN_TAF                                 "Åbn TAF database.\nÅbn TAF database"
+Define GLUP_BTN_SAVE_ROUTE_TABLES                        "Gem rute registeringer.\nGem data"
+
+Define GLUP_BTN_RESPONDENT_ID                            "Start registering - respondent data.\nRespondent data..."
+Define GLUP_BTN_PRIMARY_ROUTE                            "Registrér hovedrute for respondent.\nHovedrute..."
+Define GLUP_BTN_SECONDARY_ROUTE                          "Registrér delrute for respondent.\nDelrute..."
+
+Define GLUP_BTN_PICK_RAILWAY_IN_MAP                      "Udvælg togstrækning ved at udpege objekter i kortet.\nVælg togrute"
+Define GLUP_BTN_DIGITIZE_ROUTE                           "Digitaliser delrute på kortet.\nDigitaliser delrute"
+
+Define GLUP_BTN_CHOOSE_RAILW                             "Vælg et eller flere togskinne objekter til rute.\nVælg tog"
+Define GLUP_BTN_CHOOSE_AFSTIKKER                         "Vælg et eller flere objekter som udgør afstikkeren.\nVælg afstikkerobjekter"
+
+Define GLUP_BTN_RESPONDENT_REG                           "Registrer data for respondent.\nRespondent data..."
+Define GLUP_BTN_PRIMARY_ROUTE_REG                        "Registrer data for hovedrute.\nHovedrute..."
+Define GLUP_BTN_SECONDARY_ROUTE_REG                      "Registrer data for deltur.\nDeltur..."
+Define GLUP_BTN_DIGIIIZE_ROUTE                           "Afslut indtegning af delrute på kortet.\nAfslut delrute"
+Define GLUP_BTN_SEL_ROAD_OBJ                             "Afslut udvælgelse af vejobjekter i kortet til en delrute.\nAfslut udvælgelse af vejsegmenter til delrute"
+Define GLUP_BTN_SEL_ROUTE_V_OBJECT                       "Afslut udvælg rute via objekter i kortet (Udvælg flere objekter; hold shift-tasten nede).\nAfslut udvælg af objekter til togrute"
+
+Define GLUP_BTN_CHOOSE_ZOOM_LEVEL1                       "Vælg andet zoomniveau (vinduesbredde) for kortvinduet: " + Str$(nWinZoom1) + " m.\nZoom: " + Str$(nWinZoom1) + " m."
+Define GLUP_BTN_CHOOSE_ZOOM_LEVEL2                       "Vælg andet zoomniveau (vinduesbredde) for kortvinduet: " + Str$(nWinZoom2) + " m.\nZoom: " + Str$(nWinZoom2) + " m."
+Define GLUP_BTN_CHOOSE_ZOOM_LEVEL3                       "Vælg andet zoomniveau (vinduesbredde) for kortvinduet: " + Str$(nWinZoom3) + " m.\nZoom: " + Str$(nWinZoom3) + " m."
+Define GLUP_BTN_CHOOSE_ZOOM_LEVEL4                       "Vælg andet zoomniveau (vinduesbredde) for kortvinduet: " + Str$(nWinZoom4) + " m.\nZoom: " + Str$(nWinZoom4) + " m."
+Define GLUP_BTN_CHOOSE_ZOOM_LEVEL5                       "Vælg andet zoomniveau (vinduesbredde) for kortvinduet: " + Str$(nWinZoom5) + " m.\nZoom: " + Str$(nWinZoom5) + " m."
+Define GLUP_BTN_CHOOSE_ZOOM_LEVEL6                       "Vælg andet zoomniveau (vinduesbredde) for kortvinduet: " + Str$(nWinZoom6) + " m.\nZoom: " + Str$(nWinZoom6) + " m."
+Define GLUP_BTN_MARK_SPLIT_POS                           "Marker Punkter for opsplitning af rute.\nMarker punkter for start og slut for afstikkeren"
+Define GLUP_BTN_END_SPLITTER                             "Afslut opsplitning af hovedtur med afstikker.\nAfslut afstikker registrering"
+Define GLUP_BTN_END_OLD_HTUR                             "Afslut redigering af oprindelig hoved/delture.\nAfslut oprindelig rute-registrering"
+Define GLUP_BTN_SPLITTER_NODES_OK                        "Opsplit rute ved markeringer.\nOpsplit rute"
+Define GLUP_BTN_SELECT_AFSTIKKER                         "Klik på de objekter om udgør afstikkeren.\nUdpeg Afstikker"
+
+
+Define GLUP_ERR_STRING1                                  "Vælg menuen Filer - Importer TAF for at indlæse data fra CAPI systemet til TAF databasen"
+Define GLUP_ERR_STRING2                                  "Ingen respondent med det indtastede skemanummer"
+Define GLUP_ERR_STRING3                                  "Databasen GO.mdb findes ikke i installationsbíblioteket. Geninstaller programmet."
+Define GLUP_ERR_STRING4                                  "Registrer respondent. Vælg menuen 'Ruteregistrer - Respondent data'"
+Define GLUP_ERR_STRING5                                  "Registrer respondents CAPI nummer. Vælg menuen 'Ruteregistrer - Respondent data'"
+Define GLUP_ERR_STRING6                                  "Database filen PassageDB i GO.mdb"
+Define GLUP_ERR_QUESTION_NOT_ANSWERED1                   "Besvar "
+Define GLUP_ERR_QUESTION_NOT_ANSWERED2                   "spørgsmål"
+Define GLUP_ERR_RESP_NOT_FOUND                           "Find startposition for ruteregistrering ... Anvend [FIND RESPONDENT] eller [ANDEN STARTPOSITION...]"
+Define GLUP_ERR_IMPORT_TAF                               ". Importer filen via menuen; Filer - Importer TAF"
+Define GLUP_ERR_LAST_ROUTE_NO_STATION                    "Sidste rute endte ikke på en station. Registrér en delrute fra sidste delrute til den ønskede station"
+Define GLUP_ERR_LASTROUTE_NOT_AT_RWAYS                   "Den foregående deltur er ikke afsluttet ved at snappen enden af togstrækning." + Chr$(10) + "Tegn en ny deltur fra din sidste tur til startpunkt togtur 'Snap til det røde kryds på skinneobjektet'"
+Define GLUP_ERR_INVALID_OBJECT                           "Det valgte objekt er ikke et linieobjekt !"
+Define GLUP_ERR_NOT_SPLITTER_POINT                       "Et af de udpegede punkter til opsplitning af rute er ikke et punkt på hovedturens ruter. Udvælg nye punkter !"
+Define GLUP_ERR_SEL_OBJ_TO_DEL                           "Udvælg det objekt som ikke er korrekt og slet det med DELETE-tasten." + Chr$(10) + "Tegn et ny rute ved at aktivere tegneværktøjet 'INDTEGN RUTE'"
+Define GLUP_ERR_OBJ_NOT_CONNECTED                        "De udvalgte / digitaliserede objekter udgør ikke et sammenhængende objekt. Udvælg eller digitaliser ved markeringerne i kortet"
+Define GLUP_ERR_SELECT_OBJECT                            "Udvælg objekter til rute"
+
+Define GLUP_DLG_DIGITIZE                                 "Start med at digitaliser ruten. " + chr$(10) + "...Trace ved at holde shift-tasten nede"
+Define GLUP_DLG_SEL_ROUTE_INFO                           "Vælg togrute ved at udvælge delstrækninger i kortet. " + chr$(10) + "Afslut med at deaktivere knappen 'Udvælg togrute'"
+
+
+'-------- Dialogs -----------
+Define GLUP_DLG_GROUP_RESPONDENT                         "Respondenten"
+Define GLUP_DLG_GROUP_HOVEDTUR                           "Om..."
+Define GLUP_DLG_GROUP_DELTUR                             "Transportmiddel"
+Define GLUP_DLG_SPLIT_ROUTE                              "Marker start og slutpunkt for den del af turen som er atypisk for frekvensen"
+Define GLUP_DLG_SETUP                                    "Indstillinger"
+Define GLUP_DLG_ASK_IS_ROUTEOBJ_OK                       "Er den registrerede rute ok ?" + chr$(10) + "(skal den gemmes...)"
+Define GLUP_DLG_IS_ROUTE_OK                              "Er den registrerede rute, den rute De typisk bruger i forbindelse med Formålet ?"
+Define GLUP_DLG_DRAW_CONNECT_ROUTE                       "Digitaliser nu ruten som er normal for hovedturen uden afstikkeren !"
+Define GLUP_DLG_SELECT_FILE_FOR_IMPORT                   "Udpeg TAF fil til import"
+
+
+Define GLUP_DLG_SPLITTER                                 "Afstikker"
+Define GLUP_DLG_GROUP_SPLITTER                           "Registrering af afstikker"
+Define GLUP_DLG_QUESTION1_SPLITTER                       "Hvor ofte vil De vurdere,  at De foretager denne afstikker?"
+Define GLUP_DLG_QUESTION2_SPLITTER                       "Nu skal vi registrere den del af turen som er normal." + chr$(10) + "Hvor ofte vil De vurdere,  at De foretager den normale rute?"
+Define GLUP_DLG_DELTUR_TRANS_SPLITTER                    "Anvender De et andet transportmiddel i forbindelse med den normale rute ?"
+Define GLUP_DLG_SELECT_AFSTIKKER                         "Udvælg det objekt som udgør afstikkeren.\nUdvælg afstikker ruteobjektet"
+Define GLUP_DLG_SELECT_SPLIT_POINTS                      "Marker punkter for opsplitning af rute (Start og slutpunkt for afstikkeren)"
+Define GLUP_DLG_IS_SPLITTERNODES_OK                      "Er punkterne for opsplitning korrekte:" + chr$(10) + "   JA: Ruten opsplittes ved punkter" + chr$(10) + "   NEJ: Flyt punkter og afslut med " + chr$(10) + "   'Afslut afstikker registrering'"
+Define GLUP_SELECT_AFSTIKKER_OBJ                         "Udvælg de(t) objekter som udgør afstikker-ruten. Afslut med at aktivere knappen 'Afslut Afstikker'"
+Define GLUP_DRAW_REMAIN_OF_OLD_OBJ                       "Digitaliser den del af ruten (uden afstikker) som er normal"
+
+
+
+Define GLUP_DLG_FINDRESP_ERR                             "AKTIVER - FIND RESPONDENT"
+Define GLUP_DLG_RESPONDENT_REG                           "Respondent ID"
+Define GLUP_DLG_TLF_NO                                   "Indtast telefonnummer"
+Define GLUP_DLG_CHECK_RESP_DATA                          "&Find respondent"
+Define GLUP_DLG_OTHER_START_LOCATION                     "&Anden startposition..."
+Define GLUP_DLG_CAPI_NO                                  "Capi nr."
+Define GLUP_DLG_RESP_NAME                                "Navn"
+Define GLUP_DLG_RESP_ADRESS                              "Adresse"
+Define GLUP_DLG_RESP_ZIPCODE                             "Postnr - by"
+Define GLUP_DLG_DATE                                     "Dato"
+Define GLUP_DLG_TELENO_NOT_CORRECT_LEN                   "Telefonnummer skal være på " + DefaultTeleNoLen + " cifre"
+Define GLUP_DLG_NO_SKEMANO                               "Indtast et skemanummer"
+Define GLUP_DLG_NO_TELENO                                "Indtast et telefonnummer"
+Define GLUP_DLG_RESP_SKEMA_NO                            "Skemanr"
+Define GLUP_DLG_NO_PURPOSE_SELECTED                      "Vælg hvad målet for turen var (OM)"
+Define GLUP_DLG_NO_FREQUENCE_SELECTED                    "Vælg hvor ofte turen gennemføres"
+Define GLUP_DLG_NO_TRANSP_SELECTED                       "Vælg hvilket transportmiddel som blev benyttet"
+Define GLUP_DLG_NO_START_TIME_SELECTED                   "Vælg time og minut for angivelse af starttidspunktet for turen"
+Define GLUP_DLG_NO_FINISHTIME_SELECTED                   "Vælg time og minut for angivelse af sluttidspunktet for turen"
+Define GLUP_DLG_ERR_FINMINUTE                            "Vælg korrekt slutminut for turen"
+Define GLUP_DLG_ERR_FINHOUR                              "Vælg korrekt sluttime for turen"
+Define GLUP_DLG_ERR_STMINUTE                             "Vælg korrekt startminut for turen"
+Define GLUP_DLG_ERR_STHOUR                               "Vælg korrekt starttime for turen"
+Define GLUP_DLG_ERROR_TIME_FORMAT                        "Tidsformat er ikke angivet korrekt. Angiv "
+Define GLUP_ERR_STHOUR                                   "1-cifret starttime med foranstillet nul"
+Define GLUP_ERR_STMIN                                    "1-cifret startminut med foranstillet nul"
+Define GLUP_ERR_SLHOUR                                   "1-cifret sluttime med foranstillet nul"
+Define GLUP_ERR_SLMIN                                    "1-cifret slutminut med foranstillet nul"
+Define GLUP_ERR_STHOUR_TOLONG                            "starttime med 2 cifre"
+Define GLUP_ERR_STMIN_TOLONG                             "startminut med 2 cifre"
+Define GLUP_ERR_SLHOUR_TOLONG                            "sluttime med 2 cifre"
+Define GLUP_ERR_SLMIN_TOLONG                             "slutminut med 2 cifre"
+Define GLUP_ERR_NOT_SEL_CORRECT_TABLE                    "Der er ikke valgt objekter fra tabellerne " + szTableSel1 + " eller " + szTableSel2 + "." + chr$(10) + "Det er kun lovligt at udvælge objekter fra disse tabeller !. Udvælg nye objekter"
+Define GLUP_DLG_STHOUR_SLHOUR_ERR                        "Starttidspunkt er før sluttidspunkt - Er dette ok ?"
+Define GLUP_DLG_FINISH_INTERVIEW                         "Afslut..."
+Define GLUP_ERR_RESP_ALREADY_EXISTS                      "Respondent findes allerede i databasen"
+
+
+Define GLUP_DLG_NO_SELECTION                             "Der er ikke udvalgt objekter som kan udgøre en rute. Vælg objekter i kortet !"
+
+
+Define GLUP_DLG_HOVEDTUR                                 "Hovedtur registrering"
+Define GLUP_DLG_HOVEDTUR_PURP                            "Hvad var det vigtigste mål for denne tur ?"
+Define GLUP_DLG_HOVEDTUR_PURP_SECOND                     "Andet formål"
+Define GLUP_DLG_HOVEDTUR_FREQ                            "Hvor ofte vil De vurdere, at De gennemfører denne tur ?"
+Define GLUP_DLG_HOVEDTUR_NR                              "Hovedtur nr."
+Define GLUP_DLG_ANDET_FORMAAL                            "Indtast evt. andet formål her !"
+
+
+Define GLUP_DLG_DELTUR                                   "Deltur registrering"
+Define GLUP_DLG_DELTUR_NR                                "Deltur nr."
+Define GLUP_DLG_DELTUR_TRANSPORTMIDDEL                   "Hvilket transportmiddel benyttede De i forbindelse med turen ?"
+Define GLUP_DLG_DELTUR_GOAL                              "Hvor er Deres endemål for denne deltur ?"
+Define GLUP_DLG_DELTUR_START_SLUT_KL                     "Hvad tid startede denne tur igår ? ... Og hvad tid sluttede den ?"
+Define GLUP_DLG_DELTUR_SLUTKL                            "Slut kl."
+Define GLUP_DLG_DELTUR_STARTKL_OOR                       "Tidsangivelse er udenfor interval"
+Define GLUP_DLG_DELTUR_SLUTKL_OOR                        "Tidsangivelse er udenfor interval"
+
+
+Define GLUP_DLG_TEXT_STATION                             "Stationsbesøg"
+Define GLUP_DLG_TEXT_CENTER                              "Center besøg"
+Define GLUP_DLG_QUESTION_1                               "Har De været eller gået igennem stationsarealet ?"
+Define GLUP_DLG_QUESTION_2                               "Har De handlet i kiosk/anden butik ?"
+Define GLUP_DLG_QUESTION_3                               "Har De været i restauranten ?"
+Define GLUP_DLG_QUESTION_4                               "Opholdt De dem på stationens perron(er) ?"
+Define GLUP_DLG_QUESTION_4a                              "Var der andre formål med Deres besøg ?"
+Define GLUP_DLG_QUESTION_5                               "Passerede De parkeringspladsen i tilknytning til indkøbscentret ?"
+Define GLUP_DLG_QUESTION_6                               "Har De været eller gået igennem indkøbscentret ?"
+Define GLUP_DLG_TEXT_YES_NO                              "Ja   Nej"
+Define GLUP_DLG_BTN_NOT_VISITED                          "Ikke besøgt"
+
+
+Define GLUP_DLG_TEXT_ROADNAME                            "Angiv vejnavn og husnummer"
+Define GLUP_DLG_TEXT_POSTDISRTICT                        "Angiv postdistrikt"
+Define GLUP_DLG_FNDFUNC_TITLE                            "Søg i"
+
+Define GLUP_BTN_CANCEL_DELTUR                            "Annuller den sidste deltursregistrering og vis sidste slutpunkt.\nAnnuller deltursregistrering"
+Define GLUP_BTN_RETURN_TO_START                          "Retur til udgangspunkt for denne deltur eller for hele hovedturen.\nRetur"
+Define GLUP_ASK_RETURN_DTUR_OR_HTUR                      "Returner til udgangspunkt for denne deltur eller til udgangspunktet for hele hovedturen?"
+Define GLUP_DELTUR                                       "Deltur"
+Define GLUP_HOVEDTUR                                     "Hovedtur"
+
+'--------- SkilteMatch ------------
+Define GLUP_MNU_SIGN                                     "&Gallup Trafikanalyse"
+Define GLUP_MNU_SIGN_MATCH                               "&Skilte match"
+Define GLUP_MNU_SIGN_MATCH_HLP                           "Kør program for matching af skilte med ruter i tabellen Deltur."
+Define GLUP_MNU_SIGN_SETUP                               "&Opsætning"
+Define GLUP_MNU_SIGN_SETUP_HLP                           "Opsætning af placering af skiltedatabase."
+Define GLUP_MNU_OPEN_ROUTE_TAB                           "Udpeg tabel (deltur.tab) som skal matches mod skiltedatabasen"
+Define GLUP_MNU_OPEN_SIGN_TAB                            "Udpeg placering af skiltedatabasen"
+
+
+

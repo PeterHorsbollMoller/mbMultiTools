@@ -1,0 +1,7 @@
+Declare Sub srchOpslagAdrOneTable(sbtnCur As T_SEARCHBTN)
+
+Declare Sub SRCHOpslagAdr1VnvnHnr(sbtnCur As T_SEARCHBTN)
+Declare Sub SRCHOpslagAdr1VnrVnvnHnr(sbtnCur As T_SEARCHBTN)
+Declare Sub SRCHOpslagAdr1KnrVnvnHnr(sbtnCur As T_SEARCHBTN)
+Declare Sub SRCHOpslagAdr1KnrVnrVnvnHnr(sbtnCur As T_SEARCHBTN)
+Declare Sub SRCHOpslagAdr1PnrVnvnHnr(sbtnCur As T_SEARCHBTN)

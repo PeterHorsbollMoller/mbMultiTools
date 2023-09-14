@@ -1,0 +1,11 @@
+'***********************************************************************
+'**
+'**	RH_MSG.DEF, Raster image handler program defines
+'**
+'***********************************************************************
+
+Define M_RHMENU_START    "Start Rasterhandler"
+Define M_RHMENU_ACTIVE   "Raster active"
+Define M_RHMENU_STOP     "Stop RasterHandler"
+Define M_RHMENU_REMOVE   "Remove program"
+

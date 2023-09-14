@@ -1,0 +1,3 @@
+'Copyright (c) 1996 Software Factory International, Ltd.
+
+Declare Function MI32BIT() As Logical

@@ -1,0 +1,49 @@
+'***********************************************
+'**	Program:	AutoFind
+'**	Modul:	Selve AutoFind funktionaliteten
+'***********************************************
+Include "MapBasic.def"
+Include "Menu.def"
+
+Include "AutoFind.def"
+
+Dim	mbAutoFindRunning As Logical
+
+'--------------------------------------------------------------------------
+'#### Starter AutoFind
+'--------------------------------------------------------------------------
+Sub AutoFind_Stop
+
+	mbAutoFindRunning = FALSE
+
+End Sub
+
+'--------------------------------------------------------------------------
+'#### Starter AutoFind
+'--------------------------------------------------------------------------
+Sub AutoFind_StartStopToggle
+
+	If mbAutoFindRunning = FALSE Then
+		mbAutoFindRunning = TRUE
+	Else
+		mbAutoFindRunning = FALSE
+	End If
+
+End Sub
+
+'--------------------------------------------------------------------------
+'#### AutoFind/SelectionHandler
+'--------------------------------------------------------------------------
+Sub AutoFind_SelChangedHandler
+
+	If NOT mbAutoFindRunning Then
+		Exit Sub
+	End If
+	
+	If SelectionInfo(SEL_INFO_NROWS) > 1 Then
+		Exit Sub
+	End If
+
+	Run Menu Command M_ANALYZE_FIND_SELECTION
+
+End Sub

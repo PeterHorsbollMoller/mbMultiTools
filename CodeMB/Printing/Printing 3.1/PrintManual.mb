@@ -1,0 +1,713 @@
+'*******************************************************************************
+'** 	Program:	Alle med udskriftsfunktionalitet
+'** 	Modul:	PrintManually.mb
+'**			Manually inserting of map into layout.
+'*******************************************************************************
+
+Include "Mapbasic.def"
+Include "Menu.def"
+Include "Icons.def"
+
+Include "..\..\Language\PlotDef.lng"
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\Kommune.lng"
+
+Include "Globals.def"
+Include "PrintManual.def"
+Include "Printing.def"
+Include "PrintValues.def"
+Include "PrintHlp.def"
+Include "PrintDlg.def"
+
+Include "..\..\WinFunc\WinFunc.def"
+Include "..\..\MapFunc\MapFunc.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\IniUtil\IniUtil.def"
+
+'***
+Define MAX_VALUES_IN_ARRAY	300
+
+Declare Sub HandlerCreateNewFrameInLayout
+
+Declare Sub HandlerInsertMapStartUp
+Declare Sub HandlerInsertMapDoTheJob
+Declare Sub HandlerInsertMapFrameSelected
+Declare Sub HandlerSelectNorthArrowName2
+
+Declare Sub HandlerGetCenterFromObject
+Declare Sub HandlerTableNameSelected
+Declare Sub HandlerSearchForObjects
+Declare Sub HandlerShowSelectedObject
+Declare Sub HandlerObjectSelected
+
+Declare Function PrintGetFrameSizesAndIDs2(ByVal nWID As Integer, arrLayoutFrames() As T_LAYOUT_FRAME) As Logical
+
+Dim	marrLFrames() As T_LAYOUT_FRAME,
+	arrFrameNames(), arrMapNames() As String,
+	arrTab(), arrCol(), arrValues() As String,
+	mszFrameStartX, mszFrameStartY, mszFrameWidth, mszFrameHeight As String
+	
+'**************************************************************
+' Insert mapwindow into open layout...
+'**************************************************************
+Sub PrintInsertMapInLayout
+
+Dim	nLID, nItem, i As Integer,
+	arrAliasValues() As T_ALIAS_AND_VALUE,
+	arrColAndVal() As T_COL_AND_VALUES
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Sub
+	End If
+
+	nLID = FrontWindow()
+	If not WindowInfo(nLID, WIN_INFO_TYPE) = WIN_LAYOUT Then
+		Note ERR_WIN_NOT_LAYOUT
+		Exit Sub
+	End If
+
+	Call PrintSetMapWinID(0)
+	Call PrintSetLayoutWinID(nLID)
+
+	Dialog
+		Title PLTM_DLG_TITLE_MAP_INTO_FRAME
+		Calling HandlerInsertMapStartUp
+
+		'------------------------------------------------------------------
+		Control StaticText	Position 5,8
+			Title MSG_WIN_LAYOUT_FRAMES
+		Control ListBox		Position 5,18	Width 120	Height 60	ID 100
+			Calling HandlerInsertMapFrameSelected
+		Control Button		Position 95,5	Width 30	Height 13
+			Title MSG_NEW + "..."
+			Calling HandlerCreateNewFrameInLayout
+
+		'------------------------------------------------------------------
+		Control StaticText	Position 145,5
+			Title PLTM_DLG_TXT_SCALE_1_TO
+		Control EditText		Position 145,15	Width 50			ID 300
+			Value PrintGetScale$()
+
+		Control StaticText	Position 200,5
+			Title PLTM_DLG_TXT_ROTATION
+		Control EditText		Position 200,15	Width 50			ID 301
+			Value PrintGetRotation$()
+
+		'------------------------------------------------------------------
+			
+		Control Button		Position 260,15	Width 50	Height 13
+			Title MSG_WIN_MAP_CENTER
+			Calling HandlerGetCenterFromObject
+
+		'------------------------------------------------------------------
+		Control StaticText	Position 145,30
+			Title MSG_WIN_MAP_WINDOWS
+		Control ListBox		Position 145,40	Width 180	Height 30	ID 200
+
+		Control CheckBox		Position 145,75					ID 201
+			Title PLTM_DLG_TXT_USE_CLON_MAP
+			Value FALSE
+		Control CheckBox		Position 145,85	Width 170			ID 900
+			Title PLTM_DLG_TXT_USE_NORTH_ARROW + " : " + PrintHlpGetNorthArrowName()
+			Value PrintUseNorthArrow()
+		Control Button		Position 315,85	Width 10	Height 10
+			Title ".."
+			Calling HandlerSelectNorthArrowName2
+
+		Control OKButton		Position 230,105	Width 40
+			Title MSG_UPDATE
+			Calling HandlerInsertMapDoTheJob
+		Control CancelButton	Position 275,105	Width 40
+			Title MSG_CONTINUE
+
+
+	If PrintGetMapWinID() > 0 Then
+		'Print "Læser og retter runtimeværdier..."
+		ReDim arrAliasValues(0)
+		If PrintCreateArrayAlias(nLID, arrAliasValues) Then
+			For i = 1 To Ubound(arrAliasValues)
+				nItem = 0
+				If Left$(arrAliasValues(i).szAlias, 11) = "[MÅLFORHOLD" Then
+					If Len(arrAliasValues(i).szAlias) = 12 Then
+						nItem = 1
+					Else
+						nItem = Val(Right$(arrAliasValues(i).szAlias, Len(arrAliasValues(i).szAlias) - 11))
+						If nItem > Ubound(marrLFrames) Then
+							nItem = 0
+						End If
+					End If
+				ElseIf Left$(arrAliasValues(i).szAlias, 6) = "[SCALE" Then
+					If Len(arrAliasValues(i).szAlias) = 7 Then
+						nItem = 1
+					Else
+						nItem = Val(Right$(arrAliasValues(i).szAlias, Len(arrAliasValues(i).szAlias) - 6))
+						If nItem > Ubound(marrLFrames) Then
+							nItem = 0
+						End If
+					End If
+				End If
+				If nItem > 0 Then
+					If nItem = 1 Then
+						Call PrintSetScale(marrLFrames(nItem).nScale)
+					End If
+					arrAliasValues(i).szValue = Str$(marrLFrames(nItem).nScale)
+				End If
+			Next
+			If PrintEnterAliasValuesDialog(arrAliasValues, arrColAndVal, TRUE) Then
+				If not PrintReplaceAlias(nLID, arrAliasValues) Then
+					Note ERR_PLT_REPLACE_RUNTIME_VAL
+				End If
+			End If
+		End If
+	End If
+
+End Sub
+
+'**************************************************************
+' Handler - Dialog start up
+'**************************************************************
+Sub HandlerInsertMapStartUp
+
+Dim	nLID, i, nMax As Integer
+
+	'--------------------Creating list of frames ----------------------------------------
+	nLID = FrontWindow()
+	ReDim marrLFrames(0)
+	If not PrintGetFrameSizesAndIDs(nLID, marrLFrames) Then
+		ReDim arrFrameNames(1)
+		arrFrameNames(1) = ERR_PRINTLAYOUT_NO_FRAMES
+	Else
+		nMax = Ubound(marrLFrames)
+		ReDim arrFrameNames(nMax)
+		For i = 1 To nMax
+			arrFrameNames(i) = i + " : (H * B) : "  
+						+ Round(marrLFrames(i).fHeight, 0.01) + " * "
+						+ Round(marrLFrames(i).fWidth, 0.01) + " cm"
+		Next
+	End If
+
+	Alter Control 100 Title From Variable arrFrameNames Value 1
+
+	'--------------------Creating list of maps ----------------------------------------
+	If not CreateArrayMapWindows(arrMapNames, FALSE, TRUE, TRUE) Then 
+		'Hmmmm, is there a difference ?
+	End If
+
+	Alter Control 200 Title From Variable arrMapNames Value 1
+		
+	Call HandlerInsertMapFrameSelected
+
+End Sub
+
+'****************************************
+'Nordpil - Udpeg navnet på nordpil
+'****************************************
+Sub HandlerSelectNorthArrowName2
+
+	If PrintHlpSelectNorthArrowName() Then
+		Alter Control 900 Title PLTM_DLG_TXT_USE_NORTH_ARROW + " : " + PrintHlpGetNorthArrowName()
+	End if
+
+End Sub
+
+'**************************************************************
+' Handler - A frame was selected
+'**************************************************************
+Sub HandlerInsertMapFrameSelected
+
+Dim	nFrameNo, nFrameID, nMapID As Integer,
+	szMapName, szScale, szRotation As String
+
+	nFrameNo = ReadControlValue(100)
+	If arrFrameNames(nFrameNo) = ERR_PRINTLAYOUT_NO_FRAMES Then
+		szMapName		= MSG_NONE
+		szScale		= ReadControlValue(300)
+		szRotation		= ReadControlValue(301)
+	Else
+		nMapID = marrLFrames(nFrameNo).nMapID
+		If nMapID = 0 Then
+			szMapName	= MSG_NONE
+		Else
+			szMapName	= WindowInfo(nMapID, WIN_INFO_NAME)
+		End If
+		nFrameID	= marrLFrames(nFrameNo).nRowID
+		szScale	= Str$(marrLFrames(nFrameNo).nScale)
+		szRotation	= PointToKomma(Str$(marrLFrames(nFrameNo).fRotation))
+
+		Select * From WindowInfo(FrontWindow(), WIN_INFO_TABLE)
+			Where RowID = nFrameID
+	End If
+
+	If szScale = "0" Then szScale = "" End If
+	If szRotation = "0" Then szRotation = "" End If
+
+	Alter Control 200 Value GetElementNoInStringArray(szMapName, arrMapNames)
+	If szScale <> "" Then
+		Alter Control 300 Value szScale
+	End If
+	If szRotation <> "" Then
+		Alter Control 301 Value szRotation
+	End If
+
+End Sub
+
+'**************************************************************
+' Handler - Insert map into selected frame in layout
+'**************************************************************
+Sub HandlerInsertMapDoTheJob
+
+Dim	nFrameNo, nMapNo, nMapID, nLID, nMaps As Integer,
+	nRotation, nScale As Integer,
+	fX, fY, fWidth, fHeight As Float,
+	bUseNorthArrow, bClonMap As Logical,
+	szMapName, szTab As String
+
+	nFrameNo		= ReadControlValue(100)
+	nMapNo		= ReadControlValue(200)
+	bUseNorthArrow	= ReadControlValue(900)
+	nScale		= Val(ReadControlValue(300))
+	nRotation		= Val(ReadControlValue(301))
+	bClonMap		= ReadControlValue(201)
+	nLID			= FrontWindow()
+
+	If nFrameNo = 0 Then
+		Exit Sub
+	End If
+
+	If arrFrameNames(nFrameNo) = ERR_PRINTLAYOUT_NO_FRAMES Then
+		Note ERR_PRINTLAYOUT_NO_FRAMES
+		GoTo JobHasBeenDone
+	End If
+
+	szMapName	= arrMapNames(nMapNo)
+	If szMapName = MSG_NONE Then
+		Note ERR_MAP_SELECT_ONE_IN_LIST
+		GoTo JobHasBeenDone
+	End If
+
+	nMapID	= GetWindowID(szMapName)
+	If nMapId = 0 Then
+		Note ERR_WIN_DOESNT_EXISTS + szMapName
+		GoTo JobHasBeenDone
+	End If
+	If nScale < 1 Then
+		Note ERR_PLT_SCALE_MIN_1
+		GoTo JobHasBeenDone
+	End If
+
+	Set CoordSys Window nMapID
+	fX		= MapperInfo(nMapID, MAPPER_INFO_CENTERX)
+	fY		= MapperInfo(nMapID, MAPPER_INFO_CENTERY)
+	fWidth	= marrLFrames(nFrameNo).fWidth
+	fHeight	= marrLFrames(nFrameNo).fHeight
+	szTab		= WindowInfo(FrontWindow(), WIN_INFO_TABLE)	
+
+	Call PrintSetScale(nScale)
+	Call PrintSetRotation(nRotation)
+	Call PrintSetUseNorthArrow(bUseNorthArrow)
+
+	If bClonMap Then
+		nMapID = PrintClonMap(nMapID)
+		If nMapID= 0 Then
+			Note ERR_WIN_MAP_CLON
+			GoTo JobHasBeenDone
+		End If
+
+		nMaps = Ubound(arrMapNames) + 1
+		ReDim arrMapNames(nMaps)
+		arrMapNames(nMaps - 1)	= WindowInfo(nMapID, WIN_INFO_NAME)
+		Alter Control 200 Title From Variable arrMapNames Value nMaps
+		Set Window nLID
+			Front
+	End If
+	Call PrintSetMapWinID(nMapID)
+
+	If not PrintAlterMapperWidth(nMapID, fWidth, fHeight) Then
+		Note ERR_WIN_MAP_WIDTH
+		GoTo JobHasBeenDone
+	End If
+
+	'Print "Ændrer kortvinduets centrum og zoom..."
+	If not PrintAlterMapperZoom(nMapID, fX, fY, fWidth) Then
+		Note ERR_WIN_MAP_XY_ZOOM
+		GoTo JobHasBeenDone
+	End If
+
+	If not PrintRotateMapWindow(nMapID, fX, fY, nRotation) Then
+		Note ERR_PLT_ROTATION_MAP
+		marrLFrames(nFrameNo).fRotation = 0
+	Else
+		marrLFrames(nFrameNo).fRotation = nRotation
+	End If
+
+	If PrintInsertMapInFrameByRowID(FrontWindow(), marrLFrames(nFrameNo).nRowID, nMapID) Then
+		marrLFrames(nFrameNo).nMapID = nMapID
+		marrLFrames(nFrameNo).nScale = nScale
+	End If
+
+'---------------
+JobHasBeenDone:
+	Dialog Preserve
+	
+End Sub
+
+'**************************************************************
+' Handler - Creates a new frame in the layout
+'**************************************************************
+Sub HandlerCreateNewFrameInLayout
+
+Dim	nNum As Integer
+
+	If mszFrameStartX = "" Then
+		mszFrameStartX		= "1"
+	End If
+	If mszFrameStartY = "" Then
+		mszFrameStartY		= "1"
+	End If
+	If mszFrameWidth = "" Then
+		mszFrameWidth	= "10"
+	End If
+	If mszFrameHeight = "" Then
+		mszFrameHeight	= "10"
+	End If
+
+'------
+ShowDialog:
+
+	Dialog
+		Title PLTM_DLG_TITLE_NEW_FRAME_OBJ
+
+		Control GroupBox		Position 5,5	Width 100	Height 45
+			Title PLTM_DLG_TXT_START_POSITION
+		Control StaticText	Position 15,17
+			Title "X, cm"
+		Control EditText		Position 60,15	Width 40
+			Value mszFrameStartX
+			Into mszFrameStartX
+		Control StaticText	Position 15,32
+			Title "Y, cm"
+		Control EditText		Position 60,30	Width 40
+			Value mszFrameStartY
+			Into mszFrameStartY
+
+		Control GroupBox		Position 5,55	Width 100	Height 45
+			Title MSG_OBJ_FRAMESIZE
+		Control StaticText	Position 15,67
+			Title MSG_WIDTH_CM
+		Control EditText		Position 60,65	Width 40
+			Value mszFrameWidth
+			Into mszFrameWidth
+		Control StaticText	Position 15,82
+			Title MSG_HEIGHT_CM
+		Control EditText		Position 60,80	Width 40
+			Value mszFrameHeight
+			Into mszFrameHeight
+
+		Control OKButton
+		Control CancelButton
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	If Val(mszFrameWidth) < 0 Then
+		Note ERR_PLT_ENTER_POSITIV_WIDTH
+		GoTo ShowDialog
+	ElseIf Val(mszFrameHeight) < 0 Then
+		Note ERR_PLT_ENTER_POSITIV_HEIGHT
+		GoTo ShowDialog
+	End If
+
+	Create Frame 
+		Into Window FrontWindow()
+		( Val(mszFrameStartX), Val(mszFrameStartY)) 
+		 (Val(mszFrameStartX) + Val(mszFrameWidth), Val(mszFrameStartY) + Val(mszFrameHeight))  
+		Title ""
+		FillFrame On
+
+	nNum = Ubound(marrLFrames()) + 1
+	ReDim marrLFrames(nNum)
+	marrLFrames(nNum).nRowID	= TableInfo(WindowInfo(FrontWindow(), WIN_INFO_TABLE), TAB_INFO_NROWS)
+	marrLFrames(nNum).fWidth	= Val(mszFrameWidth)
+	marrLFrames(nNum).fHeight	= Val(mszFrameHeight)
+
+	ReDim arrFrameNames(nNum)
+	arrFrameNames(nNum)		= nNum + " : (H * B) : "  
+						+ Round(marrLFrames(nNum).fHeight, 0.01) + " * "
+						+ Round(marrLFrames(nNum).fWidth, 0.01) + " cm"
+
+	Alter Control 100 Title From Variable arrFrameNames Value nNum
+	Call HandlerInsertMapFrameSelected
+
+End Sub
+
+'**************************************************************
+' Handler - Select object from table and use these coords as center
+'**************************************************************
+Sub HandlerGetCenterFromObject
+
+Dim	nLID, nMID As Integer
+
+	nMID	= ReadControlValue(200)
+	nLID	= FrontWindow()
+
+	If arrMapNames(nMID) = MSG_NONE Then
+		Note ERR_MAP_SELECT_ONE_IN_LIST
+		Exit Sub
+	End If
+	nMID	= GetWindowID(arrMapNames(nMID))
+
+	If not CreateArrayTables(arrTab, FALSE, TRUE, FALSE, FALSE, FALSE) Then
+		Note ERR_TAB_NO_USABLE
+		Exit Sub
+	End If
+
+	Set Window nMID
+		Front
+	Set CoordSys Window nMID
+	Set Distance Units "m"
+
+	Dialog
+		Title PLTM_DLG_TITLE_CENTER_OBJ
+		Calling HandlerTableNameSelected
+
+		Control StaticText	Position 5,5
+			Title MSG_TAB_TABLE
+		Control PopUpMenu		Position 5,15	Width 150			ID 100
+			Title From Variable arrTab
+			Calling HandlerTableNameSelected
+
+		Control StaticText	Position 5,30
+			Title MSG_COL_COLUMN
+		Control PopUpMenu		Position 5,40	Width 150			ID 200
+
+		'---------------------------------------------------------------------
+		Control GroupBox		Position 5,55	Width 150	Height 120
+			Title MSG_VALUES
+
+		Control StaticText	Position 15,65
+			Title MSG_DLG_TXT_WILDCARD
+		Control EditText		Position 15,75	Width 100			ID 300
+		Control Button		Position 115,75	Width 30	Height 12
+			Title MSG_SELECT
+			Calling HandlerSearchForObjects
+
+		Control Listbox		Position 15,90	Width 130	Height 60	ID 400
+			Calling HandlerObjectSelected
+
+		'---------------------------------------------------------------------
+		Control StaticText	Position 15,157
+			Title KPAK_DLG_TXT_ZOOM_METER
+		Control EditText		Position 50,155	Width 30			ID 500
+			Value Str$(Round(MapperInfo(nMID, MAPPER_INFO_ZOOM), 1))		
+
+		'---------------------------------------------------------------------
+		Control OKButton		Position 35,180	Width 40			ID 1000
+			Title MSG_SHOW
+			Calling HandlerShowSelectedObject
+			Disable
+		Control CancelButton	Position 80,180	Width 40
+			Title MSG_STOP
+
+	Set Window nLID
+		Front
+
+	If TableOpen("CUR_VALUES_TEMP") Then
+		Close Table CUR_VALUES_TEMP
+	End If
+
+End Sub
+
+'**************************************************************
+' Handler - A table was selected
+'**************************************************************
+Sub HandlerTableNameSelected
+
+Dim	szTab As String
+
+	szTab = arrTab(ReadControlValue(100))
+	ReDim arrCol(0)
+	If not CreateArrayColumns(szTab, arrCol, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE, FALSE) Then
+		ReDim arrCol(1)
+		arrCol(1)	= MSG_NONE
+	End If
+
+	Alter Control 200 Title From Variable arrCol Value 1
+	ReDim arrValues(0)
+	Alter Control 400 Title From Variable arrValues
+	Alter Control 1000 Disable
+
+End Sub
+
+'**************************************************************
+' Handler - Search in selected table and column for values
+'**************************************************************
+Sub HandlerSearchForObjects
+
+Dim	szTab, szCol, szVal As String,
+	aValCol As Alias,
+	nFound, nCount As Integer
+
+	szTab		= arrTab(ReadControlValue(100))
+	szCol		= arrCol(ReadControlValue(200))
+	szVal		= ReadControlValue(300)
+	aValCol 	= szTab + "." + szCol
+
+	If szVal = "" Then
+		szVal = "%"
+		Alter Control 300 Value szVal
+	End If
+
+	If ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_CHAR Then
+		Select aValCol "VALUES"
+			From szTab
+			Where OBJ
+			And aValCol Like szVal
+			Order By VALUES
+			Into CUR_VALUES_TEMP NoSelect
+	Else
+		Select aValCol "VALUES"
+			From szTab
+			Where OBJ
+			And Str$(aValCol) Like szVal
+			Order By VALUES
+			Into CUR_VALUES_TEMP NoSelect
+	End If
+
+	nFound = GetNumRows("CUR_VALUES_TEMP")
+	If nFound = 0 Then
+
+		ReDim arrValues(0)
+		Note ERR_OBJ_NO_SELECTED
+	ElseIf nFound > MAX_VALUES_IN_ARRAY Then
+		ReDim arrValues(MAX_VALUES_IN_ARRAY)
+		Fetch First From CUR_VALUES_TEMP
+		Do Until EOT(CUR_VALUES_TEMP)
+			nCount = nCount + 1
+			arrValues(nCount) = CUR_VALUES_TEMP.VALUES
+			Fetch Next From CUR_VALUES_TEMP
+			If nCount >= MAX_VALUES_IN_ARRAY Then
+				Note ERR_TAB_TOO_MANY_ROWS_MAX_IS + MAX_VALUES_IN_ARRAY
+				Exit Do
+			End If
+		Loop
+	Else
+		ReDim arrValues(nFound)
+		Fetch First From CUR_VALUES_TEMP
+		Do Until EOT(CUR_VALUES_TEMP)
+			nCount = nCount + 1
+			arrValues(nCount) = CUR_VALUES_TEMP.VALUES
+			Fetch Next From CUR_VALUES_TEMP
+		Loop
+	End If
+
+	Alter Control 400 Title From Variable arrValues
+
+End Sub
+
+'**************************************************************
+' Handler - Show selected objects center in map
+'**************************************************************
+Sub HandlerShowSelectedObject
+
+Dim	nRow, nZoom As Integer,
+	fX, fY As Float
+
+	nRow	= ReadControlValue(400)
+	nZoom	= Val(ReadControlValue(500))
+
+	If nRow = 0 Or nRow > GetNumRows("CUR_VALUES_TEMP") Then
+		Exit Sub
+	End If
+
+	Select * From CUR_VALUES_TEMP
+		Where ROWID = nRow
+		Into CUR_VAL_SINGLE_TEMP NoSelect
+
+	fX	= CentroidX(CUR_VAL_SINGLE_TEMP.OBJ)
+	fY	= CentroidY(CUR_VAL_SINGLE_TEMP.OBJ)
+
+	If nZoom > 0 Then
+		Set Map
+			Zoom nZoom Units "m"
+	End if
+
+	Set Map
+		Center (fX, fY)
+
+	Close Table CUR_VAL_SINGLE_TEMP
+
+	Dialog Preserve
+
+End Sub
+
+'**************************************************************
+' Handler - Disabling the SHOW button
+'**************************************************************
+Sub HandlerObjectSelected
+
+Dim	nPick As Integer
+
+	nPick = ReadControlValue(400)
+	If nPick = 0 Then
+		Alter Control 1000 Disable
+	Else
+		Alter Control 1000 Enable
+	End If
+
+	If CommandInfo(CMD_INFO_DLG_DBL) Then
+		Call HandlerShowSelectedObject
+	End If
+
+End Sub
+
+'**************************************************************
+' Returnerer array med alias til erstatning med runtime værdier...
+' This function s also found in Printing.mb. It was only made double because of Linking problems
+'**************************************************************
+Function PrintGetFrameSizesAndIDs2(ByVal nWID As Integer, arrLayoutFrames() As T_LAYOUT_FRAME) As Logical
+
+Dim	curObj As Object,
+	szTab As String,
+	aObj, aRowID As Alias,
+	nCount, nRowID As Integer
+
+PrintGetFrameSizesAndIDs2 = FALSE
+
+	If not WindowExists(nWID) Then
+		Note ERR_WIN_LAYOUT_NOT_FOUND
+		Exit Function
+	End If
+
+	szTab = WindowInfo(nWID, WIN_INFO_TABLE)
+
+	Set CoordSys Layout Units "cm"
+	Set Paper Units "cm"
+
+	aObj		= szTab + ".OBJ"
+	aRowID	= szTab + ".ROWID"
+
+	nCount = 0
+	Fetch First From szTab
+	Do until EOT(szTab)
+
+		curobj 	= aObj
+		nRowID	= aRowID
+
+		If ObjectInfo(curObj,OBJ_INFO_TYPE) = OBJ_TYPE_FRAME Then
+			If ObjectInfo(curObj,OBJ_INFO_FRAMETITLE) = "" Then
+
+				nCount = nCount + 1
+				ReDim arrLayoutFrames(nCount)
+				arrLayoutFrames(nCount).nRowID 	= nRowID
+				arrLayoutFrames(nCount).fWidth 	= ObjectGeography(curObj, OBJ_GEO_MAXX) - ObjectGeography(curObj, OBJ_GEO_MINX)
+				arrLayoutFrames(nCount).fHeight 	= ObjectGeography(curObj, OBJ_GEO_MAXY) - ObjectGeography(curObj, OBJ_GEO_MINY)
+
+				PrintGetFrameSizesAndIDs2 = TRUE
+			End If
+		End If
+		Fetch Next From szTab
+	Loop
+
+End Function

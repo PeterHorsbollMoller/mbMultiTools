@@ -1,0 +1,28 @@
+'************************************************************************************
+' 21.08.2002/PEM	- Tilføjet ErrorHandlers i alle procedurer
+'			- Tilføjet følgende procedurer:
+'				- ARRSortIntegerASC
+'				- ARRSortIntegerDESC
+' 07.07.2003/PEM	- Rettet fejl i ARRRemoveItemNoInteger()
+'************************************************************************************
+
+'--- S T R I N G   A R R A Y S --------------------------------------------
+Declare Function ARRGetItemNoString(ByVal szValue As String, arrValues() As String) As Integer
+Declare Function ARRGetItemNoStringFuzzy(ByVal szValue As String, arrValues() As String) As Integer
+
+Declare Function ARRRemoveItemString(arrValues() As String, ByVal szValue As String) As Logical
+Declare Function ARRRemoveItemNoString(arrValues() As String, ByVal nItemNo As Integer) As Logical
+Declare Function ARRAddItemString(arrValues() As String, ByVal szValue As String) As Logical
+Declare Function ARRAddItemStringUnique(arrValues() As String, ByVal szValue As String) As Logical
+Declare Sub ARRAddAndRemoveItemString(arrAdd() As String, arrRemove() As String, ByVal szValue As String)
+Declare Sub ARRAddAndRemoveItemStringUnique(arrAdd() As String, arrRemove() As String, ByVal szValue As String)
+Declare Sub ARRSortStringASC(arrValues() As String)
+Declare Sub ARRSortStringDESC(arrValues() As String)
+
+'--- I N T E G E R   A R R A Y S --------------------------------------------
+Declare Function ARRRemoveItemInteger(arrValues() As Integer, ByVal nValue As Integer) As Logical
+Declare Function ARRRemoveItemNoInteger(arrValues() As Integer, ByVal nItemNo As Integer) As Logical
+Declare Function ARRAddItemInteger(arrValues() As Integer, ByVal nValue As Integer) As Logical
+Declare Function ARRAddItemIntegerUnique(arrValues() As Integer, ByVal nValue As Integer) As Logical
+Declare Sub ARRSortIntegerASC(arrValues() As Integer)
+Declare Sub ARRSortIntegerDESC(arrValues() As Integer)

@@ -1,0 +1,355 @@
+'*******************************************************************************
+'** 	Program:	TextToolFunc
+'** 	Modul:	TextToolFunc.mb
+'**			Funktioner til håndtering af tekster...
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+Include "..\Language\Message.lng"
+Include "..\Language\Errors.lng"
+Include "..\Language\PlotDef.lng"
+Include "..\Language\StyleDef.lng"
+Include "..\Language\Kommune.lng"
+
+Define GON_2_DEG			360.0 / 400.0
+Define DEG_2_GON			400.0 / 360.0
+
+Include "..\GeoFunc\GeoFunc.def"
+
+Include "TextToolFunc.def"
+Include "TextToolIni.def"
+
+'****************************************
+'Beregning af placering af husnumre - både tekst og symbol
+'****************************************
+Function CalculateTextPlacement(	oTxtHusnr As Object, oPntHusnr As Object,
+						pBeg As T_POINT, pEnd As T_POINT,
+						ByVal szHusnr As String, ByVal szLitra As String) As Logical
+
+Dim	pCen, pMin, pMax, pTxt As T_POINT,
+	fOffSet, fReduction, fRealTextSize, fPerpReduction, fTextLength As Float,
+	fDist, fDiffX, fDiffY, fAngle As Float,
+	szHusnrLitra As String
+
+CalculateTextPlacement = FALSE
+
+	OnError GoTo ErrorOccured
+
+	Set Distance Units "m"
+
+	If szHusnr = szLitra Then
+		szHusnrLitra	= szHusnr
+	Else
+		szHusnrLitra	= szHusnr & szLitra
+	End If
+
+	fRealTextSize	= (TXTTGetTextSize() + (TXTTGetTextSize() / 2)) * 1.075	'Calculating the real textsize
+	fReduction		= fRealTextSize / 2							'Resizing the length of the text
+	fPerpReduction	= TXTTGetTextSize() * 0.4						'Place text at point instead above
+	fTextLength		= TXTTGetTextSize() * (Len(szHusnrLitra)) - (0.6 * Len(szHusnrLitra))
+	fAngle 		= GetMathDegAngle(pBeg.X, pBeg.Y, pEnd.X, pEnd.Y)
+	fDist			= GetPythDistance(pBeg, pEnd) / 2
+	'Print "Matematisk vinkel i grader: " + fAngle
+	fOffSet		= TXTTGetPerpDistance()
+
+	If NOT CreateOrthoPoint(pBeg, pEnd, fDist					, fOffSet				, pCen) Then End If
+	If NOT CreateOrthoPoint(pBeg, pEnd, fDist - (fTextLength / 2)	, fOffSet - fPerpReduction	, pMin) Then End If
+	If NOT CreateOrthoPoint(pBeg, pEnd, fDist					, fOffSet + fPerpReduction	, pTxt) Then End If
+
+
+	Do While (fAngle > 360)
+		fAngle = fAngle - 360
+	Loop
+	Do While (fAngle < 0)
+		fAngle = fAngle + 360
+	Loop
+
+	If fAngle = 0 Then
+		'Do nothing...
+	ElseIf fAngle = 90 Then
+		'Do nothing...
+	ElseIf fAngle = 180 Then
+		fAngle 	= 0
+	ElseIf fAngle = 270 Then
+		'Do nothing...
+	ElseIf (fAngle > 0 and fAngle < 90) Then
+		'Do nothing...
+	ElseIf (fAngle > 90 and fAngle < 180) Then
+		fAngle = fAngle + 180
+	ElseIf (fAngle > 180 and fAngle < 270) Then
+		fAngle = fAngle - 180
+	ElseIf (fAngle > 270 and fAngle < 360) Then
+		'Do nothing...
+	End If
+
+	pMax.X = pMin.X + fTextLength
+	pMax.Y = pMin.Y + fRealTextSize
+
+	If not MapperInfo(FrontWindow(), MAPPER_INFO_ZOOM) = TXTTGetZoom() Then
+		Set Map
+			Zoom TXTTGetZoom() Units "m"
+	End If
+
+	Create Point
+		Into Variable oPntHusnr
+		(pCen.X, pCen.Y)
+
+'	Insert Into WindowInfo(FrontWindow(), WIN_INFO_TABLE)
+'		(OBJ)
+'		Values (oPntHusnr)
+
+	Create Text
+		Into Variable oTxtHusnr
+		szHusnrLitra
+		(pMin.X, pMin.Y )  (pMax.X, pMax.Y)
+		Font TXTTGetTextFont()
+		Angle fAngle
+
+'	Set Style Symbol MakeSymbol(49, RED, 14)
+'	Insert Into WindowInfo(FrontWindow(), WIN_INFO_TABLE)
+'		(OBJ)
+'		Values (CreatePoint(pMin.X, pMin.Y ))
+'	Insert Into WindowInfo(FrontWindow(), WIN_INFO_TABLE)
+'		(OBJ)
+'		Values (CreatePoint(pMax.X, pMax.Y))
+'
+'	Set Style Symbol MakeSymbol(49, BLUE, 14)
+'	Insert Into WindowInfo(FrontWindow(), WIN_INFO_TABLE)
+'		(OBJ)
+'		Values (CreatePoint(pBeg.X, pBeg.Y ))
+'	Insert Into WindowInfo(FrontWindow(), WIN_INFO_TABLE)
+'		(OBJ)
+'		Values (CreatePoint(pEnd.X, pEnd.Y))
+'	Insert Into WindowInfo(FrontWindow(), WIN_INFO_TABLE)
+'		(OBJ)
+'		Values (CreatePoint(pTxt.X, pTxt.Y))
+
+	Alter Object oTxtHusnr
+		Geography OBJ_GEO_TEXTANGLE, fAngle
+
+	oTxtHusnr = MoveTextObject(oTxtHusnr, pTxt.X, pTxt.Y)
+
+	OnError GoTo 0
+
+CalculateTextPlacement = TRUE
+
+	Exit Function
+'-----------------
+ErrorOccured:
+	Note "Følgende Fejl opstod ved oprettelse af husnummer:" + szCurHusnr + szCurLitra + lf
+		+ Error$()
+
+End Function
+
+'****************************************
+'Flytter tekstobjekt til ny position : Center(x,y)
+'****************************************
+Function MoveTextObject(ByVal oText As Object, x As Float, y As Float) as Object
+
+Dim	oTemp As Object,
+	fMinX, fMaxX, fMinY, fMaxY, fCenX, fCenY As Float,
+	fDX, fDY AS Float
+
+OnError GoTo ErrorOccured
+
+	oTemp = oText
+
+	fMinX	= ObjectGeography(oTemp, OBJ_GEO_MINX)
+	fMinY	= ObjectGeography(oTemp, OBJ_GEO_MINY)
+	fMaxX	= ObjectGeography(oTemp, OBJ_GEO_MAXX)
+	fMaxY	= ObjectGeography(oTemp, OBJ_GEO_MAXY)
+
+	fCenX	= (fMinX + fMaxX) / 2
+	fCenY	= (fMinY + fMaxY) / 2
+
+	fDX	= x - fCenX
+	fDY	= y - fCenY
+
+	Alter Object oTemp
+		Geography OBJ_GEO_MINX, (fMinX + fDX)
+	Alter Object oTemp
+		Geography OBJ_GEO_MINY, (fMinY + fDY)
+	Alter Object oTemp
+		Geography OBJ_GEO_MAXX, (fMaxX + fDX)
+	Alter Object oTemp
+		Geography OBJ_GEO_MAXY, (fMaxY + fDY)
+
+	MoveTextObject = oTemp
+
+	Exit Function
+'---------------------
+ErrorOccured:
+
+MoveTextObject = oText
+
+End Function
+
+'****************************************
+'Drejer tekstobjekt til ny vinkel : fAngle
+'****************************************
+Function RotateTextObject(ByVal oText As Object, fAngle As Float) As Object
+
+Dim	oTemp As Object
+
+OnError GoTo ErrorOccured
+
+	oTemp = oText
+
+	Alter Object oTemp
+		Geography OBJ_GEO_TEXTANGLE, fAngle
+
+	RotateTextObject = oTemp
+
+	Exit Function
+'-----------------
+ErrorOccured:
+	RotateTextObject = oText
+
+End Function
+
+'**************************************
+'	Beregner Vinkel
+'		i grader
+'		med Nord som nul
+'		og positiv omløbsretning / som uret
+'	Udfra vinkel
+'		i gon
+'		med vest som nul
+'		og positiv omløbsretning / som uret
+'**************************************
+Function TXTFCalcWestGon2NorthDegAngle(ByVal nWestGonAngle As Float) As Float
+
+Dim	fAngle As Float
+
+OnError GoTo ErrorOccured
+
+	fAngle 	= nWestGonAngle
+
+	fAngle = fAngle - 100
+	fAngle = GON_2_DEG * fAngle
+
+	Do Until fAngle >= 0
+	   fAngle = fAngle + 360
+	Loop
+	Do Until fAngle <= 360
+	   fAngle = fAngle - 360
+	Loop
+
+	TXTFCalcWestGon2NorthDegAngle = fAngle
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************
+'	Beregner Vinkel
+'		i grader
+'		med øst som nul
+'		og negativ omløbsretning / mod uret
+'	Udfra vinkel
+'		i gon
+'		med vest som nul
+'		og positiv omløbsretning / som uret
+'**************************************
+Function TXTFCalcWestGon2MathDegAngle(ByVal nWestGonAngle As Float) As Float
+
+Dim	fAngle As Float
+
+OnError GoTo ErrorOccured
+
+	fAngle 	= nWestGonAngle
+
+	'fAngle = fAngle - 100
+	fAngle = GON_2_DEG * fAngle
+	fAngle = CalcWest2MathAngle(fAngle)
+
+	Do Until fAngle >= 0
+	   fAngle = fAngle + 360
+	Loop
+	Do Until fAngle <= 360
+	   fAngle = fAngle - 360
+	Loop
+
+	TXTFCalcWestGon2MathDegAngle = fAngle
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************
+'	Beregner Vinkel
+'		i gon
+'		med vest som nul
+'		og positiv omløbsretning / som uret
+'	Udfra vinkel
+'		i grader
+'		med Nord som nul
+'		og positiv omløbsretning / som uret
+'**************************************
+Function TXTFNorthDegAngle2WestGon(ByVal nNorthDegAngle As Float) As Float
+
+Dim	fAngle As Float
+
+OnError GoTo ErrorOccured
+
+	fAngle = nNorthDegAngle + 90	'Degree
+	fAngle = DEG_2_GON * fAngle	'Now GON
+
+	Do Until fAngle >= 0
+	   fAngle = fAngle + 400
+	Loop
+	Do Until fAngle <= 400
+	   fAngle = fAngle - 400
+	Loop
+
+	TXTFNorthDegAngle2WestGon = fAngle
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************
+'	Beregner Vinkel
+'		i gon
+'		med vest som nul
+'		og positiv omløbsretning / som uret
+'	Udfra vinkel
+'		i grader
+'		med vest som nul
+'		og negativ omløbsretning / mod uret
+'**************************************
+Function TXTFMathDegAngle2WestGon(ByVal nMathDegAngle As Float) As Float
+
+Dim	fAngle As Float
+
+OnError GoTo ErrorOccured
+
+	fAngle = DEG_2_GON * CalcMath2WestAngle(nMathDegAngle)	'Now GON
+
+	Do Until fAngle >= 0
+	   fAngle = fAngle + 400
+	Loop
+	Do Until fAngle <= 400
+	   fAngle = fAngle - 400
+	Loop
+
+	TXTFMathDegAngle2WestGon = fAngle
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function

@@ -1,0 +1,1492 @@
+'********************************************************
+'**	Modul:	Læs skriv stilart fra stilarttabel
+'**			Opsætning af stilarter i dialog
+'********************************************************
+Include "MapBasic.def"
+
+Include "KPAdminUse.def"
+Include "KPStyleUse.def"
+
+Include "Globals.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+Include "..\..\TabFunc\TabFunc.def"
+
+'****************************************************************************************************************
+'********************************************************
+'	Vælge stilarter til brug
+'********************************************************
+Sub kpsSetCurrentStyle(ByVal nStyleID As Integer)
+
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Call kpsSetCurrentRegionStyle(nStyleID)
+	Call kpsSetCurrentFontStyle(nStyleID)
+	Call kpsSetCurrentSymbolStyle(nStyleID)
+
+	'Call kpsSetCurrentLineStyle(nStyleID)
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	End If
+
+End Sub
+
+'********************************************************
+'	Sætter Linie stilart 
+'********************************************************
+Sub kpsSetCurrentLineStyle(ByVal nStyleID As Integer)
+
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * from KPSTYLES
+		Where STYLEID = nStyleID
+		Into CURSTYLE NoSelect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		Note ERR_STYL_LAYERID + nStyleID + ERR_STYL_NOT_FOUND_IN_TAB
+		GoTo BeforeExitSub
+	ElseIf not CURSTYLE.L_SHOW Then
+		Note ERR_STYL_LAYERID + nStyleID + ERR_STYL_LINE_NOT_SUPPORTED
+		GoTo BeforeExitSub
+	End If
+
+	Set Style Pen kpsGetOKLine(CURSTYLE.L_WIDTH, CURSTYLE.L_PATTERN, CURSTYLE.L_COLOR)
+
+'-------------------------
+BeforeExitSub:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Sub
+
+'********************************************************
+'	Sætter Symbol stilart 
+'********************************************************
+Sub kpsSetCurrentSymbolStyle(ByVal nStyleID As Integer)
+
+Dim 	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * from KPSTYLES
+		Where STYLEID = nStyleID
+		Into CURSTYLE NoSelect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		Note ERR_STYL_LAYERID + nStyleID + ERR_STYL_NOT_FOUND_IN_TAB
+		GoTo BeforeExitSub
+	ElseIf not CURSTYLE.S_SHOW Then
+		Note ERR_STYL_LAYERID + nStyleID + ERR_STYL_SYMBOL_NOT_SUPPORTED
+		GoTo BeforeExitSub
+	End If
+
+	Do Case CURSTYLE.S_KIND
+		Case 1			'MapInfo 3.0 symbol
+
+			Set Style Symbol kpsGetOKSymbol(CURSTYLE.S_SHAPE, CURSTYLE.S_COLOR, CURSTYLE.S_SIZE)
+
+		Case 2			'TrueType symbol
+
+			Set Style Symbol kpsGetOKFontSymbol(CURSTYLE.S_SHAPE, CURSTYLE.S_COLOR,
+									CURSTYLE.S_SIZE, CURSTYLE.S_FONTNAME,
+									CURSTYLE.S_FONTSTYLE, CURSTYLE.S_ROTATION)
+
+		Case 3			'Bitmap file symbol
+			Set Style Symbol kpsGetOKCustomSymbol(	CURSTYLE.S_FILENAME,
+										CURSTYLE.S_COLOR,
+										CURSTYLE.S_SIZE,
+										CURSTYLE.S_CUSTOMSTYLE)
+	End Case
+
+'---------------------------
+BeforeExitSub:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Sub
+
+'********************************************************
+'	Sætter Tekst stilart 
+'********************************************************
+Sub kpsSetCurrentFontStyle(ByVal nStyleID As Integer)
+
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * from KPSTYLES
+		Where STYLEID = nStyleID
+		Into CURSTYLE NoSelect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		Note ERR_STYL_LAYERID + nStyleID + ERR_STYL_NOT_FOUND_IN_TAB
+		GoTo BeforeExitSub
+	ElseIf not CURSTYLE.F_SHOW Then
+		Note ERR_STYL_LAYERID + nStyleID + ERR_STYL_FONT_NOT_SUPPORTED
+		GoTo BeforeExitSub
+	End If
+
+	Set Style Font kpsGetOKFont(	CURSTYLE.F_FONTNAME, CURSTYLE.F_FONTSTYLE,
+						CURSTYLE.F_SIZE, CURSTYLE.F_FORECOLOR,
+						CURSTYLE.F_BACKCOLOR)
+
+'-----------------------
+BeforeExitSub:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Sub
+
+'********************************************************
+'	Sætter Region stilart 
+'********************************************************
+Sub kpsSetCurrentRegionStyle(ByVal nStyleID As Integer)
+
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * from KPSTYLES
+		Where STYLEID = nStyleID
+		Into CURSTYLE NoSelect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		Note ERR_STYL_LAYERID + nStyleID + ERR_STYL_NOT_FOUND_IN_TAB
+		GoTo BeforeExitSub
+	ElseIf not CURSTYLE.P_SHOW And not CURSTYLE.B_SHOW Then
+		Note ERR_STYL_LAYERID + nStyleID + ERR_STYL_BRUSH_NOT_SUPPORTED
+		GoTo BeforeExitSub
+	End If
+
+	If not CURSTYLE.P_SHOW Then
+		Set Style Pen STYLE_INVISIBLE_PEN
+	Else
+		Set Style Pen kpsGetOKPen(CURSTYLE.P_WIDTH, CURSTYLE.P_PATTERN, CURSTYLE.P_COLOR)
+	End If
+
+	If not CURSTYLE.B_SHOW Then
+		Set Style Brush STYLE_INVISIBLE_BRUSH
+	Else
+		Set Style Brush kpsGetOKBrush(CURSTYLE.B_PATTERN, CURSTYLE.B_FORECOLOR, CURSTYLE.B_BACKCOLOR)
+	End If
+
+'-------------------
+BeforeExitSub:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Sub
+
+'****************************************************************************************************************
+'********************************************************
+'	Henter lagID fra stilartstabel
+'********************************************************
+Function kpsGetStyleIDFromTableID(ByVal nTableID As Integer) As Integer
+
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * from KPSTYLES
+		Where TABLEID = nTableID
+		Into CURSTYLE NoSelect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) <> 1 Then
+		kpsGetStyleIDFromTableID = 0
+		GoTo BeforeExitFunction
+	End If
+
+	kpsGetStyleIDFromTableID = CURSTYLE.STYLEID
+
+'-------------------
+BeforeExitFunction:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Function
+
+
+'********************************************************
+'	Henter lagID fra stilartstabel vha stilartsnavnet
+'********************************************************
+Function kpsGetStyleIDFromStyleName(ByVal szStyleName As String) As Integer
+
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * from KPSTYLES
+		Where STYLENAME = szStyleName
+		Into CURSTYLE NoSelect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		kpsGetStyleIDFromStyleName = 0
+	Else
+		kpsGetStyleIDFromStyleName = CURSTYLE.STYLEID
+	End If
+
+'-------------------
+BeforeExitFunction:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Function
+
+'********************************************************
+'	Ændrer stilartsnavn for StyleID
+'********************************************************
+Sub kpsSetStyleName$(ByVal nStyleID As Integer, ByVal szName As String)
+
+	If nStyleID < 1 Then
+		Exit Sub
+	End If
+
+	Select * From KPSTYLES
+		Where STYLEID = nStyleID
+		Into CUR_STYLENAME_TO_CHANGE NoSelect
+
+	If TableInfo("CUR_STYLENAME_TO_CHANGE", TAB_INFO_NROWS) = 1 Then
+		Update CUR_STYLENAME_TO_CHANGE
+			Set STYLENAME = szName
+	End If
+
+	Close Table CUR_STYLENAME_TO_CHANGE
+
+End Sub
+
+'********************************************************
+'	Sletter et tmea vha styleID
+'********************************************************
+Function kpsRemoveStyleRef(ByVal nStyleID As Integer) As Logical
+
+Dim	bCloseValues, bCloseStyles As Logical
+
+OnError GoTo ErrorOccured
+
+kpsRemoveStyleRef = FALSE
+
+	bCloseValues = kpaOpenKPValuesTable()
+	bCloseStyles = kpaOpenKPStylesTable()
+
+	Select * From KPSTYLES
+		Where STYLEID = nStyleID
+		Into STYLES__TO__DELETED NoSelect
+
+	If GetNumRows("STYLES__TO__DELETED") > 0 Then
+		Select * From KPVALUES
+			Where STYLEID	= nStyleID
+			Into VALUES__TO__DELETE	NoSelect
+			
+		If GetNumRows("VALUES__TO__DELETE") > 0 Then
+			Delete From VALUES__TO__DELETE
+		End If
+		Delete From STYLES__TO__DELETED
+	End If
+
+	If bCloseStyles Then
+		Commit Table KPSTYLES
+		Call TABClose("KPSTYLES")
+	Else
+		Call TABClose("STYLES__TO__DELETED")
+	End If
+	If bCloseValues Then
+		Commit Table KPVALUES
+		Call TABClose("KPVALUES")
+	Else
+		Call TABClose("VALUES__TO__DELETE")
+	End If
+
+kpsRemoveStyleRef = TRUE
+
+	Exit Function
+'------------------------
+ErrorOccured:
+
+	If TableOpen("TO_BE_DELETED") Then
+		Close Table TO_BE_DELETED
+	End If
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function kpsRemoveStyleByTableRef(ByVal nTableID As Integer) As Logical
+
+Dim	bCloseValues, bCloseStyles As Logical
+
+OnError GoTo ErrorOccured
+
+kpsRemoveStyleByTableRef = FALSE
+
+	bCloseValues = kpaOpenKPValuesTable()
+	bCloseStyles = kpaOpenKPStylesTable()
+
+	Select * From KPSTYLES
+		Where TABLEID = nTableID
+		Into STYLES__TO__DELETED NoSelect
+
+	If GetNumRows("STYLES__TO__DELETED") > 0 Then
+		Select * From KPVALUES
+			Where STYLEID In (Select STYLEID From STYLES__TO__DELETED)
+			Into VALUES__TO__DELETE	NoSelect
+			
+		If GetNumRows("VALUES__TO__DELETE") > 0 Then
+			Delete From VALUES__TO__DELETE
+		End If
+		Delete From STYLES__TO__DELETED
+	End If
+
+	If bCloseStyles Then
+		Commit Table KPSTYLES
+		Call TABClose("KPSTYLES")
+	Else
+		Call TABClose("STYLES__TO__DELETED")
+	End If
+	If bCloseValues Then
+		Commit Table KPVALUES
+		Call TABClose("KPVALUES")
+	Else
+		Call TABClose("VALUES__TO__DELETE")
+	End If
+
+kpsRemoveStyleByTableRef = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'****************************************************************************************************************
+'********************************************************
+'	Henter udfyldningsstilart
+'********************************************************
+Function kpsGetBrush(ByVal nStyleID As Integer) As Brush
+
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * From KPSTYLES
+		Where ID = nStyleID
+		Into CURSTYLE Noselect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		kpsGetBrush = STYLE_PRE_BRUSH
+		GoTo BeforeExitFunction
+	End If
+
+	kpsGetBrush = kpsGetOKBrush(CURSTYLE.B_PATTERN, CURSTYLE.B_FORECOLOR, CURSTYLE.B_BACKCOLOR)
+
+'-------------------
+BeforeExitFunction:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Function
+
+'********************************************************
+'	Henter afgrænsningsstilart
+'********************************************************
+Function kpsGetPen(ByVal nStyleID As Integer) As Pen
+
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * From KPSTYLES
+		Where ID = nStyleID
+		Into CURSTYLE Noselect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		kpsGetPen = STYLE_PRE_PEN
+		GoTo BeforeExitFunction
+	End If
+
+	kpsGetPen = kpsGetOKPen(CURSTYLE.P_WIDTH, CURSTYLE.P_PATTERN, CURSTYLE.P_COLOR)
+
+'-------------------
+BeforeExitFunction:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Function
+
+'********************************************************
+'	Henter Liniestilart
+'********************************************************
+Function kpsGetLine(ByVal nStyleID As Integer) As Pen
+
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * From KPSTYLES
+		Where ID = nStyleID
+		Into CURSTYLE Noselect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		kpsGetLine = STYLE_PRE_LINE
+		GoTo BeforeExitFunction
+	End If
+
+	kpsGetLine = kpsGetOKLine(CURSTYLE.L_WIDTH, CURSTYLE.L_PATTERN, CURSTYLE.L_COLOR)
+
+'-------------------
+BeforeExitFunction:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Function
+
+'********************************************************
+'	Henter Symbolstilart
+'********************************************************
+Function kpsGetSymbol(ByVal nStyleID As Integer) As Symbol
+
+Dim 	a,b,c,d,e,f As Alias,
+	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * From KPSTYLES
+		Where ID = nStyleID
+		Into CURSTYLE Noselect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		kpsGetSymbol = STYLE_PRE_SYMBOL
+		GoTo BeforeExitFunction
+	End If
+
+	Do Case CURSTYLE.S_KIND
+	   Case 1			'MapInfo 3.0 symbol
+		a = CURSTYLE.S_SHAPE
+		b = CURSTYLE.S_COLOR
+		c = CURSTYLE.S_SIZE
+
+		kpsGetSymbol = kpsGetOKSymbol(a,b,c)
+
+	   Case 2			'TrueType symbol
+		a = CURSTYLE.S_SHAPE
+		b = CURSTYLE.S_COLOR
+		c = CURSTYLE.S_SIZE
+		d = CURSTYLE.S_FONTNAME
+		e = CURSTYLE.S_FONTSTYLE
+		f = CURSTYLE.S_ROTATION
+
+		kpsGetSymbol = kpsGetOKFontSymbol(a,b,c,d,e,f)
+
+	   Case 3			'Bitmap file symbol
+		a = CURSTYLE.S_FILENAME
+		b = CURSTYLE.S_COLOR
+		c = CURSTYLE.S_SIZE
+		d = CURSTYLE.S_CUSTOMSTYLE
+
+		kpsGetSymbol = kpsGetOKCustomSymbol(a,b,c,d)
+	End Case
+
+'-------------------
+BeforeExitFunction:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Function
+
+'********************************************************
+'	Henter Skriftstilart
+'********************************************************
+Function kpsGetFont(ByVal nStyleID As Integer) As Font
+
+Dim 	a,b,c,d,e As Alias,
+	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * From KPSTYLES
+		Where ID = nStyleID
+		Into CURSTYLE Noselect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		kpsGetFont = STYLE_PRE_FONT
+		GoTo BeforeExitFunction
+	End If
+
+	a = CURSTYLE.F_FONTNAME
+	b = CURSTYLE.F_FONTSTYLE
+	c = CURSTYLE.F_SIZE
+	d = CURSTYLE.F_FORECOLOR
+	e = CURSTYLE.F_BACKCOLOR
+
+	kpsGetFont = kpsGetOKFont(a,b,c,d,e)
+
+'-------------------
+BeforeExitFunction:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Function
+
+'****************************************************************************************************************
+'********************************************************
+'	Henter udfyldningsstilart fra angivet tabel
+'********************************************************
+Function kpsGetBrushFromTable(ByVal szTable As String) As Brush
+
+Dim	a, b, c As Alias
+
+	a = szTable + ".B_PATTERN"
+	b = szTable + ".B_FORECOLOR"
+	c = szTable + ".B_BACKCOLOR"
+
+	If TableInfo(szTable, TAB_INFO_NROWS) = 0 Then
+		kpsGetBrushFromTable = STYLE_PRE_BRUSH
+	Else
+		kpsGetBrushFromTable = kpsGetOKBrush(a, b, c)
+
+	End If
+
+End Function
+
+'********************************************************
+'	Henter afgrænsningsstilart fra angivet tabel
+'********************************************************
+Function kpsGetPenFromTable(ByVal szTable As String) As Pen
+
+Dim	a,b,c As Alias
+
+	a = szTable + ".P_WIDTH" 
+	b = szTable + ".P_PATTERN"
+	c = szTable + ".P_COLOR"
+
+	If TableInfo(szTable, TAB_INFO_NROWS) = 0 Then
+		kpsGetPenFromTable = STYLE_PRE_LINE
+	Else
+		kpsGetPenFromTable = kpsGetOKPen(a, b, c)
+	End If
+
+End Function
+
+'********************************************************
+'	Henter Liniestilart fra angivet tabel
+'********************************************************
+Function kpsGetLineFromTable(ByVal szTable As String) As Pen
+
+Dim	a,b,c As Alias
+
+	a = szTable + ".L_WIDTH" 
+	b = szTable + ".L_PATTERN"
+	c = szTable + ".L_COLOR"
+
+	If TableInfo(szTable, TAB_INFO_NROWS) = 0 Then
+		kpsGetLineFromTable = STYLE_PRE_LINE
+	Else
+		kpsGetLineFromTable = kpsGetOKLine(a, b, c)
+	End If
+
+End Function
+
+'********************************************************
+'	Henter Symbolstilart fra angivet tabel
+'********************************************************
+Function kpsGetSymbolFromTable(ByVal szTable As String) As Symbol
+
+Dim 	a,b,c,d,e,f,g As Alias,
+	nKind As Integer
+
+	If TableInfo(szTable, TAB_INFO_NROWS) = 0 Then 
+		kpsGetSymbolFromTable = STYLE_PRE_SYMBOL
+	Else
+		g = szTable + ".S_KIND"		nKind = g
+		Do Case nKind
+			Case 1			'MapInfo 3.0 symbol
+				a = szTable + ".S_SHAPE"
+				b = szTable + ".S_COLOR"
+				c = szTable + ".S_SIZE"
+
+				kpsGetSymbolFromTable = kpsGetOKSymbol(a,b,c)
+
+			Case 2			'TrueType symbol
+				a = szTable + ".S_SHAPE"
+				b = szTable + ".S_COLOR"
+				c = szTable + ".S_SIZE"
+				d = szTable + ".S_FONTNAME"
+				e = szTable + ".S_FONTSTYLE"
+				f = szTable + ".S_ROTATION"
+
+				kpsGetSymbolFromTable = kpsGetOKFontSymbol(a,b,c,d,e,f)
+
+			Case 3			'Bitmap file symbol
+				a = szTable + ".S_FILENAME"
+				b = szTable + ".S_COLOR"
+				c = szTable + ".S_SIZE"
+				d = szTable + ".S_CUSTOMSTYLE"
+
+				kpsGetSymbolFromTable = kpsGetOKCustomSymbol(a,b,c,d)
+
+			Case STYLE_DONT_USE
+				kpsGetSymbolFromTable = STYLE_PRE_SYMBOL
+			Case ELSE
+				kpsGetSymbolFromTable = STYLE_PRE_SYMBOL
+		End Case
+	End If
+
+End Function
+
+'********************************************************
+'	Henter Skriftstilart fra angivet tabel
+'********************************************************
+Function kpsGetFontFromTable(ByVal szTable As String) As Font
+
+Dim 	a,b,c,d,e As Alias
+
+	a = szTable + ".F_FONTNAME"
+	b = szTable + ".F_FONTSTYLE"
+	c = szTable + ".F_SIZE"
+	d = szTable + ".F_FORECOLOR"
+	e = szTable + ".F_BACKCOLOR"
+
+	If TableInfo(szTable, TAB_INFO_NROWS) = 0 Then
+		kpsGetFontFromTable = STYLE_PRE_FONT
+	Else
+		kpsGetFontFromTable = kpsGetOKFont(a,b,c,d,e)
+	End If
+
+End Function
+
+'****************************************************************************************************************
+'********************************************************
+'	Henter Lagnavn/info
+'********************************************************
+Function kpsGetStyleName$(ByVal nStyleID As Integer) As String
+	
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * From KPSTYLES
+		Where STYLEID = nStyleID
+		Into CURSTYLE Noselect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		kpsGetStyleName$ = ""
+		GoTo BeforeExitFunction
+	End If
+
+	kpsGetStyleName$ = CURSTYLE.STYLENAME
+
+'-------------------
+BeforeExitFunction:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Function
+
+'********************************************************
+'	Henter Tabelnavn til lag
+'********************************************************
+Function kpsGetTableID(ByVal nStyleID As Integer) As Integer
+
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * From KPSTYLES
+		Where STYLEID = nStyleID
+		Into CURSTYLE Noselect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		kpsGetTableID = 0
+		GoTo BeforeExitFunction
+	End If
+
+	kpsGetTableID = CURSTYLE.TABLEID
+
+'-------------------
+BeforeExitFunction:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Function
+
+'********************************************************
+'	Skriver udfyldningsstilart
+'********************************************************
+Sub kpsSetBrush(ByVal nStyleID As Integer, ByVal brsStyle As Brush)
+
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * From KPSTYLES
+		Where ID = nStyleID
+		Into CURSTYLE Noselect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		GoTo BeforeExitFunction
+	End If
+
+	Update CURSTYLE
+		Set	B_PATTERN	= StyleAttr(brsStyle, BRUSH_PATTERN),
+			B_FORECOLOR	= StyleAttr(brsStyle, BRUSH_FORECOLOR),
+			B_BACKCOLOR	= StyleAttr(brsStyle, BRUSH_BACKCOLOR)
+
+	Commit Table KPSTYLES
+
+'-------------------
+BeforeExitFunction:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Sub
+
+'********************************************************
+'	Henter afgrænsningsstilart
+'********************************************************
+Sub kpsSetPen(ByVal nStyleID As Integer, ByVal penStyle As Pen)
+
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * From KPSTYLES
+		Where ID = nStyleID
+		Into CURSTYLE Noselect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		GoTo BeforeExitFunction
+	End If
+
+	Update CURSTYLE
+		Set	P_WIDTH	= StyleAttr(penStyle, PEN_WIDTH),
+			P_PATTERN	= StyleAttr(penStyle, PEN_PATTERN),
+			P_COLOR	= StyleAttr(penStyle, PEN_COLOR)
+
+	Commit Table KPSTYLES
+
+'-------------------
+BeforeExitFunction:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Sub
+
+'********************************************************
+'	Skriver Liniestilart
+'********************************************************
+Sub kpsSetLine(ByVal nStyleID As Integer, ByVal penStyle As Pen)
+
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * From KPSTYLES
+		Where ID = nStyleID
+		Into CURSTYLE Noselect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		GoTo BeforeExitFunction
+	End If
+
+	Update CURSTYLE
+		Set	L_WIDTH	= StyleAttr(penStyle, PEN_WIDTH),
+			L_PATTERN	= StyleAttr(penStyle, PEN_PATTERN),
+			L_COLOR	= StyleAttr(penStyle, PEN_COLOR)
+
+	Commit Table KPSTYLES
+
+'-------------------
+BeforeExitFunction:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Sub
+
+'********************************************************
+'	Skriver Symbolstilart
+'********************************************************
+Sub kpsSetSymbol(ByVal nStyleID As Integer, ByVal symStyle As Symbol)
+
+Dim 	bCloseTab As Logical	
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * From KPSTYLES
+		Where ID = nStyleID
+		Into CURSTYLE Noselect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		GoTo BeforeExitFunction
+	End If
+
+	Do Case StyleAttr(symStyle, SYMBOL_KIND)
+
+		Case 1			'MapInfo 3.0 symbol
+			Update CURSTYLE
+			   Set	S_SHAPE		= StyleAttr(symStyle, SYMBOL_CODE),
+					S_COLOR		= StyleAttr(symStyle, SYMBOL_COLOR),
+					S_SIZE		= StyleAttr(symStyle, SYMBOL_POINTSIZE),
+					S_KIND		= StyleAttr(symStyle, SYMBOL_KIND)
+
+		Case 2			'TrueType symbol
+			Update CURSTYLE
+			   Set	S_SHAPE		= StyleAttr(symStyle, SYMBOL_CODE),
+					S_COLOR		= StyleAttr(symStyle, SYMBOL_COLOR),
+					S_SIZE		= StyleAttr(symStyle, SYMBOL_POINTSIZE),
+					S_FONTNAME		= StyleAttr(symStyle, SYMBOL_FONT_NAME),
+					S_FONTSTYLE		= StyleAttr(symStyle, SYMBOL_FONT_STYLE),
+					S_ROTATION		= StyleAttr(symStyle, SYMBOL_ANGLE),
+					S_KIND		= StyleAttr(symStyle, SYMBOL_KIND)
+
+		Case 3			'Bitmap file symbol	
+			Update CURSTYLE
+			   Set	S_FILENAME		= StyleAttr(symStyle, SYMBOL_CUSTOM_NAME),
+					S_COLOR		= StyleAttr(symStyle, SYMBOL_COLOR),
+					S_SIZE		= StyleAttr(symStyle, SYMBOL_POINTSIZE),
+					S_CUSTOMSTYLE	= StyleAttr(symStyle, SYMBOL_CUSTOM_STYLE),
+					S_KIND		= StyleAttr(symStyle, SYMBOL_KIND)
+	End Case
+
+	Commit Table KPSTYLES
+
+'-------------------
+BeforeExitFunction:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Sub
+
+'********************************************************
+'	Skriver Skriftstilart
+'********************************************************
+Sub kpsSetFont(ByVal nStyleID As Integer, ByVal fntStyle As Font)
+
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select * From KPSTYLES
+		Where ID = nStyleID
+		Into CURSTYLE Noselect
+
+	If TableInfo(CURSTYLE, TAB_INFO_NROWS) = 0 Then
+		GoTo BeforeExitFunction
+	End If
+
+	Update CURSTYLE
+		Set 	F_FONTNAME	= StyleAttr(fntStyle, FONT_NAME),  
+			F_FONTSTYLE	= StyleAttr(fntStyle, FONT_STYLE),
+			F_SIZE	= StyleAttr(fntStyle, FONT_POINTSIZE),
+			F_FORECOLOR	= StyleAttr(fntStyle, FONT_FORECOLOR),
+			F_BACKCOLOR	= StyleAttr(fntStyle, FONT_BACKCOLOR)
+
+	Commit Table KPSTYLES
+
+'-------------------
+BeforeExitFunction:
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table CURSTYLE
+	End If
+
+End Sub
+
+'****************************************************************************************************************
+'********************************************************
+'	Skriver udfyldningsstilart til angivet tabel
+'********************************************************
+Sub kpsSetBrushInTable(ByVal szTable As String, ByVal brsStyle As Brush)
+
+	If TableInfo(szTable, TAB_INFO_NROWS) = 0 Then
+		Exit Sub
+	End If
+
+	Update szTable
+		Set	B_PATTERN	= StyleAttr(brsStyle, BRUSH_PATTERN),
+			B_FORECOLOR	= StyleAttr(brsStyle, BRUSH_FORECOLOR),
+			B_BACKCOLOR	= StyleAttr(brsStyle, BRUSH_BACKCOLOR)
+
+End Sub
+
+'********************************************************
+'	Skriver afgrænsningstilart til angivet tabel
+'********************************************************
+Sub kpsSetPenInTable(ByVal szTable As String, ByVal penStyle As Pen)
+
+	If TableInfo(szTable, TAB_INFO_NROWS) = 0 Then
+		Exit Sub
+	End If
+
+	Update szTable
+		Set	P_WIDTH	= StyleAttr(penStyle, PEN_WIDTH),
+			P_PATTERN	= StyleAttr(penStyle, PEN_PATTERN),
+			P_COLOR	= StyleAttr(penStyle, PEN_COLOR)
+
+End Sub
+
+
+'********************************************************
+'	Skriver Liniestilart til angivet tabel
+'********************************************************
+Sub kpsSetLineInTable(ByVal szTable As String, ByVal penStyle As Pen)
+
+	If TableInfo(szTable, TAB_INFO_NROWS) = 0 Then
+		Exit Sub
+	End If
+
+	Update szTable
+		Set	L_WIDTH	= StyleAttr(penStyle, PEN_WIDTH),
+			L_PATTERN	= StyleAttr(penStyle, PEN_PATTERN),
+			L_COLOR	= StyleAttr(penStyle, PEN_COLOR)
+
+End Sub
+
+'********************************************************
+'	Skriver Symbolstilart til angivet tabel
+'********************************************************
+Sub kpsSetSymbolInTable(ByVal szTable As String, ByVal symStyle As Symbol)
+
+	If TableInfo(szTable, TAB_INFO_NROWS) = 0 Then
+		Exit Sub
+	End If
+
+	Do Case StyleAttr(symStyle, SYMBOL_KIND)
+
+		Case 1			'MapInfo 3.0 symbol
+			Update szTable
+			   Set	S_SHAPE		= StyleAttr(symStyle, SYMBOL_CODE),
+					S_COLOR		= StyleAttr(symStyle, SYMBOL_COLOR),
+					S_SIZE		= StyleAttr(symStyle, SYMBOL_POINTSIZE),
+					S_KIND		= StyleAttr(symStyle, SYMBOL_KIND)
+
+		Case 2			'TrueType symbol
+			Update szTable
+			   Set	S_SHAPE		= StyleAttr(symStyle, SYMBOL_CODE),
+					S_COLOR		= StyleAttr(symStyle, SYMBOL_COLOR),
+					S_SIZE		= StyleAttr(symStyle, SYMBOL_POINTSIZE),
+					S_FONTNAME		= StyleAttr(symStyle, SYMBOL_FONT_NAME),
+					S_FONTSTYLE		= StyleAttr(symStyle, SYMBOL_FONT_STYLE),
+					S_ROTATION		= StyleAttr(symStyle, SYMBOL_ANGLE),
+					S_KIND		= StyleAttr(symStyle, SYMBOL_KIND)
+
+		Case 3			'Bitmap file symbol	
+			Update szTable
+			   Set	S_FILENAME		= StyleAttr(symStyle, SYMBOL_CUSTOM_NAME),
+					S_COLOR		= StyleAttr(symStyle, SYMBOL_COLOR),
+					S_SIZE		= StyleAttr(symStyle, SYMBOL_POINTSIZE),
+					S_CUSTOMSTYLE	= StyleAttr(symStyle, SYMBOL_CUSTOM_STYLE),
+					S_KIND		= StyleAttr(symStyle, SYMBOL_KIND)
+
+	End Case
+
+End Sub
+
+'********************************************************
+'	Skriver Skriftstilart i angivet tabel
+'********************************************************
+Sub kpsSetFontInTable(ByVal szTable As String, ByVal fntStyle As Font)
+
+	If TableInfo(szTable, TAB_INFO_NROWS) = 0 Then
+		Exit Sub
+	End If
+
+	Update szTable
+		Set 	F_FONTNAME	= StyleAttr(fntStyle, FONT_NAME),  
+			F_FONTSTYLE	= StyleAttr(fntStyle, FONT_STYLE),
+			F_SIZE	= StyleAttr(fntStyle, FONT_POINTSIZE),
+			F_FORECOLOR	= StyleAttr(fntStyle, FONT_FORECOLOR),
+			F_BACKCOLOR	= StyleAttr(fntStyle, FONT_BACKCOLOR)
+
+End Sub
+
+'********************************************************
+'	Findes de nødvendige kolonner til symboler
+'********************************************************
+Function kpsSymbolColumnsExists() As Logical
+
+	kpsSymbolColumnsExists = FALSE
+
+	If not TableOpen("KPSTYLES") Then
+		Exit Function
+	End If
+
+	If not ColExist("KPSTYLES","S_SHOW") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","S_SHAPE") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","S_COLOR") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","S_SIZE") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","S_FONTNAME") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","S_FONTSTYLE") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","S_ROTATION") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","S_FILENAME") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","S_CUSTOMSTYLE") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","S_KIND") Then
+		Exit Function
+	End If
+
+	kpsSymbolColumnsExists = TRUE
+
+End Function
+
+'********************************************************
+'	Findes de nødvendige kolonner til Line
+'********************************************************
+Function kpsLineColumnsExists() As Logical
+
+	kpsLineColumnsExists = FALSE
+
+	If not TableOpen("KPSTYLES") Then
+		Exit Function
+	End If
+
+	If not ColExist("KPSTYLES","L_SHOW") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","L_WIDTH") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","L_PATTERN") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","L_COLOR") Then
+		Exit Function
+	End If
+
+	kpsLineColumnsExists = TRUE
+
+End Function
+
+'********************************************************
+'	Findes de nødvendige kolonner til Pen
+'********************************************************
+Function kpsPenColumnsExists() As Logical
+
+	kpsPenColumnsExists = FALSE
+
+	If not TableOpen("KPSTYLES") Then
+		Exit Function
+	End If
+
+	If not ColExist("KPSTYLES","P_SHOW") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","P_WIDTH") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","P_PATTERN") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","P_COLOR") Then
+		Exit Function
+	End If
+
+	kpsPenColumnsExists = TRUE
+
+End Function
+
+'********************************************************
+'	Findes de nødvendige kolonner til Brush
+'********************************************************
+Function kpsBrushColumnsExists() As Logical
+
+	kpsBrushColumnsExists = FALSE
+
+	If not TableOpen("KPSTYLES") Then
+		Exit Function
+	End If
+
+	If not ColExist("KPSTYLES","B_SHOW") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","B_PATTERN") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","B_FORECOLOR") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","B_BACKCOLOR") Then
+		Exit Function
+	End If
+
+	kpsBrushColumnsExists = TRUE
+	
+End Function
+
+
+
+'********************************************************
+'	Findes de nødvendige kolonner til Font
+'********************************************************
+Function kpsFontColumnsExists() As Logical
+
+	kpsFontColumnsExists = FALSE
+
+	If not TableOpen("KPSTYLES") Then
+		Exit Function
+	End If
+
+	If not ColExist("KPSTYLES","F_SHOW") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","F_FONTNAME") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","F_FONTSTYLE") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","F_SIZE") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","F_FORECOLOR") Then
+		Exit Function
+	ElseIf not ColExist("KPSTYLES","F_BACKCOLOR") Then
+		Exit Function
+	End If
+
+	kpsFontColumnsExists = TRUE
+
+End Function
+
+'********************************************************************************************
+
+'********************************************************
+'	Opretter liste med temanavne......
+'********************************************************
+Sub kpsCreateListOfStyleNames(arrStyleNames() As String)
+
+Dim	nCount As Integer
+
+	Select * From KPSTYLES
+		Order By STYLENAME
+		Into CUR_LIST_OF_STYLES NoSelect
+
+	ReDim arrStyleNames(TableInfo("CUR_LIST_OF_STYLES", TAB_INFO_NROWS) + 1)
+	nCount = 1
+	arrStyleNames(nCount) = STYL_THEME_ADD_POINTS
+
+	If TableInfo("CUR_LIST_OF_STYLES", TAB_INFO_NROWS) > 0 Then
+
+		Fetch First From CUR_LIST_OF_STYLES
+		Do Until EOT(CUR_LIST_OF_STYLES)
+
+			nCount 		= nCount + 1
+			arrStyleNames(nCount)	= CUR_LIST_OF_STYLES.STYLENAME
+
+			Fetch Next From CUR_LIST_OF_STYLES
+		Loop
+	End If
+
+End Sub
+
+'********************************************************
+'	Opretter liste med temanavne unden "Nyt tema..." ...
+'********************************************************
+Sub kpsCreateListOfStyleNamesLocked(arrStyleNames() As String)
+
+Dim	nCount As Integer
+
+	Select * From KPSTYLES
+		Order By STYLENAME
+		Into CUR_LIST_OF_STYLES NoSelect
+
+	ReDim arrStyleNames(TableInfo("CUR_LIST_OF_STYLES", TAB_INFO_NROWS))
+	nCount = 0
+
+	If TableInfo("CUR_LIST_OF_STYLES", TAB_INFO_NROWS) > 0 Then
+
+		Fetch First From CUR_LIST_OF_STYLES
+		Do Until EOT(CUR_LIST_OF_STYLES)
+
+			nCount 		= nCount + 1
+			arrStyleNames(nCount)	= CUR_LIST_OF_STYLES.STYLENAME
+
+			Fetch Next From CUR_LIST_OF_STYLES
+		Loop
+	End If
+
+End Sub
+
+'********************************************************
+'	Returnerer Største StyleID...
+'********************************************************
+Function kpsGetMaxStyleID() As Integer
+
+Dim	bCloseTab As Logical,
+	nMax As Integer
+
+	bCloseTab = kpaOpenKPStylesTable()
+
+	Select Max(STYLEID) "MAXID"
+		From KPSTYLES
+		Into MAX_ID NoSelect
+
+	If TableInfo("MAX_ID", TAB_INFO_NROWS) = 0 Then
+		nMax = 0
+	Else
+		Fetch First From MAX_ID
+		nMax = MAX_ID.MAXID
+	End If
+
+	If bCloseTab Then
+		Close Table KPSTYLES
+	Else
+		Close Table MAX_ID
+	End If
+	
+	kpsGetMaxStyleID	= nMax
+
+End Function
+
+'********************************************************
+'	Returnerer næste ledige StyleID...
+'********************************************************
+Function kpsGetNextStyleID() As Integer
+
+	kpsGetNextStyleID	= kpsGetMaxStyleID() + 1
+
+End Function
+
+'********************************************************
+'	returner elementno i array for given værdi...
+'********************************************************
+Function kpsGetStyleElementNo(ByVal szStyleName As String, arrStyleNames() As String) As Integer
+
+Dim	i As Integer
+
+	kpsGetStyleElementNo = 1
+
+	For i = 1 To Ubound(arrStyleNames)
+		If arrStyleNames(i) = szStyleName Then
+			kpsGetStyleElementNo = i
+			Exit Function
+		End If
+	Next
+
+End Function
+
+'********************************************************
+'	Returnerer StyleID udfra ElementNr......
+'********************************************************
+Function kpsGetStyleIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+	OnError GoTo ErrorOccured
+	Fetch Rec (nElementNo - 1) From CUR_LIST_OF_STYLES
+
+	kpsGetStyleIDFromElementNo = CUR_LIST_OF_STYLES.STYLEID
+	Exit Function
+
+'--------------------
+ErrorOccured:
+	kpsGetStyleIDFromElementNo = 0
+
+End Function
+
+'********************************************************
+'	Returnerer StyleID udfra ElementNr......
+'********************************************************
+Function kpsGetStyleIDFromElementNoLocked(ByVal nElementNo As Integer) As Integer
+
+	OnError GoTo ErrorOccured
+	Fetch Rec nElementNo From CUR_LIST_OF_STYLES
+
+	kpsGetStyleIDFromElementNoLocked = CUR_LIST_OF_STYLES.STYLEID
+	Exit Function
+
+'--------------------
+ErrorOccured:
+	kpsGetStyleIDFromElementNoLocked = 0
+
+End Function
+
+
+'********************************************************
+'	Returnerer OK Brushstilart......
+'********************************************************
+Function kpsGetOKBrush(ByVal nPattern As Integer, ByVal nForeColor As Integer, ByVal nBackColor As Integer) As Brush
+
+	OnError GoTo ErrorOccured
+
+	kpsGetOKBrush = MakeBrush(nPattern, nForeColor, nBackColor)
+
+	Exit Function 	
+'-----------------------
+ErrorOccured:
+
+	kpsGetOKBrush = STYLE_PRE_BRUSH	
+
+End Function
+
+'********************************************************
+'	Returnerer OK Penstilart - linie......
+'********************************************************
+Function kpsGetOKPen(ByVal nWidth As Integer, ByVal nPattern As Integer, ByVal nColor As Integer) As Pen
+
+	OnError GoTo ErrorOccured
+
+	kpsGetOKPen = MakePen(nWidth, nPattern, nColor)
+
+	Exit Function 	
+'-----------------------
+ErrorOccured:
+
+	kpsGetOKPen = STYLE_PRE_PEN	
+
+End Function
+
+'********************************************************
+'	Returnerer OK Penstilart - afgrænsning......
+'********************************************************
+Function kpsGetOKLine(ByVal nWidth As Integer, ByVal nPattern As Integer, ByVal nColor As Integer) As Pen
+
+	OnError GoTo ErrorOccured
+
+	kpsGetOKLine = MakePen(nWidth, nPattern, nColor)
+
+	Exit Function 	
+'-----------------------
+ErrorOccured:
+
+	kpsGetOKLine = STYLE_PRE_LINE	
+
+End Function
+
+'********************************************************
+'	Returnerer OK Font stilart......
+'********************************************************
+Function kpsGetOKFont(ByVal szName As String, ByVal nStyle As Integer, ByVal nSize As Integer, ByVal nForeColor As Integer, ByVal nBackColor As Integer) As Font
+
+	OnError GoTo ErrorOccured
+
+	kpsGetOKFont = MakeFont(szName, nStyle, nSize, nForeColor, nBackColor)
+
+	Exit Function 	
+'-----------------------
+ErrorOccured:
+
+	kpsGetOKFont = STYLE_PRE_FONT
+
+End Function
+
+'********************************************************
+'	Returnerer OK Symbol stilart......
+'********************************************************
+Function kpsGetOKSymbol(ByVal nShape As Integer, ByVal nColor As Integer, ByVal nSize As Integer) As Symbol
+
+	OnError GoTo ErrorOccured
+
+	kpsGetOKSymbol = MakeSymbol(nShape, nColor, nSize)
+
+	Exit Function 	
+'-----------------------
+ErrorOccured:
+
+	kpsGetOKSymbol = STYLE_PRE_SYMBOL
+
+End Function
+
+'********************************************************
+'	Returnerer OK CustomSymbol stilart......
+'********************************************************
+Function kpsGetOKCustomSymbol(ByVal szFilename As String, ByVal nColor As Integer, ByVal nSize As Integer, ByVal nCustomStyle As Integer) As Symbol
+
+	OnError GoTo ErrorOccured
+
+	kpsGetOKCustomSymbol = MakeCustomSymbol(szFilename, nColor, nSize, nCustomStyle)
+
+	Exit Function 	
+'-----------------------
+ErrorOccured:
+
+	kpsGetOKCustomSymbol = STYLE_PRE_SYMBOL
+
+End Function
+
+'********************************************************
+'	Returnerer OK FontSymbol stilart......
+'********************************************************
+Function kpsGetOKFontSymbol(ByVal nShape As Integer, ByVal nColor As Integer, ByVal nSize As Integer, ByVal szFontname As String, ByVal nFontstyle As Integer, ByVal fRotation As Float) As Symbol
+
+	OnError GoTo ErrorOccured
+
+	kpsGetOKFontSymbol = MakeFontSymbol(nShape, nColor, nSize, szFontname, nFontstyle, fRotation)
+
+	Exit Function 	
+'-----------------------
+ErrorOccured:
+
+	kpsGetOKFontSymbol = STYLE_PRE_SYMBOL
+
+End Function

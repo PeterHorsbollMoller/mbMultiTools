@@ -1,0 +1,2033 @@
+'*******************************************************************************
+'** 	Program:	Alle med udskriftsfunktionalitet
+'** 	Modul:	Printing.mb
+'**			Functions for printing.
+'*******************************************************************************
+
+Include "Mapbasic.def"
+Include "Menu.def"
+Include "Icons.def"
+
+Include "..\..\WinFunc\WinFunc.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\IniUtil\IniUtil.def"
+Include "..\..\MapFunc\MapFunc.def"
+
+Include "..\..\Language\PlotDef.lng"
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+
+Include "Globals.def"
+Include "Printing.def"
+Include "PrintValues.def"
+Include "PrintDlg.def"
+Include "PrintHlp.def"
+
+Dim	arrColAndVal() As T_COL_AND_VALUES
+'**************************************************************
+' Åbner et givet arbejdsområde og returnerer ID på layoutet...
+'**************************************************************
+Function PrintOpenWorkspace(ByVal szLayoutFile As String) As Integer
+
+PrintOpenWorkspace = 0
+
+	If not FileExists(szLayoutFile) Then
+		Exit Function
+	End If
+
+	OnError GoTo ErrorOccuredOpeningWorkspace
+
+	Run Application szLayoutFile
+
+	If WindowInfo(FrontWindow(),WIN_INFO_TYPE) = WIN_LAYOUT Then
+		PrintOpenWorkspace = FrontWindow()
+
+		Set Window
+			FrontWindow()
+			Title PRNT_WIN_PRINTLAYOUT
+
+		Exit Function
+	End If
+
+	Exit Function
+
+'----------------------------
+ErrorOccuredOpeningWorkspace:
+	Note ERR_ERRORMSG + lf + Error$()
+
+End Function
+
+'**************************************************************
+' Returnerer højde og bredde på rammen til kortvinduet...
+'**************************************************************
+Function PrintGetFrameSize(ByVal nLayoutWin As Integer, fWidth As Float, fHeight As Float) As Logical
+
+Dim	curObj As Object,
+	szTab As String,
+	a As Alias
+
+OnError GoTo ErrorOccured
+
+PrintGetFrameSize = FALSE
+
+	If not WindowExists(nLayoutWin) Then
+		Note ERR_WIN_LAYOUT_NOT_FOUND
+		Exit Function
+	End If
+
+	szTab = WindowInfo(nLayoutWin, WIN_INFO_TABLE)
+
+	Set CoordSys Layout Units "cm"
+
+	Fetch First From szTab
+	Do until EOT(szTab)
+		a = szTab+".obj"	curobj = a
+
+		If ObjectInfo(curObj,OBJ_INFO_TYPE) = OBJ_TYPE_FRAME Then
+			If ObjectInfo(curObj,OBJ_INFO_FRAMETITLE) = "" Then
+
+				Set Paper Units "cm"
+	
+				fWidth 	= ObjectGeography(curObj, OBJ_GEO_MAXX) - ObjectGeography(curObj, OBJ_GEO_MINX)
+				fHeight 	= ObjectGeography(curObj, OBJ_GEO_MAXY) - ObjectGeography(curObj, OBJ_GEO_MINY)
+
+				PrintGetFrameSize = TRUE
+				Exit Function
+
+			End If
+		End If
+		Fetch Next From szTab
+	Loop
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Returnerer højde og bredde på rammen til kortvinduet...
+'**************************************************************
+Function PrintGetAllFrameSizes(ByVal nLayoutWin As Integer, arrWidth() As Float, arrHeight() As Float) As Logical
+
+Dim	curObj As Object,
+	szTab As String,
+	a As Alias,
+	nCount As Integer
+
+OnError GoTo ErrorOccured
+
+PrintGetAllFrameSizes = FALSE
+
+	If not WindowExists(nLayoutWin) Then
+		Note ERR_WIN_LAYOUT_NOT_FOUND
+		Exit Function
+	End If
+
+	szTab = WindowInfo(nLayoutWin, WIN_INFO_TABLE)
+
+	Set CoordSys Layout Units "cm"
+
+	nCount = 0
+	Fetch First From szTab
+	Do until EOT(szTab)
+		a = szTab+".obj"	curobj 	= a
+
+		If ObjectInfo(curObj,OBJ_INFO_TYPE) = OBJ_TYPE_FRAME Then
+			If ObjectInfo(curObj,OBJ_INFO_FRAMETITLE) = "" Then
+
+				Set Paper Units "cm"
+
+				nCount = nCount + 1
+				ReDim arrWidth(nCount)
+				ReDim arrHeight(nCount)
+				arrWidth(nCount) 	= ObjectGeography(curObj, OBJ_GEO_MAXX) - ObjectGeography(curObj, OBJ_GEO_MINX)
+				arrHeight(nCount) 	= ObjectGeography(curObj, OBJ_GEO_MAXY) - ObjectGeography(curObj, OBJ_GEO_MINY)
+
+				PrintGetAllFrameSizes = TRUE
+			End If
+		End If
+		Fetch Next From szTab
+	Loop
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Returnerer array med alias til erstatning med runtime værdier...
+'**************************************************************
+Function PrintGetFrameSizesAndIDs(ByVal nWID As Integer, arrLayoutFrames() As T_LAYOUT_FRAME) As Logical
+
+Dim	curObj As Object,
+	szTab As String,
+	aObj, aRowID As Alias,
+	nCount, nRowID As Integer
+
+OnError GoTo ErrorOccured
+
+PrintGetFrameSizesAndIDs = FALSE
+
+	If not WindowExists(nWID) Then
+		Note ERR_WIN_LAYOUT_NOT_FOUND
+		Exit Function
+	End If
+
+	szTab = WindowInfo(nWID, WIN_INFO_TABLE)
+
+	Set CoordSys Layout Units "cm"
+	Set Paper Units "cm"
+
+	aObj		= szTab + ".OBJ"
+	aRowID	= szTab + ".ROWID"
+
+	nCount = 0
+	Fetch First From szTab
+	Do until EOT(szTab)
+
+		curobj 	= aObj
+		nRowID	= aRowID
+
+		If ObjectInfo(curObj,OBJ_INFO_TYPE) = OBJ_TYPE_FRAME Then
+			If ObjectInfo(curObj,OBJ_INFO_FRAMETITLE) = "" Then
+
+				nCount = nCount + 1
+				ReDim arrLayoutFrames(nCount)
+				arrLayoutFrames(nCount).nRowID 	= nRowID
+				arrLayoutFrames(nCount).fWidth 	= ObjectGeography(curObj, OBJ_GEO_MAXX) - ObjectGeography(curObj, OBJ_GEO_MINX)
+				arrLayoutFrames(nCount).fHeight 	= ObjectGeography(curObj, OBJ_GEO_MAXY) - ObjectGeography(curObj, OBJ_GEO_MINY)
+
+				PrintGetFrameSizesAndIDs = TRUE
+			End If
+		End If
+		Fetch Next From szTab
+	Loop
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Returnerer array med alias til erstatning med runtime værdier...
+'**************************************************************
+Function PrintCreateArrayAlias(nLayoutWin As Integer, arrAliasValues() As T_ALIAS_AND_VALUE) As Logical
+
+Dim	szTab, szMapHeaderTab, arrTabs() As String,
+	bAliasesFound As Logical,
+	i As Integer
+
+OnError GoTo ErrorOccured
+
+PrintCreateArrayAlias = FALSE
+
+	If not WindowExists(nLayoutWin) Then
+		Note ERR_WIN_LAYOUT_NOT_FOUND
+		Exit Function
+	End If
+
+	bAliasesFound = FALSE
+	szTab = WindowInfo(nLayoutWin,WIN_INFO_TABLE)
+	If PrintReadAliasesFromTable(szTab, arrAliasValues) Then
+		bAliasesFound = TRUE
+	Else
+		Print ERR_PLT_RUNTIME_VAL_NO_FOUND_IN + "layout!"
+	End If
+
+	szMapHeaderTab = PrintGetMapHeaderTableName$()
+	If szMapHeaderTab <> "" Then
+		If StrSplitDefinedChar(szMapHeaderTab, ";", arrTabs, 999) > 0 Then
+			For i = 1 To Ubound(arrTabs)
+				If TableOpen(arrTabs(i)) Then
+					If PrintReadAliasesFromTable(arrTabs(i), arrAliasValues) Then
+						bAliasesFound = TRUE
+					Else
+						Print ERR_PLT_RUNTIME_VAL_NO_FOUND_IN + arrTabs(i)
+					End If
+				End If
+			Next	'i
+		End If
+	End If
+
+	If not bAliasesFound Then
+		Exit Function
+	End If
+
+PrintCreateArrayAlias = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Returnerer array med alias til erstatning med runtime værdier...
+'**************************************************************
+Function PrintReadAliasesFromTable(ByVal szTab As String, arrAliasValues() As T_ALIAS_AND_VALUE) As Logical
+
+Dim	a As Alias,
+	szText As String,
+	curObj As Object,
+	bTableContainsAliases As Logical
+
+OnError GoTo ErrorOccured
+
+PrintReadAliasesFromTable = FALSE
+
+	bTableContainsAliases	= FALSE
+
+	Fetch First From szTab
+	Do until EOT(szTab)
+		a = szTab + ".OBJ"
+
+		If a Then
+			curObj = a
+			If ObjectInfo(curObj,OBJ_INFO_TYPE) = OBJ_TYPE_TEXT Then
+				szText	= ObjectInfo(curObj, OBJ_INFO_TEXTSTRING)
+
+				If PrintGetAliasesFromString(szText, arrAliasValues) > 0 Then
+					bTableContainsAliases = TRUE
+				End If
+			End If
+		End If
+		Fetch Next From szTab
+	Loop
+
+	If bTableContainsAliases Then
+		PrintReadAliasesFromTable = TRUE
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Returnerer array med alias til erstatning med runtime værdier...
+'**************************************************************
+Function PrintReadAliasesFromTextArray(arrAliasText() As T_ROW_AND_VALUES, arrAliasValues() As T_ALIAS_AND_VALUE) As Logical
+
+Dim	i As Integer,
+	curObj As Object,
+	szText As String,
+	bArrayContainsAliases As Logical
+
+OnError GoTo ErrorOccured
+
+PrintReadAliasesFromTextArray = FALSE
+
+	bArrayContainsAliases	= FALSE
+
+	For i = 1 To Ubound(arrAliasText)
+		curobj = arrAliasText(i).oAliasObj
+   
+		If ObjectInfo(curObj,OBJ_INFO_TYPE) = OBJ_TYPE_TEXT Then
+			szText	= ObjectInfo(curObj, OBJ_INFO_TEXTSTRING)
+			'Print "Søger i teksten : " + szText
+			If PrintGetAliasesFromString(szText, arrAliasValues) > 0 Then
+				bArrayContainsAliases = TRUE
+			End If
+		End If
+	Next
+
+	If bArrayContainsAliases Then
+		PrintReadAliasesFromTextArray = TRUE
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Inserts all found Aliases into array, returns number of found aliases...
+'**************************************************************
+Function PrintGetAliasesFromString(ByVal szText As String, arrAliasValues() As T_ALIAS_AND_VALUE) As Integer
+
+Dim	szAlias, sz1, sz2 As String,
+	i, nCount, nStartNumber As Integer,
+	nStart, nToLeft, nToRight As Integer,
+	bAddToArray, bSomeFound As Logical
+
+OnError GoTo ErrorOccured
+
+PrintGetAliasesFromString = 0
+
+	nCount		= 0
+	bSomeFound		= TRUE
+	nStartNumber	= Ubound(arrAliasValues)
+	nStart		= 1
+
+	Do While bSomeFound
+		bSomeFound = FALSE
+
+		'Print nCount + " : " + szText + " S=" + nStart + " V=" + InStr(nStart,szText,"[") + " H=" + InStr(nStart + 1,szText,"]")
+		If (InStr(nStart,szText,"[") > 0) And (InStr(nStart + 1,szText,"]") > 0) Then
+
+			nToLeft = InStr(nStart,szText,"[") - 1
+			If nToLeft = 0 Then			'[EKSEMPEL]jfhdfh
+				sz1 = ""
+			Else						'kjhh[EKSEMPEL]jfggj
+				sz1 = Left$(szText, nToLeft)
+			End If
+
+			nToRight = InStr(nStart + 1,szText,"]")
+			If nToRight = 0 Then
+				sz2		= ""
+			Else
+				nToRight	= Len(szText) - nToRight
+				sz2		= Right$(szText, nToRight)
+			End If
+
+			bSomeFound	= TRUE
+			szAlias	= Mid$(szText, nToLeft+1, Len(szText) - nToLeft - nToRight)
+			'Print "Fundet : ." + szAlias + ". V=" + nToLeft + " H=" + nToRight
+
+			If Len(szAlias) > 0 Then
+				bAddToArray 		= TRUE
+				For i = 1 To (nStartNumber + nCount)
+					If arrAliasValues(i).szAlias = szAlias Then
+						bAddToArray = FALSE
+						Exit For
+					End If
+				Next
+			Else
+				bAddToArray = FALSE
+			End If
+
+			If bAddToArray Then
+				nCount = nCount + 1
+				ReDim arrAliasValues(nStartNumber + nCount)
+				arrAliasValues(nStartNumber + nCount).szAlias = szAlias
+				'Print "Tilføjet"
+			End If
+		End If
+
+		'**hvis alias fundet i teksten eller hvis antal char til højre <> 0,
+		'**så tjek teksten igen ellers fortsæt med næste
+
+		'Print "bSomeFound=" + bSomeFound + ", nToRight=" + nToRight
+
+		'**No more to search thru, stopping now
+		If nToRight = 0 Then
+			bSomeFound = FALSE
+		End If
+
+		If bSomeFound Then
+			nStart	= nToLeft + Len(szAlias)	' + 1
+		End If
+	Loop
+
+PrintGetAliasesFromString = nCount
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Trækker kolonnenavn ud af alias
+'**********************************************************************************************''
+Function printGetColumnNameFromAlias$(ByVal szAlias As String) As String
+
+Dim	nBeg, nEnd As Integer,
+	szValue As String
+
+OnError GoTo ErrorOccured
+
+	nBeg = InStr(1, szAlias, "=" ) + 1
+	nEnd = InStr(nBeg, szAlias, "]" )
+
+	If nEnd = 0 Then
+		szValue = ""
+	ElseIf nBeg = 0 Then
+		szValue = ""
+	Else
+		szValue = Mid$(szAlias, nBeg, nEnd - nBeg)
+	End If
+
+	nBeg = 1
+	nEnd = InStr(nBeg, szValue, "(")
+
+	If nEnd = 0 Then
+		szValue = szValue
+	ElseIf nBeg = 0 Then
+		szValue = szValue
+	Else
+		szValue = Mid$(szValue, nBeg, nEnd - nBeg)
+	End If
+
+	printGetColumnNameFromAlias$ = szValue
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Erstatter aliaser med runtimeværdier...
+'**************************************************************
+Function PrintReplaceAlias(nLayoutWin As Integer, arrAliasValues() As T_ALIAS_AND_VALUE) As Logical
+
+Dim	szTab, szTempTab, szTempFile, szMapHeaderTab, arrTabs() As String,
+	bSomeFound As Logical,
+	i, k, nWID As Integer
+
+OnError GoTo ErrorOccured
+
+PrintReplaceAlias = FALSE
+
+	If not WindowExists(nLayoutWin) Then
+		Note INFO_WIN_LAYOUT_NOT_FOUND
+		Exit Function
+	End If
+
+	bSomeFound = FALSE
+	szTab = WindowInfo(nLayoutWin, WIN_INFO_TABLE)
+	If PrintReplaceAliasesInTable(szTab, arrAliasValues) Then
+		bSomeFound = TRUE
+	End If	
+
+	szMapHeaderTab = PrintGetMapHeaderTableName$()
+	If szMapHeaderTab <> "" Then
+		If StrSplitDefinedChar(szMapHeaderTab, ";", arrTabs, 999) > 0 Then
+			For i = 1 To Ubound(arrTabs)
+				szTab = arrTabs(i)
+				If TableOpen(szTab) Then
+					For k = 1 To 999999
+						szTempTab = szTab + "000000" + Str$(k)
+						szTempFile = PathToDirectory$(TempFileName$(PrintGetPathToTempHeaderTable$())) + szTempTab + ".TAB"
+						If not TableOpen(szTempTab) And not FileExists(szTempFile) Then
+							Exit For
+						End If
+					Next
+					Commit Table szTab As szTempFile
+					Open Table szTempFile As szTempTab
+
+					If PrintReplaceAliasesInTable(szTempTab, arrAliasValues) Then
+						Commit Table szTempTab
+						bSomeFound = TRUE
+						For k = 1 To NumWindows()
+							nWID = WindowID(k)
+							If LayerExists(szTab, nWID) Then
+								Add Map
+									Window nWID
+									Auto
+									Layer szTempTab
+							End If
+						Next
+						Close Table szTab
+						Call PrintReplaceHiddenOpenedTable(szTab, szTempTab)
+					Else
+						Drop Table szTempTab
+					End If
+				End If
+			Next
+		End If
+	End If
+
+	If not bSomeFound Then
+		Exit Function
+	End If
+
+PrintReplaceAlias = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Erstatter aliaser med runtimeværdier...
+'**************************************************************
+Function PrintReplaceAliasesInTable(ByVal szTab As String, arrAliasValues() As T_ALIAS_AND_VALUE) As Logical
+
+Dim	nRow As Integer,
+	oText As Object,
+	aObj, aRowID As Alias
+
+OnError GoTo ErrorOccured
+
+PrintReplaceAliasesInTable = FALSE
+
+	aObj		= szTab + ".OBJ"
+	aRowID	= szTab + ".ROWID"
+
+	Fetch First From szTab
+	Do until EOT(szTab)
+		If aObj Then
+			oText = aObj
+			nRow	= aRowID
+
+			If ObjectInfo(oText, OBJ_INFO_TYPE) = OBJ_TYPE_TEXT Then
+				oText = ReplaceAliasesInObjWithValues(oText, arrAliasValues)
+				Update szTab
+					Set	OBJ	= oText
+					Where ROWID	= nRow
+			End If
+
+		End If
+		Fetch Next From szTab
+	Loop
+
+PrintReplaceAliasesInTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Checking and setting Coordinate units 
+'**********************************************************************************************''
+Function printAlterMapperXYUnits(ByVal nMapWin As Integer) As Logical
+
+OnError GoTo ErrorOccured
+
+printAlterMapperXYUnits = FALSE
+
+	Do Case MapperInfo(nMapWin, MAPPER_INFO_XYUNITS)
+		Case "degree"
+			'--Ups, this isn't good, we'll have to abort printing
+			Note ERR_PLT_LONG_LAT_NOT_SUPPORTED
+			Exit Function
+		Case "m"
+			'--This is what we like
+		Case Else
+			Set Map
+				Window nMapWin
+				XY Units "m"	
+	End Case
+
+	printAlterMapperXYUnits = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'******************************************
+'Tilretter kortvinduets bredde
+'******************************************
+Function PrintAlterMapperWidth(nMapWin As Integer, fWidth As Float, fHeight As Float) As Logical
+
+Dim	fMapHeight, fMapWidth As Float
+
+OnError GoTo ErrorOccured
+
+PrintAlterMapperWidth = FALSE
+
+	Set Map
+	   Window nMapWin
+
+	   Redraw Off
+
+	Set Paper Units "cm"
+
+	fMapHeight	= WindowInfo(nMapWin, WIN_INFO_HEIGHT)
+	fMapWidth	= fMapHeight * (fWidth/fHeight)
+
+	If fMapWidth > WIN_MAX_WIDTH Then
+		Set Window nMapWin
+			ScrollBars Off		'**Don't let people use scrollbars, this will only cause an incorrect scale...
+			Width	fMapWidth/2 Units "cm"
+			Height fMapHeight/2 Units "cm"
+	Else
+		Set Window nMapWin
+			ScrollBars Off		'**Don't let people use scrollbars, this will only cause an incorrect scale...
+			Width fMapWidth Units "cm"
+	End If
+
+	Set Map
+	   Window nMapWin
+	   Redraw On
+
+PrintAlterMapperWidth = TRUE'
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Ændrer størrelsen på kortvinduet...
+'**************************************************************
+Function PrintAlterMapperSize(nMapWin As Integer, fWidth As Float, fHeight As Float) As Logical
+
+Dim	fMY As Float
+
+OnError GoTo ErrorOccured
+
+PrintAlterMapperSize = FALSE
+
+	OnError Goto ErrorOccured
+
+	If not WindowExists(nMapWin) Then
+		Note ERR_WIN_MAP_NOT_FOUND
+		Exit Function
+	End If
+
+	Set Map
+		Window nMapWin
+		Redraw Off
+
+	Set Paper Units "cm"
+
+	'fMY = WindowInfo(nMapWin, WIN_INFO_HEIGHT)
+
+	Set Window nMapWin
+		ScrollBars Off		'**Don't let people use scrollbars...
+		Width fWidth		'(fMY * (fWidth/fHeight)) Units "cm"
+		Height fHeight
+
+	Set Map
+	   Window nMapWin
+	   Redraw On
+
+	PrintAlterMapperSize = TRUE
+	Exit Function
+
+'-------------------
+ErrorOccured:
+
+End Function
+
+'**************************************************************
+' Ændrer skalering og centrum på kortvinduet...
+'**************************************************************
+Function PrintAlterMapperZoom(nMapWin As Integer, fX As Float, fY As Float, fWidth As Float) As Logical
+
+OnError GoTo ErrorOccured
+
+PrintAlterMapperZoom = FALSE
+
+	If not WindowExists(nMapWin) Then
+		Note ERR_WIN_MAP_NOT_FOUND
+		Exit Function
+	End If
+
+	Set Map
+		Window nMapWin
+		Redraw Off
+
+	Set CoordSys Window nMapWin
+
+	Set Window
+		nMapWin
+		ScrollBars Off		'**Don't let people use scrollbars...
+
+	Set Map
+		Window nMapWin
+		Zoom PrintGetScale() / 100 * fWidth Units "m"
+
+	Set Map
+		Window nMapWin
+		Center (fX, fY)
+
+	Set Map
+		Window nMapWin
+		Redraw On
+
+	PrintAlterMapperZoom = TRUE
+	Exit Function
+
+'-------------------
+ErrorOccured:
+	Note Error$()
+
+End Function
+
+'**************************************************************
+' Ændrer skalering og centrum på kortvinduet...
+'**************************************************************
+Function PrintAlterMapperScale(nMapWin As Integer, fX As Float, fY As Float) As Logical
+
+OnError GoTo ErrorOccured
+
+PrintAlterMapperScale = FALSE
+
+	If not WindowExists(nMapWin) Then
+		Note ERR_WIN_MAP_NOT_FOUND
+		Exit Function
+	End If
+
+	Set Map
+		Window nMapWin
+		Redraw Off
+
+	Set CoordSys Window nMapWin
+
+	Set Window
+		nMapWin
+		ScrollBars Off		'**Don't let people use scrollbars...
+
+	Set Map
+		Window nMapWin
+		Scale 1 Units "m" For PrintGetScale() Units "m"
+
+	Set Map
+		Window nMapWin
+		Center (fX, fY)
+
+	Set Map
+		Window nMapWin
+		Redraw On
+
+	PrintAlterMapperScale = TRUE
+	Exit Function
+
+'-------------------
+ErrorOccured:
+
+End Function
+
+'**********************************************************************************************''
+'Beregner målforhold ud fra selection
+'**********************************************************************************************''
+Function printCalculateScaleUsingSelection(	ByVal nMID As Integer,
+								ByVal fWidth As Float, ByVal fHeight As Float) As Integer
+
+Dim	fMinX, fMinY, fMaxX, fMaxY, fMapWidth, fMapHeight As Float,
+	szSelTab As String
+
+OnError GoTo ErrorOccured
+
+printCalculateScaleUsingSelection = 0
+
+	Set CoordSys Window nMID
+
+	szSelTab = SelectionInfo(SEL_INFO_SELNAME)
+	If not TableInfo(szSelTab, TAB_INFO_MAPPABLE) Then
+		Note ERR_SEL_NOT_MAPPABLE
+		Close Table szSelTab
+		Exit Function
+	End If
+	
+	fMinX		= TableInfo(szSelTab, TAB_INFO_MINX)
+	fMinY		= TableInfo(szSelTab, TAB_INFO_MINY)
+	fMaxX		= TableInfo(szSelTab, TAB_INFO_MAXX)
+	fMaxY		= TableInfo(szSelTab, TAB_INFO_MAXY)
+	fMapWidth	= fMaxX - fMinX
+	fMapHeight	= fMaxY - fMinY
+	Close Table szSelTab
+	
+	Set Map
+		Window nMID
+		Center ((fMaxX - (fMapWidth / 2)), (fMaxY - (fMapHeight / 2)))
+			
+	printCalculateScaleUsingSelection = printCalculateScaleUsingArea(fMapWidth, fMapHeight, fWidth, fHeight)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Beregner målforhold ud fra aktuelt kortvindue
+'**********************************************************************************************''
+Function printCalculateScaleUsingCurrentMap(	ByVal nMID As Integer,
+								ByVal fWidth As Float, ByVal fHeight As Float) As Integer
+
+Dim	fMinX, fMinY, fMaxX, fMaxY, fMapWidth, fMapHeight As Float
+
+OnError GoTo ErrorOccured
+
+printCalculateScaleUsingCurrentMap = 0
+
+	Set CoordSys Window PrintGetMapWinID()
+
+	fMinX		= MapperInfo(nMID, MAPPER_INFO_MINX)
+	fMinY		= MapperInfo(nMID, MAPPER_INFO_MINY)
+	fMaxX		= MapperInfo(nMID, MAPPER_INFO_MAXX)
+	fMaxY		= MapperInfo(nMID, MAPPER_INFO_MAXY)
+	fMapWidth	= fMaxX - fMinX
+	fMapHeight	= fMaxY - fMinY
+	
+	printCalculateScaleUsingCurrentMap = printCalculateScaleUsingArea(fMapWidth, fMapHeight, fWidth, fHeight)
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Beregner målforhold ud fra region object
+'**********************************************************************************************''
+Function printCalculateScaleUsingArea(	ByVal fMapWidth As Float, ByVal fMapHeight As Float,
+							ByVal fWidth As Float, ByVal fHeight As Float) As Integer
+Dim	fScale As Float,
+	nScale As Integer
+	
+OnError GoTo ErrorOccured
+
+printCalculateScaleUsingArea = 0
+
+	If PrintGetMinimumScale() <= 0 OR PrintGetMaximumScale() <= 0 Then
+		Note ERR_PLT_MIN_MAX_NOT_GIVEN
+		Exit Function
+	End If
+	
+	'--Convert paper units to meters
+	fWidth	= fWidth / 100
+	fHeight 	= fHeight / 100
+
+	'--Adding buffer on area
+	fMapWidth 	= fMapWidth + (2 * PrintGetBufferWhenAutoScale())
+	fMapHeight	= fMapHeight + (2 * PrintGetBufferWhenAutoScale())
+
+	fScale 	= Maximum((fMapWidth / fWidth), (fMapHeight / fHeight))
+	nScale	= Round(fScale, PrintGetScaleRounding())
+	If nScale < fScale Then
+		nScale = nScale + PrintGetScaleRounding()
+	End If
+	
+	If nScale < PrintGetMinimumScale() Then
+		nScale = PrintGetMinimumScale()
+	End If
+	If nScale > PrintGetMaximumScale() Then
+		Note PLTM_DLG_TXT_USING_MAX_SCALE
+		nScale = PrintGetMaximumScale()
+	End If
+
+printCalculateScaleUsingArea = nScale
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Kloner kortvindue og returnerer ID...
+'**************************************************************
+Function PrintClonMap(nMapWin As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+PrintClonMap = 0
+
+	If not WindowExists(nMapWin) Then
+		Note ERR_WIN_MAP_NOT_FOUND
+		Exit Function
+	End If
+
+	If not WindowInfo(nMapWin, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Exit Function
+	End If
+
+	Run Command WindowInfo(nMapWin, WIN_INFO_CLONEWINDOW)
+
+	Set Window FrontWindow()
+		Title PRNT_WIN_PRINTMAP
+		ScrollBars Off		'**Don't let people use scrollbars...
+
+PrintClonMap = FrontWindow()
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Lås kortvinduet og sæt/lås title til aktuelt navn
+'**********************************************************************************************''
+Sub PrintLockMapWindow(ByVal nMID As Integer)
+
+OnError GoTo ErrorOccured
+
+	Set Window nMID
+		Title WindowInfo(nMID, WIN_INFO_NAME)
+		SysMenuClose Off
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Lås kortvinduet op igen og sæt title til Default
+'**********************************************************************************************''
+Sub PrintUnLockMapWindow(ByVal nMID As Integer)
+
+OnError GoTo ErrorOccured
+
+	Set Window nMID
+		Title Default
+		SysMenuClose On
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**************************************************************
+' Indsætter kortvindue i layoutramme...
+'**************************************************************
+Function PrintInsertMapInFrame(nLayoutWin As Integer, nMapWin As Integer) As Integer
+
+Dim	nRow As Integer,
+	curObj As Object,
+	szTab As String,
+	a As Alias
+
+OnError GoTo ErrorOccured
+
+PrintInsertMapInFrame = TRUE
+
+	If not WindowExists(nLayoutWin) Then
+		Note ERR_WIN_LAYOUT_NOT_FOUND
+		Exit Function
+	End If
+	If not WindowExists(nMapWin) Then
+		Note ERR_WIN_MAP_NOT_FOUND
+		Exit Function
+	End If
+
+	szTab = WindowInfo(nLayoutWin, WIN_INFO_TABLE)
+
+	Set CoordSys Layout Units "cm"
+
+	Fetch First From szTab
+	Do until EOT(szTab)
+		a = szTab+".obj"		curObj	= a
+		a = szTab+".RowID"	nRow		= a
+
+		If ObjectInfo(curObj,OBJ_INFO_TYPE) = OBJ_TYPE_FRAME Then
+			If ObjectInfo(curObj,OBJ_INFO_FRAMETITLE) = "" Then
+
+				If PrintInsertMapInFrameByRowID(nLayoutWin, nRow, nMapWin) Then
+					Exit Function
+				End If
+			End If
+		End If
+		Fetch Next From szTab
+	Loop
+
+PrintInsertMapInFrame = FALSE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Indsætter kortvindue i layoutramme på en bestemt ramme...
+'**************************************************************
+Function PrintInsertMapInFrameByRowID(	ByVal nLID As Integer, ByVal nLayoutRowID As Integer,
+							ByVal nMID As Integer) As Integer
+
+Dim	curObj As Object,
+	szTab As String,
+	aObj As Alias
+
+OnError GoTo ErrorOccured
+
+PrintInsertMapInFrameByRowID = FALSE
+
+	If not WindowExists(nLID) Then
+		Note ERR_WIN_LAYOUT_NOT_FOUND
+		Exit Function
+	End If
+	If not WindowExists(nMID) Then
+		Note ERR_WIN_MAP_NOT_FOUND
+		Exit Function
+	End If
+
+	szTab = WindowInfo(nLID, WIN_INFO_TABLE)
+	aObj	= szTab + ".OBJ"
+
+	Set CoordSys Layout Units "cm"
+
+	Fetch Rec nLayoutRowID From szTab
+	If aObj Then
+		curObj	= aObj
+
+		If ObjectInfo(curObj,OBJ_INFO_TYPE) = OBJ_TYPE_FRAME Then
+			Alter Object curObj
+				Info OBJ_INFO_FRAMEWIN, nMID
+
+			Update szTab
+				Set	OBJ	= curObj
+				Where	ROWID	= nLayoutRowID
+
+			If PrintUseNorthArrow() Then
+				Call PrintHlpInsertNorthArrowIntoLayout("", nLID, curObj, PrintGetRotation())
+			End If
+
+			PrintInsertMapInFrameByRowID = TRUE
+		End If
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Sammenholder størrrelserne på KortRammen og LayoutRammen...
+'****************************************
+Function PrintCheckMapFrameSizeWithLayoutFrameSize(	oMapFrame As Object, 
+									ByVal fLayoutFrameWidth As Float,
+									ByVal fLayoutFrameHeight As Float) As Logical
+
+Dim	fMapFrameHeight, fMapFrameWidth As Float,
+	fX1, fX2, fX3, fY1, fY2, fY3 As Float
+
+OnError GoTo ErrorOccured
+
+PrintCheckMapFrameSizeWithLayoutFrameSize = FALSE
+
+	Set Distance Units "m"
+
+	fX1	= ObjectNodeX(oMapFrame, 1, 1)
+	fX2	= ObjectNodeX(oMapFrame, 1, 2)
+	fX3	= ObjectNodeX(oMapFrame, 1, 3)
+	fY1	= ObjectNodeY(oMapFrame, 1, 1)
+	fY2	= ObjectNodeY(oMapFrame, 1, 2)
+	fY3	= ObjectNodeY(oMapFrame, 1, 3)
+
+	fMapFrameHeight	= Sqr(((Abs(fX3 - fX2)) ^ 2) + ((Abs(fY3 - fY2)) ^ 2))
+	fMapFrameWidth	= Sqr(((Abs(fX1 - fX2)) ^ 2) + ((Abs(fY1 - fY2)) ^ 2))
+
+	If Abs((PrintGetScale() / 100 * fLayoutFrameWidth) - fMapFrameWidth) > 0.5 Then
+		If not Ask(PLTM_DLG_TXT_WIDTH_DIFFERENCE + lf
+				+ MSG_WIN_MAP + ": " + fMapFrameWidth + lf
+				+ MSG_WIN_LAYOUT + ": " + (PrintGetScale() / 100 * fLayoutFrameWidth), MSG_CONTINUE, MSG_STOP) Then
+			Exit Function
+		End If
+	ElseIf Abs((PrintGetScale() / 100 * fLayoutFrameHeight) - fMapFrameHeight) > 0.5 Then
+		If not Ask(PLTM_DLG_TXT_HEIGHT_DIFFERENCE + lf
+				+ MSG_WIN_MAP + ": " + fMapFrameHeight + lf
+				+ MSG_WIN_LAYOUT + ": " + (PrintGetScale() / 100 * fLayoutFrameHeight), MSG_CONTINUE, MSG_STOP) Then
+			Exit Function
+		End If
+	End If
+
+PrintCheckMapFrameSizeWithLayoutFrameSize = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Udskriv i valgt målforhold
+'****************************************
+Sub PrintScale(ByVal nScale As Integer)
+
+Dim	nOrigMID, nClonMID, nLID, nVal As Integer,
+	arrAliasValues() As T_ALIAS_AND_VALUE,
+	szLayout As String,
+	fX, fY, fWidth, fHeight As Float,
+	nWin, nTab As Integer
+
+OnError GoTo ErrorOccured
+
+	Call PrintSetScale(nScale)
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Sub
+	End If
+
+	nOrigMID = FrontWindow()
+
+	If nOrigMID = 0 Then
+		Note ERR_WIN_READING_ID
+		Exit Sub
+	End If
+	If not WindowInfo(nOrigMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Sub
+	End If
+	If not printAlterMapperXYUnits(nOrigMID) Then
+		Note ERR_MAP_UNSUPPORTED_YXUNITS
+		Exit Sub
+	End If
+	Call PrintSetMapWinID(nOrigMID)
+
+	szLayout = PrintGetLayoutFileName$()
+
+	If szLayout = "" Then
+		Note ERR_PRINTLAYOUT_NOT_NAMED
+		Exit Sub
+	ElseIf not FileExists(szLayout) Then
+		Note ERR_PRINTLAYOUT_NOT_FOUND
+		Exit Sub
+	End If
+
+	nWin = NumWindows()
+	nTab = NumTables()
+
+	nLID = PrintOpenWorkspace(szLayout)
+	If nLID = 0 Then
+		Note ERR_PRINTLAYOUT
+		GoTo BeforeExitSub
+	End If
+
+	Call PrintSetPageOrientationBeforePrinting
+
+	Set Window nLID
+		Min
+
+	Call PrintCreateHiddenOpenedTables(nTab)
+	Call PrintCreateHiddenOpenedWindows(nWin)
+
+	Call PrintSetMapWinID(nOrigMID)
+	Call PrintSetLayoutWinID(nLID)
+
+	'Print "Læser ramme størrelse"
+	If not PrintGetFrameSize(nLID, fWidth, fHeight) Then
+		Note ERR_PRINTLAYOUT_NO_FRAMES
+		Close Window nLID
+		GoTo BeforeExitSub
+	End If
+
+	Call PrintSetFrameWidth(fWidth)
+	Call PrintSetFrameHeight(fHeight)
+
+	Do Case PrintGetScaleType()
+		Case SCALETYPE_SELECTION
+			nScale = printCalculateScaleUsingSelection(nOrigMID, fWidth, fHeight)
+			'Print "Nyt målforhold: " & nScale
+			If nScale = 0 Then
+				Close Window nLID
+				GoTo BeforeExitSub
+			End If
+			Call PrintSetScale(nScale)
+		Case SCALETYPE_CURRENT_MAP
+			nScale = printCalculateScaleUsingCurrentMap(nOrigMID, fWidth, fHeight)
+			'Print "Nyt målforhold: " & nScale
+			If nScale = 0 Then
+				Close Window nLID
+				GoTo BeforeExitSub
+			End If
+			Call PrintSetScale(nScale)
+		Case SCALETYPE_KEYED_IN
+			'**Using current scale
+	End Case
+
+	'Print "Kloner kortvinduet.."
+	If PrintClonMapWindow() Then
+		nClonMID = PrintClonMap(nOrigMID)
+		If nClonMID = 0 Then
+			Note ERR_WIN_MAP_CLON
+			Close Window nLID
+			GoTo BeforeExitSub
+		End If
+	Else
+		nClonMID = nOrigMID
+	End If
+
+	Set CoordSys Window nClonMID
+
+	If PrintReadCoordinateFromMap() Then
+		fX = MapperInfo(nClonMID, MAPPER_INFO_CENTERX)
+		fY = MapperInfo(nClonMID, MAPPER_INFO_CENTERY)
+	Else
+		fX = PrintGetMapCenterX()
+		fY = PrintGetMapCenterY()
+	End If
+
+	'Print "Ændrer kortvinduets bredde..."
+	If not PrintAlterMapperWidth(nClonMID, fWidth, fHeight) Then
+		Note ERR_WIN_MAP_WIDTH
+		Close Window nLID
+		If PrintClonMapWindow() Then
+			Close Window nClonMID
+		End If
+		GoTo BeforeExitSub
+	End If
+
+	'Print "Ændrer kortvinduets centrum og zoom..."
+	If not PrintAlterMapperZoom(nClonMID, fX, fY, fWidth) Then
+		Note ERR_WIN_MAP_XY_ZOOM
+		Close Window nLID
+		If PrintClonMapWindow() Then
+			Close Window nClonMID
+		End If
+		GoTo BeforeExitSub
+	End If
+
+	ReDim arrColAndVal(0)
+	If PrintReadFromSelection() Then
+		Call PrintReadValuesFromSelection(arrColAndVal)
+	End If
+
+	'Print "Læser og retter runtimeværdier..."
+	ReDim arrAliasValues(0)
+	If PrintCreateArrayAlias(nLID, arrAliasValues) Then
+		If not PrintEnterAliasValuesDialog(arrAliasValues, arrColAndVal, TRUE) Then
+			Close Window nLID
+			GoTo BeforeExitSub
+		End If
+		If not PrintReplaceAlias(nLID, arrAliasValues) Then
+			Note ERR_PLT_REPLACE_RUNTIME_VAL
+			Close Window nLID
+			GoTo BeforeExitSub
+		End If
+	End If
+
+	If not PrintRotateMapWindow(nClonMID, fX, fY, PrintGetRotation()) Then
+		Note ERR_PLT_ROTATION_MAP
+	End If
+
+	'Print "Minimerer det klonede kortvindue..."
+	If PrintClonMapWindow() Then
+		Set Window nClonMID
+			Min
+		Call PrintCreateHiddenOpenedWindows(nWin)
+	End If
+
+	Call PrintCheckForHideFrameTable(nClonMID)
+
+	'Print "Indsætter kortet i layoutet..."
+	If not PrintInsertMapInFrame(nLID, nClonMID) Then
+		Note ERR_WIN_LAYOUT_INSERT_MAP
+		Close Window nLID
+
+		If PrintClonMapWindow() Then
+			Close Window nClonMID
+		End If
+		GoTo BeforeExitSub
+	End If
+
+	'***Restore
+	Set Window nLID
+		Restore
+
+	If PrintAutoPrint() Then
+		PrintWin Window nLID
+		Close Window nLID
+		If PrintClonMapWindow() Then
+			Close Window nClonMID
+		End If
+	Else
+		Exit Sub
+	End If
+
+'----------------------
+BeforeExitSub:
+
+	'**Sets that coordinates should be read from map
+	Call PrintSetReadCoordinateFromMap(TRUE)
+
+	Do Until NumTables() <= nTab
+		If TableOpen(TableInfo(NumTables(), TAB_INFO_NAME)) Then
+			Close Table TableInfo(NumTables(), TAB_INFO_NAME)
+		Else
+			Exit Do
+		End If
+	Loop
+	Do Until NumWindows() <= nWin
+		If WindowID(NumWindows()) <> nOrigMID Then
+			Close Window WindowID(NumWindows())
+		Else
+			Exit Do
+		End If
+	Loop
+
+	Call PrintCloseHiddenOpenedTables(TRUE)
+	Call PrintCloseHiddenOpenedWindows(TRUE)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Undersøger om en Ramme tabel skal gøres ikke-synlig
+'****************************************
+Sub PrintCheckForHideFrameTable(ByVal nMID As Integer)
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	If not PrintHideFrameTable() Then
+		Exit Sub
+	End If
+
+	Set Map
+		Window nMID
+		Redraw Off
+
+	For i = 1 To MapperInfo(nMID, MAPPER_INFO_LAYERS)
+		If LayerInfo(nMID, i, LAYER_INFO_NAME) = TAB_STORE_FRAME Then
+			Set Map
+				Window nMID
+				Layer i
+					Display Off
+		End If
+	Next
+
+	Set Map
+		Window nMID
+		Redraw On
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Læser værdier fra en evt. udvælgelse
+'****************************************
+Sub PrintReadValuesFromSelection(arrColumnAndValues() As T_COL_AND_VALUES)
+
+Dim	szSelName As String
+
+OnError GoTo ErrorOccured
+
+	If SelectionInfo(SEL_INFO_NROWS) = 0 Then
+		Exit Sub
+	End If
+
+	szSelName	= SelectionInfo(SEL_INFO_SELNAME)
+	Call PrintReadValuesFromTable(szSelName, arrColumnAndValues)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Læser værdier fra aktuel ramme i rammetabel
+'****************************************
+Sub PrintReadValuesFromFrameTable(arrColumnAndValues() As T_COL_AND_VALUES)
+
+OnError GoTo ErrorOccured
+
+	Call PrintReadValuesFromTable("FRAMES_TO_PRINT", arrColumnAndValues)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Læser værdier fra en given tabel
+'****************************************
+Sub PrintReadValuesFromTable(ByVal szTab As String, arrColumnAndValues() As T_COL_AND_VALUES)
+
+Dim	szColName, szCmdStr, szCmdStrSort, szSortColList As String,
+	i, nCount, nNumItems As Integer,
+	a As Alias
+
+OnError GoTo ErrorOccured
+	
+	szCmdStr 		= "Select * From " & szTab
+	szSortColList	= PrintGetColumnNamesToSortBy$()
+
+	If szSortColList <> "" Then
+		nNumItems 	= NumItemsInStringList(szSortColList)
+		nCount	= 0
+
+		'Print "Samlet liste: " & szSortColList
+		For i = 1 To nNumItems
+			szColName = ExtractItemFromStringList$(szSortColList, i)
+			
+			'Print i & " : " & szColName
+			If ColExist(szTab, szColName) Then
+				If szCmdStrSort = "" Then
+					szCmdStrSort = " Order By " & szColName
+				Else
+					szCmdStrSort = szCmdStrSort & ", " & szColName
+				End If
+				
+				'--Max number of columns to sort by is 5
+				nCount = nCount + 1
+				If nCount >= 5 Then
+					Exit For
+				End if
+			End If
+		Next
+		szCmdStr = szCmdStr & szCmdStrSort
+	End If
+	
+	szCmdStr = szCmdStr & " Into VALUES__TOREAD NoSelect"
+	'Print szCmdStr
+	Run Command	szCmdStr
+	
+	ReDim	arrColumnAndValues(NumCols(szTab))
+	nCount	= 0
+	
+	Fetch First From VALUES__TOREAD
+	Do Until EOT(VALUES__TOREAD)
+
+		For i = 1 To NumCols(VALUES__TOREAD)
+
+			szColName					= ColumnInfo("VALUES__TOREAD", "COL" + i, COL_INFO_NAME)
+			arrColumnAndValues(i).szColumnName	= szColName
+			a						= "VALUES__TOREAD." + szColName
+			nCount 					= nCount + 1
+
+			Do Case ColumnInfo("VALUES__TOREAD", szColName, COL_INFO_TYPE)
+				Case COL_TYPE_CHAR
+					arrColumnAndValues(i).szColumnValue	= AddItemToStringList$(arrColumnAndValues(i).szColumnValue, a)
+				Case COL_TYPE_FLOAT, COL_TYPE_DECIMAL
+					arrColumnAndValues(i).szColumnValue	= AddItemToStringList$(arrColumnAndValues(i).szColumnValue, PointToKomma(Str$(a)))
+				Case Else
+					arrColumnAndValues(i).szColumnValue	= AddItemToStringList$(arrColumnAndValues(i).szColumnValue, Str$(a))
+			End Case
+
+			'Print "Kolonne : " + arrColumnAndValues(i).szColumnName + " = " + arrColumnAndValues(i).szColumnValue
+		Next
+
+		Fetch Next From VALUES__TOREAD
+	Loop
+
+	Close Table VALUES__TOREAD
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**************************************************************
+' Læser tekster med runtimeværdier fra tabeller i layout ind i array...
+'**************************************************************
+Function PrintReadTextFromLayoutToArray(ByVal nLayoutWin As Integer, arrAliasText() As T_ROW_AND_VALUES) As Logical
+
+Dim	szTab, szMapHeaderTab, arrTabs() As String,
+	bAliasesFound As Logical,
+	i As Integer
+
+OnError GoTo ErrorOccured
+
+PrintReadTextFromLayoutToArray = FALSE
+
+	If not WindowExists(nLayoutWin) Then
+		Note ERR_WIN_LAYOUT_NOT_FOUND
+		Exit Function
+	End If
+
+	bAliasesFound = FALSE
+	szTab = WindowInfo(nLayoutWin,WIN_INFO_TABLE)
+	If PrintReadTextFromTableToArray(szTab, arrAliasText) Then
+		bAliasesFound = TRUE
+	Else
+		Print ERR_PLT_RUNTIME_VAL_NO_FOUND_IN + "layout!"
+	End If
+
+	szMapHeaderTab = PrintGetMapHeaderTableName$()
+	If szMapHeaderTab <> "" Then
+		If StrSplitDefinedChar(szMapHeaderTab, ";", arrTabs, 999) > 0 Then
+			For i = 1 To Ubound(arrTabs)
+				If TableOpen(arrTabs(i)) Then
+					If PrintReadTextFromTableToArray(arrTabs(i), arrAliasText) Then
+						bAliasesFound = TRUE
+					Else
+						Print ERR_PLT_RUNTIME_VAL_NO_FOUND_IN + arrTabs(i)
+					End If
+				End If
+			Next	'i
+		End If
+	End If
+
+	If not bAliasesFound Then
+		Exit Function
+	End If
+
+PrintReadTextFromLayoutToArray = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Læser tekster med runtimeværdier fra tabel ind i array...
+'**************************************************************
+Function PrintReadTextFromTableToArray(ByVal szTab As String, arrAliasObj() As T_ROW_AND_VALUES) As Logical
+
+'**Called by PrintReadTextFromLayoutToArray
+
+Dim	szText As String,
+	nCount, nRowID As Integer,
+	curObj As Object,
+	aObj, aRowID As Alias,
+	bTableContainsAliases As Logical
+
+OnError GoTo ErrorOccured
+
+PrintReadTextFromTableToArray = FALSE
+
+	nCount 			= Ubound(arrAliasObj)
+	bTableContainsAliases	= FALSE
+	aObj 				= szTab + ".OBJ"
+	aRowID			= szTab + ".ROWID"
+
+	Fetch First From szTab
+	Do until EOT(szTab)
+		If aObj Then
+			curobj	= aObj
+			nRowID	= aRowID
+			If ObjectInfo(curObj,OBJ_INFO_TYPE) = OBJ_TYPE_TEXT Then
+				szText = ObjectInfo(curobj,OBJ_INFO_TEXTSTRING)
+				If (InStr(1, szText, "[") > 0) And (InStr(2, szText, "]") > 0) Then
+					nCount 				= nCount + 1
+					ReDim arrAliasObj(nCount)
+
+					arrAliasObj(nCount).oAliasObj	= curObj
+					arrAliasObj(nCount).szTabName	= szTab
+					arrAliasObj(nCount).nRowID	= nRowID
+
+					bTableContainsAliases		= TRUE
+				End If
+			End If
+		End If
+		Fetch Next From szTab
+	Loop
+
+	If bTableContainsAliases Then
+		PrintReadTextFromTableToArray = TRUE
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Erstatter tekster med runtimeværdier i tabel med indtastede tekster...
+'**************************************************************
+Function PrintWriteTextFromArrayToTable(arrAliasObj() As T_ROW_AND_VALUES, arrAliasValues() As T_ALIAS_AND_VALUE) As Logical
+
+Dim	szText, szTab As String,
+	nCount, nRowID, i As Integer,
+	oAlias As Object
+
+OnError GoTo ErrorOccured
+
+PrintWriteTextFromArrayToTable = FALSE
+
+	nCount 			= Ubound(arrAliasObj)
+
+	For i = 1 To nCount
+		szText	= arrAliasObj(i).szOrigValue
+		szTab		= arrAliasObj(i).szTabName
+		nRowID	= arrAliasObj(i).nRowID
+		oAlias	= arrAliasObj(i).oAliasObj
+
+		If TableOpen(szTab) Then
+			oAlias	= ReplaceAliasesInObjWithValues(oAlias, arrAliasValues)
+
+			Update szTab
+				Set 	OBJ	= oAlias
+				Where	ROWID	= nRowID
+		End If		
+	Next
+
+PrintWriteTextFromArrayToTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Erstatter runtimeværdier i objekt med indtastede tekster...
+'**************************************************************
+Function ReplaceAliasesInObjWithValues(ByVal oText As Object, arrAliasValues() As T_ALIAS_AND_VALUE) As Object
+
+Dim	oNew As Object,
+	szText As String
+
+OnError GoTo ErrorOccured
+
+ReplaceAliasesInObjWithValues = oText
+
+	oNew		= oText
+	szText	= ObjectInfo(oNew,OBJ_INFO_TEXTSTRING)
+
+	szText	= ReplaceAliasesInTextWithValues$(szText, arrAliasValues)
+
+	Alter Object oNew
+		Info OBJ_INFO_TEXTSTRING, szText
+
+ReplaceAliasesInObjWithValues = oNew
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Erstatter runtimeværdier i objekt med indtastede tekster...
+'**************************************************************
+Function ReplaceAliasesInTextWithValues$(ByVal szText As String, arrAliasValues() As T_ALIAS_AND_VALUE) As String
+
+Dim	nToLeft, nToRight, nStart, nLoop, i As Integer,
+	sz0, sz1, sz2, szAliasName As String,
+	bContinue, bSomeFound As Logical
+
+OnError GoTo ErrorOccured
+
+ReplaceAliasesInTextWithValues$ = szText
+
+	sz0		= szText
+	nLoop		= Ubound(arrAliasValues)
+	nStart	= 1
+
+	Do
+		bContinue	= FALSE
+		bSomeFound	= FALSE
+
+		'Print "-----------------------------------------------------------"
+		'Print "Søger i : '" + sz0 + "' S=" + nStart + " V=" + InStr(nStart,sz0,"[") + " H=" + InStr(nStart + 1,sz0,"]")
+		If (InStr(nStart,sz0,"[") > 0) And (InStr(nStart + 1,sz0,"]") > 0) Then	
+
+			nToLeft = InStr(nStart,sz0,"[") - 1
+			If nToLeft = 0 Then			'[EKSEMPEL]jfhdfh
+				sz1 = ""
+			Else						'kjhh[EKSEMPEL]jfggj
+				sz1 = Left$(sz0, nToLeft)
+			End If
+
+			nToRight = InStr(nStart + 1,sz0,"]")
+			If nToRight = 0 Then			'jfhdfh[EKSEMPEL]
+				sz2 = ""
+			Else						'kjhh[EKSEMPEL]jfggj
+				nToRight = Len(sz0) - nToRight
+				sz2 = Right$(sz0, nToRight)
+			End If
+
+			bSomeFound = TRUE
+			szAliasName = Mid$(sz0, nToLeft + 1, Len(sz0) - nToLeft - nToRight)
+			'Print "Fundet : " + szAliasName + ". V=" + nToLeft + " H=" + nToRight
+			'Print "  - " + sz1 + " + " + szAliasName + " + " + sz2
+
+			If Len(szAliasName) > 0 Then
+				'***Running through array of runtime values...
+				For i = 1 To nLoop
+					'Print " -- Loop " + i + " = " + arrAliasValues(i).szAlias
+					If szAliasName = arrAliasValues(i).szAlias Then
+						If sz1 = "" And sz2 = "" And arrAliasValues(i).szValue = "" Then
+							sz0 = " "
+						Else
+							sz0 = sz1 + arrAliasValues(i).szValue + sz2
+						End If
+						Exit For
+					End If
+				Next
+			End If
+		End If
+
+		'**hvis alias fundet i et objekt og antal char til højre > 0, så tjek objektet igen
+		If bSomeFound And (nToRight > 0) Then
+			nStart	= nToLeft + Len(arrAliasValues(i).szValue) + 1
+			bContinue	= TRUE
+		End If
+	Loop While (bContinue = TRUE)
+
+	'Print "Færdig tekst: '" + sz0 + "'"
+
+ReplaceAliasesInTextWithValues$ = sz0
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'**************************************************************
+' Roterer kortvinduet...
+'**************************************************************
+Function PrintRotateMapWindow(ByVal nMapID As Integer, ByVal fX As Float, ByVal fY As Float,
+					ByVal fRotation As Float) As Logical
+
+Dim	fOrigX(3), fOrigY(3), fNewX(3), fNewY(3), fMapZoom As Float,
+	szCoordSys, szAffine As String,
+	i, nPos As Integer
+Dim	aa, ab, ac, ad, ae, af As Float,
+	fAvgX, fAvgY, p, q, s(9), fBeta(7), fTemp As Float
+
+PrintRotateMapWindow = FALSE
+
+	OnError Goto HandleError
+
+	szCoordSys = MapperInfo(nMapID, MAPPER_INFO_COORDSYS_CLAUSE)
+	nPos = InStr(1, szCoordSys, "Affine")
+	If nPos Then
+		If fRotation = 0 Then
+			Call PrintUnRotateMapWindow
+			PrintRotateMapWindow = TRUE
+			Exit Function
+		Else
+			szCoordSys = Left$(szCoordSys, nPos - 1)
+		End if		
+	Else
+		If fRotation = 0 Then
+			PrintRotateMapWindow = TRUE
+			Exit Function
+		End If
+	End If
+
+	Set Distance Units "km"
+	fMapZoom = MapperInfo(nMapID, MAPPER_INFO_ZOOM)
+
+	fOrigX(1)	= fX
+	fOrigY(1)	= fY
+	fOrigX(2)	= fX
+	If fY <> 0.0 Then
+		fOrigY(2) = 0.0
+	Else
+		fOrigY(2) = MapperInfo(nMapID, MAPPER_INFO_MAXY)
+	End If
+	If fX <> 0.0 Then
+		fOrigX(3) = 0.0
+	Else
+		fOrigX(3) = MapperInfo(nMapID, MAPPER_INFO_MAXX)
+	End If
+	fOrigY(3)	= fY
+	fNewX(1)	= fX
+	fNewY(1)	= fY
+
+	If fY <> 0.0 Then
+		fNewX(2) = fOrigX(1) + (fOrigY(1) * SIN((-fRotation) * DEG_2_RAD))
+		fNewY(2) = fOrigY(1) - (fOrigY(1) * SIN((90 + fRotation) * DEG_2_RAD))
+	Else
+		fNewX(2) = fOrigX(1) - (fOrigY(2) * SIN((-fRotation) * DEG_2_RAD))
+		fNewY(2) = fOrigY(1) + (fOrigY(2) * SIN((90 + fRotation) * DEG_2_RAD))
+	End If
+	If fX <> 0.0 Then
+		fNewX(3) = fOrigX(1) - (fOrigX(1) * SIN((90 + fRotation) * DEG_2_RAD))
+		fNewY(3) = fOrigY(1) - (fOrigX(1) * SIN((-fRotation) * DEG_2_RAD))
+	Else
+		fNewX(3) = fOrigX(1) + (fOrigX(3) * SIN((90 + fRotation) * DEG_2_RAD))
+		fNewY(3) = fOrigY(1) + (fOrigX(3) * SIN((-fRotation) * DEG_2_RAD))
+	End If
+
+	'Print "X1 = " + fOrigX(1) + ", Y1 = " + fOrigY(1)
+	'Print "X2 = " + fOrigX(2) + ", Y2 = " + fOrigY(2)
+	'Print "X3 = " + fOrigX(3) + ", Y3 = " + fOrigY(3)
+	'Print "X1p = " + fNewX(1) + ", Y1p = " + fNewY(1)
+	'Print "X2p = " + fNewX(2) + ", Y2p = " + fNewY(2)
+	'Print "X3p = " + fNewX(3) + ", Y3p = " + fNewY(3)
+
+ 	' initialize things
+	fAvgX	= 0
+	fAvgY	= 0
+	For i = 1 To 9
+		s(i) = 0
+	Next
+  
+	For i = 1 To 3
+		fAvgX = fAvgX + fNewX(i)
+		fAvgY = fAvgY + fNewY(i)
+	Next
+	fAvgX = fAvgX / 3
+	fAvgY = fAvgY / 3
+      
+	For i = 1 To 3
+		s(1) = s(1) + (fNewX(i) - fAvgX) * (fNewY(i) - fAvgY)
+		s(2) = s(2) + (fNewY(i) - fAvgY) * (fNewY(i) - fAvgY)
+		s(3) = s(3) + (fNewX(i) - fAvgX) * (fNewX(i) - fAvgX)
+		s(4) = s(4) + (fNewY(i) - fAvgY) * (fOrigY(i) - fNewY(i))
+		s(5) = s(5) + (fNewX(i) - fAvgX) * (fOrigX(i) - fNewX(i))
+		s(6) = s(6) + (fNewX(i) - fAvgX) * (fOrigY(i) - fNewY(i))
+		s(7) = s(7) + (fNewY(i) - fAvgY) * (fOrigX(i) - fNewX(i))
+		s(8) = s(8) + fOrigX(i) - fNewX(i)
+		s(9) = s(9) + fOrigY(i) - fNewY(i)
+	Next
+  
+	If s(2) = 0 Or s(3) = 0 Then
+		Note "Transformation error 1"
+		GoTo done
+	End If
+  
+	p	= s(1) / s(2)
+	q	= s(1) / s(3)
+	fTemp	= s(3) - p * s(1)
+	If fTemp = 0 Then
+		Note "Transformation error 2"
+		GoTo done
+	End If
+  
+	fBeta(4)	= (s(6) - p * s(4)) / fTemp
+	fTemp		= s(2) - q * s(1)
+	If fTemp = 0 Then
+		Note "Transformation error 3"
+		GoTo done
+	End If
+
+	fBeta(2)	= (s(7) - q * s(5)) / fTemp
+	fBeta(5)	= 1 - p * fBeta(4) + s(4) / s(2)
+	fBeta(1)	= 1 - q * fBeta(2) + s(5) / s(3)
+	fBeta(3)	= s(8) / 3 + fAvgX - fBeta(1) * fAvgX - fBeta(2) * fAvgY
+	fBeta(6)	= s(9) / 3 + fAvgY - fBeta(5) * fAvgY - fBeta(4) * fAvgX
+	fTemp		= fBeta(5) * fBeta(1) - fBeta(4) * fBeta(2)
+
+	If fTemp = 0 Then
+		Note "Transformation error 4"
+		GoTo done
+	End If
+
+	aa = fBeta(5) / fTemp
+	ab = -fBeta(2) / fTemp
+	ac = (fBeta(2) * fBeta(6) - fBeta(3) * fBeta(5)) / fTemp
+	ad = -fBeta(4) / fTemp
+	ae = fBeta(1) / fTemp
+	af = (fBeta(4) * fBeta(3) - fBeta(6) * fBeta(1)) / fTemp
+
+	'Print "For origin (" + fOrigX(1) + ", " + fOrigY(1) + ") " +
+	'		"and Angle = " + fRotation +
+	'		" in Map Window " + WindowInfo(nMapID, WIN_INFO_NAME) + " CoordSys " + MapperInfo(nMapID, MAPPER_INFO_COORDSYS_CLAUSE)
+	'Print "  A = " + aa + ", B = " + ab + ", C = " + ac + ", D = " + ad + ", E = " + ae + ", F = " + af
+	szAffine = aa + ", " + ab + ", " + ac + ", " + ad + ", " + ae + ", " + af
+	szCoordSys = "Set Map " + szCoordSys +
+			" Affine Units " + """" + "km" + """" + " , " + szAffine
+	'Print "  " + szCoordSys
+	Run Command szCoordSys
+
+	'Print "Zoom: " + fMapZoom + " km. (X,Y): (" + fX + ", " + fY + ")" 
+
+	Set Map
+		Window nMapID
+		Zoom fMapZoom
+	Set Map
+		Window nMapID
+		Center (fX, fY)
+
+PrintRotateMapWindow = TRUE
+
+'------------
+Done:
+	Exit Function
+
+'-------------
+HandleError:
+	Print "Rotation: " + ERR_ERRORMSG + ": "+ Error$()
+	Resume Next
+
+End Function
+
+'**************************************************************
+' Roterer kortvinduet...
+'**************************************************************
+Sub PrintUnRotateMapWindow
+
+Dim	fX, fY, fZoom As Float,
+	szCoordSys As String,
+	nPos, nMID As Integer
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Sub
+	End If
+	nMID = FrontWindow()
+	If not WindowInfo(nMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Sub
+	End If
+
+	OnError Goto HandleError
+
+	szCoordSys = MapperInfo(nMID, MAPPER_INFO_COORDSYS_CLAUSE)
+	nPos = InStr(1, szCoordSys, "Affine")
+	If nPos Then
+		szCoordSys = Left$(szCoordSys, nPos -1 )
+	End If
+	fX	= MapperInfo(nMID, MAPPER_INFO_CENTERX)
+	fY	= MapperInfo(nMID, MAPPER_INFO_CENTERY)
+	fZoom	= MapperInfo(nMID, MAPPER_INFO_ZOOM)
+
+	'Print "For Map Window " + WindowInfo(nMID, WIN_INFO_NAME)
+	szCoordSys = "Set Map " + szCoordSys
+	'Print "  " + szCoordSys
+	Run Command szCoordSys
+
+	'Set Map
+	'	Window nMID
+	'	Zoom fZoom
+	'Set Map
+	'	Window nMID
+	'	Center (fX, fY)
+
+'------------------
+Done:
+	Exit Sub
+
+'------------------
+
+HandleError:
+	Print "Unrotate: " + Error$()
+	Resume Next
+
+End Sub
+
+'**********************************************************************************************''
+'Lukker tabeller og vinduer åbnet af udskriftsarbejdsområder
+'**********************************************************************************************''
+Sub PRINTCloseHiddenOpenedTabsAndWins
+
+OnError GoTo ErrorOccured
+
+	Call PrintCloseHiddenOpenedWindows(TRUE)
+	Call PrintCloseHiddenOpenedTables(TRUE)
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

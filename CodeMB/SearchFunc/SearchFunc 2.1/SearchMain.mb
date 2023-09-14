@@ -1,0 +1,2560 @@
+'*******************************************************************************
+'** 	Program:		Byggesagsapplikation
+'** 	Modul:		BygSearch
+'**	Function		Søgning på definere tabeller og kolonner
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+Define	xVersionSearching			200
+
+'-- Search setup overview
+Define	SRCH_CTRL_LIST_OF_SEARCHS	100
+Define	SRCH_CTRL_SHOW_AS_BTN		501
+Define	SRCH_CTRL_SHOW_AS_MENU		502
+Define	SRCH_CTRL_ICON_FILE		540
+Define	SRCH_CTRL_ICON_NO			541
+
+'-- Single search setup
+Define	SRCH_CTRL_DESCRIPTION		1000
+Define	SRCH_CTRL_SUPERSEARCH_TYPE	1100
+Define	SRCH_CTRL_SUBSEARCH_TYPE	1101
+Define	SRCH_CTRL_ZOOM_M			1300
+Define	SRCH_CTRL_SHOW_MARKER		1310
+Define	SRCH_CTRL_SYMBOL_MARKER		1311
+Define	SRCH_CTRL_SELECT_REC		1320		
+
+Define	SRCH_CTRL_TAB1_DESCR		1400
+Define	SRCH_CTRL_TAB1_NAME		1401
+Define	SRCH_CTRL_TAB1_PICK		1402
+Define	SRCH_CTRL_TAB1_COL_LIST		1410
+Define	SRCH_CTRL_TAB1_COL_DESCR	1411
+Define	SRCH_CTRL_TAB1_COL_NAME		1412
+Define	SRCH_CTRL_TAB1_COL_PICK		1413
+
+Define	SRCH_CTRL_TAB2_DESCR		2400
+Define	SRCH_CTRL_TAB2_NAME		2401
+Define	SRCH_CTRL_TAB2_PICK		2402
+Define	SRCH_CTRL_TAB2_COL_LIST		2410
+Define	SRCH_CTRL_TAB2_COL_DESCR	2411
+Define	SRCH_CTRL_TAB2_COL_NAME		2412
+Define	SRCH_CTRL_TAB2_COL_PICK		2413
+
+'-- Single search dialogs
+Define	SRCH_CTRL_USE_REFINE_TABLE	100
+Define	SRCH_CTRL_SEARCH_TAB_TITLE	101
+Define	SRCH_CTRL_SEARCH_TAB_VALUE	102
+Define	SRCH_CTRL_REFINE_TAB_TITLE	201
+Define	SRCH_CTRL_REFINE_TAB_VALUE	202
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\Kommune.lng"
+
+Include "..\..\Time\Time.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\MapFunc\MapFunc.def"
+Include "..\..\PadFunc\PadFunc.def"
+Include "..\..\IniUtil\IniUtil.def"
+Include "..\..\FileFunc\FileFunc.def"
+Include "..\..\StyleFunc\StyleFunc.def"
+Include "..\..\ArrayFunc\ArrayFunc.def"
+Include "..\..\APIFunc\APIFunc.def"
+
+Include "..\..\DLLView\DLLView.def"
+
+Include "SearchFunc.def"
+Include "SearchMain.def"
+Include "SearchOpslagMatr1Dlg.def"
+Include "SearchOpslagMatr2Dlg.def"
+Include "SearchOpslagAdr1Dlg.def"
+Include "SearchOpslagAdr2Dlg.def"
+
+'-- Overview all search
+Declare Sub SrchHandlerDialogStartUp
+Declare Sub SrchHandlerDialogEndSearchSetup
+
+Declare Sub SrchHandlerChangeSearchNo
+Declare Sub SrchAlterDialogShowSearchNo(ByVal nItem As Integer)
+
+Declare Sub SrchHandlerDialogAddSearch
+Declare Sub SrchHandlerDialogRemoveSearch
+Declare Sub SrchHandlerDialogAlterSearch
+
+Declare Sub SrchHandlerPickIconFile
+Declare Sub SrchHandlerPickIcon
+
+'-- Details single search
+Declare Sub SrchHandlerUseMarkerSelected
+Declare Sub SRCHHandlerSetupSingleSearchDialog
+Declare Sub SRCHHandlerSetupSingleSearchLoad
+Declare Sub SRCHHandlerSetupSingleSearchUnLoad
+
+Declare Sub SRCHHandlerSuperSearchTypePicked
+Declare Sub SRCHHandlerSubSearchTypePicked
+Declare Sub SRCHLoadSubSearchNames(ByVal nSuperSearchType As Integer, arrSubTypes() As String)
+
+Declare Sub SRCHHandlerShowColumnsInList
+Declare Sub SRCHHandlerColumnPick
+Declare Sub SRCHHandlerSaveColumnSetting
+
+Declare Sub SRCHHandlerHideSecondTable
+Declare Sub SRCHHandlerShowSecondTable(ByVal nSearchType As Integer)
+Declare Sub SRCHHandlerPickTable
+Declare Sub SRCHHandlerPickColumn
+
+'--- Search dialogs
+Declare Sub SRCHDistributor(ByVal nSearchItem As Integer)
+
+Declare Sub SRCHDialogMapInfoFind(sbtnCur As T_SEARCHBTN)
+Declare Sub SRCHDialogAdresseOpslag(sbtnCur As T_SEARCHBTN)
+Declare Sub SRCHDialogMatrikelOpslag(sbtnCur As T_SEARCHBTN)
+
+Declare Sub SrchHandlerSearchValueStartUpDialog
+
+'---- Reading and writing ini-files
+Declare Sub SrchReadIniFileVers2(ByVal szFile As String)
+Declare Sub SrchReadIniFileVers1(ByVal szFile As String)
+Declare Sub SrchReadIniFileVers0(ByVal szFile As String)
+
+'--- Setting up buttons and menu items
+Declare Function SRCHCreateMenuItem(ByVal szMenuName As String, ByVal nMenuID As Integer, sbtnCur As T_SEARCHBTN) As Logical
+Declare Function SRCHAddMenuItem(ByVal szMenuName As String, ByVal nMenuID As Integer, sbtnCur As T_SEARCHBTN) As Logical
+Declare Function SRCHCreateButton(ByVal szButtonPad As String, ByVal nToolID As Integer, sbtnCur As T_SEARCHBTN) As Logical
+
+
+Dim	arrsbtnButtons(), arrsbtnTempBtns() As T_SEARCHBTN,
+	marrSearchNames() As String,
+	mnPrevSearch, mnCurSearch, mnPrevCol As Integer,
+	mnCurSuperSearchTypeItem, mnCurSubSearchTypeItem As Integer,
+	marrColNameAndDescr(2) As String,
+	arrnButtonIDs() As Integer,
+	marrSubSearchTypes() As String,
+	mbUseButtons, mbUseMenus As Logical,
+	mbPrintIndexImprovements, mbAutoCloseSearchDialog As Logical
+'**********************************************************************************************''
+'Returning: Can search be accessed thru menus ?
+'**********************************************************************************************''
+Function SRCHUseMenus() As Logical
+
+OnError GoTo ErrorOccured
+
+	SRCHUseMenus	= mbUseMenus
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Setting: Can search be accessed thru menus ?
+'**********************************************************************************************''
+Sub SRCHSetUseMenus(ByVal fValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbUseMenus	= fValue
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Returning: Can search be accessed thru menus ?
+'**********************************************************************************************''
+Function SRCHUseButtons() As Logical
+
+OnError GoTo ErrorOccured
+
+	SRCHUseButtons	= mbUseButtons
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Setting: Can search be accessed thru menus ?
+'**********************************************************************************************''
+Sub SRCHSetUseButtons(ByVal fValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbUseButtons	= fValue
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Returning: Should Index improvement be printed to user ?
+'**********************************************************************************************''
+Function SRCHPrintIndexImprovement() As Logical
+
+OnError GoTo ErrorOccured
+
+	SRCHPrintIndexImprovement	= mbPrintIndexImprovements
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Setting: Should Index improvement be printed to user ?
+'**********************************************************************************************''
+Sub SRCHSetPrintIndexImprovement(ByVal fValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbPrintIndexImprovements	= fValue
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Angiver om Søg dialogen automatsik lukkes efter første søgning
+'**********************************************************************************************''
+Function SRCHAutoCloseSearchDialog() As Logical
+
+OnError GoTo ErrorOccured
+
+	SRCHAutoCloseSearchDialog = mbAutoCloseSearchDialog
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'**********************************************************************************************''
+Sub SRCHSetAutoCloseSearchDialog(ByVal bValue As Logical)
+
+OnError GoTo ErrorOccured
+
+	mbAutoCloseSearchDialog = bValue
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'	Opsætning af søgninger
+'****************************************
+Function SrchSetupDialog() As Logical
+
+Dim	i, nSearch As Integer
+
+SrchSetupDialog = FALSE
+
+OnError GoTo ErrorOccured
+
+	nSearch	= Ubound(arrsbtnButtons)
+	ReDim	marrSearchNames(nSearch)
+	ReDim arrsbtnTempBtns(nSearch)
+
+	For i = 1 To nSearch
+		marrSearchNames(i)	= arrsbtnButtons(i).szDescription
+		Call SRCHCopySearchButton(arrsbtnButtons(i), arrsbtnTempBtns(i))
+	Next
+
+	mnPrevSearch	= 0
+
+	Dialog
+		Title KPAK_DLG_TITLE_SEARCH
+		Calling SrchHandlerDialogStartUp
+
+		Control ListBox		Position 5,5	Width 200	Height 50	ID SRCH_CTRL_LIST_OF_SEARCHS
+			Calling SrchHandlerChangeSearchNo
+			Title From Variable marrSearchNames
+
+		Control GroupBox		Position 5,50	Width 240	Height 55
+
+		Control CheckBox		Position 15,60					ID SRCH_CTRL_SHOW_AS_BTN
+			Title "Vis som knap"
+		Control CheckBox		Position 85,60					ID SRCH_CTRL_SHOW_AS_MENU
+			Title "Vis som menu"
+
+		'-----------
+		Control StaticText	Position 15,75
+			Title MSG_ICON_FILE
+		Control EditText		Position 15,85	Width 160			ID SRCH_CTRL_ICON_FILE
+		Control Button		Position 175,85	Width 15	Height 12
+			Calling SrchHandlerPickIconFile
+			Title "..."
+
+		'-----------
+		Control StaticText	Position 195,75
+			Title MSG_ICON_ICONNO
+		Control EditText		Position 195,85	Width 25			ID SRCH_CTRL_ICON_NO
+		Control Button		Position 220,85	Width 15	Height 12
+			Calling SrchHandlerPickIcon
+			Title "..."
+
+		'-----------
+		Control Button		Position 205,5	Width 40	Height 14
+			Title MSG_ADD
+			Calling SrchHandlerDialogAddSearch
+		Control Button		Position 205,22	Width 40	Height 14
+			Title MSG_REMOVE
+			Calling SrchHandlerDialogRemoveSearch
+		Control Button		Position 205,39	Width 40	Height 14
+			Title MSG_ALTER
+			Calling SrchHandlerDialogAlterSearch
+
+		Control OKButton		Position 150,110
+			Calling SrchHandlerDialogEndSearchSetup
+		Control CancelButton 	Position 195,110
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	nSearch	= Ubound(arrsbtnTempBtns)
+	ReDim arrsbtnButtons(nSearch)
+	
+	If nSearch > 0 Then
+		For i = 1 To nSearch
+			Call SRCHCopySearchButton(arrsbtnTempBtns(i), arrsbtnButtons(i))
+		Next
+	End If
+
+	SrchSetupDialog	= TRUE
+
+	Exit Function
+'----------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************
+'Handler - Opstart af dialogen
+'********************************************
+Sub SrchHandlerDialogStartUp
+
+OnError GoTo ErrorOccured
+
+	If SRCHUseButtons() Then
+		Alter Control SRCH_CTRL_SHOW_AS_BTN Enable
+	Else
+		Alter Control SRCH_CTRL_SHOW_AS_BTN Disable
+	End If
+	If SRCHUseMenus() Then
+		Alter Control SRCH_CTRL_SHOW_AS_MENU Enable
+	Else
+		Alter Control SRCH_CTRL_SHOW_AS_MENU Disable
+	End If
+
+	If Ubound(arrsbtnTempBtns) > 0 Then
+		Alter Control SRCH_CTRL_LIST_OF_SEARCHS Value 1
+
+		Call SrchAlterDialogShowSearchNo(ReadControlValue(SRCH_CTRL_LIST_OF_SEARCHS))
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************
+'Handler - Opstart af dialogen
+'********************************************
+Sub SrchHandlerDialogEndSearchSetup
+
+OnError GoTo ErrorOccured
+
+	Call SrchAlterDialogShowSearchNo(mnPrevSearch)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************
+'Handler : En anden søgeknap blev udvalgt
+'********************************************
+Sub SrchHandlerChangeSearchNo
+
+Dim	nItem As Integer
+
+OnError GoTo ErrorOccured
+
+	nItem = ReadControlValue(SRCH_CTRL_LIST_OF_SEARCHS)
+	Call SrchAlterDialogShowSearchNo(nItem)
+
+	If CommandInfo(CMD_INFO_DLG_DBL) Then
+		Call SrchHandlerDialogAlterSearch
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - TIlføjer ny søgning
+'**********************************************************************************************''
+Sub SrchHandlerDialogAddSearch
+
+Dim	szName As String,
+	nNum As Integer
+
+OnError GoTo ErrorOccured
+
+	Dialog
+		Title "Ny søgning"
+
+		Control StaticText	Position 5,5
+			Title "Angiv navn på søgning"
+		Control EditText		Position 5,15	Width 130
+			Value "Ny søgning"
+			Into szName
+			
+		Control OKButton		Position 40,30	Width 40
+		Control CancelButton	Position 90,30	Width 40
+		
+	If NOT CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	nNum	= Ubound(arrsbtnTempBtns) + 1
+	ReDim arrsbtnTempBtns(nNum)
+	ReDim marrSearchNames(nNum)
+	Call SRCHResetSearchButton(arrsbtnTempBtns(nNum))
+	arrsbtnTempBtns(nNum).szDescription	= szName
+	marrSearchNames(nNum)			= szName
+
+	ReDim arrsbtnTempBtns(nNum).stabTabs(1)
+	Call SRCHResetSearchTable(arrsbtnTempBtns(nNum).stabTabs(1))
+	Call SRCHSearchTableSetColumn(arrsbtnTempBtns(nNum).stabTabs(1), 1, MSG_NONE, "Søgekolonne")
+
+	Alter Control SRCH_CTRL_LIST_OF_SEARCHS Title From Variable marrSearchNames Value nNum
+	Call SrchAlterDialogShowSearchNo(nNum)
+
+	Call SrchHandlerDialogAlterSearch
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler: Fjern udpeget søgning
+'**********************************************************************************************''
+Sub SrchHandlerDialogRemoveSearch
+
+Dim	nItem, nNum, i As Integer
+
+OnError GoTo ErrorOccured
+
+	nItem = ReadControlValue(SRCH_CTRL_LIST_OF_SEARCHS)
+	If nItem = 0 Then
+		Exit Sub
+	End If
+	
+	If ARRRemoveItemNoString(marrSearchNames, nItem) Then
+		nNum = Ubound(arrsbtnTempBtns) - 1
+		For i = nItem To nNum
+			Call SRCHCopySearchButton(arrsbtnTempBtns(i + 1), arrsbtnTempBtns(i))
+		Next
+		ReDim arrsbtnTempBtns(nNum)
+	End If
+
+	'**Prevent the dialog from updating a not-existing search
+	mnPrevSearch = 0
+
+	If nItem > Ubound(marrSearchNames) Then
+		nItem = Ubound(marrSearchNames)
+	End If
+	If nItem = 0 Then
+		Alter Control SRCH_CTRL_LIST_OF_SEARCHS Title From Variable marrSearchNames
+	Else
+		Alter Control SRCH_CTRL_LIST_OF_SEARCHS Title From Variable marrSearchNames Value nItem
+		Call SrchAlterDialogShowSearchNo(nItem)
+	End If
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler: Rediger udpeget søgning
+'**********************************************************************************************''
+Sub SrchHandlerDialogAlterSearch
+
+Dim	nItem, nNum, i As Integer
+
+OnError GoTo ErrorOccured
+
+	nItem = ReadControlValue(SRCH_CTRL_LIST_OF_SEARCHS)
+	If nItem = 0 Then
+		Exit Sub
+	End If
+
+	mnCurSearch = nItem
+	Call SRCHHandlerSetupSingleSearchDialog
+	mnCurSearch = 0
+
+	marrSearchNames(nItem)	= arrsbtnTempBtns(nItem).szDescription
+	Alter Control SRCH_CTRL_LIST_OF_SEARCHS Title From Variable marrSearchNames Value nItem
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+
+'********************************************
+'Handler : Udpeg evt. ikonfil (DLL)
+'********************************************
+Sub SrchHandlerPickIconFile
+
+Dim	szFile, szPath, szName As String
+
+OnError GoTo ErrorOccured
+
+	szFile = ReadControlValue(SRCH_CTRL_ICON_FILE)
+	If szFile <> "" And szFile <> MSG_NONE Then
+		szFile = GetFileNameAbsolute$(szFile)
+		szPath = PathToDirectory$(szFile)	
+		szName = PathToFileName$(szFile)
+	End If
+
+	szFile = FileOpenDlg(szPath, szName, "DLL", MSG_FILE_PICK_POINTS)
+	If szFile = "" Then
+		Exit Sub
+	End If
+
+	Alter Control SRCH_CTRL_ICON_FILE Value GetFileNameRelative$(szFile)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************
+'Handler : Udpeg ikon i ikonfil (DLL)
+'********************************************
+Sub SrchHandlerPickIcon
+
+Dim	szFile As String,
+	nIcon, nMouseX, nMouseY As Integer
+
+OnError GoTo ErrorOccured
+
+	szFile = ReadControlValue(SRCH_CTRL_ICON_FILE)
+	If szFile = "" or szFile = MSG_NONE Then
+		Note "Der er ikke angivet et filnavn på en DLL!"
+		Exit Sub
+	End If
+
+	szFile	= GetFileNameAbsolute$(szFile)
+	nMouseX	= APIGetCursorPositionX()
+	nMouseY	= APIGetCursorPositionY()
+	nIcon		= GetUserPickedIconNoFromDLLExt(szFile, nMouseX, nMouseY)
+	If nIcon > 0 Then
+		Alter Control SRCH_CTRL_ICON_NO Value Str$(nIcon)
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************
+'Handler : Viser værdier for udvalgt søgning i dialogen
+'********************************************
+Sub SrchAlterDialogShowSearchNo(ByVal nItem As Integer)
+
+OnError GoTo ErrorOccured
+
+	If mnPrevSearch > 0 Then
+		arrsbtnTempBtns(mnPrevSearch).bShowAsButton	= ReadControlValue(SRCH_CTRL_SHOW_AS_BTN)
+		arrsbtnTempBtns(mnPrevSearch).bShowAsMenu		= ReadControlValue(SRCH_CTRL_SHOW_AS_MENU)
+
+		arrsbtnTempBtns(mnPrevSearch).szIconFile		= ReadControlValue(SRCH_CTRL_ICON_FILE)
+		arrsbtnTempBtns(mnPrevSearch).nIcon			= Val(ReadControlValue(SRCH_CTRL_ICON_NO))
+	End If
+
+	mnPrevSearch	= nItem	'ReadControlValue(SRCH_CTRL_LIST_OF_SEARCHS)
+
+	If mnPrevSearch > 0 Then
+		Alter Control SRCH_CTRL_SHOW_AS_BTN 	Value arrsbtnTempBtns(mnPrevSearch).bShowAsButton
+		Alter Control SRCH_CTRL_SHOW_AS_MENU	Value arrsbtnTempBtns(mnPrevSearch).bShowAsMenu
+	
+		Alter Control SRCH_CTRL_ICON_FILE		Value GetFileNameRelative$(arrsbtnTempBtns(mnPrevSearch).szIconFile)
+		Alter Control SRCH_CTRL_ICON_NO		Value Str$(arrsbtnTempBtns(mnPrevSearch).nIcon)
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'  S E T T I N G   U P   T H E   S I N G L E   S E A R C H
+'
+'**********************************************************************************************''
+'Handler - Opsætning af en enkelt søgning
+'**********************************************************************************************''
+Sub SRCHHandlerSetupSingleSearchDialog
+
+OnError GoTo ErrorOccured
+
+	mnPrevCol				= 0
+	mnCurSuperSearchTypeItem	= 0
+	mnCurSubSearchTypeItem		= 0
+
+	Dialog
+		Title "Opsætning af søgning"	'KPAK_DLG_TITLE_SEARCH
+		Calling SRCHHandlerSetupSingleSearchLoad
+		
+		'----------------
+		Control StaticText	Position 5,5
+			Title MSG_DESCRITION
+		Control EditText		Position 5,15	Width 105			ID SRCH_CTRL_DESCRIPTION
+
+		'----------------
+		Control GroupBox		Position 115,5	Width 125	Height 65
+			Title "Søgetype"
+
+		Control StaticText	Position 120,15
+			Title "Overordnet søgetype"
+		Control PopUpMenu		Position 120,25	Width 115			ID SRCH_CTRL_SUPERSEARCH_TYPE
+			Calling SRCHHandlerSuperSearchTypePicked
+			Title "Find - 1 tabel;Find - 2 tabeller;Adresseopslag - 1 tabel;Adresseopslag - 2 tabeller;Matrikelopslag - 1 tabel;Matrikelopslag - 2 tabeller"
+		Control StaticText	Position 120,40
+			Title "Underordnet søgetype"
+		Control PopUpMenu		Position 120,50	Width 115	Height 30	ID SRCH_CTRL_SUBSEARCH_TYPE
+			Calling SRCHHandlerSubSearchTypePicked
+
+		'----------------
+		Control StaticText	Position 5,32
+			Title KPAK_DLG_TXT_ZOOM_METER
+		Control EditText		Position 45,30	Width 50			ID SRCH_CTRL_ZOOM_M
+
+		Control CheckBox		Position 5,45					ID SRCH_CTRL_SHOW_MARKER
+			Calling SrchHandlerUseMarkerSelected
+			Title KPAK_DLG_TXT_POINT_IN_MAP
+		Control SymbolPicker	Position 90,45	Width 20	Height 20	ID SRCH_CTRL_SYMBOL_MARKER
+		Control CheckBox		Position 5,60					ID SRCH_CTRL_SELECT_REC
+			Title KPAK_DLG_TXT_SELECT_THE_OBJECTS
+
+		'----------------
+		Control GroupBox		Position 5,70	Width 235	Height 155
+			'--Table 1
+		Control StaticText	Position 15,80	Width 90			ID SRCH_CTRL_TAB1_DESCR
+			Title MSG_TAB_TABLE & " 1"
+		Control EditText		Position 15,90	Width 90			ID SRCH_CTRL_TAB1_NAME
+			Disable
+		Control Button		Position 105,90	Width 15	Height 12	ID SRCH_CTRL_TAB1_PICK
+			Calling SRCHHandlerPickTable
+			Title "..."
+			'-----
+		Control StaticText	Position 15,105	Width 90
+			Title MSG_COL_COLUMNS
+		Control ListBox		Position 15,115	Width 105	Height 52	ID SRCH_CTRL_TAB1_COL_LIST
+			Calling SRCHHandlerColumnPick
+
+		Control StaticText	Position 15,170
+			Title "Beskrivelse"
+		Control EditText		Position 15,180	Width 105			ID SRCH_CTRL_TAB1_COL_DESCR
+		Control StaticText	Position 15,195
+			Title "Kolonnenavn"
+		Control EditText		Position 15,205	Width 90			ID SRCH_CTRL_TAB1_COL_NAME
+		Control Button		Position 105,205	Width 15	Height 12	ID SRCH_CTRL_TAB1_COL_PICK
+			Calling SRCHHandlerPickColumn
+			Title "..."
+		'----------------
+			'--Table 2 
+		Control staticText	Position 125,80	Width 90			ID SRCH_CTRL_TAB2_DESCR
+			Title MSG_TAB_TABLE & " 2"
+		Control EditText		Position 125,90	Width 90			ID SRCH_CTRL_TAB2_NAME
+			Disable
+		Control Button		Position 215,90	Width 15	Height 12	ID SRCH_CTRL_TAB2_PICK
+			Calling SRCHHandlerPickTable
+			Title "..."
+
+		Control StaticText	Position 125,105	Width 90
+			Title MSG_COL_COLUMNS
+		Control ListBox		Position 125,115	Width 105	Height 52	ID SRCH_CTRL_TAB2_COL_LIST
+			Calling SRCHHandlerColumnPick
+			
+		Control StaticText	Position 125,170
+			Title "Beskrivelse"
+		Control EditText		Position 125,180	Width 105			ID SRCH_CTRL_TAB2_COL_DESCR
+		Control StaticText	Position 125,195
+			Title "Kolonnenavn"
+		Control EditText		Position 125,205	Width 90			ID SRCH_CTRL_TAB2_COL_NAME
+		Control Button		Position 215,205	Width 15	Height 12	ID SRCH_CTRL_TAB2_COL_PICK
+			Calling SRCHHandlerPickColumn
+			Title "..."
+		'----------------			
+		Control OKButton		Position 145,230
+			Calling SRCHHandlerSetupSingleSearchUnLoad
+		Control CancelButton	Position 190,230
+		
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Fjerner tabel 2 fra setup hvis den ikke forefindes
+'**********************************************************************************************''
+Sub SRCHHandlerHideSecondTable
+
+OnError GoTo ErrorOccured
+
+	ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+
+	Alter Control SRCH_CTRL_TAB2_DESCR		Title ""
+	Alter Control SRCH_CTRL_TAB2_DESCR		Disable
+	Alter Control SRCH_CTRL_TAB2_PICK		Disable
+	Alter Control SRCH_CTRL_TAB2_COL_LIST	Disable
+	Alter Control SRCH_CTRL_TAB2_COL_DESCR	Value ""
+	Alter Control SRCH_CTRL_TAB2_COL_DESCR	Disable
+	Alter Control SRCH_CTRL_TAB2_COL_NAME	Value ""
+	Alter Control SRCH_CTRL_TAB2_COL_NAME	Disable
+	Alter Control SRCH_CTRL_TAB2_COL_PICK	Disable
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'**********************************************************************************************''
+' Handler - Tilføjet tabel 2 til setup hvis den ikke forefindes
+'**********************************************************************************************''
+Sub SRCHHandlerShowSecondTable(ByVal nSearchType As Integer)
+
+OnError GoTo ErrorOccured
+
+	Alter Control SRCH_CTRL_TAB2_DESCR		Enable
+	Alter Control SRCH_CTRL_TAB2_PICK		Enable
+	Alter Control SRCH_CTRL_TAB2_COL_LIST	Enable
+	Alter Control SRCH_CTRL_TAB2_COL_DESCR	Enable
+	Alter Control SRCH_CTRL_TAB2_COL_NAME	Enable
+	Alter Control SRCH_CTRL_TAB2_COL_PICK	Enable
+
+	Do Case nSearchType
+		Case SSTYPE_2_2T
+			Alter Control SRCH_CTRL_TAB2_DESCR Title "Afgrænsende tabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(2)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(2))
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 1, MSG_NONE, "Afgrænsende kolonne")
+			End If
+			
+		Case SSTYPE_4_VNR_VNVN_HNR
+			Alter Control SRCH_CTRL_TAB2_DESCR Title "Vejnavnetabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(2)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(2))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 1, MSG_NONE, "Vejkode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 2, MSG_NONE, "Vejnavn")
+			End If
+			
+		Case SSTYPE_4_VNR_VNVN_HNR_B
+			Alter Control SRCH_CTRL_TAB2_DESCR Title "Vejnavnetabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(2)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(2))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 1, MSG_NONE, "Vejkode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 2, MSG_NONE, "Vejnavn")
+			End If
+			
+		Case SSTYPE_4_KNR_VNR_VNVN_HNR
+			Alter Control SRCH_CTRL_TAB2_DESCR Title "Vejnavnetabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(2)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(2))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 1, MSG_NONE, "Kommunenr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 2, MSG_NONE, "Vejkode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 3, MSG_NONE, "Vejnavn")
+			End If
+			
+		Case SSTYPE_4_KNR_VNR_VNVN_HNR_B
+			Alter Control SRCH_CTRL_TAB2_DESCR Title "Vejnavnetabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(2)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(2))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 1, MSG_NONE, "Kommunenr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 2, MSG_NONE, "Vejkode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 3, MSG_NONE, "Vejnavn")
+			End If
+		Case SSTYPE_6_ENR_ELAV_MNR
+			Alter Control SRCH_CTRL_TAB2_DESCR Title "Ejerlavstabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(2)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(2))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 1, MSG_NONE, "Ejerlavskode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 2, MSG_NONE, "Ejerlav")
+			End If
+			
+		Case SSTYPE_6_ENR_KENR_ELAV_MNR
+			Alter Control SRCH_CTRL_TAB2_DESCR Title "Ejerlavstabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(2)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(2))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 1, MSG_NONE, "Kommunenr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 2, MSG_NONE, "Komm. ejerlavskode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 3, MSG_NONE, "Ejerlav")
+			End If
+			
+		Case SSTYPE_6_KNR_ENR_ELAV_MNR
+			Alter Control SRCH_CTRL_TAB2_DESCR Title "Ejerlavstabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(2)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(2))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 1, MSG_NONE, "Kommunenr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 2, MSG_NONE, "Ejerlavskode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 3, MSG_NONE, "Ejerlav")
+			End If
+			
+		Case SSTYPE_6_KNR_ENR_KENR_ELAV_MNR
+			Alter Control SRCH_CTRL_TAB2_DESCR Title "Ejerlavstabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(2)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(2))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 1, MSG_NONE, "Kommunenr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 2, MSG_NONE, "Ejerlavskode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 3, MSG_NONE, "Komm. ejerlavskode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(2), 4, MSG_NONE, "Ejerlav")
+			End If
+			
+	End Case
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler udpegning af table
+'**********************************************************************************************''
+Sub SRCHHandlerPickTable
+
+Dim	nCtrl, nTab As Integer,
+	szTab As String
+
+OnError GoTo ErrorOccured
+
+	nCtrl = TriggerControl()
+	nTab	= Val(Left$(Str$(nCtrl) , 1))
+
+	If nCtrl = SRCH_CTRL_TAB1_PICK Then
+		szTab = GetTableNameExt$("Udpeg tabel...", FALSE, TRUE, TRUE, FALSE, FALSE, 0)
+	Else
+		'**vejnavne/ejerlav: tillad også blot lister
+		szTab = GetTableNameExt$("Udpeg tabel...", FALSE, FALSE, TRUE, FALSE, FALSE, 0)
+	End If
+	If szTab = "" Then
+		Exit Sub
+	End If
+	
+	Alter Control (nCtrl - 1) Value szTab
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler: Udpegning af kolonne
+'**********************************************************************************************''
+Sub SRCHHandlerPickColumn
+
+Dim	nCtrl As Integer,
+	szTab, szCol As String
+
+OnError GoTo ErrorOccured
+
+	nCtrl = TriggerControl()
+
+	Do Case nCtrl
+		Case SRCH_CTRL_TAB1_COL_LIST, SRCH_CTRL_TAB1_COL_PICK
+			nCtrl	= SRCH_CTRL_TAB1_COL_PICK
+			szTab = ReadControlValue(SRCH_CTRL_TAB1_NAME)
+		Case SRCH_CTRL_TAB2_COL_LIST, SRCH_CTRL_TAB2_COL_PICK
+			nCtrl	= SRCH_CTRL_TAB2_COL_PICK
+			szTab = ReadControlValue(SRCH_CTRL_TAB2_NAME)
+	End Case
+
+	If szTab = "" Then
+		Note ERR_TAB_NO_NAME_GIVEN
+		Exit Sub
+	ElseIf NOT TABIsOpen(szTab) Then
+		Note ERR_TAB_NOT_OPEN & szTab
+		Exit Sub
+	End If
+
+	szCol = ReadControlValue(nCtrl - 1) 
+	szCol = TABGetColumnName$("Udpeg kolonne...", szTab, szCol, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE, FALSE)
+	If szCol = "" Then
+		Exit Sub
+	End If
+	
+	Alter Control (nCtrl - 1) Value szCol
+	
+	Call SRCHHandlerSaveColumnSetting
+	Call SRCHHandlerShowColumnsInList
+	'Alter Control nCtrl Value nCol Active
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Kaldes ved opstart af dialog med den enkelte søgning
+'**********************************************************************************************''
+Sub SRCHHandlerSetupSingleSearchLoad
+
+Dim	nNumTab As Integer
+
+OnError GoTo ErrorOccured
+
+	mnCurSuperSearchTypeItem	= SRCHGetSuperSearchItem(arrsbtnTempBtns(mnCurSearch).nSearchType)
+	
+
+	Alter Control SRCH_CTRL_DESCRIPTION		Value arrsbtnTempBtns(mnCurSearch).szDescription
+	Alter Control SRCH_CTRL_SUPERSEARCH_TYPE	Value mnCurSuperSearchTypeItem
+	Alter Control SRCH_CTRL_ZOOM_M		Value Str$(arrsbtnTempBtns(mnCurSearch).nZoom)
+	Alter Control SRCH_CTRL_SHOW_MARKER		Value arrsbtnTempBtns(mnCurSearch).bShowMarker
+	Alter Control SRCH_CTRL_SYMBOL_MARKER	Value arrsbtnTempBtns(mnCurSearch).symMarker
+	Alter Control SRCH_CTRL_SELECT_REC		Value arrsbtnTempBtns(mnCurSearch).bSelect
+
+	Call SrchHandlerUseMarkerSelected
+
+	nNumTab	= Ubound(arrsbtnTempBtns(mnCurSearch).stabTabs)
+	If nNumTab > 0 Then
+		Alter Control SRCH_CTRL_TAB1_NAME	Value arrsbtnTempBtns(mnCurSearch).stabTabs(1).szName
+	End If
+	If nNumTab > 1 Then
+		Alter Control SRCH_CTRL_TAB2_NAME	Value arrsbtnTempBtns(mnCurSearch).stabTabs(2).szName
+	End If
+
+	Call SRCHLoadSubSearchNames(ReadControlValue(SRCH_CTRL_SUPERSEARCH_TYPE), marrSubSearchTypes)
+	Alter Control SRCH_CTRL_SUBSEARCH_TYPE 	Title From Variable marrSubSearchTypes
+	Alter Control SRCH_CTRL_SUBSEARCH_TYPE	Value SRCHGetSubSearchItem(arrsbtnTempBtns(mnCurSearch).nSearchType)
+
+	Call SRCHHandlerSuperSearchTypePicked
+	Call SRCHHandlerSubSearchTypePicked
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Kaldes ved opstart af dialog med den enkelte søgning
+'**********************************************************************************************''
+Sub SRCHHandlerSetupSingleSearchUnLoad
+
+OnError GoTo ErrorOccured
+
+	Call SRCHHandlerSaveColumnSetting
+	
+	arrsbtnTempBtns(mnCurSearch).szDescription	= ReadControlValue(SRCH_CTRL_DESCRIPTION)
+	arrsbtnTempBtns(mnCurSearch).nSearchType		= SRCHGetSearchType(ReadControlValue(SRCH_CTRL_SUPERSEARCH_TYPE), ReadControlValue(SRCH_CTRL_SUBSEARCH_TYPE))
+	arrsbtnTempBtns(mnCurSearch).nZoom			= ReadControlValue(SRCH_CTRL_ZOOM_M)
+	arrsbtnTempBtns(mnCurSearch).bShowMarker		= ReadControlValue(SRCH_CTRL_SHOW_MARKER)
+	arrsbtnTempBtns(mnCurSearch).symMarker		= ReadControlValue(SRCH_CTRL_SYMBOL_MARKER)
+	arrsbtnTempBtns(mnCurSearch).bSelect		= ReadControlValue(SRCH_CTRL_SELECT_REC)
+
+	arrsbtnTempBtns(mnCurSearch).stabTabs(1).szName	= ReadControlValue(SRCH_CTRL_TAB1_NAME)
+	
+	If SRCHUseSecondTable(arrsbtnTempBtns(mnCurSearch).nSearchType) Then
+		arrsbtnTempBtns(mnCurSearch).stabTabs(2).szName	= ReadControlValue(SRCH_CTRL_TAB2_NAME)
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Udpegning af søgetype: Simpel, Adresseopslag, Matrikelopslag
+'**********************************************************************************************''
+Sub SRCHHandlerSuperSearchTypePicked
+
+Dim	nSearchItem As Integer
+
+OnError GoTo ErrorOccured
+
+	nSearchItem 	= ReadControlValue(SRCH_CTRL_SUPERSEARCH_TYPE)
+
+	Do Case nSearchItem
+		Case 1, 2
+			Alter Control SRCH_CTRL_SHOW_MARKER	Enable
+			Alter Control SRCH_CTRL_SELECT_REC	Enable
+		Case Else
+			Alter Control SRCH_CTRL_SHOW_MARKER	Disable Value FALSE
+			Alter Control SRCH_CTRL_SELECT_REC	Disable Value TRUE
+	End Case
+
+	If mnCurSuperSearchTypeItem = nSearchItem Then
+		Exit Sub
+	End If
+	mnCurSuperSearchTypeItem	= nSearchItem
+	mnCurSubSearchTypeItem		= 0
+
+	Call SRCHLoadSubSearchNames(mnCurSuperSearchTypeItem, marrSubSearchTypes)
+	Alter Control SRCH_CTRL_SUBSEARCH_TYPE Title From Variable marrSubSearchTypes	Value 1
+	
+	Call SrchHandlerUseMarkerSelected
+	Call SRCHHandlerSubSearchTypePicked
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'**********************************************************************************************''
+'Handler - Udpegning af søgetype: Simpel, Adresseopslag, Matrikelopslag
+'**********************************************************************************************''
+Sub SRCHHandlerSubSearchTypePicked
+
+Dim	nSearchType As Integer
+
+OnError GoTo ErrorOccured
+
+	Call SRCHHandlerSaveColumnSetting
+	
+	nSearchType	= ReadControlValue(SRCH_CTRL_SUBSEARCH_TYPE)
+	If mnCurSubSearchTypeItem = nSearchType Then
+		Exit Sub
+	End If
+	mnCurSubSearchTypeItem = nSearchType
+	
+	nSearchType = SRCHGetSearchType(ReadControlValue(SRCH_CTRL_SUPERSEARCH_TYPE), mnCurSubSearchTypeItem)
+	Do Case nSearchType
+		Case SSTYPE_1_1T
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Søgetabel"
+			
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Søgekolonne")
+			End If			
+			Call SRCHHandlerHideSecondTable
+
+		Case SSTYPE_2_2T
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Søgetabel"
+		
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Søgekolonne")
+			End If
+			Call SRCHHandlerShowSecondTable(nSearchType)
+
+		Case SSTYPE_3_VNVN_HNR
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Husnrtabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Vejnavn")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Husnr")
+			End If
+			Call SRCHHandlerHideSecondTable
+
+		Case SSTYPE_3_VNVN_HNR_B
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Husnrtabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Vejnavn")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Husnr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Litra")
+			End If
+			Call SRCHHandlerHideSecondTable
+			
+		Case SSTYPE_3_VNR_VNVN_HNR
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Husnrtabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Vejkode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Vejnavn")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Husnr")
+			End If
+			Call SRCHHandlerHideSecondTable			
+
+		Case SSTYPE_3_VNR_VNVN_HNR_B
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Husnrtabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Vejkode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Vejnavn")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Husnr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 4, MSG_NONE, "Litra")
+			End If
+			Call SRCHHandlerHideSecondTable
+
+		Case SSTYPE_3_KNR_VNVN_HNR
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Husnrtabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Kommunenr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Vejnavn")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Husnr")
+			End If
+			Call SRCHHandlerHideSecondTable
+
+		Case SSTYPE_3_KNR_VNVN_HNR_B
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Husnrtabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Kommunenr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Vejnavn")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Husnr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 4, MSG_NONE, "Litra")
+			End If
+			Call SRCHHandlerHideSecondTable
+
+		Case SSTYPE_3_KNR_VNR_VNVN_HNR
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Husnrtabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Kommunenr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Vejkode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Vejnavn")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 4, MSG_NONE, "Husnr")
+			End If
+			Call SRCHHandlerHideSecondTable
+
+		Case SSTYPE_3_KNR_VNR_VNVN_HNR_B
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Husnrtabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Kommunenr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Vejkode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Vejnavn")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 4, MSG_NONE, "Husnr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 5, MSG_NONE, "Litra")
+			End If
+			Call SRCHHandlerHideSecondTable
+
+		Case SSTYPE_3_PNR_VNVN_HNR
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Husnrtabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Postnr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Vejnavn")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Husnr")
+			End If
+			Call SRCHHandlerHideSecondTable
+
+		Case SSTYPE_3_PNR_VNVN_HNR_B
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Husnrtabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Postnr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Vejnavn")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Husnr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 4, MSG_NONE, "Litra")
+			End If
+			Call SRCHHandlerHideSecondTable
+
+		Case SSTYPE_4_VNR_VNVN_HNR
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Husnrtabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Vejkode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Husnr")
+			End If
+			Call SRCHHandlerShowSecondTable(nSearchType)
+
+		Case SSTYPE_4_VNR_VNVN_HNR_B
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Husnrtabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Vejkode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Husnr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Litra")
+			End If
+			Call SRCHHandlerShowSecondTable(nSearchType)
+
+		Case SSTYPE_4_KNR_VNR_VNVN_HNR
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Husnrtabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Kommunenr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Vejkode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Husnr")
+			End If
+			Call SRCHHandlerShowSecondTable(nSearchType)
+
+		Case SSTYPE_4_KNR_VNR_VNVN_HNR_B
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Husnrtabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Kommunenr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Vejkode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Husnr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 4, MSG_NONE, "Litra")
+			End If
+			Call SRCHHandlerShowSecondTable(nSearchType)
+						
+		Case SSTYPE_5_ELAV_MNR
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Matrikeltabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Ejerlav")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Matrikelnr")
+			End If
+			Call SRCHHandlerHideSecondTable
+
+		Case SSTYPE_5_ENR_ELAV_MNR
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Matrikeltabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Ejerlavskode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Ejerlav")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Matrikelnr")
+			End If
+			Call SRCHHandlerHideSecondTable
+
+		Case SSTYPE_5_KNR_ELAV_MNR
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Matrikeltabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Kommunenr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Ejerlav")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Matrikelnr")
+			End If
+			Call SRCHHandlerHideSecondTable
+
+		Case SSTYPE_5_KNR_ENR_ELAV_MNR
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Matrikeltabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Kommunenr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Ejerlavskode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Ejerlav")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 4, MSG_NONE, "Matrikelnr")
+			End If
+			Call SRCHHandlerHideSecondTable
+
+		Case SSTYPE_6_ENR_ELAV_MNR
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Matrikeltabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Ejerlavskode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Matrikelnr")
+			End If
+			Call SRCHHandlerShowSecondTable(nSearchType)
+
+		Case SSTYPE_6_ENR_KENR_ELAV_MNR
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Matrikeltabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Ejerlavskode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Matrikelnr")
+			End If
+			Call SRCHHandlerShowSecondTable(nSearchType)
+
+		Case SSTYPE_6_KNR_ENR_ELAV_MNR
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Matrikeltabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Kommunenr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Ejerlavskode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Matrikelnr")
+			End If
+			Call SRCHHandlerShowSecondTable(nSearchType)
+
+		Case SSTYPE_6_KNR_ENR_KENR_ELAV_MNR
+			Alter Control SRCH_CTRL_TAB1_DESCR Title "Matrikeltabel"
+
+			If arrsbtnTempBtns(mnCurSearch).nSearchType <> nSearchType Then
+				ReDim arrsbtnTempBtns(mnCurSearch).stabTabs(1)
+				Call SRCHResetSearchTable(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 1, MSG_NONE, "Kommunenr")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 2, MSG_NONE, "Ejerlavskode")
+				Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(1), 3, MSG_NONE, "Matrikelnr")
+			End If
+			Call SRCHHandlerShowSecondTable(nSearchType)
+
+	End Case
+
+	Call SRCHHandlerShowColumnsInList
+	
+	arrsbtnTempBtns(mnCurSearch).nSearchType = nSearchType
+	mnPrevCol = 0
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Opretter array med tilgængelig undersøgninger
+'**********************************************************************************************''
+Sub SRCHLoadSubSearchNames(ByVal nSuperSearchType As Integer, arrSubTypes() As String)
+
+OnError GoTo ErrorOccured
+
+	Do Case nSuperSearchType
+		Case 1, STYPE_MAPINFO_FIND_1T
+			ReDim	arrSubTypes(1)
+			arrSubTypes(1)	= "MapInfo Find med 1 tabel"
+		Case 2, STYPE_MAPINFO_FIND_2T
+			ReDim	arrSubTypes(1)
+			arrSubTypes(1)	= "MapInfo Find med 2 tabeller"
+		Case 3, STYPE_ADRESSE_OPSLAG_1T
+			ReDim	arrSubTypes(10)
+			arrSubTypes(1)	= "Vejnavn,Husnr"
+			arrSubTypes(2)	= "Vejnavn,Husnr,Bogstav"
+			arrSubTypes(3)	= "Vejkode,Vejnavn,Husnr"
+			arrSubTypes(4)	= "Vejkode,Vejnavn,Husnr,Bogstav"
+			arrSubTypes(5)	= "Komnr,Vejnavn,Husnr"
+			arrSubTypes(6)	= "Komnr,Vejnavn,Husnr,Bogstav"
+			arrSubTypes(7)	= "Komnr,Vejkode,Vejnavn,Husnr"
+			arrSubTypes(8)	= "Komnr,Vejkode,Vejnavn,Husnr,Bogstav"
+			arrSubTypes(9)	= "Postnr,Vejnavn,Husnr"
+			arrSubTypes(10)	= "Postnr,Vejnavn,Husnr,Bogstav"
+		Case 4, STYPE_ADRESSE_OPSLAG_2T
+			ReDim	arrSubTypes(4)
+			arrSubTypes(1)	= "Vejkode,Vejnavn,Husnr"
+			arrSubTypes(2)	= "Vejkode,Vejnavn,Husnr,Bogstav"
+			arrSubTypes(3)	= "Komnr,Vejkode,Vejnavn,Husnr"
+			arrSubTypes(4)	= "Komnr,Vejkode,Vejnavn,Husnr,Bogstav"
+		Case 5, STYPE_MATRIKEL_OPSLAG_1T
+			ReDim	arrSubTypes(4)
+			arrSubTypes(1)	= "Ejerlav, Matrnr"
+			arrSubTypes(2)	= "Ejerlavnr, Ejerlav, Matrnr"
+			arrSubTypes(3)	= "Komnr, Ejerlav, Matrnr"
+			arrSubTypes(4)	= "Komnr, Ejerlavnr, Ejerlav, Matrnr"
+		Case 6, STYPE_MATRIKEL_OPSLAG_2T
+			ReDim	arrSubTypes(4)
+			arrSubTypes(1)	= "Ejerlavnr,Ejerlav,Matrnr"
+			arrSubTypes(2)	= "Ejerlavnr,komm. ejerlavnr,Ejerlav,Matrnr"
+			arrSubTypes(3)	= "Komnr,Ejerlavnr,Ejerlav,Matrnr"
+			arrSubTypes(4)	= "Komnr,Ejerlavnr,komm. ejerlavnr,Ejerlav,Matrnr"
+		Case Else
+			Note "Unknown SuperSearchItem = " & nSuperSearchType
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler: Viser kolonner (beskrivelse og navn) i listerne
+'**********************************************************************************************''
+Sub SRCHHandlerShowColumnsInList
+
+Dim	i, nNum As Integer
+
+OnError GoTo ErrorOccured
+
+	nNum = Ubound(arrsbtnTempBtns(mnCurSearch).stabTabs)
+
+	If nNum = 0 Then
+		Exit Sub
+	End If
+	
+	marrColNameAndDescr(1) = SRCHGetStringWithColNameAndDescr$(arrsbtnTempBtns(mnCurSearch).stabTabs(1))
+	Alter Control SRCH_CTRL_TAB1_COL_LIST Title From Variable marrColNameAndDescr(1)
+	If nNum > 1 Then
+		marrColNameAndDescr(2) = SRCHGetStringWithColNameAndDescr$(arrsbtnTempBtns(mnCurSearch).stabTabs(2))
+	Else
+		marrColNameAndDescr(2) = ""
+	End If
+	Alter Control SRCH_CTRL_TAB2_COL_LIST Title From Variable marrColNameAndDescr(2)
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler: Der blev markeret en kolonne/beskrivelse
+'**********************************************************************************************''
+Sub SRCHHandlerColumnPick
+
+Dim	nTab, nCol, nCtrl As Integer,
+	szCol, szDescr As String
+
+OnError GoTo ErrorOccured
+
+	Call SRCHHandlerSaveColumnSetting
+
+	nCtrl = TriggerControl()
+	nTab	= Val(Left$(Str$(nCtrl), 1))
+	nCol	= ReadControlValue(nCtrl)
+	
+	If nCol > 0 Then
+		If Ubound(arrsbtnTempBtns(mnCurSearch).stabTabs) >= nTab Then
+			If Ubound(arrsbtnTempBtns(mnCurSearch).stabTabs(nTab).scolCols) >= nCol Then
+				Alter Control (nCtrl + 1) Value arrsbtnTempBtns(mnCurSearch).stabTabs(nTab).scolCols(nCol).szDescription
+				Alter Control (nCtrl + 2) Value arrsbtnTempBtns(mnCurSearch).stabTabs(nTab).scolCols(nCol).szName
+			End If
+		End If
+		mnPrevCol = (10 * nTab) + nCol
+	End If
+
+	Call SRCHHandlerShowColumnsInList
+	Alter Control nCtrl Value nCol Active
+	
+	If CommandInfo(CMD_INFO_DLG_DBL) Then
+		Call SRCHHandlerPickColumn
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Gemmer aktuelle indstillinger på valgt kolonne
+'**********************************************************************************************''
+Sub SRCHHandlerSaveColumnSetting
+
+Dim	nTab, nCol, nCtrl As Integer,
+	szCol, szDescr As String
+
+OnError GoTo ErrorOccured
+
+	If mnPrevCol > 0 Then
+		nTab		= Val(Left$(Str$(mnPrevCol), 1))
+		nCol		= mnPrevCol - (10 * nTab)
+		nCtrl		= (nTab * 1000) + 410
+		szDescr	= ReadControlValue(nCtrl + 1)
+		szCol		= ReadControlValue(nCtrl + 2)
+		'Print "Læst " & szDescr & " : " & szCol
+		Call SRCHSearchTableSetColumn(arrsbtnTempBtns(mnCurSearch).stabTabs(nTab), nCol, szCol, szDescr)
+		
+		'Print arrsbtnTempBtns(mnCurSearch).stabTabs(nTab).scolCols(nCol).szName
+		'Print arrsbtnTempBtns(mnCurSearch).stabTabs(nTab).scolCols(nCol).szDescription
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'********************************************
+'Handler : En anden søgeknap blev udvalgt
+'********************************************
+Sub SrchHandlerUseMarkerSelected
+
+OnError GoTo ErrorOccured
+
+	If ReadControlValue(SRCH_CTRL_SHOW_MARKER) Then
+		Alter Control SRCH_CTRL_SYMBOL_MARKER Enable	Show
+	Else
+		Alter Control SRCH_CTRL_SYMBOL_MARKER Disable	Hide
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'  P R O C E D U R E S   N E E D E D   W H E N   S E A R C H   H A S   B E E N    A C T I V A T E D
+'
+'**********************************************************************************************''
+'Søgning - Adresser
+'********************************************
+Sub SrchToolHandler
+
+Dim	nTool As Integer
+
+OnError GoTo ErrorOccured
+
+	nTool	= CommandInfo(CMD_INFO_TOOLBTN)
+	'Print "Du trykkede på knap " + nTool + " Startværdi = " + SEARCH_BTN_ID
+
+	nTool	= (nTool - SEARCH_BTN_ID)
+
+	Call SRCHDistributor(nTool)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Søgning - Adresser
+'********************************************
+Sub SrchMenuHandler
+
+Dim	nMenuItem As Integer
+
+OnError GoTo ErrorOccured
+
+	nMenuItem	= CommandInfo(CMD_INFO_MENUITEM)
+	'Print "Du trykkede på menuen " + nMenuItem + " Startværdi = " + SEARCH_BTN_ID
+
+	nMenuItem	= (nMenuItem - SEARCH_BTN_ID)
+
+	Call SRCHDistributor(nMenuItem)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+' Fordeler - kalder den korrekt søgerutine afhængig af søgetype
+'**********************************************************************************************''
+Sub SRCHDistributor(ByVal nSearchItem As Integer)
+
+Dim	i, nSearchType As Integer
+
+OnError GoTo ErrorOccured
+
+'Define	STYPE_MAPINFO_FIND_1T		100
+'Define	STYPE_MAPINFO_FIND_2T		200
+'Define	STYPE_ADRESSE_OPSLAG_1T		300
+'Define	STYPE_ADRESSE_OPSLAG_2T		400
+'Define	STYPE_MATRIKEL_OPSLAG_1T	500
+'Define	STYPE_MATRIKEL_OPSLAG_2T	600
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_MAP_OPEN
+		Exit Sub
+	ElseIf WindowInfo(FrontWindow(), WIN_INFO_TYPE) <> WIN_MAPPER Then
+		For i = 1 To NumWindows()
+			If WindowInfo(WindowID(i), WIN_INFO_TYPE) = WIN_MAPPER Then
+				Set Window WindowID(i)
+					Front
+				Exit For
+			End If
+		Next
+		If WindowInfo(FrontWindow(), WIN_INFO_TYPE) <> WIN_MAPPER Then
+			Note ERR_WIN_NO_MAP_OPEN
+			Exit Sub
+		End If
+	End If
+
+	nSearchType = SRCHGetSuperSearchType(arrsbtnButtons(nSearchItem).nSearchType)
+	Do Case nSearchType
+		Case STYPE_MAPINFO_FIND_1T, STYPE_MAPINFO_FIND_2T
+			Call SRCHDialogMapInfoFind(arrsbtnButtons(nSearchItem))
+		Case STYPE_ADRESSE_OPSLAG_1T
+			Call SRCHOpslagAdrOneTable(arrsbtnButtons(nSearchItem))
+		Case STYPE_ADRESSE_OPSLAG_2T
+			Call SRCHOpslagAdrTwoTables(arrsbtnButtons(nSearchItem))
+		Case STYPE_MATRIKEL_OPSLAG_1T
+			Call SRCHOpslagMatrOneTable(arrsbtnButtons(nSearchItem))
+		Case STYPE_MATRIKEL_OPSLAG_2T
+			Call SRCHOpslagMatrTwoTables(arrsbtnButtons(nSearchItem))
+		Case Else
+			Note "Ukendt søgetype: " & nSearchType
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+' Søgedialog - standard MapInfo Find
+'**********************************************************************************************''
+Sub SRCHDialogMapInfoFind(sbtnCur As T_SEARCHBTN)
+
+Dim	nWID, nDlgHeight, nBtnYPos, nRowIDFound As Integer,
+	bUseRefineTable As Logical,
+	szSearchTab, szSearchDescr, szSearchCol, szRefineTab, szRefineDescr, szRefineCol As String,
+	szSearchVal, szRefineValue, szCmdStr As String,
+	fX, fY As Float,
+	a As Alias
+
+OnError GoTo ErrorOccured
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Sub
+	End If
+	nWID = FrontWindow()
+	If not WindowInfo(nWID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Sub
+	End If
+
+	If sbtnCur.nZoom < 1 Then
+		sbtnCur.nZoom	= VALUE_DEFAULT_ZOOM
+	End If
+	
+	Do Case Ubound(sbtnCur.stabTabs)
+		Case 0
+			'**No tables defined
+		Case 1
+			szSearchTab		= sbtnCur.stabTabs(1).szName
+			szSearchCol		= sbtnCur.stabTabs(1).scolCols(1).szName
+			szSearchDescr	= sbtnCur.stabTabs(1).scolCols(1).szDescription
+		Case Else
+			bUseRefineTable	= TRUE
+			szSearchTab		= sbtnCur.stabTabs(1).szName
+			szSearchCol		= sbtnCur.stabTabs(1).scolCols(1).szName
+			szSearchDescr	= sbtnCur.stabTabs(1).scolCols(1).szDescription
+			szRefineTab		= sbtnCur.stabTabs(2).szName
+			szRefineCol		= sbtnCur.stabTabs(2).scolCols(1).szName
+			szRefineDescr	= sbtnCur.stabTabs(2).scolCols(1).szDescription
+	End Case
+
+	If szSearchTab = "" Or szSearchTab = MSG_NONE Then
+		Note ERR_KPAK_NO_SEARCH_TAB_NAME
+		Exit Sub
+	ElseIf szSearchCol = "" Or szSearchCol = MSG_NONE Then
+		Note ERR_KPAK_NO_SEARCH_COL_NAME
+		Exit Sub
+	ElseIf not TableOpen(szSearchTab) Then
+		Note ERR_KPAK_SEARCH_TAB_NOT_OPEN + szSearchTab
+		Exit Sub
+	ElseIf not ColExist(szSearchTab, szSearchCol) Then
+		Note ERR_KPAK_SEARCH_COL_DONT_EXIST + szSearchTab + "(" + szSearchCol + ")"
+		Exit Sub
+	End If
+
+	If szRefineTab = "" Or szRefineTab = MSG_NONE Then
+		bUseRefineTable = FALSE
+	ElseIf szRefineCol = "" Or szRefineCol = MSG_NONE Then
+		bUseRefineTable = FALSE
+	ElseIf not ColExist(szRefineTab, szRefineCol) Then
+		bUseRefineTable = FALSE
+	End If
+
+	If not ColumnInfo(szSearchTab, szSearchCol, COL_INFO_INDEXED) Then
+		If not TableInfo(szSearchTab, TAB_INFO_READONLY) Then
+			Create Index On szSearchTab (szSearchCol)
+		Else
+			Note ERR_KPAK_CREATING_INDEX_ON_COL1 & szSearchCol
+				& ERR_KPAK_CREATING_INDEX_ON_COL2 & szSearchTab
+				& lf & ERR_KPAK_CREATING_INDEX_ON_COL3
+			Exit Sub
+		End If
+	End If
+
+	Set CoordSys Window nWID
+	If bUseRefineTable Then
+		nDlgHeight	= 80
+		nBtnYPos	= 60
+		Find Using szSearchTab (szSearchCol)
+			Refine Using szRefineTab (szRefineCol)
+				Options Abbrs On 
+				ClosestAddr Off
+				OtherBdy Off
+	Else
+		nDlgHeight	= 55
+		nBtnYPos	= 35
+		Find Using szSearchTab (szSearchCol)
+				Options Abbrs On 
+				ClosestAddr Off
+				OtherBdy Off
+	End If
+
+	Dialog							Width 160	Height nDlgHeight
+		Title sbtnCur.szDescription
+		Calling SrchHandlerSearchValueStartUpDialog
+
+		Control CheckBox		Position 5,5			ID SRCH_CTRL_USE_REFINE_TABLE
+			Value bUseRefineTable
+		Control StaticText	Position 5,5			ID SRCH_CTRL_SEARCH_TAB_TITLE
+			Title szSearchDescr	
+		Control EditText		Position 5,15	Width 150	ID SRCH_CTRL_SEARCH_TAB_VALUE
+			Into szSearchVal
+		Control StaticText	Position 5,30			ID SRCH_CTRL_REFINE_TAB_TITLE
+			Title szRefineDescr	Hide
+		Control EditText		Position 5,40	Width 150	ID SRCH_CTRL_REFINE_TAB_VALUE
+			Into szRefineValue	Hide
+
+		Control OKButton		Position 70, nBtnYPos	Width 40
+		Control CancelButton	Position 115, nBtnYPos	Width 40
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	If bUseRefineTable Then
+		Find szSearchVal, szRefineValue Interactive
+	Else
+		Find szSearchVal Interactive
+	End If
+
+	If CommandInfo(CMD_INFO_FIND_RC) >= 1 Then
+
+		fX		= CommandInfo(CMD_INFO_X)
+		fY		= CommandInfo(CMD_INFO_Y)
+		nRowIDFound	= CommandInfo(CMD_INFO_FIND_ROWID)
+
+		Set Map
+			Window nWID
+			Redraw Off
+
+		Set Map
+			Window nWID
+			Zoom sbtnCur.nZoom Units "m"
+		
+		Set Map
+			Window nWID
+			Center (fX, fY)
+
+		If sbtnCur.bShowMarker Then
+			Set Style Symbol sbtnCur.symMarker
+
+			Insert Into WindowInfo(nWID, WIN_INFO_TABLE) (OBJ) Values (CreatePoint(fX, fY))
+		End If
+
+		If sbtnCur.bSelect Then
+			If bUseRefineTable Then
+				Select * From szSearchTab
+					Where ROWID = nRowIDFound
+			Else
+				Fetch Rec CommandInfo(CMD_INFO_FIND_ROWID) From szSearchTab
+				a = szSearchTab + "." + szSearchCol		szSearchVal = a
+
+				szCmdStr = "Select * From " + szSearchTab
+					 + " Where " + szSearchCol + " = "
+				If ColumnInfo(szSearchTab, szSearchCol, COL_INFO_TYPE) = COL_TYPE_CHAR Then
+					szCmdStr = szCmdStr + eye + szSearchVal + eye
+				Else
+					szCmdStr = szCmdStr + szSearchVal
+				End If
+				Run Command szCmdStr
+			End If
+
+			If SelectionInfo(SEL_INFO_NROWS) > 0 Then
+				Run Menu Command M_QUERY_FIND_SELECTION
+
+				Set Distance Units "m"
+				If MapperInfo(nWID, MAPPER_INFO_ZOOM) < sbtnCur.nZoom Then
+					Set Map
+						Window nWID
+						Zoom sbtnCur.nZoom Units "m"
+				End If
+			
+			End If
+			If TableOpen(SelectionInfo(SEL_INFO_SELNAME)) Then
+				Close Table SelectionInfo(SEL_INFO_SELNAME)
+			End If
+		End If
+
+		Set Map
+			Window nWID
+			Redraw On
+
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************
+'Handler - Tænd/sluk for forfine ctrl'er
+'********************************************
+Sub SrchHandlerSearchValueStartUpDialog
+
+OnError GoTo ErrorOccured
+
+	If not ReadControlValue(SRCH_CTRL_USE_REFINE_TABLE) Then
+		Alter Control SRCH_CTRL_REFINE_TAB_TITLE Disable	Hide
+		Alter Control SRCH_CTRL_REFINE_TAB_VALUE Disable	Hide
+	Else
+		Alter Control SRCH_CTRL_REFINE_TAB_TITLE Enable		Show
+		Alter Control SRCH_CTRL_REFINE_TAB_VALUE Enable		Show
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+' Søgedialog - Adresseopslag
+'**********************************************************************************************''
+Sub SRCHDialogAdresseOpslag(sbtnCur As T_SEARCHBTN)
+
+OnError GoTo ErrorOccured
+
+	Note "Adresseopslag"
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+' Søgedialog - Matrikelopslag
+'**********************************************************************************************''
+Sub SRCHDialogMatrikelOpslag(sbtnCur As T_SEARCHBTN)
+
+OnError GoTo ErrorOccured
+
+	Note "Matrikelopslag"
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'    L Æ S N I N G  /  S K R I V N I N G   A F   I N I - F I L 
+'
+'**********************************************************************************************''
+'********************************************
+'Søgning - skriv initieringsfil
+'********************************************
+Sub SrchWriteIniFile(ByVal nFile As Integer)
+
+Dim	i, nNum As Integer
+
+OnError GoTo ErrorOccured
+
+	nNum	= Ubound(arrsbtnButtons)
+
+	Print #nFile, ""
+	Print #nFile, "[SEARCH]"
+	Print #nFile, "VERSION=" & xVersionSearching
+	Print #nFile, "NUMSEARCH=" + nNum
+	
+	For i = 1 To nNum	
+		Print #nFile,  "SEARCH" & i & "=" & SRCHConvertSearchButton2String$(arrsbtnButtons(i))
+	Next
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Indlæsning af Søg opsætning seneste version
+'**********************************************************************************************''
+Sub SrchReadIniFile(ByVal szFile As String)
+
+Dim	i, nNum As Integer,
+	szRead, szVersion As String
+
+OnError GoTo ErrorOccured
+
+	'**Initializing AutoClose
+	Call SRCHSetAutoCloseSearchDialog(TRUE)
+
+	If NOT FileExists(szFile) Then
+		Exit Sub
+	End If
+
+	szVersion = GetIniKeyValue(szFile, "[SEARCH]", "VERSION")
+	
+	If szVersion = "200" Then
+		Call SrchReadIniFileVers2(szFile)
+	Else
+		nNum = Val(GetIniKeyValue(szFile, "[SEARCH]", "NUMSEARCH"))
+
+		If nNum > 0 Then
+			Call SrchReadIniFileVers1(szFile)
+		Else
+			Call SrchReadIniFileVers0(szFile)
+		End If
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Indlæsning af Søg opsætning seneste version
+'**********************************************************************************************''
+Sub SrchReadIniFileVers2(ByVal szFile As String)
+
+Dim	i, nNum As Integer,
+	szRead As String
+
+OnError GoTo ErrorOccured
+
+	nNum = Val(GetIniKeyValue(szFile, "[SEARCH]", "NUMSEARCH"))
+	ReDim arrsbtnButtons(nNum)
+
+	For i = 1 To nNum
+		szRead = GetIniKeyValue(szFile, "[SEARCH]", "SEARCH" & i)
+
+		If NOT SRCHConvertString2SearchButton(szRead, arrsbtnButtons(i)) Then
+			Print i & " : Error loading search setting: " & lf & szRead
+		End If
+	Next
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************
+'Indlæsning af Søg opsætning version 1.0
+'********************************************
+Sub SrchReadIniFileVers1(ByVal szFile As String)
+
+Dim	i, nNum As Integer,
+	szRead, arrRead() As String
+
+OnError GoTo ErrorOccured
+
+	nNum = Val(GetIniKeyValue(szFile, "[SEARCH]", "NUMSEARCH"))
+	ReDim arrsbtnButtons(nNum)
+
+	For i = 1 To nNum
+		szRead = GetIniKeyValue(szFile, "[SEARCH]", "SEARCH" + i)
+		If StrSplitKomma(szRead, arrRead, 11) >= 11 Then
+
+			arrsbtnButtons(i).szDescription	= arrRead(1)
+			arrsbtnButtons(i).bShowAsButton	= (arrRead(2) = "T")
+	
+			Call SRCHSearchButtonSetTable(arrsbtnButtons(i), 1, arrRead(3))
+			Call SRCHSearchTableSetColumn(arrsbtnButtons(i).stabTabs(1),1, arrRead(4), arrRead(4))
+
+			Call SRCHSearchButtonSetTable(arrsbtnButtons(i), 2, arrRead(5))
+			Call SRCHSearchTableSetColumn(arrsbtnButtons(i).stabTabs(2),1, arrRead(6), arrRead(6))
+
+			arrsbtnButtons(i).nZoom			= Val(arrRead(7))
+			arrsbtnButtons(i).bShowMarker		= (arrRead(8) = "T")
+			arrsbtnButtons(i).bSelect		= (arrRead(9) = "T")
+
+			arrsbtnButtons(i).szIconFile		= arrRead(10)
+			arrsbtnButtons(i).nIcon			= Val(arrRead(11))
+		End If
+		arrsbtnButtons(i).symMarker		= SYM_DEFAULT_MARKER
+		arrsbtnButtons(i).symMarker		= StyleFuncGetSymbolFromString(GetIniKeyValue(szFile, "[SEARCH]", "SYMBOL" + i))
+	Next
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Indlæsning af Find opsætning a la MapInfoView/Edit
+'**********************************************************************************************''
+Sub SrchReadIniFileVers0(ByVal szFile As String)
+
+Dim	szRead, szTab, szCol As String,
+	i, nItem As Integer,
+	barrUseItem(5) As Logical
+
+OnError GoTo ErrorOccured
+
+	Open File szFile
+		For Input
+		As #1
+		CharSet SystemInfo(SYS_INFO_CHARSET)
+
+	If SearchFileForGroup(1, "[FIND]") Then
+
+		'Search topic 1
+		nItem = 0
+		For i = 1 to 5
+			Line Input #1, szRead
+			Line Input #1, szTab
+			Line Input #1, szCol
+			If szRead <> "" AND szTab <> "" AND szCol <> "" AND szTab <> MSG_NONE AND szCol <> MSG_NONE Then
+				nItem 		= nItem + 1
+				ReDim arrsbtnButtons(nItem)
+				
+				Call SRCHResetSearchButton(arrsbtnButtons(nItem))
+				barrUseItem(i)	= TRUE
+
+				arrsbtnButtons(nItem).szDescription	= szRead
+
+				Call SRCHSearchButtonSetTable(arrsbtnButtons(nItem), 1, szTab)
+				Call SRCHSearchTableSetColumn(arrsbtnButtons(nItem).stabTabs(1), 1, szCol, szCol)
+			
+				Line Input #1, szTab
+				Line Input #1, szCol
+				If szTab <> "" AND szCol <> "" Then
+					Call SRCHSearchButtonSetTable(arrsbtnButtons(nItem), 2, szTab)
+					Call SRCHSearchTableSetColumn(arrsbtnButtons(nItem).stabTabs(2), 1, szCol, szCol)
+				End If
+			Else
+				Line Input #1, szTab
+				Line Input #1, szCol
+			End If
+		Next
+		
+		'--zoom
+		nItem = 0
+		For i = 1 to 5
+			Line Input #1, szRead
+			
+			If barrUseItem(i) Then
+				nItem = nItem + 1
+				If Ubound(arrsbtnButtons) >= nItem Then
+					arrsbtnButtons(nItem).nZoom	= Val(szRead)
+				End If
+			End If
+		Next
+
+		'**Symbol marker
+		nItem = 0
+		For i = 1 to 5
+			Line Input #1, szRead
+			
+			If barrUseItem(i) Then
+				nItem = nItem + 1
+				If Ubound(arrsbtnButtons) >= nItem Then
+					arrsbtnButtons(nItem).bShowMarker	= (szRead = "T")
+				End If
+			End If
+		Next
+	End If
+
+	Close File #1
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************************************************************************
+'	 C R E A T I N G   M E N U   I T E M S   A N D   B U T T O N S
+'********************************************************************************************************************
+'********************************************
+'Danner menu og Buttonpads
+'********************************************
+Function SRCHCreateMenuAndButtonPad(ByVal szMenuName As String, ByVal szButtonPad As String) As Logical
+
+Dim	i, nCount, nCountMenu, nID As Integer,
+	bSomeAdded As Logical
+
+OnError GoTo ErrorOccured
+
+SRCHCreateMenuAndButtonPad = FALSE
+
+	'Print "Tilføjer nu " + Ubound(arrsbtnButtons) + " knapper"
+	For i = 1 To Ubound(arrsbtnButtons)
+	
+		nID = i + SEARCH_BTN_ID
+
+		If arrsbtnButtons(i).bShowAsButton Then
+			nCount = nCount + 1
+			arrnButtonIDs(nCount) = nID
+
+			If NOT SRCHCreateButton(szButtonPad, nID, arrsbtnButtons(i)) Then
+				Note "Fejl ved oprettelse af søgeknappen " & i & " " & arrsbtnButtons(i).szDescription
+			Else
+				bSomeAdded = TRUE
+			End If
+		End If
+
+		If arrsbtnButtons(i).bShowAsMenu Then
+			nCountMenu = nCountMenu + 1
+			
+			If nCountMenu = 1 Then
+				If NOT SRCHCreateMenuItem(szMenuName, nID, arrsbtnButtons(i)) Then
+					Note "Fejl ved oprettelse af søgemenuen " & i & " " & arrsbtnButtons(i).szDescription
+				Else
+					bSomeAdded = TRUE
+				End If
+			Else
+				If NOT SRCHAddMenuItem(szMenuName, nID, arrsbtnButtons(i)) Then
+					Note "Fejl ved oprettelse af søgemenuen " & i & " " & arrsbtnButtons(i).szDescription
+				Else
+					bSomeAdded = TRUE
+				End If
+			End If
+		End If
+	Next
+
+	If bSomeAdded Then
+		SRCHCreateMenuAndButtonPad = TRUE
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************
+'Danner Buttonpads
+'********************************************
+Function SRCHCreateButtonPad(ByVal szButtonPad As String) As Logical
+
+Dim	i, nCount, nID As Integer,
+	bSomeAdded As Logical
+
+OnError GoTo ErrorOccured
+
+SRCHCreateButtonPad = FALSE
+
+	'Note "Tilføjer nu " + Ubound(arrsbtnButtons) + " knapper"
+	For i = 1 To Ubound(arrsbtnButtons)
+	
+		nID = i + SEARCH_BTN_ID
+
+		If arrsbtnButtons(i).bShowAsButton Then
+			nCount = nCount + 1
+			ReDim arrnButtonIDs(nCount)
+			arrnButtonIDs(nCount) = nID
+
+			If NOT SRCHCreateButton(szButtonPad, nID, arrsbtnButtons(i)) Then
+				Note "Fejl ved oprettelse af søgeknappen " & i & " " & arrsbtnButtons(i).szDescription
+			Else
+				bSomeAdded = TRUE
+			End If
+		End If
+	Next
+
+	If bSomeAdded Then
+		SRCHCreateButtonPad = TRUE
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************
+'Danner menuen (opretter den først og tilføjer efterfølgende)
+'********************************************
+Function SRCHCreateMenu(ByVal szMenuName As String) As Logical
+
+Dim	i, nCount, nID As Integer,
+	bSomeAdded As Logical
+
+OnError GoTo ErrorOccured
+
+SRCHCreateMenu = FALSE
+
+	'Print "Tilføjer nu " + Ubound(arrsbtnButtons) + " knapper"
+	For i = 1 To Ubound(arrsbtnButtons)
+	
+		nID = i + SEARCH_BTN_ID
+
+		If arrsbtnButtons(i).bShowAsMenu Then
+			nCount = nCount + 1
+			
+			If nCount = 1 Then
+				If NOT SRCHCreateMenuItem(szMenuName, nID, arrsbtnButtons(i)) Then
+					Note "Fejl ved oprettelse af søgemenuen " & i & " " & arrsbtnButtons(i).szDescription
+				Else
+					bSomeAdded = TRUE
+				End If
+			Else
+				If NOT SRCHAddMenuItem(szMenuName, nID, arrsbtnButtons(i)) Then
+					Note "Fejl ved oprettelse af søgemenuen " & i & " " & arrsbtnButtons(i).szDescription
+				Else
+					bSomeAdded = TRUE
+				End If
+			End If
+		End If
+	Next
+
+	If bSomeAdded Then
+		SRCHCreateMenu = TRUE
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************
+'Danner Menu (tilføjer med det samme, forventer altså at menuen eksisterer
+'********************************************
+Function SRCHAlterMenu(ByVal szMenuName As String) As Logical
+
+Dim	i, nID As Integer,
+	bSomeAdded As Logical
+
+OnError GoTo ErrorOccured
+
+SRCHAlterMenu = FALSE
+
+	'Print "Tilføjer nu " + Ubound(arrsbtnButtons) + " knapper"
+	For i = 1 To Ubound(arrsbtnButtons)
+	
+		nID = i + SEARCH_BTN_ID
+		If arrsbtnButtons(i).bShowAsMenu Then
+			If NOT SRCHAddMenuItem(szMenuName, nID, arrsbtnButtons(i)) Then
+				Note "Fejl ved oprettelse af søgemenuen " & i & " " & arrsbtnButtons(i).szDescription
+			Else
+				bSomeAdded = TRUE
+			End If
+
+		End If
+	Next
+
+	If bSomeAdded Then
+		SRCHAlterMenu = TRUE
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************
+'Danner Buttonpads
+'********************************************
+Function SRCHCreateButton(ByVal szButtonPad As String, ByVal nToolID As Integer, sbtnCur As T_SEARCHBTN) As Logical
+
+Dim	szIconFile, szHelpMsg As String,
+	nIcon As Integer
+
+SRCHCreateButton = FALSE
+
+	szIconFile		= sbtnCur.szIconFile
+	nIcon			= sbtnCur.nIcon
+	szHelpMsg		= sbtnCur.szDescription + "\n" + sbtnCur.szDescription
+
+	'Print "Tilføjer: Knap " + nToolID + " " + szHelpMsg + " til paletten " + szButtonPad
+	If szIconFile <> "" And szIconFile <> MSG_NONE Then
+		szIconFile	= GetFileNameAbsolute$(szIconFile)
+
+		If not FileExists(szIconFile) Then
+			Print ERR_ICONFILE_NOT_FOUND + szIconFile
+			GoTo AddOrdinaryButton
+		End If
+	End If
+
+	OnError GoTo ErrorOccured
+
+	If szIconFile = "" Then
+		If NOT ButtonPadExists(szButtonPad) Then
+			Create ButtonPad szButtonPad As
+					PushButton
+					ID nToolID
+					Icon nIcon
+					Calling SRCHToolHandler
+					HelpMsg szHelpMsg
+		Else
+			Alter ButtonPad szButtonPad
+				Add	PushButton
+					ID nToolID
+					Icon nIcon
+					Calling SRCHToolHandler
+					HelpMsg szHelpMsg
+		End If
+	Else
+		If NOT ButtonPadExists(szButtonPad) Then
+			Create ButtonPad szButtonPad As
+					PushButton
+					ID nToolID
+					Icon nIcon	File szIconFile
+					Calling SRCHToolHandler
+					HelpMsg szHelpMsg
+		Else
+			Alter ButtonPad szButtonPad
+				Add	PushButton
+					ID nToolID
+					Icon nIcon	File szIconFile
+					Calling SRCHToolHandler
+					HelpMsg szHelpMsg
+		End If
+	End If
+
+	SRCHCreateButton = TRUE
+
+	Exit Function
+'-------------
+AddOrdinaryButton:
+
+	OnError GoTo FatalErrorOccured
+
+	If NOT ButtonPadExists(szButtonPad) Then
+		Create ButtonPad szButtonPad As
+				PushButton
+				Calling SRCHToolHandler
+				Icon MI_ICON_NUMBERS_11
+				ID nToolID
+				HelpMsg szHelpMsg
+	Else
+		Alter ButtonPad szButtonPad
+			Add	PushButton
+				Calling SRCHToolHandler
+				Icon MI_ICON_NUMBERS_11
+				ID nToolID
+				HelpMsg szHelpMsg
+	End If
+
+	SRCHCreateButton = TRUE
+
+	Exit Function
+'-------------
+ErrorOccured:
+
+	Print ERR_ICON_LOADING_1 + nIcon +
+		ERR_ICON_LOADING_2 + szIconFile + " : " + lf
+		+ Error$()
+
+	Resume AddOrdinaryButton
+	Exit Function
+
+'-------------
+FatalErrorOccured:
+	Note Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Adding search menu items to a defined menu
+'**********************************************************************************************''
+Function SRCHCreateMenuItem(ByVal szMenuName As String, ByVal nMenuID As Integer, sbtnCur As T_SEARCHBTN) As Logical
+
+Dim	szTitle, szHelpMsg As String
+
+OnError GoTo ErrorOccured
+
+SRCHCreateMenuItem = FALSE
+
+	szTitle	= sbtnCur.szDescription
+	szHelpMsg	= sbtnCur.szDescription
+
+	'Print "Tilføjer: Menu " + nMenuID + " " + szHelpMsg + " til menuen " + szMenuName
+
+	Create Menu szMenuName As
+			szTitle
+			ID nMenuID
+			HelpMsg szHelpMsg
+			Calling SRCHMenuHandler
+
+SRCHCreateMenuItem = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Adding search menu items to a defined menu
+'**********************************************************************************************''
+Function SRCHAddMenuItem(ByVal szMenuName As String, ByVal nMenuID As Integer, sbtnCur As T_SEARCHBTN) As Logical
+
+Dim	szTitle, szHelpMsg As String
+
+OnError GoTo ErrorOccured
+
+SRCHAddMenuItem = FALSE
+
+	szTitle	= sbtnCur.szDescription
+	szHelpMsg	= sbtnCur.szDescription
+
+	'Print "Tilføjer: Menu " + nMenuID + " " + szHelpMsg + " til menuen " + szMenuName
+
+	Alter Menu szMenuName
+		Add	szTitle
+			ID nMenuID
+			HelpMsg szHelpMsg
+			Calling SRCHMenuHandler
+
+SRCHAddMenuItem = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************
+'Fjernes oprettede knapper
+'********************************************
+Sub SRCHRemoveButtons(ByVal szButtonPad As String)
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	Set Event Processing Off
+
+	For i = 1 To Ubound(arrnButtonIDs)
+		Alter ButtonPad szButtonPad	Remove ID arrnButtonIDs(i)
+	Next
+
+	ReDim arrnButtonIDs(0)
+
+	Set Event Processing On
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+

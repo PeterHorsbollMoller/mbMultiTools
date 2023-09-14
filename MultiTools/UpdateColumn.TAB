@@ -1,0 +1,12 @@
+!table
+!version 300
+!charset WindowsLatin1
+
+Definition Table
+  Type NATIVE Charset "Neutral"
+  Fields 5
+    BUTTONID Integer ;
+    ORDER Integer ;
+    COLUMN Char (50) ;
+    VALUE Char (100) ;
+    PROMPT Logical ;

@@ -1,0 +1,1465 @@
+'********************************************************
+'**	Modul:		KPValuesDlg.mb
+'**	Funktioner:		Styring af KPValues tabellen
+'**				Dialoger til Værditilknytning
+'********************************************************
+Include "MapBasic.def"
+Include "Menu.def"
+
+Include "KPAdminUse.def"
+Include "KPTableUse.def"
+Include "KPGroupUse.def"
+Include "KPStyleUse.def"
+Include "KPValuesUse.def"
+Include "KPValuesDlg.def"
+
+Include "Globals.def"
+
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\ArrayFunc\ArrayFunc.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+Declare Sub kpvHandlerDialogValuesStartup
+Declare Sub kpvHandlerStyleNameSelected
+Declare Sub kpvHandlerChangeCommonValue
+Declare Sub kpvHandlerChangeOrderCommonValue
+Declare Sub kpvHandlerChangeSingleValue
+Declare Sub kpvHandlerChangeOrderSingleValue
+
+Declare Sub KPVHandlerValueCombinedDlgLoad
+Declare Sub kpvHandlerSelectSystemValue
+Declare Sub kpvHandlerSystemValuePicked
+Declare Sub kpvHandlerSelectDefaultValue
+Declare Sub kpvHandlerSelectColumnName
+
+Declare Sub KPVHandlerSelectListDlgLoad
+Declare Sub KPVHandlerUpdateListValues
+Declare Sub KPVHandlerCreateNewList
+Declare Sub KPVHandlerRenameList
+Declare Sub KPVHandlerListValueItemPicked
+Declare Sub KPVHandlerListChangeOrder
+Declare Sub KPVHandlerListChange
+
+Dim	marrStyleNames(0), marrColAndValuesSingle(0), marrColAndValuesCommon(0) As String,
+	marrSystemValue(0), marrSystemValueAlias(0) As String,
+	marrCols(0) As String
+
+Dim	marrValueListIDs() As Integer,
+	marrValueListNames(), marrValueAndDescript() As String
+'********************************************************
+'	Kalder - dialog til styring af værditilknytning...
+'********************************************************
+Sub kpvShowDialogValuesControl
+
+Dim	bCloseKPStyle, bCloseKPValue, bCloseKPTable As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseKPStyle	= kpaOpenKPStylesTable()
+	bCloseKPValue	= kpaOpenKPValuesTable()
+	bCloseKPTable	= kpaOpenKPTablesTable()
+
+	If not kpvDialogValuesControl() Then
+		'**The user pushed the OKButton
+		Commit Table KPVALUES
+	Else
+		'**The user pushed the CancelButton
+		Rollback Table KPVALUES
+	End If
+
+	If bCloseKPTable Then
+		Close Table KPTABLES
+	Else
+		If TableOpen("CUR_LIST_OF_TABLES") Then
+			Close Table CUR_LIST_OF_TABLES
+		End If
+	End If
+	If bCloseKPStyle Then
+		Close Table KPSTYLES
+	Else
+		Close Table CUR_LIST_OF_STYLES
+	End If
+	If bCloseKPValue Then
+		Close Table KPVALUES
+	Else
+		Close Table CUR_LIST_OF_SINGLEVALUES
+		Close Table CUR_LIST_OF_COMMONVALUES
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Dialog til styring af værditilknytning...
+'********************************************************
+Function kpvDialogValuesControl() As Logical
+
+Dim	bCloseKPStyle, bCloseKPValue, bCloseKPTable As Logical
+
+OnError GoTo ErrorOccured
+
+kpvDialogValuesControl = FALSE
+
+	bCloseKPStyle	= kpaOpenKPStylesTable()
+	bCloseKPValue	= kpaOpenKPValuesTable()
+	bCloseKPTable	= kpaOpenKPTablesTable()
+
+	Call kpsCreateListOfStyleNamesLocked(marrStyleNames)
+	Call kpvCreateColAndValListCommon(marrColAndValuesCommon)
+
+	Call kpvCreateArraysWithSystemValues(marrSystemValue, marrSystemValueAlias)
+
+	Dialog
+		Title STYL_DLG_TITLE_VALUES
+		Calling kpvHandlerDialogValuesStartup
+
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_THEMES
+		Control PopUpMenu		Position 5,15	Width 180			ID 100
+			Title From Variable marrStyleNames
+			Calling kpvHandlerStyleNameSelected
+
+		'-------------------------------------------------------------------------
+		Control GroupBox	Position 5,30		Width 180	Height 105
+			Title STYL_DLG_TXT_ALL_THEMES
+		Control ListBox		Position 15,40	Width 160	Height 70	ID 200
+			Title From Variable marrColAndValuesCommon
+		'----------------------
+		Control Button		Position 15,115	Width 35			ID 210
+			Calling kpvHandlerChangeCommonValue
+			Title MSG_ADD
+		Control Button		Position 55,115	Width 35			ID 220
+			Calling kpvHandlerChangeCommonValue
+			Title MSG_REMOVE
+		Control Button		Position 95,115	Width 35			ID 230
+			Calling kpvHandlerChangeCommonValue
+			Title MSG_ALTER
+		'----------------------
+		Control Button		Position 135,115	Width 20			ID 240
+			Calling kpvHandlerChangeOrderCommonValue
+			Title MSG_UP
+		Control Button		Position 155,115	Width 20			ID 241
+			Calling kpvHandlerChangeOrderCommonValue
+			Title MSG_DOWN
+
+		'-------------------------------------------------------------------------
+		Control GroupBox	Position 5,140		Width 180	Height 105
+			Title STYL_DLG_TXT_CURRENT_THEMES
+		Control ListBox		Position 15,150	Width 160	Height 70	ID 300
+			Title From Variable marrColAndValuesSingle
+		'----------------------
+		Control Button		Position 15,225	Width 35			ID 310
+			Calling kpvHandlerChangeSingleValue
+			Title MSG_ADD
+		Control Button		Position 55,225	Width 35			ID 320
+			Calling kpvHandlerChangeSingleValue
+			Title MSG_REMOVE
+		Control Button		Position 95,225	Width 35			ID 330
+			Calling kpvHandlerChangeSingleValue
+			Title MSG_ALTER
+		'----------------------
+		Control Button		Position 135,225	Width 20			ID 340
+			Calling kpvHandlerChangeOrderSingleValue
+			Title MSG_UP
+		Control Button		Position 155,225	Width 20			ID 341
+			Calling kpvHandlerChangeOrderSingleValue
+			Title MSG_DOWN
+
+		Control OKButton		Position 30,250	Width 60
+		Control CancelButton	Position 100,250	Width 60
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Rollback Table KPVALUES
+	Else
+		Commit Table KPVALUES
+	End If
+
+	If bCloseKPTable Then
+		Close Table KPTABLES
+	End If
+	If bCloseKPStyle Then
+		Close Table KPSTYLES
+	End If
+	If bCloseKPValue Then
+		Close Table KPVALUES
+
+	End If
+
+kpvDialogValuesControl = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Handler - Opstart af dialog...
+'********************************************************
+Sub kpvHandlerDialogValuesStartup
+
+OnError GoTo ErrorOccured
+
+	Call kpvHandlerStyleNameSelected
+
+	If NOT KPAAllowUpdateDialogOnCreateSetup() Then
+		Alter Control 230 Hide
+		Alter Control 330 Hide
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Stilartsnavn blev udpeget...
+'********************************************************
+Sub kpvHandlerStyleNameSelected
+
+Dim	nStyleID As Integer
+
+OnError GoTo ErrorOccured
+
+	nStyleID = kpsGetStyleIDFromElementNoLocked(ReadControlValue(100))
+	Call kpvCreateColAndValListSingle(nStyleID, marrColAndValuesSingle)
+
+	Alter Control 300 Title From Variable marrColAndValuesSingle
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Opretter fælles værditilknytning...
+'********************************************************
+Sub kpvHandlerChangeCommonValue
+
+Dim	nValueID, nCtrl, nPick As Integer
+
+OnError GoTo ErrorOccured
+
+	nCtrl	= TriggerControl()
+
+	Do Case nCtrl
+		Case 210	'Add
+			If NOT KPAAllowUpdateDialogOnCreateSetup() Then
+				nValueID 	= kpvDialogCommonValueWithoutColumnList()
+			Else
+				nValueID	= kpvDialogValueCombined(0, -999, "")
+			End If
+			If nValueID = 0 Then
+				Exit Sub
+			End If
+
+			Call kpvCreateColAndValListCommon(marrColAndValuesCommon)
+
+			Alter Control 200 Title From Variable marrColAndValuesCommon
+		Case 220	'Remove
+			If TableInfo("CUR_LIST_OF_COMMONVALUES", TAB_INFO_NROWS) = 0 Then
+				Exit Sub
+			End If
+			nPick = ReadControlValue(200)
+			If nPick = 0 Then
+				Exit Sub
+			End If
+
+			Delete From CUR_LIST_OF_COMMONVALUES
+				Where RowID = nPick
+
+			Call kpvCreateColAndValListCommon(marrColAndValuesCommon)
+			If nPick > Ubound(marrColAndValuesCommon) Then
+				nPick = Ubound(marrColAndValuesCommon)
+			End If
+
+			Alter Control 200 Title From Variable marrColAndValuesCommon
+			If nPick > 0 Then
+				Alter Control 200 Value nPick
+			End If
+		Case 230	'Alter
+			If TableInfo("CUR_LIST_OF_COMMONVALUES", TAB_INFO_NROWS) = 0 Then
+				Exit Sub
+			End If
+			nPick = ReadControlValue(200)
+			If nPick = 0 Then
+				Exit Sub
+			End If
+			nValueID	= kpvGetCommonValueIDFromElementNo(nPick)
+			nValueID	= kpvDialogValueCombined(nValueID, -999, "")
+			If nValueID = 0 Then
+				Exit Sub
+			End If
+
+			Call kpvCreateColAndValListCommon(marrColAndValuesCommon)
+
+			Alter Control 200 Title From Variable marrColAndValuesCommon Value nPick
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub kpvHandlerChangeOrderCommonValue
+
+Dim	nCtrl, nItem, nNewItem, nChange As Integer
+
+OnError GoTo ErrorOccured
+
+	nCtrl = TriggerControl()
+	nItem	= ReadControlValue(200)
+
+	If nItem = 0 Then
+		Exit Sub
+	End If
+
+	Do Case nCtrl
+		Case 240	'Move up
+			If nItem = 1 Then
+				Exit Sub
+			End If
+			nChange	= -15
+			nNewItem	= nItem - 1
+		Case 241	'Move down
+			If nItem = Ubound(marrColAndValuesCommon) Then
+				Exit Sub
+			End If
+			nChange	= 15
+			nNewItem	= nItem + 1
+	End Case
+
+	Update CUR_LIST_OF_COMMONVALUES
+		Set ORDERBY	= (ORDERBY + nChange)
+		Where ROWID	= nItem
+
+	Call kpvCreateColAndValListCommon(marrColAndValuesCommon)
+	Alter Control 200 Title From Variable marrColAndValuesCommon Value nNewItem
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Opretter enkel værditilknytning...
+'********************************************************
+Sub kpvHandlerChangeSingleValue
+
+Dim	nValueID, nStyleID, nCtrl, nPick As Integer,
+	szTable As String,
+	bUseDialogWithColumnList As Logical
+
+OnError GoTo ErrorOccured
+
+	nCtrl	= TriggerControl()
+
+	Do Case nCtrl
+		Case 310	'Add
+			nStyleID	= kpsGetStyleIDFromElementNoLocked(ReadControlValue(100))
+			szTable	= kptGetMapInfoTableName$(kpsGetTableID(nStyleID))
+
+			If KPAAllowUpdateDialogOnCreateSetup() Then
+				nValueID	= kpvDialogValueCombined(0, nStyleID, szTable)
+			Else
+				If szTable = "" Then
+					bUseDialogWithColumnList = FALSE
+				ElseIf not TableOpen(szTable) Then
+					bUseDialogWithColumnList = FALSE
+				Else
+					bUseDialogWithColumnList = TRUE
+				End If
+
+				If bUseDialogWithColumnList Then
+					nValueID	= kpvDialogSingleValueWithColumnList(nStyleID, szTable)
+				Else
+					nValueID 	= kpvDialogSingleValueWithoutColumnList(nStyleID, szTable)
+				End If
+			End If
+
+			If nValueID = 0 Then
+				Exit Sub
+			End If
+
+			Call kpvCreateColAndValListSingle(nStyleID, marrColAndValuesSingle)
+
+			Alter Control 300 Title From Variable marrColAndValuesSingle
+		Case 320	'Remove
+			If TableInfo("CUR_LIST_OF_SINGLEVALUES", TAB_INFO_NROWS) = 0 Then
+				Exit Sub
+			End If
+			nPick 	= ReadControlValue(300)
+			If nPick = 0 Then
+				Exit Sub
+			End If
+			nStyleID	= kpsGetStyleIDFromElementNoLocked(ReadControlValue(100))
+
+			Delete From CUR_LIST_OF_SINGLEVALUES
+				Where RowID = nPick
+
+			Call kpvCreateColAndValListSingle(nStyleID, marrColAndValuesSingle)
+			If nPick > Ubound(marrColAndValuesSingle) Then
+				nPick = Ubound(marrColAndValuesSingle)
+			End If
+
+			Alter Control 300 Title From Variable marrColAndValuesSingle
+			If nPick > 0 Then
+				Alter Control 300 Value nPick
+			End If
+		Case 330	'Alter
+'			Note "Alter 1"
+			If TableInfo("CUR_LIST_OF_SINGLEVALUES", TAB_INFO_NROWS) = 0 Then
+				Exit Sub
+			End If
+'			Note "Alter 2"
+			nPick = ReadControlValue(300)
+			If nPick = 0 Then
+				Exit Sub
+			End If
+
+'			Note "Alter 3"
+			nStyleID	= kpsGetStyleIDFromElementNoLocked(ReadControlValue(100))
+'			Note "Alter 4"
+			szTable	= kptGetMapInfoTableName$(kpsGetTableID(nStyleID))
+
+'			Note "Alter 5"
+			nValueID	= kpvGetSingleValueIDFromElementNo(nPick)
+'			Note "Alter 6"
+			nValueID	= kpvDialogValueCombined(nValueID, nStyleID, szTable)
+			If nValueID = 0 Then
+				Exit Sub
+			End If
+
+'			Note "Alter 7"
+			Call kpvCreateColAndValListSingle(nStyleID, marrColAndValuesSingle)
+
+'			Note "Alter 8"
+			Alter Control 300 Title From Variable marrColAndValuesSingle Value nPick
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub kpvHandlerChangeOrderSingleValue
+
+Dim	nCtrl, nItem, nNewItem, nChange, nStyleID As Integer
+
+OnError GoTo ErrorOccured
+
+	nCtrl = TriggerControl()
+	nItem	= ReadControlValue(300)
+
+	If nItem = 0 Then
+		Exit Sub
+	End If
+
+	nStyleID	= kpsGetStyleIDFromElementNoLocked(ReadControlValue(100))
+
+	Do Case nCtrl
+		Case 340	'Move up
+			If nItem = 1 Then
+				Exit Sub
+			End If
+			nChange	= -15
+			nNewItem	= nItem - 1
+		Case 341	'Move down
+			If nItem = Ubound(marrColAndValuesSingle) Then
+				Exit Sub
+			End If
+			nChange	= 15
+			nNewItem	= nItem + 1
+	End Case
+
+	Update CUR_LIST_OF_SINGLEVALUES
+		Set ORDERBY	= (ORDERBY + nChange)
+		Where ROWID	= nItem
+
+	Call kpvCreateColAndValListSingle(nStyleID, marrColAndValuesSingle)
+	Alter Control 300 Title From Variable marrColAndValuesSingle Value nNewItem
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Dialog - Opret enkel værditilknytning med liste over kolonnenavne...
+'********************************************************
+Function kpvDialogSingleValueWithColumnList(ByVal nStyleID As Integer, ByVal szTable As String) As Integer
+
+Dim	szColName, szValue As String,
+	nValueID, nCol As Integer
+
+OnError GoTo ErrorOccured
+
+	kpvDialogSingleValueWithColumnList = 0
+
+	If NOT CreateArrayColumns(szTable, marrCols, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE) Then
+		'**No columns availeble...
+	End If
+
+	Dialog
+		Title STYL_DLG_TITLE_SINGLE_VALUE
+
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_TABLE
+		Control EditText		Position 5,15	Width 150
+			Value szTable
+			Disable
+
+		Control StaticText	Position 5,30
+			Title STYL_DLG_TXT_COLUMN
+		Control PopUpMenu		Position 5,40	Width 150			ID 100
+			Title From Variable marrCols
+			Value 1
+			Into nCol
+
+		Control StaticText	Position 5,55
+			Title STYL_DLG_TXT_VALUE
+		Control EditText		Position 5,65	Width 135			ID 200
+			Into szValue
+		Control Button		Position 140,65	Width 15	Height 12
+			Title "..."
+			Calling kpvHandlerSelectSystemValue
+
+		Control OKButton		Position 70,85	Width 40
+		Control CancelButton	Position 115,85	Width 40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	ElseIf szValue = "" Then
+		Exit Function
+	End If
+
+	szColName	= marrCols(nCol)
+	nValueID	= kpvGetNextValueID()
+
+	Insert Into KPVALUES
+		(VALUEID, STYLEID, COLUMNNAME, VALUE)
+		Values (nValueID, nStyleID, szColName, szValue)
+
+	kpvDialogSingleValueWithColumnList = nValueID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Dialog - Opret enkel værditilknytning uden liste over kolonnenavne...
+'********************************************************
+Function kpvDialogSingleValueWithoutColumnList(ByVal nStyleID As Integer, ByVal szTable As String) As Integer
+
+Dim	szColName, szValue As String,
+	nValueID As Integer
+
+OnError GoTo ErrorOccured
+
+	kpvDialogSingleValueWithoutColumnList = 0
+
+	Dialog
+		Title STYL_DLG_TITLE_SINGLE_VALUE
+
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_TABLE
+		Control EditText		Position 5,15	Width 150
+			Value szTable
+			Disable
+
+		Control StaticText	Position 5,30
+			Title STYL_DLG_TXT_COLUMN
+		Control EditText		Position 5,40	Width 135			ID 100
+			Into szColName
+		Control Button		Position 140,40	Width 15	Height 12
+			Title "..."
+			Calling kpvHandlerSelectColumnName
+
+		Control StaticText	Position 5,55
+			Title STYL_DLG_TXT_VALUE
+		Control EditText		Position 5,65	Width 135			ID 200
+			Into szValue
+		Control Button		Position 140,65	Width 15	Height 12
+			Title "..."
+			Calling kpvHandlerSelectSystemValue
+
+		Control OKButton		Position 70,85	Width 40
+		Control CancelButton	Position 115,85	Width 40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	ElseIf szColName = "" Then
+		Exit Function
+	ElseIf szValue = "" Then
+		Exit Function
+	End If
+
+	nValueID = kpvGetNextValueID()
+
+	Insert Into KPVALUES
+		(VALUEID, STYLEID, COLUMNNAME, VALUE)
+		Values (nValueID, nStyleID, szColName, szValue)
+
+	kpvDialogSingleValueWithoutColumnList = nValueID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Dialog - Opret fælles værditilknytning uden liste over kolonnenavne...
+'********************************************************
+Function kpvDialogCommonValueWithoutColumnList() As Integer
+
+Dim	szColName, szValue As String,
+	nValueID As Integer
+
+OnError GoTo ErrorOccured
+
+	kpvDialogCommonValueWithoutColumnList = 0
+
+	Dialog
+		Title STYL_DLG_TITLE_COMMON_VALUE
+
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_COLUMN
+		Control EditText		Position 5,15	Width 135			ID 100
+			Into szColName
+		Control Button		Position 140,15	Width 15	Height 12
+			Title "..."
+			Calling kpvHandlerSelectColumnName
+
+		Control StaticText	Position 5,30
+			Title STYL_DLG_TXT_VALUE
+		Control EditText		Position 5,40	Width 135			ID 200
+			Into szValue
+		Control Button		Position 140,40	Width 15	Height 12
+			Title "..."
+			Calling kpvHandlerSelectSystemValue
+
+		Control OKButton		Position 70,60	Width 40
+		Control CancelButton	Position 115,60	Width 40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	ElseIf szColName = "" Then
+		Exit Sub
+	ElseIf szValue = "" Then
+		Exit Sub
+	End If
+
+	nValueID = kpvGetNextValueID()
+
+	Insert Into KPVALUES
+		(VALUEID, STYLEID, COLUMNNAME, VALUE)
+		Values (nValueID, -999, szColName, szValue)
+
+	kpvDialogCommonValueWithoutColumnList = nValueID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Dialog - Opret værditilknytning understøtter liste over kolonnenavne samt opslag i alle kolonner...
+'********************************************************
+Function kpvDialogValueCombined(ByVal nValueID As Integer, ByVal nStyleID As Integer, ByVal szTab As String) As Integer
+
+Dim	szDlgTitle, szColName, szColText, szValue, szDefaultValue As String,
+	nCol As Integer,
+	bActive, bShowInDialog, bDisabled, bRemember, bUseColumnList As Logical
+
+OnError GoTo ErrorOccured
+
+kpvDialogValueCombined = 0
+
+	nCol	= 0
+
+	If nStyleID = -999 Then
+		szTab		= MSG_TAB_MULTIPLE_TABLES
+		szDlgTitle	= STYL_DLG_TITLE_COMMON_VALUE
+	Else
+		szDlgTitle	= STYL_DLG_TITLE_SINGLE_VALUE
+	End If
+
+	If nValueID = 0 Then
+		'**Creating a new "værditilknytning"
+		bActive	= TRUE
+	Else
+		'**Altering an existing "værditilknytning"
+		Select * From KPVALUES
+			Where	VALUEID	= nValueID
+			Into CUR__VALUE__TO__UPDATE NoSelect
+		Fetch First From 	CUR__VALUE__TO__UPDATE
+		szColName		= CUR__VALUE__TO__UPDATE.COLUMNNAME
+		szColText		= CUR__VALUE__TO__UPDATE.COLUMNTEXT
+		szValue		= CUR__VALUE__TO__UPDATE.VALUE
+		szDefaultValue	= CUR__VALUE__TO__UPDATE.DEFAULTVALUE
+		bActive		= CUR__VALUE__TO__UPDATE.ACTIVE
+		bShowInDialog	= CUR__VALUE__TO__UPDATE.SHOW
+		bDisabled		= CUR__VALUE__TO__UPDATE.DISABLED
+		bRemember		= CUR__VALUE__TO__UPDATE.REMEMBERLAST
+	End If
+
+	Dialog
+		Title szDlgTitle
+		Calling KPVHandlerValueCombinedDlgLoad
+
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_TABLE
+		Control EditText		Position 5,15	Width 150			ID 50
+			Value szTab
+			Disable
+
+		'-------------
+		Control StaticText	Position 5,30
+			Title STYL_DLG_TXT_COLUMN
+		Control EditText		Position 5,40	Width 85			ID 100
+			Value szColName
+			Into szColName
+		Control Button		Position 90,40	Width 15	Height 12	ID 101
+			Title "..."
+			Calling kpvHandlerSelectColumnName
+		Control PopUpMenu		Position 5,40	Width 100			ID 102
+			Value 0
+			Into nCol
+
+		Control StaticText	Position 105,30
+			Title STYL_DLG_TXT_COLUMN_ALIAS
+		Control EditText		Position 105,40	Width 100			ID 110
+			Value szColText
+			Into szColText
+
+		Control StaticText	Position 5,55
+			Title STYL_DLG_TXT_VALUE
+		Control EditText		Position 5,65	Width 85			ID 200
+			Value szValue
+			Into szValue
+		Control Button		Position 90,65	Width 15	Height 12
+			Title "..."
+			Calling kpvHandlerSelectSystemValue
+		Control StaticText	Position 105,55
+			Title STYL_DLG_TXT_DEFAULT_VALUE
+		Control EditText		Position 105,65	Width 100	'Not supported, yet 85			ID 210
+			Value szDefaultValue
+			Into szDefaultValue
+		Control Button		Position 190,65	Width 15	Height 12
+			Title "..."
+			Calling kpvHandlerSelectDefaultValue
+			Hide	'Hidden, because it's not supported, yet
+
+		Control CheckBox		Position 5,85					ID 300
+			Title MSG_ACTIVE
+			Value bActive
+			Into bActive
+		Control CheckBox		Position 5,95					ID 301
+			Title STYL_DLG_TXT_SHOW_IN_DIALOG
+			Value bShowInDialog
+			Into bShowInDialog
+		Control CheckBox		Position 100,85					ID 302
+			Title STYL_DLG_TXT_READONLY
+			Value bDisabled
+			Into bDisabled
+		Control CheckBox		Position 100,95					ID 303
+			Title STYL_DLG_TXT_REMEMBER_LAST_VAL
+			Value bRemember
+			Into bRemember
+
+		Control OKButton		Position 120,110	Width 40
+		Control CancelButton	Position 165,110	Width 40
+
+	If NOT CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	ElseIf szColName = "" AND nCol = 0 Then
+		Exit Function
+	ElseIf szValue = "" Then
+		Exit Function
+	End If
+
+	If szTab = "" Then
+		bUseColumnList = FALSE
+	ElseIf szTab = MSG_TAB_MULTIPLE_TABLES Then
+		bUseColumnList = FALSE
+	ElseIf NOT TABIsOpen(szTab) Then
+		bUseColumnList = FALSE
+	Else
+		bUseColumnList = TRUE
+	End If
+
+	If bUseColumnList Then
+		If nCol > 0 AND nCol <= Ubound(marrCols) Then
+			szColName	= marrCols(nCol)
+		End If
+	End If
+
+	If szColText = "" Then
+		szColText = szColName
+	End If
+
+	If nValueID = 0 Then
+		nValueID = kpvGetNextValueID()
+
+		Insert Into KPVALUES
+			(
+				VALUEID, STYLEID, COLUMNNAME, COLUMNTEXT,
+				VALUE, DEFAULTVALUE,
+				ACTIVE, SHOW, DISABLED, REMEMBERLAST
+			)
+			Values
+			(
+				nValueID, nStyleID, szColName, szColText,
+				szValue, szDefaultValue,
+				bActive, bShowInDialog, bDisabled, bRemember
+			)
+	Else
+		Update CUR__VALUE__TO__UPDATE
+			Set	COLUMNNAME		= szColName,
+				COLUMNTEXT		= szColText,
+				VALUE			= szValue,
+				DEFAULTVALUE	= szDefaultValue,
+				ACTIVE		= bActive,
+				SHOW			= bShowInDialog,
+				DISABLED		= bDisabled,
+				REMEMBERLAST	= bRemember
+
+		Call TABClose("CUR__VALUE__TO__UPDATE")
+	End If
+
+kpvDialogValueCombined = nValueID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub KPVHandlerValueCombinedDlgLoad
+
+Dim	szTab As String,
+	bUseColumnList As Logical
+
+OnError GoTo ErrorOccured
+
+	szTab	= ReadControlValue(50)
+	If szTab = "" Then
+		bUseColumnList = FALSE
+	ElseIf szTab = MSG_TAB_MULTIPLE_TABLES Then
+		bUseColumnList = FALSE
+	ElseIf NOT TABIsOpen(szTab) Then
+		bUseColumnList = FALSE
+	Else
+		bUseColumnList = TRUE
+	End If
+
+	If bUseColumnList Then
+		Alter Control 100 Disable Hide
+		Alter Control 101 Disable Hide
+
+		If NOT CreateArrayColumns(szTab, marrCols, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE) Then
+			'**No columns availeble...
+		End If
+		Alter Control 102 Title From Variable marrCols Value ARRGetItemNoStringFuzzy(ReadControlValue(100), marrCols)
+	Else
+		Alter Control 102 Disable Hide
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Dialog - Udpeg systemværdi...
+'********************************************************
+Sub kpvHandlerSelectSystemValue
+
+Dim	nValue, i As Integer,
+	szAlias As String
+
+OnError GoTo ErrorOccured
+
+	szAlias	= ReadControlValue(200)
+	If Left$(szAlias, 5) = "[LIST" Then
+		marrSystemValue(ITEM_NO_LIST_VALUE) = szAlias
+	Else
+		marrSystemValue(ITEM_NO_LIST_VALUE) = "[LIST]"
+	End If
+	nValue	= ARRGetItemNoStringFuzzy(szAlias, marrSystemValue)
+
+	Dialog
+		Title STYL_DLG_TITLE_SYSTEM_VALUES
+		Calling kpvHandlerSystemValuePicked
+
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_DESCRIPTION
+		Control PopUpMenu		Position 5,15	Width 120	ID 100
+			Calling kpvHandlerSystemValuePicked
+			Title From Variable marrSystemValueAlias
+			Value nValue
+			Into nValue
+
+		Control StaticText	Position 5,30
+			Title STYL_DLG_TXT_VALUE
+		Control EditText		Position 5,40	Width 120	ID 200
+			Value marrSystemValue(nValue)
+			Into szAlias
+			Disable
+
+		Control OKButton		Position 35,60
+		Control CancelButton	Position 80,60
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	Alter Control 200 Value szAlias
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Systemværdi udpeget...
+'********************************************************
+Sub kpvHandlerSystemValuePicked
+
+Dim	szListID, szSystemValue As String
+
+OnError GoTo ErrorOccured
+
+	szSystemValue	= marrSystemValue(ReadControlValue(100))
+'	Print "szSystemValue " & szSystemValue
+	If Left$(szSystemValue, 6) = "[LIST=" Then
+		szListID	= Right$(szSystemValue, Len(szSystemValue) - 6)
+'		Print "szListID: " & szListID
+		szListID	= Left$(szListID, Len(szListID) - 1)
+'		Print "szListID: " & szListID
+		szListID	= kpvSelectListDlg(Val(szListID))
+'		Print "szListID: " & szListID
+		Alter Control 200 Value "[LIST=" & szListID & "]"
+	ElseIf Left$(szSystemValue, 5) = "[LIST" Then
+		szListID	= Right$(szSystemValue, Len(szSystemValue) - 5)
+'		Print "szListID: " & szListID
+		szListID	= Left$(szListID, Len(szListID) - 1)
+'		Print "szListID: " & szListID
+		szListID	= kpvSelectListDlg(Val(szListID))
+'		Print "szListID: " & szListID
+		Alter Control 200 Value "[LIST=" & szListID & "]"
+	Else
+		Alter Control 200 Value szSystemValue
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub kpvHandlerSelectDefaultValue
+
+OnError GoTo ErrorOccured
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub kpvHandlerSelectColumnName
+
+Dim	szCol, szTab, arrTabs() As String,
+	i, nCount As Integer,
+	bUseTab As Logical
+
+OnError GoTo ErrorOccured
+
+	ReDim arrTabs(NumTables())
+	For i = 1 To NumTables()
+		szTab	= TableInfo(i, TAB_INFO_NAME)
+
+		bUseTab = TRUE
+		If TableInfo(szTab, TAB_INFO_TYPE) =  TAB_TYPE_RESULT Then
+			'**Don't use this table
+			bUseTab = FALSE
+		ElseIf TableInfo(szTab, TAB_INFO_TYPE) =  TAB_TYPE_IMAGE Then
+			'**Don't use this table
+			bUseTab = FALSE
+		ElseIf TableInfo(szTab, TAB_INFO_TEMP) Then
+			'**Don't use this table
+			bUseTab = FALSE
+		ElseIf TableInfo(szTab, TAB_INFO_SEAMLESS) Then
+			'**Don't use this table
+			bUseTab = FALSE
+		ElseIf kpaTableIsKPSystemTable(szTab) Then
+			'**Don't use this table
+			bUseTab = FALSE
+		End If
+
+		If bUseTab Then
+			nCount 		= nCount + 1
+			arrTabs(nCount)	= szTab
+		End If
+	Next
+	ReDim arrTabs(nCount)
+
+	szCol = ReadControlValue(100)
+	szCol	= TABGetColumnNameListOfTabs$(STYL_DLG_TXT_COLUMN, arrTabs, szCol, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, TRUE, FALSE)
+	If szCol = "" Then
+		Exit Sub
+	End If
+
+	Alter Control 100 Value szCol
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Viser en dialog, hvor brugeren kan vælge mellem lister og oprette nye
+'**********************************************************************************************''
+Function kpvSelectListDlg(ByVal nListID As Integer) As Integer
+
+Dim	bWasOpened As Logical,
+	nValue As Integer
+
+OnError GoTo ErrorOccured
+
+kpvSelectListDlg = 0
+
+	bWasOpened = kpaOpenKPListValuesTable()
+
+	Call KPVCreateListOfListIDs(marrValueListIDs)
+	Call KPVCreateListOfListNames(marrValueListIDs, marrValueListNames)
+
+	Dialog
+		Title STYL_DLG_TITLE_LIST_OF_VALUES
+		Calling KPVHandlerSelectListDlgLoad
+
+		'-------------------
+		Control GroupBox		Position 5,5	Width 90	Height 145
+			Title STYL_DLG_TXT_LISTS
+		Control EditText		Position 15,15					ID 101
+			Value Str$(nListID)
+			Hide
+		Control ListBox		Position 15,15	Width 70	Height 110	ID 100
+			Calling KPVHandlerUpdateListValues
+			Title From Variable marrValueListNames
+			Into nValue
+
+		Control Button		Position 15,130	Width 35
+			Calling KPVHandlerCreateNewList
+			Title MSG_CREATE
+		Control Button		Position 50,130	Width 35
+			Calling KPVHandlerRenameList
+			Title MSG_RENAME
+
+		'-------------------
+		Control GroupBox		Position 95,5	Width 160	Height 145
+			Title MSG_VALUES
+		Control ListBox		Position 105,15	Width 140	Height 71	ID 200
+			Calling KPVHandlerListValueItemPicked
+		'-----
+		Control StaticText	Position 160,91
+			Title MSG_VALUE
+		Control EditText		Position 160,101	Width 85			ID 210
+		Control StaticText	Position 160,116
+			Title MSG_DESCRIPTION
+		Control EditText		Position 160,126	Width 85			ID 220
+		'-----
+		Control Button		Position 105,91	Width 25	Height 12	ID 230
+			Calling KPVHandlerListChangeOrder
+			Title MSG_UP
+		Control Button		Position 130,91	Width 25	Height 12	ID 231
+			Calling KPVHandlerListChangeOrder
+			Title MSG_DOWN
+		Control Button		Position 105,106	Width 50	Height 12	ID 240
+			Calling KPVHandlerListChange
+			Title "&" & MSG_ADD
+		Control Button		Position 105,118	Width 50	Height 12	ID 241
+			Calling KPVHandlerListChange
+			Title MSG_RENAME
+		Control Button		Position 105,130	Width 50	Height 12	ID 242
+			Calling KPVHandlerListChange
+			Title "&" & MSG_REMOVE
+		'-----
+		Control OKButton		Position 165,155
+		Control CancelButton	Position 210,155
+
+	If NOT CommandInfo(CMD_INFO_DLG_OK) Then
+		Rollback Table KPLISTVALUES
+	Else
+		Commit Table KPLISTVALUES
+		kpvSelectListDlg = marrValueListIDs(nValue)
+	End If
+
+	If bWasOpened Then
+		Call TABClose("KPLISTVALUES")
+	Else
+		Call TABClose("CUR__LIST__OF__VALUES")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub KPVHandlerSelectListDlgLoad
+
+Dim	nListID, nValue As Integer
+
+OnError GoTo ErrorOccured
+
+	nListID	= Val(ReadControlValue(101))
+	nValue 	= ARRGetItemNoStringFuzzy(Str$(nListID), marrValueListNames)
+	If Ubound(marrValueListIDs) >= nValue Then
+		If marrValueListIDs(nValue) = nListID Then
+			Alter Control 100 Value nValue
+		ElseIf Ubound(marrValueListIDs) > 0 Then
+			Alter Control 100 Value 1
+		End If
+	End If
+
+	Call KPVHandlerUpdateListValues
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub KPVHandlerUpdateListValues
+
+Dim	nListItem, nListID As Integer
+
+OnError GoTo ErrorOccured
+
+	nListItem	= ReadControlValue(100)
+	If nListItem = 0 Then
+		Exit Sub
+	End If
+
+	nListID	= marrValueListIDs(nListItem)
+
+	Call KPVCreateListOfValuesAndDescr(nListID, marrValueAndDescript)
+
+	Alter Control 200 Title From Variable marrValueAndDescript
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub KPVHandlerCreateNewList
+
+Dim	szValue, szDescript, szListName As String,
+	nValue, nListID As Integer
+
+OnError GoTo ErrorOccured
+
+	Dialog
+		Title STYL_DLG_TITLE_CREATE_LISTOFVAL
+
+		Control StaticText	Position 5,5
+			Title MSG_NAME
+		Control EditText		Position 5,15	Width 120
+			Into szListName
+
+		Control StaticText	Position 15,30
+			Title MSG_VALUE
+		Control EditText		Position 15,40	Width 120
+			Into szValue
+
+		Control StaticText	Position 15,55
+			Title MSG_DESCRIPTION
+		Control EditText		Position 15,65	Width 120
+			Into szDescript
+
+		Control OKButton
+		Control CancelButton
+
+	If NOT CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	If szDescript = "" AND szValue = "" Then
+		Note ERR_VALUE_DEMANDED
+		Exit Sub
+	ElseIf szDescript = "" Then
+		szDescript = szValue
+	End If
+
+	nListID	= kpvGetNextListID()
+	Insert Into KPLISTVALUES
+		(LISTID, LISTNAME, VALUE, VALUETEXT)
+		Values
+		(nListID, szListName, szValue, szDescript)
+
+	Call KPVCreateListOfListIDs(marrValueListIDs)
+	Call KPVCreateListOfListNames(marrValueListIDs, marrValueListNames)
+
+	nValue =  ARRGetItemNoString(Str$(nListID), marrValueListNames)
+	Alter Control 100 Title From Variable marrValueListNames Value nValue
+
+	Call KPVHandlerUpdateListValues
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub KPVHandlerRenameList
+
+Dim	szListName As String,
+	nListItem, nListID As Integer
+
+OnError GoTo ErrorOccured
+
+	nListItem	= ReadControlValue(100)
+	nListID	= marrValueListIDs(nListItem)
+	szListName	= marrValueListNames(nListItem)
+	szListName	= Right$(szListName, Len(szListName) - (Len(Str$(nListID)) + 3))
+
+	Dialog
+		Title STYL_DLG_TITLE_RENAME_LISTOFVAL
+
+		Control StaticText	Position 5,5
+			Title MSG_NAME
+		Control EditText		Position 5,15	Width 120
+			Value szListName
+			Into szListName
+
+		Control OKButton
+		Control CancelButton
+
+	If NOT CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	Update CUR__LIST__OF__VALUES
+		Set LISTNAME	= szListName
+
+	marrValueListNames(nListItem)	= Str$(nListID) & " - " & szListName
+	Alter Control 100 Title From Variable marrValueListNames Value nListItem
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub KPVHandlerListValueItemPicked
+
+Dim	nItem As Integer
+
+OnError GoTo ErrorOccured
+
+	nItem	= ReadControlValue(200)
+
+	Fetch Rec nItem From CUR__LIST__OF__VALUES
+	Alter Control 210 Value CUR__LIST__OF__VALUES.VALUE
+	Alter Control 220 Value CUR__LIST__OF__VALUES.VALUETEXT
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub KPVHandlerListChangeOrder
+
+Dim	nCtrl, nItem, nNewItem, nChange As Integer
+
+OnError GoTo ErrorOccured
+
+	nCtrl = TriggerControl()
+	nItem	= ReadControlValue(200)
+
+	If nItem = 0 Then
+		Exit Sub
+	End If
+
+	Do Case nCtrl
+		Case 230	'Move up
+			If nItem = 1 Then
+				Exit Sub
+			End If
+			nChange	= -15
+			nNewItem	= nItem - 1
+		Case 231	'Move down
+			If nItem = Ubound(marrValueAndDescript) Then
+				Exit Sub
+			End If
+			nChange	= 15
+			nNewItem	= nItem + 1
+	End Case
+
+	Update CUR__LIST__OF__VALUES
+		Set ORDERBY	= (ORDERBY + nChange)
+		Where ROWID	= nItem
+
+	Call KPVHandlerUpdateListValues
+	Alter Control 200 Value nNewItem
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub KPVHandlerListChange
+
+Dim	nCtrl, nItem As Integer,
+	szListName, szValue, szDescript As String,
+	nValue, nListID As Integer
+
+OnError GoTo ErrorOccured
+
+	nCtrl = TriggerControl()
+	nItem	= ReadControlValue(200)
+
+	szValue	= ReadControlValue(210)
+	szDescript	= ReadControlValue(220)
+	If szDescript = "" Then
+		szDescript	= szValue
+	End If
+
+	Do Case nCtrl
+		Case 240	'Add
+			If szDescript = "" AND szValue = "" Then
+				Note ERR_VALUE_DEMANDED
+				Exit Sub
+			ElseIf szDescript = "" Then
+				szDescript = szValue
+			End If
+
+			nListID	= marrValueListIDs(ReadControlValue(100))
+			szListName	= marrValueListNames(ReadControlValue(100))
+			szListName	= Right$(szListName, Len(szListName) - (Len(Str$(nListID)) + 3))
+			nItem		= TableInfo(CUR__LIST__OF__VALUES, TAB_INFO_NROWS) + 1
+			Insert Into KPLISTVALUES
+				(LISTID, LISTNAME, VALUE, VALUETEXT, ORDERBY)
+				Values
+				(nListID, szListName, szValue, szDescript, 10 * nItem)
+
+			Alter Control 210 Active
+		Case 241	'Rename
+			If nItem = 0 Then
+				Exit Sub
+			ElseIf szDescript = "" AND szValue = "" Then
+				Note ERR_VALUE_DEMANDED
+				Exit Sub
+			ElseIf szDescript = "" Then
+				szDescript = szValue
+			End If
+
+			Update CUR__LIST__OF__VALUES
+				Set	VALUE		= szValue,
+					VALUETEXT	= szDescript
+				Where	ROWID		= nItem
+		Case 242	'Remove
+			If nItem = 0 Then
+				Exit Sub
+			End If
+			Delete From CUR__LIST__OF__VALUES Where ROWID = nItem
+	End Case
+
+	Call KPVHandlerUpdateListValues
+	If Ubound(marrValueAndDescript) > 0 Then
+		If nItem > Ubound(marrValueAndDescript) Then
+			nItem = Ubound(marrValueAndDescript)
+		End If
+		Alter Control 200 Value nItem
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

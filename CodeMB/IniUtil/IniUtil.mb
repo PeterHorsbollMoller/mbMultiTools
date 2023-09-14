@@ -1,0 +1,718 @@
+'*********************************************************************************************************************
+'**	Modul:	IniUtil.mb
+'**			Functions for reading textfiles
+'*********************************************************************************************************************
+
+'*********************************************************************************************************************
+Include "MapBasic.def"
+
+Include "IniUtil.def"
+Include "..\TIME\TIME.def"
+Include "..\StrFunc\StrFunc.def"
+Include "..\FILEFunc\FILEFunc.def"
+
+Include "..\Language\Message.lng"
+Include "..\Language\Errors.lng"
+
+Define FILE_INI_PATH	ApplicationDirectory$() & "FilePath.ini"
+
+'*********************************************************************************************
+'	Læser en tekstlinie fra angivet fil
+'*********************************************************************************************
+Function INIReadLine(ByVal nFile As Integer) As String
+
+Dim 	szStartCh, szRead As String
+
+OnError GoTo ErrorOccured
+
+	Line Input # nFile, szRead
+	szRead = LTrim$(RTrim$(szRead))
+
+	Do Until EOF(nFile)
+		If Len(szRead) > 0 Then
+			szStartCh = Left$(szRead,1)
+			'* Next Group terminates reading
+			If szStartCh = "[" Then
+				INIReadLine = ""
+				Exit Function
+			End If
+			'* Legal non-comment line encountered
+			If szStartCh <> ";" Then
+				INIReadLine = szRead
+				Exit Function
+			End If
+		End If
+
+		Line Input # nFile, szRead
+		szRead = LTrim$(RTrim$(szRead))
+	Loop
+
+	'* EndOfFile terminates reading
+	INIReadLine = ""
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+'	Læser en tekstlinie fra angivet fil - dog kun til et evt. semikolon (;)
+'*********************************************************************************************
+Function INIReadLineToSemiColon(ByVal nFile As Integer) As String
+
+Dim 	szStartCh, szRead, arrBuff(0) As String
+
+OnError GoTo ErrorOccured
+
+	Line Input # nFile, szRead
+
+	Do Until EOF(nFile)
+		If Len(szRead) > 0 Then
+
+			szStartCh = Left$(szRead,1)
+			'* Next Group terminates reading
+			If szStartCh = "[" Then
+				INIReadLineToSemiColon = ""
+				Exit Function
+			End If
+			'* Legal non-comment line encountered
+			If szStartCh <> ";" Then
+				'**Trimming the part that comes after a semicolon (;)
+				szRead = LTrim$(RTrim$(STRRTrimAtChar$(szRead, ";")))
+
+				INIReadLineToSemiColon = szRead
+				Exit Function
+			End If
+
+		End If
+
+		Line Input # nFile, szRead
+		'**Trimming the part that comes after a semicolon (;)
+		'szRead = LTrim$(RTrim$(STRRTrimAtChar$(szRead, ";")))
+	Loop
+
+	'* EndOfFile terminates reading
+	INIReadLineToSemiColon = ""
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+'Search an opened ini-file for a special group...
+'*********************************************************************************************
+Function INIFindGroup(ByVal nFile As Integer, ByVal szGroup As String) As Logical
+
+Dim	szRead As String
+
+OnError GoTo ErrorOccured
+
+INIFindGroup = FALSE
+
+	Do Until EOF(nFile)
+		Line Input #nFile, szRead
+		'Print "INIFindGroup: " & szRead
+		szRead	= RTrim$(LTrim$(szRead))
+		If szRead = szGroup Then
+			INIFindGroup = TRUE
+			Exit Function
+		End If
+	Loop
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+'Searching an opened ini-file for a special group from beginning of file...
+'*********************************************************************************************
+Function INIFindGroupFromStart (ByVal nFile As Integer, ByVal szGroup As String) As logical
+
+OnError GoTo ErrorOccured
+
+	Seek nFile,1
+	INIFindGroupFromStart = INIFindGroup(nFile, "[" & szGroup & "]")
+
+INIFindGroupFromStart = FALSE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+'Search an opened ini-file for a special group and here a special key...
+'*********************************************************************************************
+Function INIGetKeyValue$(ByVal szFile As String, ByVal szGroup As String, ByVal szKey As String) As String
+
+Dim	szRead, szValue As String
+
+OnError GoTo ErrorOccured
+
+	If not FileExists(szFile) Then
+		INIGetKeyValue$ = ""
+		Exit Sub
+	End If
+
+	Open File szFile
+		For Input
+		As #111
+		CharSet SystemInfo(SYS_INFO_CHARSET)
+
+	If INIFindGroup(111, szGroup) Then
+		szRead = INIReadLine(111)
+		Do Until szRead = ""
+			If Left$(szRead, Len(szKey)) = szKey Then
+				If Left$(LTrim$(Right$(szRead, Len(szRead) - Len(szKey))), 1) = "=" Then
+					szValue = STRGetValueFromKeyString$(szRead)
+				End If
+			End If
+			szRead = INIReadLine(111)
+		Loop
+	End If
+
+	Close File #111
+
+	INIGetKeyValue$ = szValue
+
+	Exit Function
+'-----------------------------
+ErrorOccured:
+	Note "Error reading keyvalue: "
+		& lf & "Group: " & szGroup
+		& lf & "Key: " & szKey
+		& lf & "Found: " & szValue
+
+End Function
+
+'*********************************************************************************************
+'Search an opened ini-file for a special group and here a special key...
+'*********************************************************************************************
+Function INIGetKeyValueCharSet$(	ByVal szFile As String, ByVal szGroup As String,
+						ByVal szKey As String, ByVal szCharSet As String) As String
+
+Dim	szRead, szValue As String
+
+OnError GoTo ErrorOccured
+
+	If not FileExists(szFile) Then
+		INIGetKeyValueCharSet$ = ""
+		Exit Sub
+	End If
+
+	Open File szFile
+		For Input
+		As #111
+		CharSet szCharSet
+
+	szKey	= szKey & "="
+
+	If INIFindGroup(111, szGroup) Then
+		szRead = INIReadLine(111)
+		Do Until szRead = ""
+			If Left$(szRead, Len(szKey)) = szKey Then
+				szValue = STRGetValueFromKeyString$(szRead)
+			End If
+			szRead = INIReadLine(111)
+		Loop
+	End If
+
+	Close File #111
+
+	INIGetKeyValueCharSet$ = szValue
+
+	Exit Function
+'-----------------------------
+ErrorOccured:
+	Note "Error reading keyvalue: "
+		& lf & "Group: " & szGroup
+		& lf & "Key: " & szKey
+		& lf & "Found: " & szValue
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function INIGetIniFilePathRead$(ByVal szApplication As String, ByVal szFileName As String) As String
+
+Dim	szPath As String
+
+OnError GoTo ErrorOccured
+
+INIGetIniFilePathRead$ = ""
+
+	If FileExists(FILE_INI_PATH) Then
+		szPath = INIGetKeyValue$(FILE_INI_PATH, "[PATH]", szApplication)
+		If szPath <> "" Then
+			If szPath = "PROGRAM" Then
+				szPath = ApplicationDirectory$()
+			Else
+				szPath = GetFileNameAbsolute$(szPath)
+			End If
+		Else
+			szPath = ApplicationDirectory$()
+		End If
+	End If
+	If FileExists(ApplicationDirectory$() & "Always.srv") Then
+		szPath = ApplicationDirectory$()
+	ElseIf FileExists(ApplicationDirectory$() & "Allways.srv") Then
+		szPath = ApplicationDirectory$()
+	End If
+
+	If szPath = "" Then
+		If SystemInfo(SYS_INFO_MIVERSION) >=650 Then
+			'**Using same location as MapInfow.prf
+			If FileExists(GetFolderPath$(FOLDER_MI_PREFERENCE) & szFileName) Then
+				szPath = GetFolderPath$(FOLDER_MI_PREFERENCE)
+			End If
+		End If
+		If szPath = "" Then
+			If FileExists(HomeDirectory$() & szFileName) Then
+				szPath = HomeDirectory$()
+			Else
+				szPath = ApplicationDirectory$()
+			End If
+		End If
+	End If
+
+INIGetIniFilePathRead$ = FILEAddTrailingSlash$(szPath)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function INIGetIniFilePathWrite$(ByVal szApplication As String) As String
+
+Dim	szPath As String
+
+OnError GoTo ErrorOccured
+
+INIGetIniFilePathWrite$ = ""
+
+	If FileExists(FILE_INI_PATH) Then
+		szPath = INIGetKeyValue$(FILE_INI_PATH, "[PATH]", szApplication)
+		If szPath <> "" Then
+			If szPath = "PROGRAM" Then
+				szPath = ApplicationDirectory$()
+			Else
+				szPath = GetFileNameAbsolute$(szPath)
+			End If
+		Else
+			szPath = ApplicationDirectory$()
+		End If
+	End If
+
+	If szPath = "" Then
+		If SystemInfo(SYS_INFO_MIVERSION) >=650 Then
+			'**Using same location as MapInfow.prf
+			szPath = GetFolderPath$(FOLDER_MI_PREFERENCE)
+		Else
+			szPath = HomeDirectory$()
+		End If
+	End If
+
+INIGetIniFilePathWrite$ = FILEAddTrailingSlash$(szPath)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************************
+'**********************************************************************************************************
+'**********************************************************************************************************
+'Backwards compatability
+'*********************************************************************************************
+Function ReadInitLine() As String
+
+OnError GoTo ErrorOccured
+
+	ReadInitLine = INIReadLine(1)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function ReadInitLineFromFile(ByVal nFile As Integer) As String
+
+OnError GoTo ErrorOccured
+
+	ReadInitLineFromFile = INIReadLine(nFile)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function ReadInitLineToSemiColonFromFile(ByVal nFile As Integer) As String
+
+OnError GoTo ErrorOccured
+
+	ReadInitLineToSemiColonFromFile = INIReadLineToSemiColon(nFile)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function SearchFileForGroup(ByVal nFile As Integer, ByVal szSearchGroup As String) As Logical
+
+OnError GoTo ErrorOccured
+
+	SearchFileForGroup = INIFindGroup(nFile, szSearchGroup)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function GetIniKeyValue(ByVal szFile As String, ByVal szSearchGroup As String, ByVal szKey As String) As String
+
+OnError GoTo ErrorOccured
+
+	GetIniKeyValue = INIGetKeyValue$(szFile, szSearchGroup, szKey)
+
+	Exit Function
+'-----------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+'*********************************************************************************************
+Function GetIniKeyValueCharSet(ByVal szFile As String, ByVal szSearchGroup As String,
+					 ByVal szKey As String, ByVal szCharSet As String) As String
+
+OnError GoTo ErrorOccured
+
+	GetIniKeyValueCharSet = INIGetKeyValueCharSet$(szFile, szSearchGroup, szKey, szCharSet)
+	Exit Function
+'-----------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function FindGroup (ByVal nFile As Integer, ByVal szGroup As String) As logical
+
+OnError GoTo ErrorOccured
+
+	FindGroup = INIFindGroupFromStart (nFile, szGroup)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+
+'**********************************************************************************************************
+'**********************************************************************************************************
+'**********************************************************************************************************
+'Backwards compatability - moved to StrFunc
+
+'*********************************************************************************************
+Function StrSplitSpace ( szOrigBuf As String, arrSubBuf (0 ) As String,
+				 ByVal nMaxSub As Integer ) As Integer
+
+OnError GoTo ErrorOccured
+
+	StrSplitSpace = STRSplitAtChar (szOrigBuf, " ", arrSubBuf, nMaxSub)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function StrSplitKomma (szOrigBuf As String,
+				arrSubBuf (0 ) As String,
+				ByVal nMaxSub As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	StrSplitKomma = STRSplitAtChar (szOrigBuf, ",", arrSubBuf, nMaxSub)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function StrSplitPoint (szOrigBuf As String,
+				arrSubBuf(0) As String,
+				ByVal nMaxSub As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	StrSplitPoint = STRSplitAtChar (szOrigBuf, ".", arrSubBuf, nMaxSub)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function StrSplitDefinedChar (szOrigBuf As String,
+					ByVal szChar As String,
+					arrSubBuf(0) As String,
+					ByVal nMaxSub As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	StrSplitDefinedChar = STRSplitAtChar(szOrigBuf, szChar, arrSubBuf, nMaxSub)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function KommaToPoint(ByVal szText As String) As String
+
+OnError GoTo ErrorOccured
+
+KommaToPoint = STRKommaToPoint$(szText)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function PointToKomma(ByVal szText As String) As String
+
+OnError GoTo ErrorOccured
+
+PointToKomma = STRPointToKomma$(szText)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function SearchAndReplace(ByVal szText As String,ByVal szSearch As String, ByVal szReplace As String) As String
+
+OnError GoTo ErrorOccured
+
+	SearchAndReplace = STRSearchAndReplace$(szText, szSearch, szReplace)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function GetKeyFromKeyString$(ByVal szKeyString As String) As String
+
+OnError GoTo ErrorOccured
+
+GetKeyFromKeyString$ = STRGetKeyFromKeyString$(szKeyString)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'*********************************************************************************************
+Function GetKeyValueFromKeyString$(ByVal szKeyString As String) As String
+
+OnError GoTo ErrorOccured
+
+GetKeyValueFromKeyString$ = STRGetValueFromKeyString$(szKeyString)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'*********************************************************************************************
+Function Number2StringNoZero$(ByVal nNumber As Integer) As String
+
+OnError GoTo ErrorOccured
+
+	Number2StringNoZero$ = STRInteger2StringNoZero$(nNumber)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function NumItemsInStringList(szStringList As String) As Integer
+
+OnError GoTo ErrorOccured
+
+	NumItemsInStringList = STRListNumItems(szStringList)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function ExtractItemFromStringList$(ByVal szStringList As String, ByVal nItem As Integer) As String
+
+OnError GoTo ErrorOccured
+
+	ExtractItemFromStringList$ = STRListExtractItem$(szStringList, nItem)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function AddItemToStringList$(ByVal szStringList As String, ByVal szItem As String) As String
+
+OnError GoTo ErrorOccured
+
+	AddItemToStringList$ = STRListAddItem$(szStringList, szItem)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function RTrimStringList$(ByVal szStringList As String) As String
+
+OnError GoTo ErrorOccured
+
+	RTrimStringList$ = STRListRTrim$(szStringList)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'*********************************************************************************************
+Function GetUniqueStringList$(ByVal szStringList As String) As String
+
+OnError GoTo ErrorOccured
+
+	GetUniqueStringList$ = STRListGetUnique$(szStringList)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'*********************************************************************************************
+Function ExtractValueInParensis$(ByVal szText As String) As String
+
+OnError GoTo ErrorOccured
+
+	ExtractValueInParensis$ = STRGetValueInBrackets$(szText)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'*********************************************************************************************
+Function SetSpaceAfterString$(ByVal szTekst As String, ByVal nChar As Integer) As String
+
+OnError GoTo ErrorOccured
+
+	SetSpaceAfterString$ = STRSetSpaceAfter$(szTekst, nChar)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'*********************************************************************************************
+Function SetZeroBeforeValue$(ByVal nValue As Integer, ByVal nChar As Integer) As String
+
+	SetZeroBeforeValue$ = STRSetZeroBefore$(nValue, nChar)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+Function ConvValueToStringWithNDecimals$(	ByVal fValue As Float, ByVal nDecimals As Integer,
+							ByVal szDecimalChar As String) As String
+
+OnError GoTo ErrorOccured
+
+	ConvValueToStringWithNDecimals$ = STRFloatToStringWithNDecimals$(fValue, nDecimals, szDecimalChar)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function

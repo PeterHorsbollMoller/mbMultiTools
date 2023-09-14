@@ -1,0 +1,171 @@
+' ==== developer note =================================================================================
+' 13.05.2002/PEM:	startet på omdøbning af funktioner. TAB tilføjet før navnet.
+'			De oprindelige funktioner er placeret nederst i modulet og kalder de
+'			tilsvarende omdøbte funktioner:
+'			TableOpen()			-> TABIsOpen()
+'			ColExist()			-> TABColExists()
+'			GetTableFromFilename$()	-> TABGetNameFromTabFile$()
+'			TableFileOpen()		-> TABIsTabFileOpen()
+' 16.05.2002/PEM:	TABSaveAndClose() tilføjet
+' 17.07.2002/PEM: GetColumnName$()		-> TABGetColumnName$()
+'				Bemærk at funktionen nu også kan vise en forvalgt kolonne
+' 23.07.2002/PEM: Tilføjet:	TABDrop()
+'					TABCloseInteractive()
+' 29.08.2002/PEM:	Tilføjet:	TABCommitAndFastEditOn()
+'					TABCommitAndFastEditOff()
+'					TABFastEditOn()
+'					TABFastEditOff()
+' 18.09.2002/PEM: Tilføjet:	TABCreateArrayTablesExt(), hvor man kan angive om man ønsker at anvende 'Basetables'
+'					TABGetTableAndColumnName(), hvor brugeren kan udpege en tabel og en kolonne i en dialog
+' 20.09.2002/JAL:	Tilføjet: 	GetTableNameExt2$, der også tager UseBase som en parameter
+' 03.07.2003/PEM:	Tilføjet:	TABGetEditableColumnNames$(szTab, bUseObj)
+' 08.07.2003/PEM:	Tilføjet:	TABCreateArrayColumnsOpenTables()
+'			Tilpasset:	TABGetColumnName$() så den understøtter [ALL] som tabelnavn -> kolonner i alle åbne tabeller
+'					CreateArrayColumns() så den understøtter [ALL] som tabelnavn -> kolonner i alle åbne tabeller
+'			Includerer nu også ArrayFunc.def
+' 30.07.2003/PEM:	Tilføjet:	TABCreateArrayColumnsListOfTabs()
+'			Tilpasset:	TABCreateArrayColumnsOpenTables() så den nu kalder TABCreateArrayColumnsListOfTabs()
+'			Tilføjet:	TABGetColumnNameListOfTabs$()
+'			Tilpasset:	TABGetColumnName$() så den nu kalder TABGetColumnNameListOfTabs$()
+' ==== developer note =================================================================================
+
+Declare Function GetColumnNames$(ByVal szTab As String, ByVal bUseObj As Logical) As String
+Declare Function TABGetEditableColumnNames$(ByVal szTab As String, ByVal bUseObj As Logical) As String
+Declare Function GetColumnNameEqualName$(ByVal szTab As String) As String
+Declare Function GetColumnNameAndType$(ByVal szTab As String) As String
+Declare Function GetColumnType$(ByVal szTab As String, ByVal szCol As String) As String
+Declare Function TABColExists(ByVal szTab As String, ByVal szCol As String) As Logical
+
+Declare Function TableHasDeletedRows(ByVal szTab As String) As Logical
+Declare Function CreateArrayAllColumns(szTab As String, arrCol() As String) As Logical
+Declare Function CreateArrayColumns(szTab As String, arrCol() As String,
+						ByVal bUseChar As Logical,
+						ByVal bUseDate As Logical,
+						ByVal bUseLogic As Logical,
+						ByVal bUseInt As Logical,
+						ByVal bUseSmall As Logical,
+						ByVal bUseFloat As Logical,
+						ByVal bUseDec As Logical,
+						ByVal bOnlyIndex As Logical) As Logical
+Declare Function TABCreateArrayColumnsOpenTables(	arrCol() As String,
+									ByVal bUseChar As Logical, ByVal bUseDate As Logical,
+									ByVal bUseLogic As Logical, ByVal bUseInt As Logical,
+									ByVal bUseSmall As Logical, ByVal bUseFloat As Logical,
+									ByVal bUseDec As Logical, ByVal bOnlyIndex As Logical) As Logical
+Declare Function TABCreateArrayColumnsListOfTabs(	arrCol() As String, arrTabs() As String,
+									ByVal bUseChar As Logical, ByVal bUseDate As Logical,
+									ByVal bUseLogic As Logical, ByVal bUseInt As Logical,
+									ByVal bUseSmall As Logical, ByVal bUseFloat As Logical,
+									ByVal bUseDec As Logical, ByVal bOnlyIndex As Logical) As Logical
+
+Declare Function TABIsOpen(ByVal szTab As String) As Logical
+Declare Function TABIsTabFileOpen(ByVal szTabFile As String) As Logical
+Declare Function TABGetNameFromTabFile$(ByVal szTabFile As String) As String
+Declare Sub TABClose(ByVal szTab As String)
+Declare Sub TABDrop(ByVal szTab As String)
+Declare Function TABCloseInteractive(ByVal szTab As String, ByVal bInteractive As Logical) As Logical
+Declare Sub TABCommitAndClose(ByVal szTab As String)
+Declare Function TABCommitAndFastEditOn(ByVal szTab As String) As Logical
+Declare Function TABCommitAndFastEditOff(ByVal szTab As String) As Logical
+Declare Sub TABFastEditOn(ByVal szTab As String)
+Declare Sub TABFastEditOff(ByVal szTab As String)
+
+Declare Function CreateArrayAllTables(arrTab() As String) As Logical
+Declare Function CreateArrayTables(	arrTab() As String,
+						ByVal bUseTemp As Logical,
+						ByVal bOnlyMaps As Logical,
+						ByVal bUseLinked As Logical,
+						ByVal bUseImage As Logical,
+						ByVal bUseNone As Logical ) As Logical
+Declare Function TABCreateArrayTablesExt(	arrTab() As String,
+							ByVal bUseTemp As Logical,
+							ByVal bOnlyMaps As Logical,
+							ByVal bUseBase As Logical,
+							ByVal bUseLinked As Logical,
+							ByVal bUseImage As Logical,
+							ByVal bUseNone As Logical ) As Logical
+Declare Function GetTableName ( 	ByVal szDlgTitle As String,
+						ByVal bUseTemp As Logical,
+						ByVal bOnlyMaps As Logical,
+						ByVal bUseLinked As Logical,
+						ByVal bUseImage As Logical,
+						ByVal bUseNone As Logical,
+						ByVal nMinTabNum As SmallInt) As String
+Declare Function GetTableNameExt$( 	ByVal szDlgTitle As String,
+						ByVal bUseTemp As Logical,
+						ByVal bOnlyMaps As Logical,
+						ByVal bUseLinked As Logical,
+						ByVal bUseImage As Logical,
+						ByVal bUseNone As Logical,
+						ByVal nMinTabNum As SmallInt) As String
+Declare Function GetTableNameExt2$( 	ByVal szDlgTitle As String,
+						ByVal bUseTemp As Logical,
+						ByVal bOnlyMaps As Logical,
+						ByVal bUseBase As Logical,
+						ByVal bUseLinked As Logical,
+						ByVal bUseImage As Logical,
+						ByVal bUseNone As Logical,
+						ByVal nMinTabNum As SmallInt) As String
+Declare Function TABGetColumnName$(	ByVal szDlgTitle As String,
+						ByVal szTab As String, ByVal szCol As String,
+						ByVal bUseChar As Logical,
+						ByVal bUseDate As Logical,
+						ByVal bUseLogic As Logical,
+						ByVal bUseInt As Logical,
+						ByVal bUseSmall As Logical,
+						ByVal bUseFloat As Logical,
+						ByVal bUseDec As Logical,
+						ByVal bOnlyIndex As Logical) As String
+Declare Function TABGetColumnNameListOfTabs$(	ByVal szDlgTitle As String,
+								arrTabs() As String, ByVal szCol As String,
+								ByVal bUseChar As Logical,
+								ByVal bUseDate As Logical,
+								ByVal bUseLogic As Logical,
+								ByVal bUseInt As Logical,
+								ByVal bUseSmall As Logical,
+								ByVal bUseFloat As Logical,
+								ByVal bUseDec As Logical,
+								ByVal bOnlyIndex As Logical) As String
+Declare Function TABGetTableAndColumnName(ByVal szDlgTitle As String,
+							szTab As String, szCol As String,
+							ByVal bUseTemp As Logical,
+							ByVal bOnlyMaps As Logical,
+							ByVal bUseBase As Logical,
+							ByVal bUseLinked As Logical,
+							ByVal bUseImage As Logical,
+							ByVal bUseNone As Logical,
+							ByVal bUseChar As Logical,
+							ByVal bUseDate As Logical,
+							ByVal bUseLogic As Logical,
+							ByVal bUseInt As Logical,
+							ByVal bUseSmall As Logical,
+							ByVal bUseFloat As Logical,
+							ByVal bUseDec As Logical,
+							ByVal bOnlyIndex As Logical,
+							ByVal nMinTabNum As Integer) As Logical
+
+Declare Function CreateArrayValuesThisCol(ByVal szTab As String,
+							ByVal szCol As String,
+							arrValues() As String) As Logical
+Declare Function CreateArrayValuesThisColSelected(	ByVal szTab As String,
+									ByVal szCol As String,
+									arrVal() As String) As Logical
+Declare Function GetElementNoInStringArray(ByVal szValue As String, arrValues() As String) As Integer
+Declare Function GetNumRows(ByVal szTab As String) As Integer
+
+
+'------- B A C K W A R D S   C O M P A T A B I L I T Y ----------------------------
+Declare Function TableOpen(ByVal szTab As String) As Logical
+Declare Function ColExist(ByVal szTab As String, ByVal szCol As String) As Logical
+Declare Function GetTableFromFilename$(ByVal szTabFile As String) As String
+Declare Function TableFileOpen(ByVal szTabFile As String) As Logical
+Declare Function GetColumnName$(	ByVal szDlgTitle As String, szTab As String,
+						ByVal bUseChar As Logical,
+						ByVal bUseDate As Logical,
+						ByVal bUseLogic As Logical,
+						ByVal bUseInt As Logical,
+						ByVal bUseSmall As Logical,
+						ByVal bUseFloat As Logical,
+						ByVal bUseDec As Logical,
+						ByVal bOnlyIndex As Logical) As String
+Declare Sub TABSaveAndClose(ByVal szTab As String)

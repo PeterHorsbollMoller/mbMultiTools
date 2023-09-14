@@ -1,0 +1,38 @@
+Define TIME_DATE_LONG_JAN                                "Januar"
+Define TIME_DATE_LONG_FEB                                "Februar"
+Define TIME_DATE_LONG_MAR                                "Marts"
+Define TIME_DATE_LONG_APR                                "April"
+Define TIME_DATE_LONG_MAY                                "Maj"
+Define TIME_DATE_LONG_JUN                                "Juni"
+Define TIME_DATE_LONG_JUL                                "Juli"
+Define TIME_DATE_LONG_AUG                                "August"
+Define TIME_DATE_LONG_SEP                                "September"
+Define TIME_DATE_LONG_OKT                                "Oktober"
+Define TIME_DATE_LONG_NOV                                "November"
+Define TIME_DATE_LONG_DEC                                "December"
+
+
+
+Define TIME_DATE_SHORT_JAN                               "Jan"
+Define TIME_DATE_SHORT_FEB                               "Feb"
+Define TIME_DATE_SHORT_MAR                               "Mar"
+Define TIME_DATE_SHORT_APR                               "Apr"
+Define TIME_DATE_SHORT_MAY                               "Maj"
+Define TIME_DATE_SHORT_JUN                               "Jun"
+Define TIME_DATE_SHORT_JUL                               "Jul"
+Define TIME_DATE_SHORT_AUG                               "Aug"
+Define TIME_DATE_SHORT_SEP                               "Sep"
+Define TIME_DATE_SHORT_OKT                               "Okt"
+Define TIME_DATE_SHORT_NOV                               "Nov"
+Define TIME_DATE_SHORT_DEC                               "Dec"
+
+
+
+Define TIME_DATE_MONDAY                                  "Mandag"
+Define TIME_DATE_TUESDAY                                 "Tirsdag"
+Define TIME_DATE_WEDNESDAY                               "Onsdag"
+Define TIME_DATE_THURSDAY                                "Torsdag"
+Define TIME_DATE_FRIDAY                                  "Fredag"
+Define TIME_DATE_SATURDAY                                "Lørdag"
+Define TIME_DATE_SUNDAY                                  "Søndag"
+

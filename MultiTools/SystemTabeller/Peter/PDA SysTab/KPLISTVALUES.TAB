@@ -1,0 +1,11 @@
+!table
+!version 300
+!charset WindowsLatin1
+
+Definition Table
+  Type NATIVE Charset "WindowsLatin1"
+  Fields 4
+    LISTNO Integer ;
+    VALUE Char (30) ;
+    VALUETEXT Char (30) ;
+    ORDER Integer ;

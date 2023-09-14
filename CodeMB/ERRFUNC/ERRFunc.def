@@ -1,0 +1,31 @@
+'*******************************************************************************
+' S T O R Y   T E L L I N G
+' 10.08.2004/PEM	- Created the foundation of this module
+'*******************************************************************************
+
+Declare Sub ERRCreateError(	ByVal nErrorCode As Integer, ByVal szErrorText As String,
+					ByVal szComment As String)							'Adds an Error Occurence to the list
+Declare Sub ERRCreateErrorAndShowDlg(ByVal nErrorCode As Integer, ByVal szErrorText As String,
+					ByVal szComment As String)							'Adds an Error Occurence to the list and show it n a dialog
+
+Declare Function ERRGetLastErrorDescription$() As String							'Returns all values about the last error
+Declare Function ERRGetLastError$() As String									'Returns errorcode and errortext of the last error
+Declare Function ERRGetLastErrorText$() As String								'Returns errortext of the last error
+Declare Function ERRGetLastErrorComment$() As String								'Returns error comment of the last error
+Declare Function ERRGetLastErrorCode() As Integer								'Returns errorcode of the last error
+
+Declare Function ERRGetErrorDescription$(ByVal nErrorItem As Integer) As String
+Declare Function ERRGetError$(ByVal nErrorItem As Integer) As String
+Declare Function ERRGetErrorText$(ByVal nErrorItem As Integer) As String
+Declare Function ERRGetErrorComment$(ByVal nErrorItem As Integer) As String
+Declare Function ERRGetErrorCode(ByVal nErrorItem As Integer) As Integer
+
+Declare Sub ERRFlushErrors												'Removes all Error Occurences from the list
+
+Declare Sub ERRShowLastErrorDlg
+Declare Sub ERRShowLastErrorPrint
+Declare Function ERRGetApplicationTitle$() As String
+Declare Sub ERRSetApplicationTitle(ByVal szTitle As String)
+
+Declare Sub ERRPrintAllErrors(ByVal szFile As String)								'Prints all errors (using ERRGetErrorDescription$())
+																'to message window or text file

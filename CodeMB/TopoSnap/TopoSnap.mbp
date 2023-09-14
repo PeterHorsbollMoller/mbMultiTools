@@ -1,0 +1,8 @@
+[Link]
+Application=D:\Mapb-appl\Kommunepakken-TopoSnap\TopoSnap\Test-rut\TopoSnap.mbx
+Module=..\TopoSnap.mbo
+Module=TopoSnapTest.mbo
+Module=snaptab-sub.mbo
+Module=D:\Mapb-appl\kommunepakken 2.12\kode\geofunc\geofunc.mbo
+
+

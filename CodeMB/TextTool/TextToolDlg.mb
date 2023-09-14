@@ -1,0 +1,757 @@
+'*******************************************************************************
+'** 	Program:	MoveText
+'** 	Modul:	MoveText.mb
+'**			Program til påsætning af husnumre i teknisk grundkort...
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+Include "..\Language\Message.lng"
+Include "..\Language\Errors.lng"
+Include "..\Language\PlotDef.lng"
+Include "..\Language\StyleDef.lng"
+Include "..\Language\Kommune.lng"
+
+Include "..\TabFunc\TabFunc.def"
+Include "..\GeoFunc\GeoFunc.def"
+Include "..\IniUtil\IniUtil.def"
+Include "..\ArrayFunc\ArrayFunc.def"
+
+Include "TextToolDlg.def"
+Include "TextToolIni.def"
+Include "TextToolFunc.def"
+
+Declare Sub TXTTHandlerChangeColControls
+
+Declare Sub TXTTUpdateCenterCoord_Single
+Declare Sub TXTTUpdateAngleAndCenterCoord_Single
+Declare Sub TXTTMoveTextObjects_Single
+Declare Sub TXTTRotateAndMoveTextObjects_Single
+Declare Sub TXTTConvertPointToText_Single
+Declare Sub TXTTConvertAllToPoint_Single
+
+Declare Function TXTTSetupDialog(	ByVal bUseCoord As Logical,
+						ByVal bUseAngle As Logical,
+						ByVal bUseHusnr As Logical) As Logical
+
+Dim	marrTabs(0), marrCols(0) As String,
+	mbXCoordinateChangeSign, mbAngleInGon As Logical,
+	mbUseCoordColumn, mbUseHusnrColumn, mbUseAngleColumn As Logical
+
+'****************************************
+'Generel opsætning
+'****************************************
+Function TXTTSetupDialog(	ByVal bUseCoord As Logical,
+					ByVal bUseAngle As Logical,
+					ByVal bUseHusnr As Logical) As Logical
+
+Dim	i, nLayer, nXCol, nYCol, nAngleCol, nHusnrCol, nLitraCol As Integer,
+	szTextSize, szZoom, szPerpDist As String,
+	fntHusnr As Font
+
+OnError GoTo ErrorOccured
+
+	TXTTSetupDialog = FALSE
+
+	mbUseAngleColumn	= bUseAngle
+	mbUseCoordColumn	= bUseCoord
+	mbUseHusnrColumn	= bUseHusnr
+
+	If not CreateArrayTables(marrTabs, TRUE, TRUE, FALSE, FALSE, FALSE) Then
+		Note ERR_TAB_NO_USABLE
+		Exit Function
+	End If
+
+	Dialog
+		Title "Udpeg tabel og kolonner..."
+		Calling TXTTHandlerChangeColControls
+
+		Control GroupBox		Position 5,5	Width 175	Height 135
+			Title MSG_TAB_TABLE
+		Control PopUpMenu		Position 15,15	Width 155			ID 100
+			Title From Variable marrTabs
+			Calling TXTTHandlerChangeColControls
+			Value ARRGetItemNoString(TXTTGetTable$(), marrTabs)
+			Into nLayer
+		Control StaticText	Position 15,32
+			Title KPAK_DLG_TXT_X_COORDINATE
+		Control PopUpMenu		Position 60,30	Width 110			ID 110
+			Into nXCol
+		Control StaticText	Position 15,47
+			Title KPAK_DLG_TXT_Y_COORDINATE
+		Control PopUpMenu		Position 60,45	Width 110			ID 120
+			Into nYCol
+		Control CheckBox		Position 15,60					ID 121
+			Title "X-koordinat angivet i S34."
+			Value mbXCoordinateChangeSign
+			Into mbXCoordinateChangeSign
+		Control StaticText	Position 15,77
+			Title "Tekstvinkel"
+		Control PopUpMenu		Position 60,75	Width 110			ID 130
+			Into nAngleCol
+		Control CheckBox		Position 15,90					ID 131
+			Title "Vinkel angivet i GON"
+			Value mbAngleInGon
+			Into mbAngleInGon
+		Control StaticText	Position 15,107
+			Title MSG_TEXT & " 1"
+		Control PopUpMenu		Position 60,105	Width 110			ID 140
+			Into nHusnrCol
+		Control StaticText	Position 15,122
+			Title MSG_TEXT & " 2"
+		Control PopUpMenu		Position 60,120	Width 110			ID 150
+			Into nLitraCol
+
+		'------------
+		Control GroupBox		Position 5,140	Width 175	Height 60
+			Title MSG_OBJ_FONT
+		Control StaticText	Position 15,152
+			Title "Teksthøjde, m"
+		Control EditText		Position 75,150	Width 40			ID 160
+			Value PointToKomma(Str$(TXTTGetTextSize()))
+			Into szTextSize
+		Control StaticText	Position 15,167
+			Title "Zoombredde, m"
+		Control EditText		Position 75,165	Width 40			ID 170
+			Value PointToKomma(Str$(TXTTGetZoom()))
+			Into szZoom
+		Control StaticText	Position 15,182
+			Title "Forskydning, m"
+		Control EditText		Position 75,180	Width 40			ID 190
+			Value PointToKomma(Str$(TXTTGetPerpDistance()))
+			Into szPerpDist
+		Control FontPicker	Position 125,150	Width 45	Height 25	ID 180
+			Value TXTTGetTextFont()
+			Into fntHusnr
+
+		Control OKButton		Position 15,210	Width 70
+		Control CancelButton	Position 95,210	Width 70
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	Call TXTTSetTableName(marrTabs(nLayer))
+	Call TXTTSetColumnNames("X", marrCols(nXCol))
+	Call TXTTSetColumnNames("Y", marrCols(nYCol))
+	Call TXTTSetColumnNames("ANGLE", marrCols(nAngleCol))
+	Call TXTTSetColumnNames("NO", marrCols(nHusnrCol))
+	Call TXTTSetColumnNames("LITRA", marrCols(nLitraCol))
+	Call TXTTSetTextSize(Val(KommaToPoint(szTextSize)))
+	Call TXTTSetZoom(Val(KommaToPoint(szZoom)))
+	Call TXTTSetPerpDistance(Val(KommaToPoint(szPerpDist)))
+	Call TXTTSetTextFont(fntHusnr)
+
+	TXTTSetupDialog = TRUE
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'ReaktionsHandler - en tabel blev udpeget - enten tekst eller punkter
+'****************************************
+Sub TXTTHandlerChangeColControls
+
+Dim	szTab As String,
+	nXCol, nYCol, nAngleCol, nHusnrCol, nLitraCol As Integer,
+	i As Integer
+
+OnError GoTo ErrorOccured
+
+	szTab = marrTabs(ReadControlValue(100))
+	If szTab = "Selection" Then
+		szTab = SelectionInfo(SEL_INFO_SELNAME)
+	End If
+
+	If not CreateArrayColumns(szTab, marrCols, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE, FALSE) Then
+	End If
+
+	nXCol		= 1
+	nYCol		= 1
+	nAngleCol	= 1
+	nHusnrCol	= 1
+	nLitraCol	= 1
+
+	For i = 1 To Ubound(marrCols)
+		If marrCols(i) = TXTTGetColX$() Then
+			nXCol = i
+		End If
+		If marrCols(i) = TXTTGetColY$() Then
+			nYCol = i
+		End If
+		If marrCols(i) = TXTTGetColAngle$() Then
+			nAngleCol = i
+		End If
+		If marrCols(i) = TXTTGetColNo$() Then
+			nHusnrCol = i
+		End If
+		If marrCols(i) = TXTTGetColLitra$() Then
+			nLitraCol = i
+		End If
+	Next
+
+	If mbUseCoordColumn Then
+		Alter Control 110 Title From Variable marrCols Value nXCol Enable
+		Alter Control 120 Title From Variable marrCols Value nYCol Enable
+		Alter COntrol 121 Enable
+	Else
+		Alter Control 110 Title From Variable marrCols Value nXCol Disable
+		Alter Control 120 Title From Variable marrCols Value nYCol Disable
+		Alter Control 121 Disable
+	End If
+	If mbUseAngleColumn Then
+		Alter Control 130 Title From Variable marrCols Value nAngleCol Enable
+		Alter Control 131 Enable
+	Else
+		Alter Control 130 Title From Variable marrCols Value nAngleCol Disable
+		Alter Control 131 Disable
+	End If
+	If mbUseHusnrColumn Then
+		Alter Control 140 Title From Variable marrCols Value nHusnrCol Enable
+		Alter Control 150 Title From Variable marrCols Value nLitraCol Enable
+		Alter Control 160 Enable
+		Alter Control 170 Enable
+		Alter Control 180 Enable
+		Alter Control 190 Enable
+	Else
+		Alter Control 140 Title From Variable marrCols Value nHusnrCol Disable
+		Alter Control 150 Title From Variable marrCols Value nLitraCol Disable
+		Alter Control 160 Disable
+		Alter Control 170 Disable
+		Alter Control 180 Disable
+		Alter Control 190 Disable
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Opdaterer med centerkoordinater
+'****************************************
+Sub TXTTUpdateCenterCoord
+
+OnError GoTo ErrorOccured
+
+	If not TXTTSetupDialog(TRUE, FALSE, FALSE) Then
+		Exit Sub
+	End If
+
+	Set CoordSys Table TXTTGetTable$()
+
+	Fetch First From TXTTGetTable$()
+	ProgressBar "Opdaterer med koordinater..."
+		Calling TXTTUpdateCenterCoord_Single
+		Range TableInfo(TXTTGetTable$(), TAB_INFO_NROWS)
+
+	If not CommandInfo(CMD_INFO_STATUS) Then
+		Note "Opdatering blev afbrudt!"
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Opdaterer med centerkoordinater - en ad gangen...
+'****************************************
+Sub TXTTUpdateCenterCoord_Single
+
+Dim	nRec As Integer,
+	a As Alias,
+	fXMin, fYMin, fXMax, fYMax, fXCen, fYCen As Float,
+	oText As Object
+
+OnError GoTo ErrorOccured
+
+	a = TXTTGetTable$() + ".ROWID"	nRec		= a
+	a = TXTTGetTable$() + ".OBJ"
+
+	If a Then
+
+		oText	= a
+
+		Do Case ObjectInfo(oText, OBJ_INFO_TYPE)
+			Case OBJ_TYPE_TEXT
+				fXMin	= ObjectGeography(oText, OBJ_GEO_MINX)
+				fYMin	= ObjectGeography(oText, OBJ_GEO_MINY)
+
+				fXMax	= ObjectGeography(oText, OBJ_GEO_MAXX)
+				fYMax	= ObjectGeography(oText, OBJ_GEO_MAXY)
+
+				fXCen	= (fXMin + fXMax) / 2
+				fYCen	= (fYMin + fYMax) / 2
+
+				Update TXTTGetTable$()
+					Set 	TXTTGetColX$() 	= fXCen,
+						TXTTGetColY$()	= fYCen
+					Where	RowID	= nRec
+
+			Case OBJ_TYPE_POINT
+				Update TXTTGetTable$()
+					Set 	TXTTGetColX$() 	= CentroidX(obj),
+						TXTTGetColY$()	= CentroidY(obj)
+					Where	RowID	= nRec
+
+			Case OBJ_TYPE_REGION, OBJ_TYPE_PLINE, OBJ_TYPE_LINE
+				Update TXTTGetTable$()
+					Set 	TXTTGetColX$() 	= CentroidX(obj),
+						TXTTGetColY$()	= CentroidY(obj)
+					Where	RowID	= nRec
+
+			Case OBJ_TYPE_ARC
+				Print "Programmet understøtter ikke buer!"
+
+			Case OBJ_TYPE_ELLIPSE
+				Print "Programmet understøtter ikke cirkler og ellipser!"
+
+			Case OBJ_TYPE_FRAME
+				Print "Programmet understøtter ikke rammeobjekter!"
+
+			Case OBJ_TYPE_RECT
+				Print "Programmet understøtter ikke rektangler!"
+
+			Case OBJ_TYPE_ROUNDRECT
+				Print "Programmet understøtter ikke afrundede rektangler!"
+
+		End Case
+
+	End If
+
+	Fetch Next From TXTTGetTable$()
+
+	If EOT(TXTTGetTable$()) Then
+		ProgressBar = -1
+	Else
+		ProgressBar = nRec
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Flytter tekstobjekt
+'****************************************
+Sub TXTTMoveTextObjects
+
+OnError GoTo ErrorOccured
+
+	If not TXTTSetupDialog(TRUE, FALSE, FALSE) Then
+		Exit Sub
+	End If
+
+	Set CoordSys Table TXTTGetTable$()
+
+	Fetch First From TXTTGetTable$()
+
+	ProgressBar "Flytter tekstobjekter..."
+		Calling TXTTMoveTextObjects_Single
+		Range TableInfo(TXTTGetTable$(), TAB_INFO_NROWS)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Flytter tekster - en ad gangen
+'****************************************
+Sub TXTTMoveTextObjects_Single
+
+Dim	nRec As Integer,
+	a As Alias,
+	fX, fY As Float,
+	oText As Object
+
+OnError GoTo ErrorOccured
+
+	a = TXTTGetTable$() + "." + TXTTGetColX$()	fX		= a
+	a = TXTTGetTable$() + "." + TXTTGetColY$()	fY		= a
+	a = TXTTGetTable$() + ".ROWID"			nRec		= a
+	a = TXTTGetTable$() + ".OBJ"
+
+	If a Then
+		oText	= a
+		If ObjectInfo(oText, OBJ_INFO_TYPE) = OBJ_TYPE_TEXT Then
+			If mbXCoordinateChangeSign Then
+				If fX > 0 Then
+					fX 	= fX * -1
+				End If
+			End If
+
+			Update TXTTGetTable$()
+				Set 	OBJ 	= MoveTextObject(oText, fX, fY)
+				Where	RowID	= nRec
+		End If
+
+	End If
+
+	Fetch Next From TXTTGetTable$()
+
+	If EOT(TXTTGetTable$()) Then
+		ProgressBar = -1
+	Else
+		ProgressBar = nRec
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Flytter tekstobjekt
+'****************************************
+Sub TXTTRotateAndMoveTextObjects
+
+OnError GoTo ErrorOccured
+
+	If not TXTTSetupDialog(TRUE, TRUE, FALSE) Then
+		Exit Sub
+	End If
+
+	Set CoordSys Table TXTTGetTable$()
+
+	Fetch First From TXTTGetTable$()
+
+	ProgressBar "Roterer og flytter tekstobjekter..."
+		Calling TXTTRotateAndMoveTextObjects_Single
+		Range TableInfo(TXTTGetTable$(), TAB_INFO_NROWS)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Flytter tekstobjekt - en ad gangen
+'****************************************
+Sub TXTTRotateAndMoveTextObjects_Single
+
+Dim	nRec As Integer,
+	a As Alias,
+	fAngle, fX, fY As Float,
+	oText As Object
+
+OnError GoTo ErrorOccured
+
+	a = TXTTGetTable$() + "." + TXTTGetColX$()	fX		= a
+	a = TXTTGetTable$() + "." + TXTTGetColY$()	fY		= a
+	a = TXTTGetTable$() + "." + TXTTGetColAngle$()	fAngle	= a
+	a = TXTTGetTable$() + ".ROWID"			nRec		= a
+	a = TXTTGetTable$() + ".OBJ"
+
+	If a Then
+		oText		= a
+		If mbAngleInGon Then
+			fAngle	= TXTFCalcWestGon2MathDegAngle(fAngle)	'TXTFCalcWestGon2NorthDegAngle(fAngle)
+		End If
+
+		If ObjectInfo(oText, OBJ_INFO_TYPE) = OBJ_TYPE_TEXT Then
+			If mbXCoordinateChangeSign Then
+				If fX > 0 Then
+					fX 	= fX * -1
+				End If
+			End If
+
+			Update TXTTGetTable$()
+				Set 	OBJ 	= MoveTextObject(RotateTextObject(oText, fAngle), fX, fY)
+				Where	RowID	= nRec
+		End If
+
+	End If
+
+	Fetch Next From TXTTGetTable$()
+
+	If EOT(TXTTGetTable$()) Then
+		ProgressBar = -1
+	Else
+		ProgressBar = nRec
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Konverterer punkter til tekstobjekter
+'****************************************
+Sub TXTTConvertPointToText
+
+OnError GoTo ErrorOccured
+
+	If NumWindows() = 0 Then
+		Note "Der skal være et kortvindue!"
+		Exit Sub
+	ElseIf not WindowInfo(FrontWindow(), WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note "Det aktive vindue skal være et kortvindue!"
+		Exit Sub
+	End If
+
+	If not TXTTSetupDialog(TRUE, TRUE, TRUE) Then
+		Exit Sub
+	End If
+
+	Set CoordSys Table TXTTGetTable$()
+
+	Fetch First From TXTTGetTable$()
+
+	ProgressBar "Konverterer objekter til tekster..."
+		Calling TXTTConvertPointToText_Single
+		Range TableInfo(TXTTGetTable$(), TAB_INFO_NROWS)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Konverterer punkter til tekstobjekter - en ad gangen
+'****************************************
+Sub TXTTConvertPointToText_Single
+
+Dim	nRec As Integer,
+	a As Alias,
+	szHusnr, szLitra As String,
+	pA, pB As T_POINT,
+	fCenterX, fCenterY, fAngle As Float,
+	oText, oPntObject, oNewPntObject As Object
+
+OnError GoTo ErrorOccured
+
+	a = TXTTGetTable$() + "." + TXTTGetColNo$()	szHusnr	= a
+	a = TXTTGetTable$() + "." + TXTTGetColLitra$()	szLitra	= a
+	a = TXTTGetTable$() + "." + TXTTGetColX$()	fCenterX	= a
+	a = TXTTGetTable$() + "." + TXTTGetColY$()	fCenterY	= a
+	a = TXTTGetTable$() + "." + TXTTGetColAngle$()	fAngle	= a
+	a = TXTTGetTable$() + ".ROWID"			nRec		= a
+	a = TXTTGetTable$() + ".OBJ"
+
+	If a Then
+
+		If mbAngleInGon Then
+			fAngle	= TXTFCalcWestGon2MathDegAngle(fAngle)	'TXTFCalcWestGon2NorthDegAngle(fAngle)
+		End If
+		oPntObject	= a
+
+		If mbXCoordinateChangeSign Then
+			If fCenterX > 0 Then
+				fCenterX 	= fCenterX * -1
+			End If
+		End If
+
+		pA.X	= GeoFuncCalcX(fCenterX, fAngle, -5)	'CalcNorth2MathAngle(fAngle)
+		pA.Y	= GeoFuncCalcY(fCenterY, fAngle, -5)	'CalcNorth2MathAngle(fAngle)
+		pB.X	= GeoFuncCalcX(fCenterX, fAngle, 5)		'CalcNorth2MathAngle(fAngle)
+		pB.Y	= GeoFuncCalcY(fCenterY, fAngle, 5)		'CalcNorth2MathAngle(fAngle)
+
+		If CalculateTextPlacement(oText, oNewPntObject, pA, pB, szHusnr, szLitra) Then
+			Update TXTTGetTable$()
+				Set 	OBJ 	= oText
+				Where	RowID	= nRec
+		End If
+	End If
+
+	Fetch Next From TXTTGetTable$()
+
+	If EOT(TXTTGetTable$()) Then
+		ProgressBar = -1
+	Else
+		ProgressBar = nRec
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Opdaterer med centerkoordinater
+'****************************************
+Sub TXTTUpdateAngleAndCenterCoord
+
+OnError GoTo ErrorOccured
+
+	If not TXTTSetupDialog(TRUE, TRUE, FALSE) Then
+		Exit Sub
+	End If
+
+	Set CoordSys Table TXTTGetTable$()
+
+	Fetch First From TXTTGetTable$()
+	ProgressBar "Opdaterer med vinkel og koordinater..."
+		Calling TXTTUpdateAngleAndCenterCoord_Single
+		Range TableInfo(TXTTGetTable$(), TAB_INFO_NROWS)
+
+	If not CommandInfo(CMD_INFO_STATUS) Then
+		Note "Opdatering blev afbrudt!"
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Opdaterer med centerkoordinater - en ad gangen...
+'****************************************
+Sub TXTTUpdateAngleAndCenterCoord_Single
+
+Dim	nPnts, nRec As Integer,
+	a As Alias,
+	fXMin, fYMin, fXMax, fYMax, fXCen, fYCen, fAngle As Float,
+	oText As Object
+
+OnError GoTo ErrorOccured
+
+	a = TXTTGetTable$() + ".ROWID"			nRec		= a
+	a = TXTTGetTable$() + ".OBJ"
+
+	If a Then
+		oText	= a
+		Do Case ObjectInfo(oText, OBJ_INFO_TYPE)
+
+			Case OBJ_TYPE_TEXT
+
+				fXMin	= ObjectGeography(oText, OBJ_GEO_MINX)
+				fYMin	= ObjectGeography(oText, OBJ_GEO_MINY)
+
+				fXMax	= ObjectGeography(oText, OBJ_GEO_MAXX)
+				fYMax	= ObjectGeography(oText, OBJ_GEO_MAXY)
+
+				fXCen	= (fXMin + fXMax) / 2
+				fYCen	= (fYMin + fYMax) / 2
+
+				If mbAngleInGon Then
+					fAngle = TXTFMathDegAngle2WestGon(ObjectGeography(oText, OBJ_GEO_TEXTANGLE))	'TXTFNorthDegAngle2WestGon
+				Else
+					fAngle = ObjectGeography(oText, OBJ_GEO_TEXTANGLE)
+				End If
+
+				Update TXTTGetTable$()
+					Set 	TXTTGetColX$() 		= fXCen,
+						TXTTGetColY$()		= fYCen,
+						TXTTGetColAngle$()	= fAngle
+					Where	RowID	= nRec
+
+			Case OBJ_TYPE_POINT
+
+				Update TXTTGetTable$()
+					Set 	TXTTGetColX$() 	= CentroidX(oText),
+						TXTTGetColY$()	= CentroidY(oText)
+					Where	RowID	= nRec
+
+			Case OBJ_TYPE_REGION
+
+				Update TXTTGetTable$()
+					Set 	TXTTGetColX$() 	= CentroidX(oText),
+						TXTTGetColY$()	= CentroidY(oText)
+					Where	RowID	= nRec
+
+			Case OBJ_TYPE_PLINE
+
+				nPnts = ObjectInfo(oText,OBJ_INFO_NPOLYGONS+1)
+				If nPnts > 2 Then
+					nPnts = Int((nPnts / 2))	'Midtpunkt i objektet
+					fXMin = ObjectNodeX(oText,1,nPnts)
+					fYMin = ObjectNodeY(oText,1,nPnts)
+					fXMax = ObjectNodeX(oText,1,(nPnts + 1))
+					fYMax = ObjectNodeY(oText,1,(nPnts + 1))
+				Else
+					fXMin = ObjectNodeX(oText,1,1)
+					fYMin = ObjectNodeY(oText,1,1)
+					fXMax = ObjectNodeX(oText,1,nPnts)
+					fYMax = ObjectNodeY(oText,1,nPnts)
+				End If
+
+				If mbAngleInGon Then
+					fAngle = CalcDeg2Gon(CalcNorth2WestAngle(GetNorthDegAngle(fXMin, fYMin, fXMax, fYMax)))
+				Else
+					fAngle = GetNorthDegAngle(fXMin, fYMin, fXMax, fYMax)
+				End If
+
+				Update TXTTGetTable$()
+					Set 	TXTTGetColX$() 		= CentroidX(obj),
+						TXTTGetColY$()		= CentroidY(obj),
+						TXTTGetColAngle$()	= fAngle
+					Where	RowID	= nRec
+
+			Case OBJ_TYPE_LINE
+
+				fXMin	= ObjectGeography(oText, OBJ_GEO_LINEBEGX)
+				fYMin	= ObjectGeography(oText, OBJ_GEO_LINEBEGY)
+
+				fXMax	= ObjectGeography(oText, OBJ_GEO_LINEENDX)
+				fYMax	= ObjectGeography(oText, OBJ_GEO_LINEENDY)
+
+				fAngle = TXTFMathDegAngle2WestGon(GetNorthDegAngle(fXMin, fYMin, fXMax, fYMax))	'TXTFNorthDegAngle2WestGon
+
+				Update TXTTGetTable$()
+					Set 	TXTTGetColX$() 		= CentroidX(obj),
+						TXTTGetColY$()		= CentroidY(obj),
+						TXTTGetColAngle$()	= fAngle
+					Where	RowID	= nRec
+
+			Case OBJ_TYPE_ARC
+				Print "Programmet understøtter ikke buer!"
+
+			Case OBJ_TYPE_ELLIPSE
+				Print "Programmet understøtter ikke cirkler og ellipser!"
+
+			Case OBJ_TYPE_FRAME
+				Print "Programmet understøtter ikke rammeobjekter!"
+
+			Case OBJ_TYPE_RECT
+				Print "Programmet understøtter ikke rektangler!"
+
+			Case OBJ_TYPE_ROUNDRECT
+				Print "Programmet understøtter ikke afrundede rektangler!"
+		End Case
+	End If
+
+	Fetch Next From TXTTGetTable$()
+
+	If EOT(TXTTGetTable$()) Then
+		ProgressBar = -1
+	Else
+		ProgressBar = nRec
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+

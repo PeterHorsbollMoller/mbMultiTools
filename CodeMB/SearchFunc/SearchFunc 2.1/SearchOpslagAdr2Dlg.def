@@ -1,0 +1,4 @@
+Declare Sub srchOpslagAdrTwoTables(sbtnCur As T_SEARCHBTN)
+
+Declare Sub SRCHOpslagAdr2VnrVnvnHnr(sbtnCur As T_SEARCHBTN)
+Declare Sub SRCHOpslagAdr2KnrVnrVnvnHnr(sbtnCur As T_SEARCHBTN)

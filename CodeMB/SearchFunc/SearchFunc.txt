@@ -1,0 +1,18 @@
+SearchFunc 1.0
+- Simple søgninger. 
+- Opsætninger i en enkelt dialog.
+- Ubegrænset antal søgninger. Umiddelbart styret vha et antal i initieringsfilen.
+- Alle søgninger tilgås via knapper, som kan oprettes på en vilkårlig palette.
+
+SearchFunc 2.0
+- Simple søgninger og opslagssøgning, hvor brugeren vælger i lister over eksisterende værdier.
+- Opsætninger i en enkelt dialog.
+- Ubegrænset antal søgninger. Umiddelbart styret vha et antal i initieringsfilen.
+- Søgninger tilgås via knapper, som kan oprettes på en vilkårlig palette eller via en fælles
+søgningsdialog, hvor man kan vælge søgning i en liste og efterfølgende indtaste værdier.
+
+SearchFunc 2.1
+- Opslagssøgningerne har nu en Checkbox "Auto Luk" som kan få dialogen til at lukke, når brugeren
+vælger et husnr eller et matrikelnr.
+- Under opsætning af kolonner opdateres listen med kolonnenavn og beskrivelse nu hver gang der vælges
+en kolonne.

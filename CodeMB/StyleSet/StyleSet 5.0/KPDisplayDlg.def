@@ -1,0 +1,3 @@
+Declare Sub kpdShowDialogDisplay
+Declare Function kpdDialogDisplay() As Logical
+Declare Function kpdDialogCreateNewDisplay() As Logical

@@ -1,0 +1,1034 @@
+'********************************************************
+'**	Modul:	Læs stilart fra stilarttabel
+'**			Opret buttonpads dertil
+'********************************************************
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+Include "Globals.def"
+
+Include "KPAdminUse.def"
+Include "KPStyleUse.def"
+Include "KPTableUse.def"
+Include "KPPadUse.def"
+Include "KPIconUse.def"
+Include "KPGroupUse.def"
+Include "KPValuesUse.def"
+
+'**Functions from Printing...
+Include "..\..\Printing\Printing 3.1\PrintValues.def"
+
+'**Predefined tekstvalues
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+Include "..\..\Time\Time.def"
+Include "..\..\PadFunc\PadFunc.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\FileFunc\FileFunc.def"
+Include "..\..\MapFunc\MapFunc.def"
+
+
+Declare Sub kppAddButtonToTextPad(		ByVal szButtonpad As String, ByVal nStyleID As Integer, ByVal szMsg As String,
+							ByVal szIconFile As String, ByVal nIcon As Integer)
+Declare Sub kppAddButtonToLinePad(		ByVal szButtonpad As String, ByVal nStyleID As Integer, ByVal szMsg As String,
+							ByVal szIconFile As String, ByVal nIcon As Integer)
+Declare Sub kppAddButtonToSymbolPad(	ByVal szButtonpad As String, ByVal nStyleID As Integer, ByVal szMsg As String,
+							ByVal szIconFile As String, ByVal nIcon As Integer)
+Declare Sub kppAddButtonToPolygonPad(	ByVal szButtonpad As String, ByVal nStyleID As Integer, ByVal szMsg As String,
+							ByVal szIconFile As String, ByVal nIcon As Integer)
+
+Declare Function kppCheckEditLayerAndMap(ByVal szTable As String) As Logical
+
+Dim	mszTemaIconFile As String,
+	mnActiveButton, mnCurrentStyleID As Integer,
+	mszEditPadGroup, mszEditPadSubGroup As String,
+	mnKPPadWinChangeHandlerActive As Logical
+
+'**Definitions: Layer to be edited, info about this layer
+Dim	mszEditLayer, mszThemeName As String,
+	mnRowsInLayer As Integer
+
+'********************************************************
+'	Returnerer navn på nuværende EditPad Gruppe
+'********************************************************
+Function kppGetEditGroupName$() As String
+
+	If mszEditPadGroup = "" Then
+		mszEditPadGroup = MSG_NONE
+	End If
+
+	kppGetEditGroupName$ = mszEditPadGroup
+
+End Function
+
+'********************************************************
+'	Returnerer navn på nuværende EditPad Subgruppe
+'********************************************************
+Function kppGetEditSubGroupName$() As String
+
+	If mszEditPadSubGroup = "" Then
+		mszEditPadSubGroup = STYL_ALL_SUBGROUPS
+	End If
+
+	kppGetEditSubGroupName$ = mszEditPadSubGroup
+
+End Function
+
+'********************************************************
+'	Sætter navnet på nuværende EditPad Gruppe
+'********************************************************
+Sub kppSetEditGroupName(ByVal szName As String)
+
+	mszEditPadGroup = szName
+
+End Sub
+
+'********************************************************
+'	Sætter navnet på nuværende EditPad UnderGruppe
+'********************************************************
+Sub kppSetEditSubGroupName(ByVal szName As String)
+
+	mszEditPadSubGroup = szName
+
+End Sub
+
+'********************************************************
+'	returnerer GroupId på udpeget gruppe
+'********************************************************
+Function kppGetEditGroupID() As Integer
+
+Dim	szGroupName As String
+
+	szGroupName = kppGetEditGroupName$()
+
+	Do Case szGroupName
+		Case MSG_TEXT_NONE
+			kppGetEditGroupID = GROUPID_NONE
+		Case STYL_ALL_GROUPS
+			kppGetEditGroupID = GROUPID_ALL
+		Case Else
+			kppGetEditGroupID = kpgGetGroupID(szGroupName)
+	End Case
+
+End Function
+
+'********************************************************
+'	returnerer SubGroupId på udpeget gruppe
+'********************************************************
+Function kppGetEditSubGroupID() As Integer
+
+Dim	szSubGroupName As String
+
+	szSubGroupName = kppGetEditSubGroupName$()
+
+	Do Case szSubGroupName
+		Case MSG_TEXT_NONE
+			kppGetEditSubGroupID = SUBGROUPID_NONE
+		Case STYL_ALL_SUBGROUPS
+			kppGetEditSubGroupID = SUBGROUPID_ALL
+		Case Else
+			kppGetEditSubGroupID = kpgGetSubGroupID(szSubGroupName)
+	End Case
+
+End Function
+
+'********************************************************
+'	Opsætning af en bestemt buttonpads
+'********************************************************
+Sub kppGenerateAnyButtonPad(ByVal szType As String, ByVal szButtonpad As String)
+
+'*szType may have these values:
+'	"LINE", "PLINE"
+'	"POLYGON", "REGION"
+'	"SYMBOL", "POINT"
+'	"FONT", "TEXT"
+
+Dim	bCloseKPTable, bCloseKPStyle, bCloseKPIcon, bCloseKPGroup, bCloseKPSGroup, bCloseKPTGroup As Logical,
+	nGroupID, nSubGroupID As Integer
+
+	Do Case SystemInfo(SYS_INFO_MIPLATFORM)
+		Case MIPLATFORM_WIN32
+			mszTemaIconFile = kpaGetKPDefaultDLLFile32$()
+		Case MIPLATFORM_WIN16
+			mszTemaIconFile = kpaGetKPDefaultDLLFile16$()
+		Case Else
+			Note ERR_SYS_WINDOWS_APPLICATION
+			Exit Sub
+	End Case
+
+	bCloseKPTable	= kpaOpenKPTablesTable()
+	bCloseKPStyle	= kpaOpenKPStylesTable()
+	bCloseKPIcon	= kpaOpenKPIconsTable()
+	bCloseKPGroup	= kpaOpenKPGroupTable()
+	bCloseKPSGroup 	= kpaOpenKPSGroupTable()
+	bCloseKPTGroup	= kpaOpenKPTGroupTable()
+
+	'**Checking if columns exists....
+	Do Case szType
+		Case "LINE", "PLINE"
+			Call DestroyAnyButtonPad(szButtonpad)
+			If not kpsLineColumnsExists() Then
+				'Print "Linie kolonner findes ikke!"
+				GoTo BeforeExitTheSub
+			End If
+		Case "POLYGON", "REGION"
+			Call DestroyAnyButtonPad(szButtonpad)
+			If not kpsBrushColumnsExists() And kpsPenColumnsExists() Then
+				'Print "Region kolonner findes ikke!"
+				GoTo BeforeExitTheSub
+			End If
+		Case "SYMBOL", "POINT"
+			Call DestroyAnyButtonPad(szButtonpad)
+			If not kpsSymbolColumnsExists() Then
+				'Print "Symbol kolonner findes ikke!"
+				GoTo BeforeExitTheSub
+			End If
+		Case "FONT", "TEXT"
+			Call DestroyAnyButtonPad(szButtonpad)
+			If not kpsFontColumnsExists() Then
+				'Print "Font kolonner findes ikke!"
+				GoTo BeforeExitTheSub
+			End If
+	End Case
+
+	'Print "Gruppe (Undergruppe) : " + kppGetEditGroupName$() + "(" + kppGetEditSubGroupName$() + ")"
+	nGroupID	= kpgGetGroupID(kppGetEditGroupName$())
+	nSubGroupID	= kpgGetSubGroupID(kppGetEditSubGroupName$())
+	'Print "Gruppe (Undergruppe) : " + nGroupID + "(" + nSubGroupID + ")"
+
+	If nGroupID > GROUPID_NONE Then
+'		Print "Gruppe større end " + GROUPID_NONE
+		If nGroupID = GROUPID_ALL Then
+'			Print "Gruppe = " + GROUPID_ALL
+			Select * From KPSTYLES, KPTABLES
+				Where KPSTYLES.TABLEID = KPTABLES.TABLEID
+			'	And KPTABLES.TABLEID In (Select TABLEID From KPTGROUP)
+'					Order By STYLENAME	'KPTABLES.DESCRIPTION
+				Into STYLES NoSelect
+		Else
+'			Print "Gruppe <> " + GROUPID_ALL
+			If nSubGroupID = SUBGROUPID_ALL Then
+				'Print "SubGruppe = " + SUBGROUPID_ALL
+				Select * From KPSTYLES, KPTABLES
+					Where KPSTYLES.TABLEID = KPTABLES.TABLEID
+					And KPTABLES.TABLEID In (Select TABLEID From KPTGROUP
+										Where GROUPID = nGroupID)
+'					Order By STYLENAME	'KPTABLES.DESCRIPTION
+					Into STYLES NoSelect
+			Else
+'				Print "SubGruppe <> " + SUBGROUPID_ALL
+				Select * From KPSTYLES, KPTABLES
+					Where KPSTYLES.TABLEID = KPTABLES.TABLEID
+					And KPTABLES.TABLEID In (Select TABLEID From KPTGROUP
+										Where GROUPID = nGroupID
+										And SUBGROUPID = nSubGroupID)
+'					Order By STYLENAME	'KPTABLES.DESCRIPTION
+					Into STYLES NoSelect
+			End If
+		End If
+
+	Else
+		'**Creating an empty table STYLES
+		Select * From KPSTYLES
+			Where RowID = -1
+			Into STYLES NoSelect
+	End If
+
+	'***Creating buttonPads if any....
+	'Print "Antal rækker i STYLES : " + TableInfo("STYLES", TAB_INFO_NROWS)
+	If TableInfo("STYLES", TAB_INFO_NROWS) > 0 Then
+		Do Case szType
+			Case "LINE", "PLINE"
+				Call kppGenerateLineButtonPad(szButtonpad)
+			Case "POLYGON", "REGION"
+				Call kppGenerateRegionButtonPad(szButtonpad)
+			Case "SYMBOL", "POINT"
+				Call kppGenerateSymbolButtonPad(szButtonpad)
+			Case "FONT", "TEXT"
+				Call kppGenerateFontButtonPad(szButtonpad)
+		End Case
+
+	End If
+
+'---------------------------------------
+BeforeExitTheSub:
+
+	Close Table KPTABLES
+	Close Table KPSTYLES
+	Close Table KPICONS
+	Close Table KPGROUP
+	Close Table KPSGROUP
+	Close Table KPTGROUP
+
+End Sub
+
+'********************************************************
+'	Opsætning af alle buttonpads
+'********************************************************
+Sub kppGenerateAllButtonPads(	ByVal szPadLine As String, ByVal szPadPolygon As String,
+					ByVal szPadPoint As String, ByVal szPadText As String)
+
+	'**Destroying all existing Theme ButtonPads...
+	Call kppDestroyAllButtonPads(szPadLine, szPadPolygon, szPadPoint, szPadText)
+
+	Call kppGenerateAnyButtonPad("LINE", szPadLine)
+	Call kppGenerateAnyButtonPad("POLYGON", szPadPolygon)
+	Call kppGenerateAnyButtonPad("SYMBOL", szPadPoint)
+	Call kppGenerateAnyButtonPad("FONT", szPadText)
+
+End Sub
+
+'********************************************************
+'	Opsætning af linietegningsbuttonpad
+'********************************************************
+Sub kppGenerateLineButtonPad(ByVal szButtonpad As String)
+
+Dim	szMsg As String
+
+	If TABColExists("KPSTYLES", "BUTTONORDER") Then
+		Select * From STYLES
+			Where L_SHOW
+			Order By BUTTONORDER, STYLENAME
+			Into ICONTOSHOW NoSelect
+	Else
+		Select * From STYLES
+			Where L_SHOW
+			Order By STYLENAME
+			Into ICONTOSHOW NoSelect
+	End If
+
+	If TableInfo("ICONTOSHOW", TAB_INFO_NROWS) = 0 Then
+		Close Table ICONTOSHOW
+		Exit Sub
+	End If
+
+	Create ButtonPad szButtonpad As
+		ToolButton
+			Calling M_TOOLS_POLYLINE
+			Icon MI_ICON_POLYLINE
+			HelpMsg MSG_MNU_HELP_DRAW_PLINE
+		Separator
+		Hide
+
+	Fetch First From ICONTOSHOW
+	Do Until EOT(ICONTOSHOW)
+
+		szMsg 	= ICONTOSHOW.STYLENAME + "\n" + ICONTOSHOW.STYLENAME
+		Call kppAddButtonToLinePad(szButtonpad, ICONTOSHOW.STYLEID, szMsg,
+							kpiGetIconFileName$(ICONTOSHOW.ICONFILEID), ICONTOSHOW.ICON)
+
+		Fetch Next From ICONTOSHOW
+	Loop
+
+	Close Table ICONTOSHOW
+
+	Alter ButtonPad szButtonpad
+		Show
+
+End Sub
+
+'********************************************************
+'	Opsætning af linietegningsbuttonpad
+'********************************************************
+Sub kppGenerateRegionButtonPad(ByVal szButtonpad As String)
+
+Dim	szMsg As String
+
+	If TABColExists("KPSTYLES", "BUTTONORDER") Then
+		Select * From STYLES
+			Where B_SHOW Or P_SHOW
+			Order By BUTTONORDER, STYLENAME
+			Into ICONTOSHOW NoSelect
+	Else
+		Select * From STYLES
+			Where B_SHOW Or P_SHOW
+			Order By STYLENAME
+			Into ICONTOSHOW NoSelect
+	End If
+
+	If TableInfo("ICONTOSHOW", TAB_INFO_NROWS) = 0 Then
+		Close Table ICONTOSHOW
+		Exit Sub
+	End If
+
+	Create ButtonPad szButtonpad As
+		ToolButton
+			Calling M_TOOLS_POLYGON
+			Icon MI_ICON_POLYGON
+			HelpMsg MSG_MNU_HELP_DRAW_POLYGON
+		Separator
+		Hide
+
+	Fetch First From ICONTOSHOW
+	Do Until EOT(ICONTOSHOW)
+
+		szMsg = ICONTOSHOW.STYLENAME + "\n" + ICONTOSHOW.STYLENAME
+
+		Call kppAddButtonToPolygonPad(szButtonpad, ICONTOSHOW.STYLEID, szMsg,
+								kpiGetIconFileName$(ICONTOSHOW.ICONFILEID), ICONTOSHOW.ICON)
+
+		Fetch Next From ICONTOSHOW
+	Loop
+
+	Close Table ICONTOSHOW
+
+	Alter ButtonPad szButtonpad
+		Show
+
+End Sub
+
+'********************************************************
+'	Opsætning af linietegningsbuttonpad
+'********************************************************
+Sub kppGenerateSymbolButtonPad(ByVal szButtonpad As String)
+
+Dim	szMsg As String
+
+	If TABColExists("KPSTYLES", "BUTTONORDER") Then
+		Select * From STYLES
+			Where S_SHOW
+			Order By BUTTONORDER, STYLENAME
+			Into ICONTOSHOW NoSelect
+	Else
+		Select * From STYLES
+			Where S_SHOW
+			Order By STYLENAME
+			Into ICONTOSHOW NoSelect
+	End If
+
+	If TableInfo("ICONTOSHOW", TAB_INFO_NROWS) = 0 Then
+		Close Table ICONTOSHOW
+		Exit Sub
+	End If
+
+	Create ButtonPad szButtonpad As
+		ToolButton
+			Calling M_TOOLS_POINT
+			Icon MI_ICON_SYMBOL
+			HelpMsg MSG_MNU_HELP_DRAW_SYMBOL
+		Separator
+		Hide
+
+	Fetch First From ICONTOSHOW
+	Do Until EOT(ICONTOSHOW)
+
+		szMsg = ICONTOSHOW.STYLENAME + "\n" + ICONTOSHOW.STYLENAME
+
+		Call kppAddButtonToSymbolPad(szButtonpad, ICONTOSHOW.STYLEID, szMsg, kpiGetIconFileName$(ICONTOSHOW.ICONFILEID), ICONTOSHOW.ICON)
+
+		Fetch Next From ICONTOSHOW
+	Loop
+
+	Close Table ICONTOSHOW
+
+	Alter ButtonPad szButtonpad
+		Show
+
+End Sub
+
+'********************************************************
+'	Opsætning af linietegningsbuttonpad
+'********************************************************
+Sub kppGenerateFontButtonPad(ByVal szButtonpad As String)
+
+Dim	szMsg As String
+
+	If TABColExists("KPSTYLES", "BUTTONORDER") Then
+		Select * From STYLES
+			Where F_SHOW
+			Order By BUTTONORDER, STYLENAME
+			Into ICONTOSHOW NoSelect
+	Else
+		Select * From STYLES
+			Where F_SHOW
+			Order By STYLENAME
+			Into ICONTOSHOW NoSelect
+	End If
+
+	If TableInfo("ICONTOSHOW", TAB_INFO_NROWS) = 0 Then
+		Close Table ICONTOSHOW
+		Exit Sub
+	End If
+
+	Create ButtonPad szButtonpad As
+		ToolButton
+			Calling M_TOOLS_TEXT
+			Icon MI_ICON_TEXT
+			HelpMsg MSG_MNU_HELP_DRAW_TEXT
+		Separator
+		Hide
+
+	Fetch First From ICONTOSHOW
+	Do Until EOT(ICONTOSHOW)
+
+		szMsg = ICONTOSHOW.STYLENAME + "\n" + ICONTOSHOW.STYLENAME
+
+		Call kppAddButtonToTextPad(szButtonpad, ICONTOSHOW.STYLEID, szMsg,
+							kpiGetIconFileName$(ICONTOSHOW.ICONFILEID), ICONTOSHOW.ICON)
+
+		Fetch Next From ICONTOSHOW
+	Loop
+
+	Close Table ICONTOSHOW
+
+	Alter ButtonPad szButtonpad
+		Show
+
+End Sub
+
+'********************************************************
+'	Tilføjer knap til menupalette "Tema Symbol"
+'********************************************************
+Sub kppAddButtonToSymbolPad(	ByVal szButtonpad As String, ByVal nStyleID As Integer, ByVal szMsg As String,
+					ByVal szIconFile As String, ByVal nIcon As Integer)
+
+Dim	szIconFilePath As String
+
+OnError GoTo ErrorOccured
+
+	If szIconFile = STYL_THEME_ICON_TEXT Then
+		szIconFilePath = GetFileNameAbsolute$(mszTemaIconFile)
+	ElseIf szIconFile = STYL_MAPINFO_ICON_TEXT Then
+		szIconFilePath = szIconFile
+	Else
+		szIconFilePath = GetFileNameAbsolute$(szIconFile)
+	End If
+
+
+	If szIconFilePath <> STYL_MAPINFO_ICON_TEXT And not FileExists(szIconFilePath) Then
+		Print ERR_ICONFILE_NOT_FOUND + szIconFilePath
+		GoTo AddOrdinaryButton
+	End If
+
+	If szIconFilePath = STYL_MAPINFO_ICON_TEXT Then
+		Alter ButtonPad szButtonpad Add
+			ToggleButton
+				Calling kppSetUpSymbolDrawing
+				Icon nIcon
+				ID BTN_ID_SYMBOL + nStyleID
+				HelpMsg szMsg
+	Else
+
+		Alter ButtonPad szButtonpad Add
+			ToggleButton
+				Calling kppSetUpSymbolDrawing
+				Icon nIcon File szIconFilePath
+				ID BTN_ID_SYMBOL + nStyleID
+				HelpMsg szMsg
+	End If
+
+	Exit Sub
+'-------------
+AddOrdinaryButton:
+
+	OnError GoTo 0
+
+	Alter ButtonPad szButtonpad Add
+		ToggleButton
+			Calling kppSetUpSymbolDrawing
+			Icon MI_ICON_SYMBOL
+			ID BTN_ID_SYMBOL + nStyleID
+			HelpMsg szMsg
+
+Exit Sub
+'-------------
+ErrorOccured:
+
+	Print ERR_ICON_LOADING_1 + nIcon +
+		ERR_ICON_LOADING_2 + szIconFilePath + " : " + lf
+		+ Error$()
+
+Resume AddOrdinaryButton
+
+End Sub
+
+'********************************************************
+'	Tilføjer knap til menupalette "Tema Linie"
+'********************************************************
+Sub kppAddButtonToLinePad(	ByVal szButtonpad As String, ByVal nStyleID As Integer, ByVal szMsg As String,
+					ByVal szIconFile As String, ByVal nIcon As Integer)
+
+Dim	szIconFilePath As String
+
+OnError GoTo ErrorOccured
+
+	If szIconFile = STYL_THEME_ICON_TEXT Then
+		szIconFilePath = GetFileNameAbsolute$(mszTemaIconFile)
+	ElseIf szIconFile = STYL_MAPINFO_ICON_TEXT Then
+		szIconFilePath = szIconFile
+	Else
+		szIconFilePath = GetFileNameAbsolute$(szIconFile)
+	End If
+
+	If szIconFilePath <> STYL_MAPINFO_ICON_TEXT And not FileExists(szIconFilePath) Then
+		Print ERR_ICONFILE_NOT_FOUND + szIconFilePath
+		GoTo AddOrdinaryButton
+	End If
+
+	If szIconFilePath = STYL_MAPINFO_ICON_TEXT Then
+		Alter ButtonPad szButtonpad Add
+			ToggleButton
+				Calling kppSetUpLineDrawing
+				Icon nIcon
+				ID BTN_ID_LINE + nStyleID
+				HelpMsg szMsg
+	Else
+		Alter ButtonPad szButtonpad Add
+			ToggleButton
+				Calling kppSetUpLineDrawing
+				Icon nIcon File szIconFilePath
+				ID BTN_ID_LINE + nStyleID
+				HelpMsg szMsg
+	End If
+
+	Exit Sub
+'-------------
+AddOrdinaryButton:
+
+	OnError GoTo 0
+
+	Alter ButtonPad szButtonpad Add
+		ToggleButton
+			Calling kppSetUpLineDrawing
+			Icon MI_ICON_POLYLINE
+			ID BTN_ID_LINE + nStyleID
+			HelpMsg szMsg
+
+Exit Sub
+'-------------
+ErrorOccured:
+
+	Print ERR_ICON_LOADING_1 + nIcon +
+		ERR_ICON_LOADING_2 + szIconFilePath + " : " + lf
+		+ Error$()
+
+	Resume AddOrdinaryButton
+
+End Sub
+
+'********************************************************
+'	Tilføjer knap til menupalette "Tema Tekst"
+'********************************************************
+Sub kppAddButtonToTextPad(	ByVal szButtonpad As String, ByVal nStyleID As Integer, ByVal szMsg As String,
+					ByVal szIconFile As String, ByVal nIcon As Integer)
+
+Dim	szIconFilePath As String
+
+OnError GoTo ErrorOccured
+
+	If szIconFile = STYL_THEME_ICON_TEXT Then
+		szIconFilePath = GetFileNameAbsolute$(mszTemaIconFile)
+	ElseIf szIconFile = STYL_MAPINFO_ICON_TEXT Then
+		szIconFilePath = szIconFile
+	Else
+		szIconFilePath = GetFileNameAbsolute$(szIconFile)
+	End If
+
+	If szIconFilePath <> STYL_MAPINFO_ICON_TEXT And not FileExists(szIconFilePath) Then
+		Print ERR_ICONFILE_NOT_FOUND + szIconFilePath
+		GoTo AddOrdinaryButton
+	End If
+
+	If szIconFilePath = STYL_MAPINFO_ICON_TEXT Then
+		Alter ButtonPad szButtonpad Add
+			ToggleButton
+				Calling kppSetUpTextDrawing
+				Icon nIcon
+				ID BTN_ID_FONT + nStyleID
+				HelpMsg szMsg
+	Else
+		Alter ButtonPad szButtonpad Add
+			ToggleButton
+				Calling kppSetUpTextDrawing
+				Icon nIcon File szIconFilePath
+				ID BTN_ID_FONT + nStyleID
+				HelpMsg szMsg
+	End If
+
+Exit Sub
+'-------------
+AddOrdinaryButton:
+
+	OnError GoTo 0
+
+	Alter ButtonPad szButtonpad Add
+		ToggleButton
+			Calling kppSetUpTextDrawing
+			Icon MI_ICON_TEXT
+			ID BTN_ID_FONT + nStyleID
+			HelpMsg szMsg
+
+Exit Sub
+'-------------
+ErrorOccured:
+
+	Print ERR_ICON_LOADING_1 + nIcon +
+		ERR_ICON_LOADING_2 + szIconFilePath + " : " + lf
+		+ Error$()
+
+	Resume AddOrdinaryButton
+
+End Sub
+
+'********************************************************
+'	Tilføjer knap til menupalette "Tema Region"
+'********************************************************
+Sub kppAddButtonToPolygonPad(	ByVal szButtonpad As String, ByVal nStyleID As Integer, ByVal szMsg As String,
+					ByVal szIconFile As String, ByVal nIcon As Integer)
+
+Dim	szIconFilePath As String
+
+OnError GoTo ErrorOccured
+
+	If szIconFile = STYL_THEME_ICON_TEXT Then
+		szIconFilePath = GetFileNameAbsolute$(mszTemaIconFile)
+	ElseIf szIconFile = STYL_MAPINFO_ICON_TEXT Then
+		szIconFilePath = szIconFile
+	Else
+		szIconFilePath = GetFileNameAbsolute$(szIconFile)
+	End If
+
+	If szIconFilePath <> STYL_MAPINFO_ICON_TEXT And not FileExists(szIconFilePath) Then
+		Print ERR_ICONFILE_NOT_FOUND + szIconFilePath
+		GoTo AddOrdinaryButton
+	End If
+
+	If szIconFilePath = STYL_MAPINFO_ICON_TEXT Then
+		Alter ButtonPad szButtonpad Add
+			ToggleButton
+				Calling kppSetUpRegionDrawing
+				Icon nIcon
+				ID BTN_ID_POLYGON + nStyleID
+				HelpMsg szMsg
+	Else
+		Alter ButtonPad szButtonpad Add
+			ToggleButton
+				Calling kppSetUpRegionDrawing
+				Icon nIcon File szIconFilePath
+				ID BTN_ID_POLYGON + nStyleID
+				HelpMsg szMsg
+	End If
+
+	Exit Sub
+'-------------
+AddOrdinaryButton:
+
+	OnError GoTo 0
+
+	Alter ButtonPad szButtonpad Add
+		ToggleButton
+			Calling kppSetUpTextDrawing
+			Icon MI_ICON_POLYGON
+			ID BTN_ID_POLYGON + nStyleID
+			HelpMsg szMsg
+
+	Exit Sub
+'-------------
+ErrorOccured:
+
+	Print ERR_ICON_LOADING_1 + nIcon +
+		ERR_ICON_LOADING_2 + szIconFilePath + " : " + lf
+		+ Error$()
+
+	Resume AddOrdinaryButton
+
+End Sub
+
+'**********************************************************************************************''
+'Undersøger om tabel og kort er ok til digitalisering
+'**********************************************************************************************''
+Function kppCheckEditLayerAndMap(ByVal szTable As String) As Logical
+
+Dim	nWID As Integer
+
+OnError GoTo ErrorOccured
+
+kppCheckEditLayerAndMap = FALSE
+
+	If szTable = "" Then
+		Note ERR_STYL_NO_LAYER_FOR_THEME
+		Exit Function
+	ElseIf TableInfo(szTable, TAB_INFO_READONLY) Then
+		Note ERR_TAB_READONLY + szTable
+		Exit Function
+	ElseIf not TableInfo(szTable, TAB_INFO_MAPPABLE) Then
+		Note ERR_TAB_NOT_MAPPABLE + szTable
+		Exit Function
+	End If
+
+	nWID	= FrontWindow()
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Function
+	ElseIf not WindowInfo(nWID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Function
+	ElseIf not LayerExists(szTable, nWID) Then
+		Note ERR_MAP_LAYER_NOT_IN_FRONTMAP + szTable
+		Exit Function
+	End If
+
+	Set Map Window nWID
+		Layer szTable
+			Editable On
+
+kppCheckEditLayerAndMap = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'********************************************************
+'	Sub til aktivering vha buttonpads
+'********************************************************
+Sub kppSetUpLineDrawing
+
+Dim	nBtn As Integer
+
+	Run Menu Command M_TOOLS_SELECTOR
+	Call MakeNoLayerEditable
+
+	nBtn = CommandInfo(CMD_INFO_TOOLBTN)
+	If nBtn = mnActiveButton Then
+		Alter Button ID mnActiveButton UnCheck
+		mnActiveButton = 0
+		'Set Handler WinChangedHandler Off
+		mnKPPadWinChangeHandlerActive = FALSE
+		Exit Sub
+	End If
+
+	If mnActiveButton > 0 Then
+		Alter Button ID mnActiveButton UnCheck
+		'Set Handler WinChangedHandler Off
+		mnKPPadWinChangeHandlerActive = FALSE
+	End If
+	mnActiveButton	= 0
+	mnCurrentStyleID	= nBtn - BTN_ID_LINE
+
+	Call kpsSetCurrentLineStyle(mnCurrentStyleID)
+
+	mszThemeName = kpsGetStyleName$(mnCurrentStyleID)
+	mszEditLayer = kptGetMapInfoTableName$(kpsGetTableID(mnCurrentStyleID))
+
+	If NOT kppCheckEditLayerAndMap(mszEditLayer) Then
+		Alter Button ID nBtn UnCheck
+		Exit Sub
+	End If
+
+	mnActiveButton = nBtn
+	Alter Button ID mnActiveButton Check
+
+	mnRowsInLayer = TableInfo(mszEditLayer, TAB_INFO_NROWS)
+	'Set Handler WinChangedHandler On
+	mnKPPadWinChangeHandlerActive = TRUE
+
+	Run Menu Command M_TOOLS_POLYLINE
+
+End Sub
+
+'********************************************************
+'	Sub til aktivering vha buttonpads
+'********************************************************
+Sub kppSetUpRegionDrawing
+
+Dim	nBtn As Integer
+
+	Run Menu Command M_TOOLS_SELECTOR
+	Call MakeNoLayerEditable
+
+	nBtn = CommandInfo(CMD_INFO_TOOLBTN)
+	If nBtn = mnActiveButton Then
+		Alter Button ID mnActiveButton UnCheck
+		mnActiveButton = 0
+		'Set Handler WinChangedHandler Off
+		mnKPPadWinChangeHandlerActive = FALSE
+		Exit Sub
+	End If
+
+	If mnActiveButton > 0 Then
+		Alter Button ID mnActiveButton UnCheck
+		'Set Handler WinChangedHandler Off
+		mnKPPadWinChangeHandlerActive = FALSE
+	End If
+	mnActiveButton	= 0
+	mnCurrentStyleID	= nBtn - BTN_ID_POLYGON
+
+	Call kpsSetCurrentRegionStyle(mnCurrentStyleID)
+
+	mszThemeName = kpsGetStyleName$(mnCurrentStyleID)
+	mszEditLayer = kptGetMapInfoTableName$(kpsGetTableID(mnCurrentStyleID))
+
+	If NOT kppCheckEditLayerAndMap(mszEditLayer) Then
+		Alter Button ID nBtn UnCheck
+		Exit Sub
+	End If
+
+	mnActiveButton = nBtn
+	Alter Button ID mnActiveButton Check
+
+	mnRowsInLayer = TableInfo(mszEditLayer, TAB_INFO_NROWS)
+	'Set Handler WinChangedHandler On
+	mnKPPadWinChangeHandlerActive = TRUE
+
+	Run Menu Command M_TOOLS_POLYGON
+
+End Sub
+'********************************************************
+'	Sub til aktivering vha buttonpads
+'********************************************************
+Sub kppSetUpSymbolDrawing
+
+Dim	nBtn As Integer
+
+	Run Menu Command M_TOOLS_SELECTOR
+	Call MakeNoLayerEditable
+
+	nBtn = CommandInfo(CMD_INFO_TOOLBTN)
+	If nBtn = mnActiveButton Then
+		Alter Button ID mnActiveButton UnCheck
+		mnActiveButton = 0
+		'Set Handler WinChangedHandler Off
+		mnKPPadWinChangeHandlerActive = FALSE
+		Exit Sub
+	End If
+
+	If mnActiveButton > 0 Then
+		Alter Button ID mnActiveButton UnCheck
+		'Set Handler WinChangedHandler Off
+		mnKPPadWinChangeHandlerActive = FALSE
+	End If
+	mnActiveButton	= 0
+	mnCurrentStyleID	= nBtn - BTN_ID_SYMBOL
+
+	Call kpsSetCurrentSymbolStyle(mnCurrentStyleID)
+
+	mszThemeName = kpsGetStyleName$(mnCurrentStyleID)
+	mszEditLayer = kptGetMapInfoTableName$(kpsGetTableID(mnCurrentStyleID))
+
+	If NOT kppCheckEditLayerAndMap(mszEditLayer) Then
+		Alter Button ID nBtn UnCheck
+		Exit Sub
+	End If
+
+	mnActiveButton = nBtn
+	Alter Button ID mnActiveButton Check
+
+	mnRowsInLayer = TableInfo(mszEditLayer, TAB_INFO_NROWS)
+	'Set Handler WinChangedHandler On
+	mnKPPadWinChangeHandlerActive = TRUE
+
+	Run Menu Command M_TOOLS_POINT
+
+End Sub
+
+'********************************************************
+'	Sub til aktivering vha buttonpads
+'********************************************************
+Sub kppSetUpTextDrawing
+
+Dim	nBtn As Integer
+
+	Run Menu Command M_TOOLS_SELECTOR
+	Call MakeNoLayerEditable
+
+	nBtn = CommandInfo(CMD_INFO_TOOLBTN)
+	If nBtn = mnActiveButton Then
+		Alter Button ID mnActiveButton UnCheck
+		mnActiveButton = 0
+		'Set Handler WinChangedHandler Off
+		mnKPPadWinChangeHandlerActive = FALSE
+		Exit Sub
+	End If
+
+	If mnActiveButton > 0 Then
+		Alter Button ID mnActiveButton UnCheck
+		'Set Handler WinChangedHandler Off
+		mnKPPadWinChangeHandlerActive = FALSE
+	End If
+	mnActiveButton = 0
+	mnCurrentStyleID = nBtn - BTN_ID_FONT
+
+	Call kpsSetCurrentFontStyle(mnCurrentStyleID)
+
+	mszThemeName = kpsGetStyleName$(mnCurrentStyleID)
+	mszEditLayer = kptGetMapInfoTableName$(kpsGetTableID(mnCurrentStyleID))
+
+	If NOT kppCheckEditLayerAndMap(mszEditLayer) Then
+		Alter Button ID nBtn UnCheck
+		Exit Sub
+	End If
+
+	mnActiveButton = nBtn
+	Alter Button ID mnActiveButton Check
+
+	mnRowsInLayer = TableInfo(mszEditLayer, TAB_INFO_NROWS)
+	'Set Handler WinChangedHandler On
+	mnKPPadWinChangeHandlerActive = TRUE
+
+	Run Menu Command M_TOOLS_TEXT
+
+End Sub
+
+'********************************************************
+'	Dræb alle paletter
+'********************************************************
+Sub kppDestroyAllButtonPads(	ByVal szPadLine As String, ByVal szPadPolygon As String,
+					ByVal szPadPoint As String, ByVal szPadText As String)
+
+	Call DestroyAnyButtonPad(szPadLine)
+	Call DestroyAnyButtonPad(szPadPolygon)
+	Call DestroyAnyButtonPad(szPadPoint)
+	Call DestroyAnyButtonPad(szPadText)
+
+End Sub
+
+'****************************************
+'Handler til opfangning af nye objekter...
+'****************************************
+Sub kppKP_WinChangedhandler(ByVal nWID As Integer)
+
+Dim	nRow As Integer,
+	a As Alias
+
+	If Not mnKPPadWinChangeHandlerActive Then
+		Exit Sub
+	End If
+
+	'Set Handler WinChangedHandler Off
+	mnKPPadWinChangeHandlerActive = FALSE
+
+	If mszEditLayer = "" Then
+		Exit Sub
+	End If
+
+	If mnRowsInLayer = TableInfo(mszEditLayer, TAB_INFO_NROWS) Then
+		GoTo BeforeExitingTheHandler
+	ElseIf mnRowsInLayer > TableInfo(mszEditLayer, TAB_INFO_NROWS) Then
+		mnRowsInLayer = TableInfo(mszEditLayer, TAB_INFO_NROWS)
+		GoTo BeforeExitingTheHandler
+	End If
+
+	Fetch Last From mszEditLayer
+	a = mszEditLayer + ".RowID"	nRow = a
+
+	'***Here is supposed to be a insert of alfanummeric values...
+	If not kpvUpdateTableWithValues(mszEditLayer, mnCurrentStyleID, nRow, TRUE, TRUE) Then
+		Print ERR_STYL_UPDATING_COLUMNS
+	End If
+	'****
+
+	mnRowsInLayer = TableInfo(mszEditLayer, TAB_INFO_NROWS)
+
+'------------------------
+BeforeExitingTheHandler:
+	'Set Handler WinChangedHandler On
+	mnKPPadWinChangeHandlerActive = TRUE
+
+End Sub
+
+

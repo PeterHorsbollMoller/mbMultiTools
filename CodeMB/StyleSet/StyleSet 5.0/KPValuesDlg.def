@@ -1,0 +1,14 @@
+'*****************************************************************************************************************************
+' H I S T O R I K
+' 01.09.2004/PEM	- kpvDialogValueCombined: Fejl i udvælgelse af kolonner og værdier rettet. Kolonnen blev ofte læst fra listen selvom den skulle læses fra
+'				editextboxen
+'*****************************************************************************************************************************
+Declare Sub kpvShowDialogValuesControl
+Declare Function kpvDialogValuesControl() As Logical
+
+Declare Function kpvSelectListDlg(ByVal nListID As Integer) As Integer
+
+Declare Function kpvDialogSingleValueWithColumnList(ByVal nStyleID As Integer, ByVal szTable As String) As Integer
+Declare Function kpvDialogSingleValueWithoutColumnList(ByVal nStyleID As Integer, ByVal szTable As String) As Integer
+Declare Function kpvDialogCommonValueWithoutColumnList() As Integer
+Declare Function kpvDialogValueCombined(ByVal nValueID As Integer, ByVal nStyleID As Integer, ByVal szTab As String) As Integer

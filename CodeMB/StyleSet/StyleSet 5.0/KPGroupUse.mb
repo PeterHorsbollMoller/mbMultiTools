@@ -1,0 +1,952 @@
+'********************************************************
+'**	Modul:		KPGroupUse.mb
+'**	Funktioner:		Læs fra / skriv til KPGroup/KPSGroup tabellerne
+'**				Read And Write
+'********************************************************
+Include "MapBasic.def"
+
+Include "KPAdminUse.def"
+
+Include "KPGroupUse.def"
+
+Include "Globals.def"
+
+Include "..\..\TabFunc\TabFunc.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+'********************************************************
+'	Returnerer største GroupID...
+'********************************************************
+Function kpgGetMaxGroupID() As Integer
+
+Dim	bCloseTab As Logical,
+	nMax As Integer
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPGroupTable()
+
+	Select Max(GROUPID) "MAXID"
+		From KPGROUP
+		Into MAX_ID NoSelect
+
+	If TableInfo("MAX_ID", TAB_INFO_NROWS) = 0 Then
+		nMax = 0
+	Else
+		Fetch First From MAX_ID
+		nMax = MAX_ID.MAXID
+	End If
+
+	If bCloseTab Then
+		Close Table KPGROUP
+	Else
+		Close Table MAX_ID
+	End If
+	
+	kpgGetMaxGroupID	= nMax
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer næste ledige GroupID...
+'********************************************************
+Function kpgGetNextGroupID() As Integer
+
+OnError GoTo ErrorOccured
+
+	kpgGetNextGroupID	= kpgGetMaxGroupID() + 1
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer største SubGroupID...
+'********************************************************
+Function kpgGetMaxSubGroupID() As Integer
+
+Dim	bCloseTab As Logical,
+	nMax As Integer
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPSGroupTable()
+
+	Select Max(SUBGROUPID) "MAXID"
+		From KPSGROUP
+		Into MAX_ID NoSelect
+
+	If TableInfo("MAX_ID", TAB_INFO_NROWS) = 0 Then
+		nMax = 0
+	Else
+		Fetch First From MAX_ID
+		nMax = MAX_ID.MAXID
+	End If
+
+	If bCloseTab Then
+		Close Table KPSGROUP
+	Else
+		Close Table MAX_ID
+	End If
+	
+	kpgGetMaxSubGroupID	= nMax
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer næste ledige SubGroupID...
+'********************************************************
+Function kpgGetNextSubGroupID() As Integer
+
+OnError GoTo ErrorOccured
+
+	kpgGetNextSubGroupID	= kpgGetMaxSubGroupID() + 1
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Opretter liste med gruppe-navne......
+'********************************************************
+Sub kpgCreateListOfGroupNames(arrGroups() As String)
+
+Dim	nCount As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPGROUP
+		Order By GROUPNAME
+		Into CUR_LIST_OF_GROUPS NoSelect
+
+	ReDim arrGroups(TableInfo("CUR_LIST_OF_GROUPS", TAB_INFO_NROWS) + 2)
+	nCount = 1
+	arrGroups(nCount) = MSG_CREATE & "..."
+	nCount = 2
+	arrGroups(nCount) = MSG_NONE
+
+	If TableInfo("CUR_LIST_OF_GROUPS", TAB_INFO_NROWS) > 0 Then
+
+		Fetch First From CUR_LIST_OF_GROUPS
+		Do Until EOT(CUR_LIST_OF_GROUPS)
+
+			nCount 		= nCount + 1
+			arrGroups(nCount)	= CUR_LIST_OF_GROUPS.GROUPNAME
+			'Print "Group " + nCount + " = " + arrGroups(nCount)
+
+			Fetch Next From CUR_LIST_OF_GROUPS
+		Loop
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Opretter liste med undergruppe-navne......
+'********************************************************
+Sub kpgCreateListOfSubGroupNames(arrSubGroups() As String)
+
+Dim	nCount As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPSGROUP
+		Order By SUBGROUPNAME
+		Into CUR_LIST_OF_SUBGROUPS NoSelect
+
+	ReDim arrSubGroups(TableInfo("CUR_LIST_OF_SUBGROUPS", TAB_INFO_NROWS) + 2)
+	nCount = 1
+	arrSubGroups(nCount) = MSG_CREATE & "..."
+	nCount = 2
+	arrSubGroups(nCount) = MSG_NONE
+
+	If TableInfo("CUR_LIST_OF_SUBGROUPS", TAB_INFO_NROWS) > 0 Then
+
+		Fetch First From CUR_LIST_OF_SUBGROUPS
+		Do Until EOT(CUR_LIST_OF_SUBGROUPS)
+
+			nCount 		= nCount + 1
+			arrSubGroups(nCount)	= CUR_LIST_OF_SUBGROUPS.SUBGROUPNAME
+			'Print "SubGroup " + nCount + " = " + arrSubGroups(nCount)
+
+			Fetch Next From CUR_LIST_OF_SUBGROUPS
+		Loop
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Opretter liste over alle undergrupper incl. "Ingen" og "Alle"
+'**********************************************************************************************''
+Sub kpgCreateListOfSubGroupNamesAll(arrSubGroups() As String)
+
+Dim	nCount As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPSGROUP
+		Order By SUBGROUPNAME
+		Into CUR_LIST_OF_SUBGROUPS_ALL NoSelect
+
+	ReDim arrSubGroups(TableInfo("CUR_LIST_OF_SUBGROUPS_ALL", TAB_INFO_NROWS) + 3)
+	nCount = 1
+	arrSubGroups(nCount) = MSG_CREATE & "..."
+	nCount = 2
+	arrSubGroups(nCount) = MSG_NONE
+	nCount = 3
+	arrSubGroups(nCount) = STYL_ALL_SUBGROUPS
+
+	If TableInfo("CUR_LIST_OF_SUBGROUPS_ALL", TAB_INFO_NROWS) > 0 Then
+
+		Fetch First From CUR_LIST_OF_SUBGROUPS_ALL
+		Do Until EOT(CUR_LIST_OF_SUBGROUPS_ALL)
+
+			nCount 			= nCount + 1
+			arrSubGroups(nCount)	= CUR_LIST_OF_SUBGROUPS_ALL.SUBGROUPNAME
+			'Print "SubGroup " + nCount + " = " + arrSubGroups(nCount)
+
+			Fetch Next From CUR_LIST_OF_SUBGROUPS_ALL
+		Loop
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'********************************************************
+'	Opretter liste med beskrivelse af gruppe(undergruppe) vha TableID......
+'********************************************************
+Sub kpgCreateListOfFullGroupNames(ByVal nTableID As Integer, ByVal nLayerID As Integer, arrFullGroupNames() As String)
+
+Dim	nGroupID, nSubGroupID, nCount As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPTGROUP
+		Where TABLEID	= nTableID
+		AND	LAYERID	= nLayerID
+		Order By GROUPID, SUBGROUPID
+		Into CUR_LIST_OF_FULLGROUPNAMES NoSelect
+
+	ReDim arrFullGroupNames(TableInfo("CUR_LIST_OF_FULLGROUPNAMES", TAB_INFO_NROWS))
+	nCount = 0
+
+	If TableInfo("CUR_LIST_OF_FULLGROUPNAMES", TAB_INFO_NROWS) > 0 Then
+
+		Fetch First From CUR_LIST_OF_FULLGROUPNAMES
+		Do Until EOT(CUR_LIST_OF_FULLGROUPNAMES)
+
+			nCount 				= nCount + 1
+			nGroupID				= CUR_LIST_OF_FULLGROUPNAMES.GROUPID
+			nSubGroupID				= CUR_LIST_OF_FULLGROUPNAMES.SUBGROUPID
+
+			arrFullGroupNames(nCount)	= kpgGetFullGroupName$(nGroupID, nSubGroupID)
+
+			Fetch Next From CUR_LIST_OF_FULLGROUPNAMES
+		Loop
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	returner elementno i array for given værdi...
+'********************************************************
+Function kpgGetGroupElementNo(ByVal szGroupName As String, arrGroup() As String) As Integer
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	kpgGetGroupElementNo = 2
+
+	For i = 1 To Ubound(arrGroup)
+		If arrGroup(i) = szGroupName Then
+			kpgGetGroupElementNo = i
+			Exit Function
+		End If
+	Next
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	returner elementno i array for given værdi...
+'********************************************************
+Function kpgGetSubGroupElementNo(ByVal szSubGroupName As String, arrSubGroup() As String) As Integer
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	kpgGetSubGroupElementNo = 2
+
+	For i = 1 To Ubound(arrSubGroup)
+		If arrSubGroup(i) = szSubGroupName Then
+			kpgGetSubGroupElementNo = i
+			Exit Function
+		End If
+	Next
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Sletter kombination af tabel og gruppe/undergruppe......
+'********************************************************
+Function kpgRemoveGroupSetup(	ByVal nTableID As Integer, ByVal nLayerID As Integer, 
+					ByVal nGroupID As Integer, ByVal nSubGroupID As Integer) As Integer
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+kpgRemoveGroupSetup = RESULT_GROUP_SETUP_NOT_ERASED
+
+	bCloseTab = kpaOpenKPTGroupTable()
+
+	If nLayerID = VAL_LAYERID_ALL_BY_TAB Then
+		Select * From KPTGROUP
+			Where TABLEID	= nTableID
+			AND	GROUPID	= nGroupID
+			AND	SUBGROUPID	= nSubGroupID
+			Into GROUPSETUP_REMOVE NoSelect
+	ElseIf nSubGroupID = SUBGROUPID_ALL Then
+		Select * From KPTGROUP
+			Where TABLEID	= nTableID
+			AND	LAYERID	= nLayerID
+			AND	GROUPID	= nGroupID
+			Into GROUPSETUP_REMOVE NoSelect
+	Else
+		Select * From KPTGROUP
+			Where TABLEID	= nTableID
+			AND	LAYERID	= nLayerID
+			AND	GROUPID	= nGroupID
+			AND	SUBGROUPID	= nSubGroupID
+			Into GROUPSETUP_REMOVE NoSelect
+	End If
+	
+	If TableInfo("GROUPSETUP_REMOVE", TAB_INFO_NROWS) > 0 Then
+		'Print "Sletter gruppering!"
+		Delete From GROUPSETUP_REMOVE
+		kpgRemoveGroupSetup = RESULT_GROUP_SETUP_ERASED
+	Else
+		'Print "Gruppering fandtes ikke!"
+		kpgRemoveGroupSetup = RESULT_GROUP_SETUP_DIDNOT_EXIST
+	End If
+
+	If bCloseTab Then
+		Commit Table KPTGROUP
+		Call TABClose("KPTGROUP")
+	Else	
+		Call TABClose("GROUPSETUP_REMOVE")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Sletter kombination af tabel og gruppe/undergruppe......
+'********************************************************
+Function kpgRemoveGroupSetupByTable(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Integer
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+kpgRemoveGroupSetupByTable = RESULT_GROUP_SETUP_NOT_ERASED
+
+	bCloseTab = kpaOpenKPTGroupTable()
+
+	If nLayerID = VAL_LAYERID_ALL_BY_TAB Then
+		Select * From KPTGROUP
+			Where TABLEID	= nTableID
+			Into GROUPSETUP_REMOVE NoSelect
+	Else
+		Select * From KPTGROUP
+			Where TABLEID	= nTableID
+			AND	LAYERID	= nLayerID
+			Into GROUPSETUP_REMOVE NoSelect
+	End If
+	
+	If TableInfo("GROUPSETUP_REMOVE", TAB_INFO_NROWS) > 0 Then
+		Delete From GROUPSETUP_REMOVE
+		kpgRemoveGroupSetupByTable = RESULT_GROUP_SETUP_ERASED
+	Else
+		kpgRemoveGroupSetupByTable = RESULT_GROUP_SETUP_DIDNOT_EXIST
+	End If
+
+	If bCloseTab Then
+		Commit Table KPTGROUP
+		Call TABClose("KPTGROUP")
+	Else	
+		Call TABClose("GROUPSETUP_REMOVE")
+	End If
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Opretter kombination af tabel og gruppe/undergruppe......
+'********************************************************
+Function kpgCreateGroupSetup(ByVal nTableID As Integer, ByVal nLayerID As Integer,
+					ByVal nGroupID As Integer, ByVal nSubGroupID As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+kpgCreateGroupSetup = RESULT_GROUP_SETUP_NOT_CREATED
+
+	If NOT kpgTableGroupingExists(nTableID, nLayerID, nGroupID, nSubGroupID) Then
+		Insert Into KPTGROUP
+			(TABLEID, LAYERID, GROUPID, SUBGROUPID, TABLELAYERID)
+			Values (nTableID, nLayerID, nGroupID, nSubGroupID, nTableID & "-" & nLayerID)
+		kpgCreateGroupSetup = RESULT_GROUP_SETUP_CREATED
+	Else
+		kpgCreateGroupSetup	= RESULT_GROUP_SETUP_EXISTED
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer GROUPNAME (SUBGROUPNAME) udfra GROUPID & SUBGROUPID......
+'********************************************************
+Function kpgGetFullGroupName$(ByVal nGroupID As Integer, ByVal nSubGroupID As Integer) As String
+
+OnError GoTo ErrorOccured
+
+	kpgGetFullGroupName$ = kpgGetGroupName$(nGroupID) + "(" + kpgGetSubGroupName$(nSubGroupID) + ")"
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer GROUPNAME udfra GROUPID......
+'********************************************************
+Function kpgGetGroupName$(ByVal nGroupID As Integer) As String
+
+Dim	szName As String
+
+OnError GoTo ErrorOccured
+
+	If nGroupID = GROUPID_NONE Then
+		szName = MSG_NONE
+	ElseIf nGroupID = GROUPID_ALL Then
+		szName = STYL_ALL_GROUPS
+	Else
+		Select * From KPGROUP
+			Where GROUPID = nGroupID
+			Into CUR_GROUPNAME NoSelect
+
+		If TableInfo("CUR_GROUPNAME", TAB_INFO_NROWS) > 0 Then
+			Fetch First From CUR_GROUPNAME
+			szName = CUR_GROUPNAME.GROUPNAME
+		Else
+			szName = MSG_UNKNOWN
+		End If
+
+		Close Table CUR_GROUPNAME
+	End If
+
+	kpgGetGroupName$ = szName
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer GROUPID udfra GROUPNAME......
+'********************************************************
+Function kpgGetGroupID(ByVal szGroupName As String) As Integer
+
+Dim	nID As Integer
+
+OnError GoTo ErrorOccured
+
+	Do Case szGroupName 
+		Case "", MSG_NONE
+			nID = GROUPID_NONE
+		Case STYL_ALL_GROUPS
+			nID = GROUPID_ALL
+		Case Else
+			Select * From KPGROUP
+				Where GROUPNAME = szGroupName
+				Into CUR_GROUPNAME NoSelect
+
+			If TableInfo("CUR_GROUPNAME", TAB_INFO_NROWS) > 0 Then
+				Fetch First From CUR_GROUPNAME
+				nID = CUR_GROUPNAME.GROUPID
+			Else
+				nID = GROUPID_NONE
+			End If
+
+			Close Table CUR_GROUPNAME
+	End Case
+	
+	kpgGetGroupID = nID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer SUBGROUPID udfra SUBGROUPNAME......
+'********************************************************
+Function kpgGetSubGroupID(ByVal szSubGroupName As String) As Integer
+
+Dim	nID As Integer
+
+OnError GoTo ErrorOccured
+
+	Do Case szSubGroupName 
+		Case "", MSG_NONE
+			nID = SUBGROUPID_NONE
+		Case STYL_ALL_SUBGROUPS
+			nID = SUBGROUPID_ALL
+		Case Else
+			Select * From KPSGROUP
+				Where SUBGROUPNAME = szSubGroupName
+				Into CUR_GROUPNAME NoSelect
+
+			If TableInfo("CUR_GROUPNAME", TAB_INFO_NROWS) > 0 Then
+				Fetch First From CUR_GROUPNAME
+				nID = CUR_GROUPNAME.SUBGROUPID
+			Else
+				nID = SUBGROUPID_NONE
+			End If
+
+			Close Table CUR_GROUPNAME
+	End Case
+	
+	kpgGetSubGroupID = nID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer SUBGROUPNAME udfra GROUPID & SUBGROUPID......
+'********************************************************
+Function kpgGetSubGroupName$(ByVal nSubGroupID As Integer) As String
+
+Dim	szName As String
+
+OnError GoTo ErrorOccured
+
+	If nSubGroupID = SUBGROUPID_NONE Then
+		szName = MSG_NONE
+	ElseIf nSubGroupID = SUBGROUPID_ALL Then
+		szName = STYL_ALL_SUBGROUPS
+	Else
+		Select * From KPSGROUP
+			Where SUBGROUPID	= nSubGroupID
+			Into CUR_SUBGROUPNAME NoSelect
+
+		If TableInfo("CUR_SUBGROUPNAME", TAB_INFO_NROWS) > 0 Then
+			Fetch First From CUR_SUBGROUPNAME
+			szName = CUR_SUBGROUPNAME.SUBGROUPNAME
+		Else
+			szName = MSG_UNKNOWN
+		End If
+
+		Close Table CUR_SUBGROUPNAME
+	End If
+
+	kpgGetSubGroupName$ = szName
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer GROUPID udfra ElementNr......
+'********************************************************
+Function kpgGetGroupIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Do Case nElementNo
+		Case 0
+			kpgGetGroupIDFromElementNo = GROUPID_UNKNOWN
+		Case 1
+			kpgGetGroupIDFromElementNo = GROUPID_NONE
+		Case 2
+			kpgGetGroupIDFromElementNo = GROUPID_NONE
+		Case Else
+			Fetch Rec (nElementNo - 2) From CUR_LIST_OF_GROUPS
+
+			kpgGetGroupIDFromElementNo = CUR_LIST_OF_GROUPS.GROUPID
+	End Case
+
+	Exit Function
+
+'--------------------
+ErrorOccured:
+	kpgGetGroupIDFromElementNo = GROUPID_UNKNOWN
+
+End Function
+
+'********************************************************
+'	Returnerer SUBGROUPID udfra ElementNr......
+'********************************************************
+Function kpgGetSubGroupIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Do Case nElementNo
+		Case 0
+			kpgGetSubGroupIDFromElementNo = SUBGROUPID_UNKNOWN
+		Case 1
+			kpgGetSubGroupIDFromElementNo = SUBGROUPID_NONE
+		Case 2
+			kpgGetSubGroupIDFromElementNo = SUBGROUPID_NONE
+		Case Else
+			Fetch Rec (nElementNo - 2) From CUR_LIST_OF_SUBGROUPS
+
+			kpgGetSubGroupIDFromElementNo = CUR_LIST_OF_SUBGROUPS.SUBGROUPID
+	End Case
+
+	Exit Function
+'--------------------
+ErrorOccured:
+	kpgGetSubGroupIDFromElementNo = SUBGROUPID_UNKNOWN
+
+End Function
+
+'********************************************************
+'	Opretter liste med gruppe-navne - LÅSTE......
+'********************************************************
+Sub kpgCreateListOfGroupNamesLocked(arrGroups() As String)
+
+Dim	nCount As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPGROUP
+		Where GROUPID In (Select GROUPID From KPTGROUP Group By GROUPID)
+		Order By GROUPNAME
+		Into CUR_LIST_OF_GROUPS NoSelect
+
+	ReDim arrGroups(TableInfo("CUR_LIST_OF_GROUPS", TAB_INFO_NROWS) + 2)
+	nCount = 1
+	arrGroups(nCount) = MSG_NONE
+	nCount = 2
+	arrGroups(nCount) = STYL_ALL_GROUPS
+
+	If TableInfo("CUR_LIST_OF_GROUPS", TAB_INFO_NROWS) > 0 Then
+
+		Fetch First From CUR_LIST_OF_GROUPS
+		Do Until EOT(CUR_LIST_OF_GROUPS)
+
+			nCount 		= nCount + 1
+			arrGroups(nCount)	= CUR_LIST_OF_GROUPS.GROUPNAME
+
+			Fetch Next From CUR_LIST_OF_GROUPS
+		Loop
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Opretter liste med undergruppe-navne - LÅSTE......
+'********************************************************
+Sub kpgCreateListOfSubGroupNamesLocked(ByVal nGroupID As Integer, arrSubGroups() As String)
+
+Dim	nCount As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPSGROUP
+		Where SUBGROUPID in (Select SUBGROUPID From KPTGROUP
+						Where GROUPID = nGroupID
+						Group By SUBGROUPID)
+		Order By SUBGROUPNAME
+		Into CUR_LIST_OF_SUBGROUPS_LOCKED NoSelect
+
+	ReDim arrSubGroups(TableInfo("CUR_LIST_OF_SUBGROUPS_LOCKED", TAB_INFO_NROWS) + 1)
+	nCount = 1
+	arrSubGroups(nCount) = STYL_ALL_SUBGROUPS
+
+	If TableInfo("CUR_LIST_OF_SUBGROUPS_LOCKED", TAB_INFO_NROWS) > 0 Then
+
+		Fetch First From CUR_LIST_OF_SUBGROUPS_LOCKED
+		Do Until EOT(CUR_LIST_OF_SUBGROUPS_LOCKED)
+
+			nCount 		= nCount + 1
+			arrSubGroups(nCount)	= CUR_LIST_OF_SUBGROUPS_LOCKED.SUBGROUPNAME
+
+			Fetch Next From CUR_LIST_OF_SUBGROUPS_LOCKED
+		Loop
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'	Opretter liste med tabelnavne, som er tilknyttet disse grupper/undergrupper
+'**********************************************************************************************''
+Sub kpgCreateListOfTableNamesByGroup(	ByVal nGroupID As Integer, ByVal nSubGroupID As Integer,
+							arrTableNames() As String)
+
+OnError GoTo ErrorOccured
+
+Dim	nCount As Integer
+
+	'Print "Group/SubGroup : " & nGroupID & " / " & nSubGroupID
+	If nSubGroupID = SUBGROUPID_ALL Then
+		'**Don't look a the SUBGROUPID
+		Select * From KPTABLES
+			Where TABLEID In (Select TABLEID
+							From KPTGROUP
+							Where GROUPID	= nGroupID
+							Group By TABLEID)
+			Order By TABLENAME
+			Into CUR_LIST_OF_GROUP_TABLES NoSelect
+	Else
+		Select * From KPTABLES
+			Where TABLEID In (Select TABLEID
+							From KPTGROUP
+							Where GROUPID	= nGroupID
+							AND	SUBGROUPID	= nSubGroupID
+							Group By TABLEID)
+			Order By TABLENAME
+			Into CUR_LIST_OF_GROUP_TABLES NoSelect
+	End If
+	
+	ReDim arrTableNames(TableInfo("CUR_LIST_OF_GROUP_TABLES", TAB_INFO_NROWS))
+
+	If TableInfo("CUR_LIST_OF_GROUP_TABLES", TAB_INFO_NROWS) > 0 Then
+
+		Fetch First From CUR_LIST_OF_GROUP_TABLES
+		Do Until EOT(CUR_LIST_OF_GROUP_TABLES)
+
+			nCount 			= nCount + 1
+			arrTableNames(nCount)	= CUR_LIST_OF_GROUP_TABLES.TABLENAME
+
+			Fetch Next From CUR_LIST_OF_GROUP_TABLES
+		Loop
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Returnerer GROUPID udfra ElementNr - LÅST......
+'********************************************************
+Function kpgGetGroupIDFromElementNoLocked(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Do Case nElementNo
+		Case 0
+			kpgGetGroupIDFromElementNoLocked = GROUPID_UNKNOWN
+		Case 1
+			kpgGetGroupIDFromElementNoLocked = GROUPID_NONE
+		Case 2
+			kpgGetGroupIDFromElementNoLocked = GROUPID_NONE
+		Case Else
+			Fetch Rec (nElementNo - 2) From CUR_LIST_OF_GROUPS
+
+			kpgGetGroupIDFromElementNoLocked = CUR_LIST_OF_GROUPS.GROUPID
+	End Case
+
+	Exit Function
+'--------------------
+ErrorOccured:
+	kpgGetGroupIDFromElementNoLocked = GROUPID_UNKNOWN
+
+End Function
+
+'********************************************************
+'	Returnerer SUBGROUPID udfra ElementNr - LÅST......
+'********************************************************
+Function kpgGetSubGroupIDFromElementNoLocked(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Do Case nElementNo
+		Case 0
+			kpgGetSubGroupIDFromElementNoLocked = SUBGROUPID_UNKNOWN
+		Case 1
+			kpgGetSubGroupIDFromElementNoLocked = SUBGROUPID_NONE
+		Case Else
+			Fetch Rec (nElementNo - 1) From CUR_LIST_OF_SUBGROUPS_LOCKED
+
+			kpgGetSubGroupIDFromElementNoLocked = CUR_LIST_OF_SUBGROUPS_LOCKED.SUBGROUPID
+	End Case
+
+	Exit Function
+'--------------------
+ErrorOccured:
+	kpgGetSubGroupIDFromElementNoLocked = SUBGROUPID_UNKNOWN
+
+End Function
+
+'********************************************************
+'	Returnerer SUBGROUPID udfra ElementNr - LÅST......
+'********************************************************
+Function kpgGetSubGroupIDFromElementNoAll(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+'	Print "  Søger element: " & nElementNo
+'	Print "  Poster i CUR_LIST_OF_SUBGROUPS_ALL: "
+'	Print "        " & GetNumRows("CUR_LIST_OF_SUBGROUPS_ALL")
+
+	Do Case nElementNo
+		Case 0, 1
+			kpgGetSubGroupIDFromElementNoAll = SUBGROUPID_UNKNOWN
+		Case 2
+			kpgGetSubGroupIDFromElementNoAll = SUBGROUPID_NONE
+		Case 3
+			kpgGetSubGroupIDFromElementNoAll = SUBGROUPID_ALL
+		Case Else
+			Fetch Rec (nElementNo - 3) From CUR_LIST_OF_SUBGROUPS_ALL
+
+			kpgGetSubGroupIDFromElementNoAll = CUR_LIST_OF_SUBGROUPS_ALL.SUBGROUPID
+	End Case
+
+	Exit Function
+'--------------------
+ErrorOccured:
+	kpgGetSubGroupIDFromElementNoAll = SUBGROUPID_UNKNOWN
+
+End Function
+
+'**********************************************************************************************''
+'	Returnerer TABLEID udfra ElementNr
+'**********************************************************************************************''
+Function kpgGetTableIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Do Case nElementNo
+		Case 0
+			kpgGetTableIDFromElementNo = 0
+		Case 1
+			kpgGetTableIDFromElementNo = 0
+		Case Else
+			Fetch Rec (nElementNo - 1) From CUR_LIST_OF_GROUP_TABLES
+
+			kpgGetTableIDFromElementNo = CUR_LIST_OF_GROUP_TABLES.TABLEID
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer om tabel er tilknyttet nævnte grupper......
+'********************************************************
+Function kpgTableGroupingExists(	ByVal nTableID As Integer, ByVal nLayerID As Integer,
+						ByVal nGroupID As Integer, ByVal nSubGroupID As Integer) As Logical
+
+OnError GoTo ErrorOccured
+
+	Select * From KPTGROUP
+		Where TABLEID 	= nTableID
+		AND	LAYERID	= nLayerID
+		AND 	GROUPID 	= nGroupID
+		AND	SUBGROUPID	= nSubGroupID
+		Into DOES_THIS_EXIST NoSelect
+	
+	If TableInfo("DOES_THIS_EXIST", TAB_INFO_NROWS) = 0 Then
+		kpgTableGroupingExists	= FALSE
+	Else
+		kpgTableGroupingExists	= TRUE
+	End If
+
+	Close Table DOES_THIS_EXIST
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function

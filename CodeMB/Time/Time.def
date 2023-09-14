@@ -1,0 +1,131 @@
+'******************************************************************************************
+'26.09.2002/PEM	- Tilføjet
+'				- TIMEGetDateFromTimeStamp() 
+'				- TIMEGetTimeFromTimeStamp()
+'16.10.2002/PEM	- Tilføjet
+'				- TIMECompareSystemTime()
+'				- TIMEGetNiceSystemTime$()
+'				- TIMEMilliSecondsSpent()
+'				- TIMEHoursSpent()
+'				- TIMEDaysBetween()
+'				- TIMESecondsToMilliSeconds()
+'				- TIMEMinutsToMilliSeconds()
+'				- TIMEMinutsToSeconds()
+'				- TIMEHoursToMilliSeconds()
+'				- TIMEHoursToMinuts()
+'				- TIMEDaysToMilliSeconds()
+'				- TIMEDaysToHours()
+'******************************************************************************************
+
+'----------------------------
+'Types....
+'----------------------------
+Type SYSTEMTIME
+	wYear			As SmallInt
+	wMonth		As SmallInt
+	wDayOfWeek		As SmallInt
+	wDay			As SmallInt
+	wHour			As SmallInt
+	wMinute		As SmallInt
+	wSecond		As SmallInt
+	wMilliSeconds	As SmallInt
+End Type
+
+'----------------------------
+'Declares....
+'----------------------------
+Declare Sub GetLocalTime Lib "kernel32" Alias "GetLocalTime" (lpSystemTime As SYSTEMTIME)
+Declare Sub PickTheDate Lib "PickDate" (Byval posx as integer, Byval PosY as integer, Year as integer, Month as integer, Day as integer)
+
+Declare Function GetTime$() As String
+Declare Function GetHour() As SmallInt
+Declare Function GetMinute() As SmallInt
+Declare Function GetSecond() As SmallInt
+Declare Function GetMilliSecond() As SmallInt
+
+Define TIME_COMP_SAME_TIME		0
+Define TIME_COMP_FIRST_NEWEST		1
+Define TIME_COMP_SECOND_NEWEST	2
+Declare Function TIMECompareSystemTimes(stFirst As SYSTEMTIME, stSecond As SYSTEMTIME) As Integer
+Declare Function TIMEAreSystemTimesEqual(stFirst As SYSTEMTIME, stSecond As SYSTEMTIME) As Logical
+Declare Function TIMEIsFirstSystemTimeNewest(stFirst As SYSTEMTIME, stSecond As SYSTEMTIME) As Logical
+
+
+'----- C A L C   O F   T I M E S P E N T ---------------------------------------------------
+Declare Function TimeSpent(prevTime As SYSTEMTIME) As Integer
+Declare Function TIMEMilliSecondsSpent(stPrev As SYSTEMTIME) As Integer
+Declare Function TIMEHoursSpent(stPrev As SYSTEMTIME) As Integer
+
+Declare Function TIMEDaysBetween(stNow As SYSTEMTIME, stThen As SYSTEMTIME) As Integer
+
+Declare Function TIMESecondsToMilliSeconds(ByVal nSeconds As Integer) As Integer
+Declare Function TIMEMinutsToMilliSeconds(ByVal nMinuts As Integer) As Integer
+Declare Function TIMEMinutsToSeconds(ByVal nMinuts As Integer) As Integer
+Declare Function TIMEHoursToMilliSeconds(ByVal nHours As Integer) As Integer
+Declare Function TIMEHoursToMinuts(ByVal nHours As Integer) As Integer
+Declare Function TIMEDaysToMilliSeconds(ByVal nDays As Integer) As Integer
+Declare Function TIMEDaysToHours(ByVal nDays As Integer) As Integer
+
+Declare Function TimespendDays(	ByVal dDate1 As Date, ByVal dDate2 As Date) As Integer
+Declare Function TimespendWeeks(	ByVal dDate1 As Date, ByVal dDate2 As Date) As Float
+Declare Function TimespendMonths(	ByVal dDate1 As Date, ByVal dDate2 As Date) As Float
+Declare Function TimespendKvartal(	ByVal dDate1 As Date, ByVal dDate2 As Date) As Float
+Declare Function TimespendHalfYears(ByVal dDate1 As Date, ByVal dDate2 As Date) As Float
+Declare Function TimespendYears(	ByVal dDate1 As Date, ByVal dDate2 As Date) As Float
+Declare Function DaysInMonth(		ByVal nMonth As Integer, ByVal nYear As Integer) As Integer
+
+'-----C A L C   N E W   D A T E-------------------------------------------------------------
+Declare Function NewDateAfterNDays(		ByVal dDate As Date, ByVal nDays As Integer) As Date
+Declare Function NewDateAfterNWeeks(	ByVal dDate As Date, ByVal nWeeks As Integer) As Date
+Declare Function NewDateAfterNMonths(	ByVal dDate As Date, ByVal nMonths As Integer) As Date
+Declare Function NewDateAfterNKvartaler(	ByVal dDate As Date, ByVal nKvartaler As Integer) As Date
+Declare Function NewDateAfterNHalfYears(	ByVal dDate As Date, ByVal nHalfYears As Integer) As Date
+Declare Function NewDateAfterNYears(	ByVal dDate As Date, ByVal nYears As Integer) As Date
+
+Declare Function GetDateFromSystemTime(stimCur As SYSTEMTIME) As Date
+Declare Function TIMEGetNiceSystemTime$(stCur As SYSTEMTIME) As String
+
+'This function needs the "PickDate.dll"
+Declare Function GetDateFromDlg(	ByVal nPosX As Integer, ByVal nPosY As Integer,
+						nYear As Integer, nMonth As Integer, nDay As Integer) As Logical
+
+'----- R E T R I E V I N G   D A T E S T R I N G S ------------------------------------------
+Declare Function GetWeekDay$() As String
+Declare Function GetMonthNumber$() As String
+Declare Function GetMonthLong$() As String
+Declare Function GetMonthShort$() As String
+Declare Function GetYear$() As String
+Declare Function GetDay$() As String
+
+Declare Function GetMonthLongFromDate$(ByVal dDate As Date) As String
+Declare Function GetMonthShortFromDate$(ByVal dDate As String) As String
+Declare Function GetDayFromDate$(ByVal dDate As Date) As String
+Declare Function GetMonthFromDate$(ByVal dDate As Date) As String
+Declare Function GetYearFromDate$(ByVal dDate As Date) As String
+Declare Function GetWeekDayFromDate$(ByVal dDate As Date) As String
+
+Declare Function GetDate$() As String
+Declare Function GetNiceDate$() As String
+Declare Function GetLongDate$() As String		'DD. MMMMMMMM YYYY
+Declare Function GetShortDate$() As String	'DD. MMM. YYYY
+
+'---- C O N V E R T I N G   D A T E S   E T C -----------------------------------------------
+Declare Function Date2String$(ByVal dDate As Date) As String
+Declare Function String2Date(ByVal szDate As String) As Date
+Declare Function GetDateFromDayMonthYear(ByVal szDay As String, ByVal szMonth As String, ByVal szYear As String) As Date
+
+'---- C H E C K I N G   D A T E S   A S   S T R I N G S -------------------------------------
+Declare Function CheckDateStrings(szDay As String, szMonth As String, szYear As String) As Logical
+Declare Function CheckDayString(szDay As String) As Logical
+Declare Function CheckMonthString(szMonth As String) As Logical
+Declare Function CheckYearString(szYear As String) As Logical
+Declare Function Skudår(ByVal nYear As Integer) As Logical
+
+Declare Function TIMEGetDateFromTimeStamp(ByVal szDateTime As String) As Date
+Declare Function TIMEGetTimeFromTimeStamp(ByVal szDateTime As String) As Float
+
+
+'**************************************************************************************************************
+'****	Backwards compatability
+'**************************************************************************************************************
+Declare Function GetTime() As String

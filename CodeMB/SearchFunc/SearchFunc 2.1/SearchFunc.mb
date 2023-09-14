@@ -1,0 +1,904 @@
+'*******************************************************************************
+'** 	Program:		Byggesagsapplikation
+'** 	Modul:		BygSearch
+'**	Function		Søgning på definere tabeller og kolonner
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\Kommune.lng"
+
+Include "..\..\Time\Time.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\MapFunc\MapFunc.def"
+Include "..\..\PadFunc\PadFunc.def"
+Include "..\..\IniUtil\IniUtil.def"
+Include "..\..\FileFunc\FileFunc.def"
+Include "..\..\StyleFunc\StyleFunc.def"
+Include "..\..\ArrayFunc\ArrayFunc.def"
+
+Include "SearchFunc.def"
+
+'**********************************************************************************************''
+'Returnere søgetype udfra supersøgetype og undersøgetype
+'**********************************************************************************************''
+Function SRCHGetSearchType(ByVal nSuperSearchType As Integer, ByVal nSubSearchType As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	SRCHGetSearchType = (100 * nSuperSearchType) + nSubSearchType
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnere søgetype udfra supersøgetype og undersøgetype
+'**********************************************************************************************''
+Function SRCHGetSuperSearchType(ByVal nSearchType As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	SRCHGetSuperSearchType = Val(Left$(Str$(nSearchType), 1)) * 100
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnere søgetype udfra supersøgetype og undersøgetype
+'**********************************************************************************************''
+Function SRCHGetSubSearchType(ByVal nSearchType As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	SRCHGetSubSearchType = nSearchType
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnere søgetype udfra supersøgetype og undersøgetype
+'**********************************************************************************************''
+Function SRCHGetSuperSearchItem(ByVal nSearchType As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	SRCHGetSuperSearchItem = Val(Left$(Str$(nSearchType), 1))
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnere søgetype udfra supersøgetype og undersøgetype
+'**********************************************************************************************''
+Function SRCHGetSubSearchItem(ByVal nSearchType As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	SRCHGetSubSearchItem = nSearchType - (SRCHGetSuperSearchType(nSearchType))
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer svar på om der skal anvendes 2 tabeller til en given søgetype
+'**********************************************************************************************''
+Function SRCHUseSecondTable(ByVal nSearchType As Integer) As Logical
+
+OnError GoTo ErrorOccured
+
+	Do Case SRCHGetSuperSearchItem(nSearchType)
+		Case STYPE_MAPINFO_FIND_1T, 1
+			SRCHUseSecondTable = FALSE
+		Case STYPE_MAPINFO_FIND_2T, 2
+			SRCHUseSecondTable = TRUE
+		Case STYPE_ADRESSE_OPSLAG_1T, 3
+			SRCHUseSecondTable = FALSE
+		Case STYPE_ADRESSE_OPSLAG_2T, 4
+			SRCHUseSecondTable = TRUE
+		Case STYPE_MATRIKEL_OPSLAG_1T, 5
+			SRCHUseSecondTable = FALSE
+		Case STYPE_MATRIKEL_OPSLAG_2T, 6
+			SRCHUseSecondTable = TRUE
+	End Case
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'**********************************************************************************************''
+'Returnerer en stregn med en kombination af kolonnebeskrivelse og -navn
+'**********************************************************************************************''
+Function SRCHGetStringWithColNameAndDescr$(stabCur As T_SEARCHTAB) As String
+
+Dim	i As Integer,
+	szString As String
+
+OnError GoTo ErrorOccured
+
+SRCHGetStringWithColNameAndDescr$ = ""
+
+	If Ubound(stabCur.scolCols) = 0 Then
+		Exit Function
+	End If
+
+	For i = 1 To Ubound(stabCur.scolCols)
+		If i = 1 Then
+			szString = stabCur.scolCols(i).szDescription & " - " & stabCur.scolCols(i).szName
+		Else
+			szString = szString & ";" & stabCur.scolCols(i).szDescription & " - " & stabCur.scolCols(i).szName
+		End If
+	Next
+
+	'Print "ListeStreng : " & szString
+
+SRCHGetStringWithColNameAndDescr$ = szString
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer et udtryk bestående af: col + operator + værdi
+'**********************************************************************************************''
+Function SRCHGetConditionFromValue$(ByVal szTab As String, ByVal szCol As String,
+						ByVal szOperator As String, ByVal szValue As String) As String
+Dim	szCond As String
+
+OnError GoTo ErrorOccured
+
+	'Print szTab & ", " &szCol & ", " & szOperator & ", " & szValue
+	'If szValue = "" Then
+	'	szCond = ""
+	'Else
+		If szOperator = "Like" Then
+			If szValue = "" Then
+				szCond = ""
+			Else
+				If InStr(1, szValue, "%") > 0 OR InStr(1, szValue, "_") > 0 Then
+					If InStr(1, szCol, "+") > 0 OR InStr(1, szCol, "&") > 0 Then
+						szCond = szCol & " " & szOperator & " " & eye & szValue & eye
+					ElseIf ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_CHAR Then
+						szCond = szCol & " " & szOperator & " " & eye & szValue & eye
+					Else
+						szCond = "Str$(" & szCol & ") " & " " & szOperator & " " & eye & szValue & eye 
+					End If
+				Else
+					szCond = SRCHGetConditionFromValue$(szTab, szCol, "=", szValue)
+				End If	
+			End If
+		Else
+			If InStr(1, szCol, "+") > 0 OR InStr(1, szCol, "&") > 0 Then
+				szCond = szCol & " " & szOperator & " " & eye & szValue & eye
+			ElseIf ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_CHAR Then
+				szCond = szCol & szOperator & eye & szValue & eye
+			Else
+				szCond = szCol & szOperator & szValue
+			End If
+		End If
+	'End If
+	
+	SRCHGetConditionFromValue$ = szCond
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Kombinerer 2 betingelser, undersøger om de evt. er tomme
+'**********************************************************************************************''
+Function SRCHCombineConditions$(ByVal szCond1 As String, ByVal szCond2 As String) As String
+
+Dim	szCond As String
+
+OnError GoTo ErrorOccured
+
+SRCHCombineConditions$ = ""
+
+	If szCond1 = "" AND szCond2 = "" Then
+		szCond = ""
+	ElseIf szCond1 = "" Then
+		szCond = szCond2
+	ElseIf szCond2 = "" Then
+		szCond = szCond1
+	Else
+		szCond = szCond1 & " And " & szCond2
+	End If
+	
+	SRCHCombineConditions$ = szCond
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+' Henter værdier fra en given kolonne i given tabels som opfylder givne betingelser
+'**********************************************************************************************''
+Function SRCHLoadUniqueValuesFromCol(	ByVal szTab As String, ByVal szCol As String,
+							ByVal szCondition As String, arrValues() As String) As Logical
+
+Dim	szCmdStr As String,
+	nNumRows, nCount As Integer
+
+OnError GoTo ErrorOccured
+
+SRCHLoadUniqueValuesFromCol = FALSE
+
+	szCmdStr	= "Select " & szCol & eye & "UNIQUE__VAL" & eye & " From " & szTab
+	If szCondition <> "" Then
+		szCmdStr	= szCmdStr & " Where " & szCondition
+	End If
+	szCmdStr	= szCmdStr 	& " Group By " & szCol
+					& " Order By " & szCol
+					& " Into CUR__UNIQUE_VALUES NoSelect" 
+
+	'Print szCmdStr
+	Run Command szCmdStr
+	
+	nNumRows = TableInfo("CUR__UNIQUE_VALUES", TAB_INFO_NROWS)
+	ReDim	arrValues(nNumRows)
+	If nNumRows > 0 Then
+		Fetch First From CUR__UNIQUE_VALUES
+		Do Until EOT(CUR__UNIQUE_VALUES)
+			nCount = nCount + 1
+			arrValues(nCount)	= CUR__UNIQUE_VALUES.UNIQUE__VAL
+			
+			Fetch Next From CUR__UNIQUE_VALUES
+		Loop
+		SRCHLoadUniqueValuesFromCol = TRUE
+	End If
+	
+	Close Table CUR__UNIQUE_VALUES
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+	Print szCmdStr
+
+End Function
+
+'**********************************************************************************************''
+' Henter værdier fra en given kolonne i given tabels som opfylder givne betingelser
+'**********************************************************************************************''
+Function SRCHLoadUniqueValuesFromColExt(	ByVal szTab As String, ByVal szCol As String,
+								ByVal szCondition As String, arrValues() As String) As Logical
+
+Dim	szCmdStr As String,
+	nNumRows, nCount As Integer
+
+OnError GoTo ErrorOccured
+
+SRCHLoadUniqueValuesFromColExt = FALSE
+
+	If NOT ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_CHAR Then
+		'**If not CHAR type, then use simple Load function
+		If SRCHLoadUniqueValuesFromCol(szTab, szCol, szCondition, arrValues) Then
+			SRCHLoadUniqueValuesFromColExt = TRUE
+		End If
+		Exit Function
+	End If
+		
+	szCmdStr	= "Select " & szCol & eye & "UNIQUE__VAL" & eye
+					& ", Val(" & szCol & ")" & eye & "UNIQUE_NUM" & eye
+					& ", Right$(" & szCol & ", Len(" & szCol & ") - Len(Str$(Val(" & szCol & "))))" & eye & "UNIQUE_STR" & eye
+					& " From " & szTab
+	If szCondition <> "" Then
+		szCmdStr	= szCmdStr & " Where " & szCondition
+	End If
+	szCmdStr	= szCmdStr 	& " Group By " & szCol
+					& " Order By UNIQUE_NUM, UNIQUE_STR"
+					& " Into CUR__UNIQUE_VALUES NoSelect" 
+
+	'Print szCmdStr
+	Run Command szCmdStr
+	
+	nNumRows = TableInfo("CUR__UNIQUE_VALUES", TAB_INFO_NROWS)
+	ReDim	arrValues(nNumRows)
+	If nNumRows > 0 Then
+		Fetch First From CUR__UNIQUE_VALUES
+		Do Until EOT(CUR__UNIQUE_VALUES)
+			nCount = nCount + 1
+			arrValues(nCount)	= CUR__UNIQUE_VALUES.UNIQUE__VAL
+			
+			Fetch Next From CUR__UNIQUE_VALUES
+		Loop
+		SRCHLoadUniqueValuesFromColExt = TRUE
+	End If
+	
+	Close Table CUR__UNIQUE_VALUES
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+	Print szCmdStr
+
+End Function
+
+'**********************************************************************************************''
+' Henter værdier fra to givne kolonner i given tabels som opfylder givne betingelser
+'**********************************************************************************************''
+Function SRCHLoadUniqueValuesFrom2ColsExt(ByVal szTab As String, ByVal szCol1 As String, ByVal szCol2 As String,
+							ByVal szCondition As String, arrValues() As String) As Logical
+
+Dim	szCol1Str, szCol2Str, szCmdStr As String,
+	nNumRows, nCount As Integer
+
+OnError GoTo ErrorOccured
+
+SRCHLoadUniqueValuesFrom2ColsExt = FALSE
+
+	If ColumnInfo(szTab, szCol1, COL_INFO_TYPE) = COL_TYPE_CHAR Then
+		szCol1Str = "Val(" & szCol1 & ") " & eye & "UNIQUE__VAL1" & eye 
+	Else
+		szCol1Str = szCol1 & " " & eye & "UNIQUE__VAL1" & eye 
+	End If
+	szCol2Str	= szCol2 & " " & eye & "UNIQUE__VAL2" & eye 
+
+	szCmdStr	= "Select " & szCol1Str & ", " & szCol2Str
+					& " From " & szTab
+	If szCondition <> "" Then
+		szCmdStr	= szCmdStr & " Where " & szCondition
+	End If
+	szCmdStr	= szCmdStr 	& " Group By " & szCol1 & ", " & szCol2 
+					& " Order By UNIQUE__VAL1, UNIQUE__VAL2"
+					& " Into CUR__UNIQUE_VALUES NoSelect" 
+
+	'Print szCmdStr
+	Run Command szCmdStr
+	
+	nNumRows = TableInfo("CUR__UNIQUE_VALUES", TAB_INFO_NROWS)
+	ReDim	arrValues(nNumRows)
+	If nNumRows > 0 Then
+		Fetch First From CUR__UNIQUE_VALUES
+		Do Until EOT(CUR__UNIQUE_VALUES)
+			nCount = nCount + 1
+			arrValues(nCount)	= CUR__UNIQUE_VALUES.UNIQUE__VAL1 & CUR__UNIQUE_VALUES.UNIQUE__VAL2
+			
+			Fetch Next From CUR__UNIQUE_VALUES
+		Loop
+		SRCHLoadUniqueValuesFrom2ColsExt = TRUE
+	End If
+	
+	Close Table CUR__UNIQUE_VALUES
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+	Print szCmdStr
+
+End Function
+
+'**********************************************************************************************''
+'Finder en værdi i en kolonne udfra en anden værdi i en anden kolonne
+'Finder f.eks. et vejnavn udfra en vejkode (vejkoden vil være en del af 'szCondition')
+'**********************************************************************************************''
+Function SRCHGetMatchingValueInOtherCol$(	ByVal szTab As String, ByVal szCol As String,
+								ByVal szMatchCol As String, ByVal szCondition As String) As String
+
+Dim	szCmdStr, szValue As String,
+	nNumRows As Integer
+
+OnError GoTo ErrorOccured
+
+SRCHGetMatchingValueInOtherCol$ = ""
+
+	szCmdStr	= "Select " & szMatchCol & eye & "MATCH__VAL" & eye & " From " & szTab
+	If szCondition <> "" Then
+		szCmdStr	= szCmdStr & " Where " & szCondition
+	End If
+	szCmdStr	= szCmdStr 	& " Group By " & szCol
+					& " Into CUR__MATCH__VALUE NoSelect" 
+
+	'Print szCmdStr
+	Run Command szCmdStr
+	
+	nNumRows = TableInfo("CUR__MATCH__VALUE", TAB_INFO_NROWS)
+	If nNumRows > 0 Then
+		Fetch First From CUR__MATCH__VALUE
+		szValue	= CUR__MATCH__VALUE.MATCH__VAL
+	End If
+	
+	Close Table CUR__MATCH__VALUE
+
+	SRCHGetMatchingValueInOtherCol$ = szValue
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+	Print szCmdStr
+
+End Function
+
+'--------------------------------------------------------------------------------------------------------------------
+'**********************************************************************************************''
+' Nulstiller / initialiserer søgeknapopsætning
+'**********************************************************************************************''
+Sub SRCHResetSearchButton(sbtnCur As T_SEARCHBTN)
+
+OnError GoTo ErrorOccured
+
+	sbtnCur.nSearchType	= SSTYPE_1_1T
+	sbtnCur.bShowAsButton	= TRUE
+	sbtnCur.bShowAsMenu	= FALSE
+	sbtnCur.szDescription	= MSG_NONE_GIVEN
+	sbtnCur.nZoom		= VALUE_DEFAULT_ZOOM
+	sbtnCur.bShowMarker	= FALSE
+	sbtnCur.symMarker		= SYM_DEFAULT_MARKER
+	sbtnCur.bSelect		= FALSE
+	sbtnCur.szIconFile	= ""
+	sbtnCur.nIcon		= MI_ICON_MISC_14
+
+	ReDim sbtnCur.stabTabs(0)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Kopierer en søgeknap opsætning til en anden
+'**********************************************************************************************''
+Sub SRCHCopySearchButton(sbtnFrom As T_SEARCHBTN, sbtnTo As T_SEARCHBTN)
+
+Dim	i, nTabs As Integer
+
+OnError GoTo ErrorOccured
+
+	sbtnTo.nSearchType	= sbtnFrom.nSearchType
+	sbtnTo.bShowAsButton	= sbtnFrom.bShowAsButton
+	sbtnTo.bShowAsMenu	= sbtnFrom.bShowAsMenu
+	sbtnTo.szDescription	= sbtnFrom.szDescription
+	sbtnTo.nZoom		= sbtnFrom.nZoom
+	sbtnTo.bShowMarker	= sbtnFrom.bShowMarker
+	sbtnTo.symMarker		= sbtnFrom.symMarker
+	sbtnTo.bSelect		= sbtnFrom.bSelect
+	sbtnTo.szIconFile		= sbtnFrom.szIconFile
+	sbtnTo.nIcon		= sbtnFrom.nIcon
+
+	nTabs	= Ubound(sbtnFrom.stabTabs)
+	ReDim sbtnTo.stabTabs(nTabs)
+	For i = 1 To nTabs
+		Call SRCHCopySearchTable(sbtnFrom.stabTabs(i), sbtnTo.stabTabs(i))
+	Next
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Konverterer en tekststreng til en søgeknap opsætning
+'**********************************************************************************************''
+Function SRCHConvertString2SearchButton(ByVal szText As String, sbtnNew As T_SEARCHBTN) As Logical
+
+Dim	arrStrings() As String,
+	i, j, nTabs, nNumStr As Integer
+
+OnError GoTo ErrorOccured
+
+SRCHConvertString2SearchButton = FALSE
+
+	'Print "BTN: " & szText
+
+	Call SRCHResetSearchButton(sbtnNew)
+	If szText = "" Then
+		Note "Ingen streng fundet. Anvender standard!"
+		SRCHConvertString2SearchButton = TRUE	'Well, not the whole truth, the string didn't contain any button, so..
+		Exit Function
+	End If
+
+	nNumStr = StrSplitDefinedChar(szText, ";", arrStrings, 99)
+
+	For i = 1 To nNumStr
+		arrStrings(i)	= Ltrim$(RTrim$(arrStrings(i)))
+	Next
+
+	For i = 1 To nNumStr
+		Do Case i
+			Case 1
+				sbtnNew.szDescription	= arrStrings(i)
+				If sbtnNew.szDescription = "" Then
+					sbtnNew.szDescription = MSG_UNKNOWN
+				End If
+			Case 2
+				sbtnNew.bShowAsButton	= (arrStrings(i) = "T")
+			Case 3
+				sbtnNew.bShowAsMenu	= (arrStrings(i) = "T")
+			Case 4
+				sbtnNew.nZoom		= Val(arrStrings(i))
+				If sbtnNew.nZoom <= 0 Then
+					sbtnNew.nZoom = VALUE_DEFAULT_ZOOM
+				End If
+			Case 5
+				sbtnNew.bShowMarker	= (arrStrings(i) = "T")
+			Case 6
+				sbtnNew.symMarker		= StyleFuncGetSymbolFromString(arrStrings(i))
+			Case 7
+				sbtnNew.bSelect		= (arrStrings(i) = "T")
+			Case 8
+				sbtnNew.szIconFile	= GetFileNameAbsolute$(arrStrings(i))
+			Case 9
+				sbtnNew.nIcon		= Val(arrStrings(i))
+			Case 10
+				sbtnNew.nSearchType	= Val(arrStrings(i))
+				If sbtnNew.nSearchType	< 201 Then
+					sbtnNew.nSearchType	= SSTYPE_1_1T
+				End If
+			Case 11
+				nTabs				= Val(arrStrings(i))
+				ReDim sbtnNew.stabTabs(nTabs)
+				For j = 1 To nTabs
+					If not SRCHConvertString2SearchTable(arrStrings(i + j), sbtnNew.stabTabs(j)) Then
+						Note "Fejl ved konvertering af tekst til tabel:"
+							& lf & arrStrings(j)
+					End If
+				Next
+			Case Else
+				Exit For
+		End Case
+	Next	
+
+	SRCHConvertString2SearchButton = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Konverterer en søgeknapopsætning til en tekststreng
+'**********************************************************************************************''
+Function SRCHConvertSearchButton2String$(sbtnCur As T_SEARCHBTN) As String
+
+Dim	szText As String,
+	nTabs, i As Integer
+
+OnError GoTo ErrorOccured
+
+	nTabs		= Ubound(sbtnCur.stabTabs)
+
+	szText	= sbtnCur.szDescription
+				& ";" & sbtnCur.bShowAsButton
+				& ";" & sbtnCur.bShowAsMenu
+				& ";" & Str$(sbtnCur.nZoom)
+				& ";" & sbtnCur.bShowMarker
+				& ";" & StyleFuncGetStringFromSymbol$(sbtnCur.symMarker)
+				& ";" & sbtnCur.bSelect
+				& ";" & GetFileNameRelative$(sbtnCur.szIconFile) & ";" & Str$(sbtnCur.nIcon)
+				& ";" & sbtnCur.nSearchType
+				& ";" & Str$(nTabs)
+			
+	For i = 1 To nTabs
+		szText = szText & ";" & SRCHConvertSearchTable2String$(sbtnCur.stabTabs(i))
+	Next
+
+	'Print "BTN: " & szText
+	SRCHConvertSearchButton2String$ = szText
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Opretter en tabel på en søgeknap
+'**********************************************************************************************''
+Sub SRCHSearchButtonSetTable(sbtnCur As T_SEARCHBTN, ByVal nNumTab As Integer, ByVal szTabName As String)
+
+OnError GoTo ErrorOccured
+
+	If nNumTab > Ubound(sbtnCur.stabTabs) Then
+		ReDim	sbtnCur.stabTabs(nNumTab)
+	End If
+
+	sbtnCur.stabTabs(nNumTab).szName	= szTabName
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'--------------------------------------------------------------------------------------------------------------------
+'**********************************************************************************************''
+'Nulstiller / initialiserer søgetabelopsætning
+'**********************************************************************************************''
+Sub SRCHResetSearchTable(stabCur As T_SEARCHTAB)
+
+OnError GoTo ErrorOccured
+
+	stabCur.szName	= ""
+	ReDim stabCur.scolCols(0)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Kopierer en søgetabel opsætning til en anden
+'**********************************************************************************************''
+Sub SRCHCopySearchTable(stabFrom As T_SEARCHTAB, stabTo As T_SEARCHTAB)
+
+Dim	i, nCols As Integer
+OnError GoTo ErrorOccured
+
+	stabTo.szName	= stabFrom.szName
+
+	nCols			= Ubound(stabFrom.scolCols)
+	ReDim stabTo.scolCols(nCols)
+	For i = 1 To nCols
+		Call SRCHCopySearchColumn(stabFrom.scolCols(i), stabTo.scolCols(i))
+	Next
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Konverterer en tekststreng til en søgetabel opsætning
+'**********************************************************************************************''
+Function SRCHConvertString2SearchTable(ByVal szText As String, stabNew As T_SEARCHTAB) As Logical
+
+Dim	arrStrings() As String,
+	i, j, nCols, nNumStr As Integer
+
+OnError GoTo ErrorOccured
+
+SRCHConvertString2SearchTable = FALSE
+
+	'Print "TAB: " & szText
+	nNumStr = StrSplitDefinedChar(szText, "#", arrStrings, 99)
+
+	For i = 1 To nNumStr
+		arrStrings(i)	= Ltrim$(RTrim$(arrStrings(i)))
+	Next
+
+	Call SRCHResetSearchTable(stabNew)
+
+	For i = 1 To nNumStr
+		Do Case i
+			Case 1
+				stabNew.szName	= arrStrings(i)
+			Case 2
+				nCols			= Val(arrStrings(i))
+				ReDim stabNew.scolCols(nCols)
+				For j = 1 To nCols
+					If not SRCHConvertString2SearchColumn(arrStrings(i + j), stabNew.scolCols(j)) Then
+						Note "Fejl ved konvertering af tekst til kolonne:"
+							& lf & arrStrings(i + j)
+					End If
+				Next
+			Case Else
+				Exit For
+		End Case
+	Next	
+	
+	SRCHConvertString2SearchTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Konverterer en søgetabel opsætning til en tekststreng
+'**********************************************************************************************''
+Function SRCHConvertSearchTable2String$(stabCur As T_SEARCHTAB) As String
+
+Dim	szText As String,
+	i, nCols As Integer
+	
+OnError GoTo ErrorOccured
+
+	nCols		= Ubound(stabCur.scolCols)
+	szText	= stabCur.szName & "#" & Str$(nCols)
+
+	For i = 1 To nCols
+		szText	= szText & "#" & SRCHConvertSearchColumn2String$(stabCur.scolCols(i))
+	Next
+
+	'Print "TAB: " & szText
+	SRCHConvertSearchTable2String$ = szText
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Opretter en kolonne på en søgetabel opsætning
+'**********************************************************************************************''
+Sub SRCHSearchTableSetColumn(	stabCur As T_SEARCHTAB, ByVal nNumCol As Integer,
+					ByVal szCol As String, ByVal szDesc As String)
+
+OnError GoTo ErrorOccured
+
+	If nNumCol > Ubound(stabCur.scolCols) Then
+		ReDim stabCur.scolCols(nNumCol)
+	End If
+	
+	stabCur.scolCols(nNumCol).szName		= szCol
+	stabCur.scolCols(nNumCol).szDescription	= szDesc
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Ændrer beskrivelse på en kolonne på en søgetabel opsætning
+'**********************************************************************************************''
+Sub SRCHSearchTableSetColumnDescr(stabCur As T_SEARCHTAB, ByVal nNumCol As Integer, ByVal szDesc As String)
+
+OnError GoTo ErrorOccured
+
+	If nNumCol > Ubound(stabCur.scolCols) Then
+		ReDim stabCur.scolCols(nNumCol)
+	End If
+	
+	stabCur.scolCols(nNumCol).szDescription	= szDesc
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'--------------------------------------------------------------------------------------------------------------------
+'**********************************************************************************************''
+'Nulstiller / initialiserer søgekolonne opsætning
+'**********************************************************************************************''
+Sub SRCHResetSearchColumn(scolCur As T_SEARCHCOL)
+
+OnError GoTo ErrorOccured
+
+	scolCur.szName		= ""
+	scolCur.szDescription	= ""
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Kopierer en søgekolonne opsætning til en anden
+'**********************************************************************************************''
+Sub SRCHCopySearchColumn(scolFrom As T_SEARCHCOL, scolTo As T_SEARCHCOL)
+
+OnError GoTo ErrorOccured
+
+	scolTo.szName		= scolFrom.szName
+	scolTo.szDescription	= scolFrom.szDescription
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Konverterer en tekststreng til en søgekolonne opsætning
+'**********************************************************************************************''
+Function SRCHConvertString2SearchColumn(ByVal szText As String, scolNew As T_SEARCHCOL) As Logical
+
+Dim	arrStrings() As String,
+	i, nNumStr As Integer
+
+OnError GoTo ErrorOccured
+
+SRCHConvertString2SearchColumn = FALSE
+
+	'Print "COL: " & szText
+	nNumStr = StrSplitDefinedChar(szText, ",", arrStrings, 99)
+
+	For i = 1 To nNumStr
+		arrStrings(i)	= LTrim$(RTrim$(arrStrings(i)))
+	Next
+
+	Call SRCHResetSearchColumn(scolNew)
+
+	For i = 1 To nNumStr
+		Do Case i
+			Case 1
+				scolNew.szName		= arrStrings(i)
+			Case 2
+				scolNew.szDescription	= arrStrings(i)
+			Case Else
+				Exit For
+		End Case
+	Next	
+	
+	SRCHConvertString2SearchColumn = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Konverterer en søgekolonne opsætning til en tekststreng
+'**********************************************************************************************''
+Function SRCHConvertSearchColumn2String$(scolCur As T_SEARCHCOL) As String
+
+Dim	szText As String
+
+OnError GoTo ErrorOccured
+
+	szText	= scolCur.szName & "," & scolCur.szDescription
+	
+	'Print "COL: " & szText
+	SRCHConvertSearchColumn2String$ = szText
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+

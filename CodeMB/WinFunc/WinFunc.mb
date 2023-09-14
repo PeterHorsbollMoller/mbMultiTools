@@ -1,0 +1,131 @@
+'********************************************************************************************************
+'**	Modul: Diverse fælles vinduesfunktioner
+'********************************************************************************************************
+' 28.05.2002/PEM:	 Disse funktioner er blevet omdøbt:
+'				WindowExists() 	-> WINExists()
+'				GetWindowID		-> WINGetWindowID
+'			 Tilføjet: 
+'				WINGetNumMapWindows()
+'********************************************************************************************************
+Include "MapBasic.def"
+Include "Menu.def"
+Include "Icons.def"
+
+Include "WinFunc.def"
+
+'**********************************************************************************************''
+'Returnerer TRUE hvis vindue WinID findes...
+'**********************************************************************************************''
+Function WINExists(ByVal nWID As Integer) As Logical
+
+OnError GoTo ErrorOccured
+
+	WINExists = FALSE
+
+	If nWID = 0 Then
+		Exit Function
+	End If
+
+	If WindowInfo(nWID, WIN_INFO_NAME) = "" Then
+		'**Do nothing...just checking...
+	End If
+
+	WINExists = TRUE
+
+	Exit Function
+'-----------------
+ErrorOccured:
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer TRUE hvis vindue WinID findes...
+'**********************************************************************************************''
+Function WINGetWindowID(ByVal szWinName As String) As Integer
+
+Dim	i, nWID As Integer
+
+OnError GoTo ErrorOccured
+
+	WINGetWindowID = 0
+	
+	If szWinName = "" Then
+		Exit Function
+	End If
+	
+	For i = 1 To NumWindows()
+		nWID	= WindowID(i)
+		If WindowInfo(nWID, WIN_INFO_NAME) = szWinName Then
+	
+			WINGetWindowID = nWID
+			Exit Function
+	
+		End If
+	Next
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Undersøger hvormange kortvinduer der er åbne
+'**********************************************************************************************''
+Function WINGetNumMapWindows() As Integer
+
+Dim	nCount, i As Integer
+
+OnError GoTo ErrorOccured
+
+	nCount = 0
+	For i = 1 To NumWindows()
+		If WindowInfo(WindowID(i), WIN_INFO_TYPE) = WIN_MAPPER Then
+			nCount = nCount + 1
+		End If
+	Next
+
+WINGetNumMapWindows = nCount
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'*************************************************************************************************************************''
+'*************************************************************************************************************************''
+'  B A C K W A R D S   C O M P A T A B I L I T Y
+'*************************************************************************************************************************''
+'**********************************************************************************************''
+'Returnerer TRUE hvis vindue WinID findes...
+'**********************************************************************************************''
+Function WindowExists(ByVal nWin As Integer) As Logical
+
+OnError GoTo ErrorOccured
+
+	WindowExists = WINExists(nWin)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer TRUE hvis vindue WinID findes...
+'**********************************************************************************************''
+Function GetWindowID(ByVal szWinName As String) As Integer
+
+OnError GoTo ErrorOccured
+
+	GetWindowID = WINGetWindowID(szWinName)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function

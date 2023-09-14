@@ -1,0 +1,49 @@
+'***Returnerer værdier fra tabellen KPTable....
+Declare Function kptGetTableName$(ByVal nTableID As Integer) As String		'Tablename when shown in Explorer...
+Declare Function kptGetMapInfoTableName$(ByVal nTableID As Integer) As String	'Tablename when open in MapInfo...
+Declare Function kptGetTabFileName$(ByVal nTableID As Integer) As String
+Declare Function kptGetTabFilePath$(ByVal nTableID As Integer) As String
+Declare Function kptGetTableDescription$(ByVal nTableID As Integer) As String
+Declare Function kptGetTableAllowVariousLayerSetting(ByVal nTableID As Integer) As Logical
+Declare Function kptGetTableID(ByVal szTabName As String) As Integer
+Declare Function kptGetTableIDFromTabFile(ByVal szTabFileName As String) As Integer
+Declare Function kptGetTableIDFromDescription(ByVal szDesciption As String) As Integer
+
+'***Sætter værdier i tabellen KPTable....
+Declare Sub kptSetTableName(ByVal nTableID As Integer, ByVal szTabName As String)
+Declare Sub kptSetTabFileName(ByVal nTableID As Integer, ByVal szTabFile As String)
+Declare Sub kptSetTabFilePath(ByVal nTableID As Integer, ByVal szPath As String)
+
+'****Åbning af tabeller...
+Declare Function kptOpenTableInMapAuto$(	ByVal nTableID As Integer, ByVal nLayerID As Integer,
+							nMID As Integer, ByVal bReadLayerSetting As Logical) As String
+Declare Function kptOpenTableInMapTop$(	ByVal nTableID As Integer, ByVal nLayerID As Integer,
+							nMID As Integer, ByVal bReadLayerSetting As Logical) As String
+Declare Function kptOpenTable$(ByVal nTableID As Integer) As String
+Declare Function kptOpenTableAs$(ByVal szTabFile As String, ByVal szAlias As String) As String
+Declare Function kptCloseTable(ByVal nTableID As Integer, ByVal bInteractive As Logical) As Logical
+
+'Declare Function kptRegisterTablesToOpen(ByVal nDisplayID As Integer, arrttoTables() As T_TABLES_TO_OPEN) As Logical
+
+'***Array værktøjer....
+Declare Sub kptCreateListOfTableNames(arrTables() As String)
+Declare Sub kptCreateListOfTableNamesLocked(arrTables() As String)
+Declare Function kptGetTableElementNo(ByVal szTabName As String, arrTables() As String) As Integer
+
+Declare Function kptGetROWIDFromElementNo(ByVal nElementNo As Integer) As Integer
+Declare Function kptGetROWIDFromElementNoLocked(ByVal nElementNo As Integer) As Integer
+Declare Function kptGetTableIDFromElementNo(ByVal nElementNo As Integer) As Integer
+Declare Function kptGetTableIDFromElementNoLocked(ByVal nElementNo As Integer) As Integer
+
+'***returnerer Største / næste ledige TableID....
+Declare Function kptGetNextTableID() As Integer
+Declare Function kptMaxTableID() As Integer
+
+'***Registrer en enkelt åben tabel...
+Declare Function kptRegisterSingleOpenTable(ByVal szTab As String, ByVal bOverwrite As Logical) As Logical
+Declare Function kptRegisterSingleOpenTableAs(ByVal szTab As String, ByVal szAsTable As String, ByVal bOverwrite As Logical) As Logical
+Declare Function kptUpdateSingleOpenTable(ByVal nTableID As Integer, ByVal szTab As String) As Logical
+
+'***Fjernes en registreret tabel
+Declare Function kptRemoveTableRef(ByVal nTableID As Integer) As Logical
+Declare Function kptRemoveTable(ByVal nTableID As Integer) As Logical

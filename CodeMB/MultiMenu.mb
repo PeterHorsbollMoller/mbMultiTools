@@ -1,0 +1,1743 @@
+'*******************************************************************************
+'** 	Program:	Kommunepakken
+'** 	Modul:	KommMenu.mb
+'**			Menuer og paletter mm.
+'*******************************************************************************
+'4.01 - 13.08.2002/PEM	- StyleSet
+'					- Fejl ved MultiLag rettet: KPOpenLayers blev ikke altid lukket
+'4.02 - 21.08.2002/PEM	- StyleSet
+'					- Fejl ved lagrækkefølge: Program går ned ved tryk på Flyt til Usorteret
+'					- Nu registreres lagene med den rækkefølge de havde i kortet
+'4.03 - 30.09.2002/PEM	- RastHand
+'					- Man kan nu angive om den midlertidige rasterindekstabel skal lukkes når
+'						den ikke anvendes. Bevirker at den ikke gemmes i arbejdsområder.
+'4.04 - 07.10.2002/PEM	- StyleSet
+'					- Fejl Labelopsætning blev ikke anvendt
+'4.05 - 10.10.2002/PEM	- Søgning
+'					- Fejl ved øsgning på matrikler rettet
+'4.06 - 22.10.2002/PEM	- StyleSet
+'					- Optimeret lukning af tabeller, da tabellen nu holdes åben indtil alle tabeller,
+'						der skal lukkes er lukket
+'					- Man kan nu fjerne en tabel fra alle undergrupper
+'					- Man kan ikke tilføje en tabel til "Alle undergrupper"
+'4.07 - 28.11.2002/PEM	- StyleSet:
+'					- Forbedret MultiLag, understøtter nu separatorer og rækkefølge og om MultiLaget er aktivt
+'					- Mulighed for visning af knap der kan aktivere/deaktivere automatisk sporing af ny åbnede/lukkede tabeller
+'				- Søgning:
+'					- Flytter nu også rundt selvom laget ikke findes i det aktive kort
+'4.07 - 28.11.2002/PEM	- StyleSet:
+'					- Fejl rettet i KPAdminUse, opstod i forbindelse med opdatering af værdier
+'4.08 - 28.11.2002/PEM	- SearchFunc 2.1
+'				- Printing 3.1 med "Luk tab/win åbnet af udskriftslayout
+'4.09 - 14.01.2003/PEM	- SearchFunc 2.1, seneste rettelser
+'				- StyleSet 4.0, seneste rettelser
+'4.10 - 10.02.2003/PEM	- StyleSet 4.0, seneste rettelser
+'					- Ikke alle systemtabeller blev automatisk lukket
+'					- MultiLag, hvor der både var tilknyttet tabeller og arbejdsområder kunne trykket ned
+'4.11 - 20.02.2003/PEM	- StyleSet 4.0:
+'					- Separatorer og knapper er nu ACTIVE, som default
+'					- Labelindstillinger skrives nu altid, også selvom autolabel er slået fra
+'					- Labelindstilling for Labeldelsegmenter skrives og læses
+'					- Global stilart for linier blev ikke læst korrekt
+'					- Opdatering af tabellers placering fungerede ikke korrekt
+'4.12 - 18.03.2003/PEM	- SystemHandlers:
+'					- Forsøgt at gøre disse mere sikre over for ikke eksisterende vinduer mm
+'				- StyleSet 4.0:
+'					- Slået pakning af visse temp. tabeller fra
+'					- Check på om et givent vinduesID findes inden der forespørges på det
+'				- WINFunc: Der er rettet i en funktion, så der checkes på om vinduet findes
+'					(især i forbindelse med WinClosedHandler kan det være et problem)
+'4.13 - 26.03.2003/PEM	- MapCutter placerer nu logfilen i Windows Temp
+'4.14 - 02.06.2003/PEM	- MapCutter forkert tekst konstant
+'				- Splitter forsøgt optimeret / tilrettet
+'				- StyleSet 4.0:
+'					- Husker indstilling af Enable/Disable automated Display update
+'4.15 - 17.06.2003/PEM	- Printing 3.1 med versionskontrol
+'4.20 - 07.07.2003/PEM	- StyleSet 5.0:
+'					- Dialogen Værdier tillader nu at brugeren kan:
+'						- Ændre rækkefølgen af Værdierne til opdatering
+'						- Ændre en eksisterende værditilknytning
+'					- Dialogen Opret/ret værditilknytning har nu flere indstillinger
+'						- Aktiv
+'						- Vis i dialog (understøttes kun på PDA)
+'						- Skrivebeskyttet (understøttes kun på PDA)
+'						- Husk seneste værdi (understøttes kun på PDA)
+'						- Alias for kolonnenavn (understøttes kun på PDA)
+'						- Defaultværdi (understøttes kun på PDA)
+'						- Ved listning af kolonner vises nu kolonner i alle åbne tabeller, hvis den aktuelle
+'							tabel ikke er åben
+'					- Understøttelse af flere kolonner/værdier i KPValues:
+'						- VALUE 		Char(60):
+'							- [LIST=n], hvor n refererer til Liste n i tabellen KPListValues
+'						- ORDERBY 		Integer:
+'							- Angiver den rækkefølge som værdierne skal i vises i dialogen
+'							- Order by ORDERBY, COLUMNNAME
+'						- DEFAULTVALUE	Char(60)
+'							- Angiver en eventuel default/standardværdi
+'						- REMEMBERLAST	Logical
+'							- Angiver om rpogrammet skal huske den sidst anvendte værdi
+'						- SHOW		Logical
+'							- Skal værdien vises i dialogen eller blot opdateres bag ryggen på brugeren
+'						- ACTIVE		Logical
+'							- Skal værdien være aktiv
+'						- DISABLED		Logical
+'							- Må brugeren rette i værdien
+'						- BEM			Char(20)	-> ændres til COLUMNTEXT Char(40)
+'							- En tekst der kan vises i dialogen i stedet for kolonnennavnet
+'					- Understøttelse af KPListValues:
+'						- LISTNO	Integer		-> ændres til LISTID	Integer
+'							- ID på listen
+'						- LISTNAME	Char(30)
+'							- Beskrivelse af listen
+'						- VALUE 	Char(30)		-> ændres til VALUE	Char(60)
+'							- Den værdi der skal indsættes i kolonnen
+'						- VALUETEXT Char(30)		-> ændres til VALUETEXT	Char(60)
+'							- Den værdi brugeren ser. Kan være lig med VALUE
+'						- ORDER	Integer		-> ændres til ORDERBY 	Integer
+'							- Order by ORDERBY, VALUETEXT
+'					- Eksport af udvalgte temaer/redigerknapper til PDA
+'					- Opsætning og eksport af søgning og søgetabeller til PDA
+'						- [USERNAME] oversættes til brugernavn hentet via Udskrivningsmodulet
+'						- [USERID] oversættes til brugerid/login hentet via Udskrivningsmodulet
+'4.21 - 04.11.2003/PEM	- SelectFunc forbedret, så den ikke undersøger om den enkelte tabel indeholder regioner
+'					allerede når bruger udpeger tabellen i listen
+'				- StyleSet:
+'					- Tilføjet værdien [TIME] som systemværdi
+'						Opdater tekstkolonne:	3 tegn -> kan det lade sig gøre? Næppe
+'										4 tegn -> ttmm
+'										5 tegn -> tt:mm
+'										6 tegn -> ttmmss
+'										7 tegn -> ttmmss
+'										8 tegn -> tt:mm:ss
+'										9 tegn -> tt:mm:ss, og så videre
+'						Opdatere lille heltal	Val(ttmm)
+'						Opdatere heltal	Val(ttmmss)
+'						Opdatere Decimal/Float	Val(tt) + (Val(mm) /60) + (Val(ss) /3600)
+'								 på denne måde bliver minutter og sekunderne til decimaler
+'4.22 - 17.11.2003/PEM	- PDA functionerne er nu også tilgængelige i standard MultiTools
+'				- StyleSet:
+'					- Ændret opfattelse af [TIME] som systemværdi
+'						Opdatere lille heltal	->	(tt * 60) + mm
+'											Minutter fra midnat
+'						Opdatere heltal		->	(tt * 3600) + (mm * 60) + ss
+'											Sekunder fra midnat
+'4.23	- 08.12.2003/PEM	- Ved overførsel til PDA oversættes [USERID]/[USERNAME] ikke længere til aktuel bruger
+'4.24 - 27.01.2004/PEM	- Nyeste IniUtil med forbedret muligheder for placering af inifil
+'					- Filen med værktøjsknapper placeres stadig i HomeDir$()
+'4.24.1 28.01.2004/PEM	- Nu skal filen blot forefindes i programmappen, så anvendes denne til inifiler, hvis
+'					der ikke er angivet andet i filen
+'4.25	- 20.02.2004/PEM	- Fejl i texttool rettet: Beregning af Gon-vinkel ved skrivning gav forkert resultat
+'4.26	- 01.09.2004/PEM	- Fejl i StyleSet, tilknytning af værdier rettet
+'4.27 - 26.10.2004/PEM	- Nu skrives MTools.btn - værktøjsknapper opsætningen - også afhængig af FilePath mm
+'4.28 - 18.04.2005/PEM	- Fejl ved åbning af MultiLag efter alt er blevet lukket er blevet rettet (KPDisplayUse.mb)
+'				- Tænd/sluk for automatisk opdatering af MultiLag-knapper opdaterer nu knapperne
+'				- Fejl i PADFunc betød at MTools fejlede hvis man tilføjede værktøjsknapper uden at have nogle i for vejen
+'4.29 - 27.04.2005/PEM	- Nu sorteres knapperne på Tema-paletterne efter STYLENAME,
+'					eller efter BUTTONORDER, STYLENAME hvis BUTTONORDER kolonnen findes i STYLES-tabellen
+'					Værdierne i BUTTONORDER skal vedligeholdes af brugeren. Der er intet visuelt værktøj til dette
+'4.30 - 09.05.2005/PEM	- Ved sletning af KPLAYERSBYDISPLAY er der nu indsat en kort ventetid, da Novell kan tage lidt tid om at
+'					registrere at tabellen er blevet slettet
+'4.31 - 09.05.2005/PEM	- Oversættelse af moduler:
+'					- MultiMenu.mb
+'					- PDATools.mb
+'					- KPValuesDlg
+'					- KPDisplayDlg.mb
+'					- KPLayerDlg
+'4.32 - 20.09.2005/PEM	- Fejl i Gør redigerbar, Gør ikke valgbar og Gør ikke synlig rettet
+'4.33	- 11.09.2006/PEM	- Understøttelse af Grid og WMS tabeller i temastyringens KPLayerUse
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+Include "Language\Message.lng"
+Include "Language\Errors.lng"
+Include "Language\PlotDef.lng"
+Include "Language\StyleDef.lng"
+Include "Language\Kommune.lng"
+
+Define xProgramMenu	"M&ultiTools"
+Define xVersion 		"4.33.0"
+Define xYear		"2006"
+
+Define FILE_BTP		"MTools.btp"
+Define FILE_INI		"MTools.ini"
+Define FILE_BTN_TOOLS	"MTools.btn"
+
+''***Default icon-files...(16 & 32 bit)
+Define FILE_DLL_ICONS		ApplicationDirectory$() + "MTools32.dll"
+Define FILE_DLL_ICONS_THEME	ApplicationDirectory$() + "Temaer32.dll"
+Define FILE_DLL_ICONS_PLOT	ApplicationDirectory$() + "Pltmodul.dll"
+
+'**Special KommunePakken buttonPads...
+Define PAD_TOOLS			KPAK_BTP_TITLE_TOOLS
+Define PAD_CONSTRUCTION		KPAK_BTP_TITLE_CONSTRCUCTION
+Define PAD_PRINTING		KPAK_BTP_TITLE_PRINTING
+Define PAD_MULTIDISPLAY		KPAK_BTP_TITLE_MULTIDISPLAY
+Define PAD_SEARCHING		KPAK_BTP_TITLE_SEARCHING
+
+Include "ProgramInfo\ProgramInfo.def"
+
+Include "StyleSet\StyleSet 5.0\KPAdminDlg.def"
+Include "StyleSet\StyleSet 5.0\KPAdminUse.def"
+Include "StyleSet\StyleSet 5.0\KPGroupDlg.def"
+Include "StyleSet\StyleSet 5.0\KPTableDlg.def"
+Include "StyleSet\StyleSet 5.0\KPLayerDlg.def"
+Include "StyleSet\StyleSet 5.0\KPStyleDlg.def"
+Include "StyleSet\StyleSet 5.0\KPIconDlg.def"
+Include "StyleSet\StyleSet 5.0\KPPadDlg.def"
+Include "StyleSet\StyleSet 5.0\KPPadUse.def"
+Include "StyleSet\StyleSet 5.0\KPValuesDlg.def"
+Include "StyleSet\StyleSet 5.0\KPDisplayDlg.def"
+Include "StyleSet\StyleSet 5.0\KPDisplayUse.def"
+
+Include "Time\Time.def"
+Include "TabFunc\TabFunc.def"
+Include "FileFunc\FileFunc.def"
+Include "PadFunc\PadFunc.def"
+Include "GeoFunc\GeoFunc.def"
+Include "MapFunc\MapFunc.def"
+Include "APIFunc\APIFunc.def"
+Include "IniUtil\IniUtil.def"
+
+Include "Printing\Printing 3.1\Globals.def"
+Include "Printing\Printing 3.1\PrintValues.def"
+Include "Printing\Printing 3.1\PrintHlp.def"
+Include "Printing\Printing 3.1\PrintDlg.def"
+Include "Printing\Printing 3.1\PrintPreView.def"
+Include "Printing\Printing 3.1\Printing.def"
+
+Include "ToolFunc\Minis\ReplChar.def"
+Include "ToolFunc\Minis\AutoFind.def"
+Include "ToolFunc\Minis\MapHelp.def"
+Include "ToolFunc\ToolSplit.def"
+Include "ToolFunc\ToolFunc.def"
+Include "ToolFunc\ToolUpdate.def"
+Include "SelectFunc\SelectFunc.def"
+Include "TextTool\TextToolDlg.def"
+Include "TextTool\TextToolIni.def"
+Include "RastHand\RastHand.def"
+
+Include "Construction\ToolConstr.def"
+Include "SearchFunc\SearchFunc 2.1\SearchMain.def"
+
+Include "PDATools\PDATools.def"
+
+Include "MapCutter\MapCutter 1.11\MapCutter.def"
+
+Include "StyleSet\StyleSet 5.0\Globals.def"
+
+Declare Sub Main
+Declare Sub StopProgram
+Declare Sub About
+
+Declare Sub CreateMenus
+Declare Sub CreateButtonPads
+Declare Sub menuCreateTemaPad
+Declare Sub menuCreatePlotPad
+
+'Handlers
+Declare Sub WinChangedHandler
+Declare Sub WinFocusChangedHandler
+Declare Sub WinClosedHandler
+Declare Sub SelChangedHandler
+Declare Sub EndHandler
+
+Declare Sub StartUpDialog
+Declare Sub WriteButtonPadFile
+
+Declare Sub ReadWholeIniFile
+Declare Sub WriteWholeIniFile
+Declare Sub SystemReadIniFile(ByVal szFile As String)
+Declare Sub SystemWriteIniFile(ByVal nFileNum As Integer)
+
+Declare Function menuGetSetupFileName$(ByVal szFile As String) As String
+Declare Function menuGetSetupFileNameWrite$(ByVal szFile As String) As String
+
+
+'---- S E T U P   F U N C T I O N S ---------------------
+Declare Sub menuSetupDialog
+Declare Sub HandlerSetupStartUp
+Declare Sub HandlerSetupCloseDlg
+Declare Sub HandlerSelectSystemDirectory
+
+Declare Sub menuSetupSystem
+'Printing settings...
+Declare Sub menuSetupPrintLayout
+Declare Sub menuSetupPrintCurrent
+Declare Sub menuSetupPrintStandardValues
+Declare Sub menuSetupPrintPrinter
+Declare Sub menuSetupKPMultiDisplay
+'Construction
+Declare Sub menuSetupConstruction
+'Tools
+Declare Sub menuSetupTools
+Declare Sub menuSetupUpdateColumn
+'KPDisplay/Setting
+Declare Sub menuSetupTemaPadDlg
+'Search setting
+Declare Sub menuSetupSearch
+
+'PDATools functionality
+Declare Sub MENUPADExportSeach
+Declare Sub MENUPADExportThemeButtons
+
+Dim	mbCancelSetupDlgNotAllowed, mbShowStartUpDialog, mbSetupInDialog As Logical,
+	mbShowSearchMenu, mbShowToolMenu, mbShowThemeMenu, mbShowConstructionMenu, mbShowPrintingMenu, mbShowMapCutterMenu As Logical
+
+'****************************************
+'Hovedprogram menuopbygning
+'****************************************
+Sub Main
+
+OnError GoTo ErrorOccured
+
+	'**Setting name of BTN file for ToolFunc for reading tools
+	Call TOOLSetBTNFile(menuGetSetupFileName$(FILE_BTN_TOOLS))
+
+	'***Disabling the WinChangedHandler for theme-control...
+	Set Handler WinChangedHandler Off
+
+	'***Turning the AutoFind function off....
+	Call AutoFind_Stop
+
+	'***Disables BatchPlotting...
+	Call PrintSetAskSaveFrameToTable(FALSE)
+
+	'***Setting values for KPSetting...
+	Call kpaSetUseStyles(TRUE)
+	Call kpaSetUseTables(TRUE)
+	Call kpaSetUseIcons(TRUE)
+	Call kpaSetUseGrouping(TRUE)
+	Call kpaSetUseValues(TRUE)
+	Call kpaSetUseLayers(TRUE)
+	Call kpaSetUseMultiDisplaying(TRUE)
+	Call kpaSetUseEditPads(TRUE)
+	Call kpaSetEnableDisplayWinFocusChngHndl(TRUE)
+	Call kpaSetAllowVariousLayerSettings(FALSE)
+	Call kpaSetKPDefaultDLLFile32(FILE_DLL_ICONS_THEME)
+	Call kpaSetKPToolsDLLFile32(FILE_DLL_ICONS)
+	Call kpaSetKPDisplayPadName(PAD_MULTIDISPLAY)
+	Call kpaSetEnableDisplayAutoUpdate(TRUE)
+	Call kpaSetShowUserInfluenceButton(TRUE)	'FALSE)
+
+	'***Reading the ini-file...
+	Call ReadWholeIniFile
+
+	'**Allow setting up Update dialog if this is "MultiTools PDA"
+	Call KPASetAllowUpdateDialogOnCreateSetup(PRGINFOAllowPDATools())
+
+	If NOT KPACheckKPPath() Then
+		mbCancelSetupDlgNotAllowed = TRUE
+		Call menuSetupSystem
+	End If
+	'**Fjerner gamle referencer i KPTABLESOPEN
+	Call kpdUnRegisterLayersByWindows
+
+	mbCancelSetupDlgNotAllowed = FALSE
+
+	'***Showing the StartUp-dialog, if this is wanted....
+	If mbShowStartUpDialog Then
+		Call menuSetupPrintStandardValues
+	End If
+
+	'***Creating and setting up the User Interfase (menues and buttonpads...
+	Call CreateMenus
+	Call CreateButtonPads
+
+	'**Setting name of BTN file for ToolFunc for writing tools
+	Call TOOLSetBTNFile(menuGetSetupFileNameWrite$(FILE_BTN_TOOLS))
+
+	'***Changing the users current tool to the Selector
+	Run Menu Command M_TOOLS_SEARCH_RECT
+	Run Menu Command M_TOOLS_SELECTOR
+
+	Set Handler WinChangedHandler On
+
+	'Testing the new interface to search
+	Call SRCHSetUseMenus(FALSE)
+	Call SRCHSetUseButtons(TRUE)
+	Call SRCHSetPrintIndexImprovement(TRUE)
+
+	'**Registrerer KP tabeller i aktivt kort
+	Call kpdStartUpToggleUnToggleButton
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Opretter menuer
+'****************************************
+Sub CreateMenus
+
+Dim	i As Integer,
+	bShowSearchMenu As Logical
+
+OnError GoTo ErrorOccured
+
+	'********* Menuer til temastyring....
+
+	Create Menu KPAK_MNU_TITLE_THEMECTRL As
+		KPAK_MNU_TITLE_AUTO_LAYERREG
+			HelpMsg KPAK_MNU_HLP_AUTO_LAYERREG
+			Calling kplShowDialogWriteLayerSettings,
+		KPAK_MNU_TITLE_AUTO_TABREG
+			HelpMsg KPAK_MNU_HLP_AUTO_TABREG
+			Calling kptAutoRegisterTablesDialog
+
+	If not mbSetupInDialog Then
+		Alter Menu KPAK_MNU_TITLE_THEMECTRL
+			Add
+				"(-",
+				KPAK_MNU_TITLE_CTRL_GROUPS
+					HelpMsg KPAK_MNU_TITLE_CTRL_GROUPS
+					Calling kpgShowGroupSettingDialog,
+				KPAK_MNU_TITLE_CTRL_TABLES
+					HelpMsg KPAK_MNU_TITLE_CTRL_TABLES
+					Calling kptShowDialogTableInformation,
+				KPAK_MNU_TITLE_CTRL_THEMES
+					HelpMsg KPAK_MNU_HLP_CTRL_THEMES
+					Calling kpsShowStylesDialogAllObject,
+				KPAK_MNU_TITLE_CTRL_DLLFILES
+					HelpMsg KPAK_MNU_TITLE_CTRL_DLLFILES
+					Calling kpiShowDialogIconFileInfo,
+				KPAK_MNU_TITLE_CTRL_VALUES
+					HelpMsg KPAK_MNU_HLP_CTRL_VALUES
+					Calling kpvShowDialogValuesControl,
+				KPAK_MNU_TITLE_CTRL_THEMEPADS
+					HelpMsg KPAK_MNU_HLP_CTRL_THEMEPADS
+					Calling menuSetupTemaPadDlg,
+				KPAK_MNU_TITLE_CTRL_MULTILAYER
+					HelpMsg KPAK_MNU_HLP_CTRL_MULTILAYER
+					Calling menuSetupKPMultiDisplay
+	End If
+
+	'*********** Menuer til udskrivning....
+	If mbSetupInDialog Then
+		Create menu KPAK_MNU_TITLE_PRINTING As
+			PPRO_MNU_TITLE_PRINT_QUICK
+				HelpMsg PPRO_MNU_HELP_PRINT_QUICK
+				Calling PreViewPrintScaleSetup,
+			"(-",
+			PPRO_MNU_TITLE_PRINT_INPUT
+				HelpMsg PPRO_MNU_HELP_PRINT_INPUT
+				Calling PrintInput
+	Else
+		Create menu KPAK_MNU_TITLE_PRINTING As
+			KPAK_MNU_TITLE_PRINTING_SETUP
+				HelpMsg KPAK_MNU_HLP_PRINTING_SETUP
+				Calling menuSetupPrintPrinter,
+			"(-",
+			PPRO_MNU_TITLE_LAYOUTS
+				HelpMsg PPRO_MNU_HELP_LAYOUTS
+				Calling menuSetupPrintLayout,
+			PPRO_MNU_TITLE_CURRENT_PRINT
+				HelpMsg PPRO_MNU_HELP_CURRENT_PRINT
+				Calling menuSetupPrintCurrent,
+			"(-",
+			PPRO_MNU_TITLE_PRINT_QUICK
+				HelpMsg PPRO_MNU_HELP_PRINT_QUICK
+				Calling PreViewPrintScaleSetup,
+			"(-",
+			PPRO_MNU_TITLE_PRINT_INPUT
+				HelpMsg PPRO_MNU_HELP_PRINT_INPUT
+				Calling PrintInput
+	End If
+
+	'*********** Menuer til afsætningsværktøjer....
+	Create Menu KPAK_MNU_TITLE_CONSTRUCTION As
+		KPAK_MNU_TITLE_CONSTR_SETUP
+			HelpMsg KPAK_MNU_HLP_CONSTR_SETUP
+			Calling menuSetupConstruction
+
+	'*****************Værktøjsmenuen...
+	If mbSetupInDialog Then
+		Create menu KPAK_MNU_TITLE_TOOLS As
+			KPAK_MNU_TITLE_SEARCH_REPLACE
+				HelpMsg KPAK_MNU_HLP_SEARCH_REPLACE
+				Calling FindAndReplaceDialog
+	Else
+		Create menu KPAK_MNU_TITLE_TOOLS As
+			KPAK_MNU_TITLE_TOOLS_SETUP
+				HelpMsg KPAK_MNU_HLP_TOOLS_SETUP
+				Calling menuSetupTools,
+			KPAK_MNU_TITLE_TOOL_BUTTONS
+				HelpMsg KPAK_MNU_HLP_TOOL_BUTTONS
+				Calling ToolAddRemoveDialog,
+			KPAK_TOOL_MNU_UPDATE_COLUMNS
+				HelpMsg KPAK_TOOL_HLP_UPDATE_COLUMNS
+				Calling menuSetupUpdateColumn,
+			"(-",
+			KPAK_MNU_TITLE_SEARCH_REPLACE
+				HelpMsg KPAK_MNU_HLP_SEARCH_REPLACE
+				Calling FindAndReplaceDialog
+	End If
+
+	Alter Menu KPAK_MNU_TITLE_TOOLS
+		Add
+			KPAK_MNU_TITLE_CHANGE_WINDOW
+				HelpMsg KPAK_MNU_HLP_CHANGE_WINDOW
+				Calling WindowChange,
+			KPAK_MNU_TITLE_CHANGE_LINEDIREC
+				HelpMsg KPAK_MNU_HLP_CHANGE_LINEDIREC
+				Calling ReverseLines,
+			"(-",
+			KPAK_MNU_TITLE_MAKE_EDITABLE
+				HelpMsg KPAK_MNU_HLP_MAKE_EDITABLE
+				Calling MakeLayerEditable,
+			KPAK_MNU_TITLE_NOT_VISIBLE
+				HelpMsg KPAK_MNU_HLP_NOT_VISIBLE
+				Calling MakeLayerNonVisible,
+			KPAK_MNU_TITLE_NOT_SELECTABLE
+				HelpMsg KPAK_MNU_HLP_NOT_SELECTABLE
+				Calling MakeLayerNonSelectable,
+			"(-",
+			KPAK_MNU_HLP_UPDATE_COORD
+				HelpMsg KPAK_MNU_HLP_UPDATE_COORD
+				Calling TXTTUpdateCenterCoord,
+			KPAK_MNU_UPDATE_COORD_ANGLE
+				HelpMsg KPAK_MNU_HLP_UPDATE_COORD_ANGLE
+				Calling TXTTUpdateAngleAndCenterCoord,
+			"(-",
+			KPAK_MNU_CONVERT_TO_TEXT
+				HelpMsg KPAK_MNU_HLP_CONVERT_TO_TEXT
+				Calling TXTTConvertPointToText,
+			KPAK_MNU_MOVE_TEXT
+				HelpMsg KPAK_MNU_HLP_MOVE_TEXT
+				Calling TXTTMoveTextObjects,
+			KPAK_MNU_MOVE_ROT_TEXT
+				HelpMsg KPAK_MNU_HLP_MOVE_ROT_TEXT
+				Calling TXTTRotateAndMoveTextObjects,
+			"(-",
+			KPAK_MNU_SELECT_WITHIN_SEL
+				HelpMsg KPAK_MNU_HLP_SELECT_WITHIN_SEL
+				Calling SelectInsideRegion_With_Obj,
+			KPAK_MNU_SELECT_WITHIN_TAB
+				HelpMsg KPAK_MNU_HLP_SELECT_WITHIN_TAB
+				Calling SelectInsideRegion_With_Table,
+			KPAK_MNU_SELECT_USING_STYLE
+				HelpMsg KPAK_MNU_HLP_SELECT_USING_STYLE
+				Calling SelectObjUsingCurSelection
+
+	'*********** Menuer til Søgninger....
+	If mbSetupInDialog Then
+		If SRCHUseMenus() Then
+			If SRCHCreateMenu(KPAK_MNU_TITLE_SEARCH) Then
+				bShowSearchMenu = TRUE
+			End If
+		End If
+	Else
+		bShowSearchMenu = TRUE
+		Create menu KPAK_MNU_TITLE_SEARCH As
+			KPAK_MNU_SEARCH_SETUP
+				HelpMsg KPAK_MNU_HLP_SEARCH_SETUP
+				Calling menuSetupSearch,
+			"(-"
+
+		If NOT SRCHAlterMenu(KPAK_MNU_TITLE_SEARCH) Then
+			Create menu KPAK_MNU_TITLE_SEARCH As
+				KPAK_MNU_SEARCH_SETUP
+					HelpMsg KPAK_MNU_HLP_SEARCH_SETUP
+					Calling menuSetupSearch
+		End If
+	End If
+
+	'*********** Generelle Menuer....
+	If mbSetupInDialog Then
+		Create Menu xProgramMenu As
+			KPAK_MNU_TITLE_PREFERENCE
+				HelpMsg KPAK_MNU_HLP_PREFERENCE
+				Calling menuSetupDialog
+	Else
+		Create Menu xProgramMenu As
+			KPAK_MNU_TITLE_SETTING
+				HelpMsg KPAK_MNU_HLP_SETTING
+				Calling menuSetupSystem
+	End If
+
+	Alter Menu xProgramMenu
+		Add
+			KPAK_MNU_TITLE_SAVE_BUTTONPAD
+				HelpMsg KPAK_MNU_HLP_SAVE_BUTTONPAD
+				Calling WriteButtonPadFile
+
+	If mbShowToolMenu Then
+		Alter Menu xProgramMenu
+			Add
+				"(-",
+				KPAK_MNU_TITLE_TOOLS As KPAK_MNU_TITLE_TOOLS
+	End If
+	If mbShowThemeMenu Then
+		Alter Menu xProgramMenu
+			Add
+				"(-",
+				KPAK_MNU_TITLE_THEMECTRL As KPAK_MNU_TITLE_THEMECTRL
+	End If
+	If mbShowConstructionMenu Then
+		If not mbSetupInDialog Then
+			Alter Menu xProgramMenu
+				Add
+					"(-",
+					KPAK_MNU_TITLE_CONSTRUCTION As KPAK_MNU_TITLE_CONSTRUCTION
+		End If
+	End If
+	If mbShowSearchMenu Then
+		If bShowSearchMenu Then
+			Alter Menu xProgramMenu
+				Add
+					"(-",
+					KPAK_MNU_TITLE_SEARCH As KPAK_MNU_TITLE_SEARCH
+		End If
+	End If
+	If mbShowMapCutterMenu Then
+		Alter Menu xProgramMenu
+			Add
+				"(-",
+				"&MapCutter"
+					HelpMsg KPAK_MNU_HLP_START_MAPCUTTER
+					Calling MapCutterStartUp
+	End If
+	If mbShowPrintingMenu Then
+		Alter Menu xProgramMenu
+			Add
+				"(-",
+				KPAK_MNU_TITLE_PRINTING As KPAK_MNU_TITLE_PRINTING
+	End If
+
+	If PRGINFOAllowPDATools() Then
+		Create Menu KPAK_MNU_PDA_TOOLS As
+			KPAK_MNU_EXPORT_ADR_SEARCH
+				HelpMsg KPAK_MNU_HLP_EXPORT_ADR_SEARCH
+				Calling MENUPADExportSeach,
+			KPAK_MNU_EXPORT_THEME_BTNS
+				HelpMsg KPAK_MNU_HLP_EXPORT_THEME_BTNS
+				Calling MENUPADExportThemeButtons
+
+		Alter Menu xProgramMenu
+			Add
+				"(-",
+				KPAK_MNU_PDA_TOOLS As KPAK_MNU_PDA_TOOLS
+	End If
+
+	Alter Menu xProgramMenu
+		Add
+			"(-",
+			MSG_MNU_EXIT_PROGRAM
+				Calling StopProgram,
+			MSG_MNU_ABOUT_PROGRAM + PRGINFOGetApplicationTitle$()
+				Calling About
+
+
+	'Remove the Window menu and Help menu
+	Alter Menu Bar Remove ID 6, ID 7
+
+	'Add the custom menu, then the Window & Help menus
+	Alter Menu Bar Add xProgramMenu, ID 6, ID 7
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Opretter menupaletter...
+'****************************************
+Sub CreateButtonPads
+
+Dim	szBtnFile As String
+
+OnError GoTo ErrorOccured
+
+	Call menuCreatePlotPad
+	Call menuCreateTemaPad
+	Call ConstrCreateButtonPad(PAD_CONSTRUCTION)
+	Call ToolCreateButtonpad(PAD_TOOLS)
+	If NOT  SRCHCreateButtonPad(PAD_SEARCHING) Then
+		'** buttonpad wasn't created
+	End If
+
+	Call kpdCreateDisplayButtonPad
+
+	szBtnFile = menuGetSetupFileName$(FILE_BTP)
+	Call PADReadSetupAll(szBtnFile)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Afslutter programmet
+'****************************************
+Sub StopProgram
+
+OnError GoTo ErrorOccured
+
+	End Program
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Informationsboks
+'****************************************
+Sub About
+
+Dim	szTitle As String,
+	nNumSpace As Integer
+
+OnError GoTo ErrorOccured
+
+	szTitle	= PRGINFOGetApplicationTitle$() + " Version " + xVersion
+	nNumSpace	= Abs((55 - Len(szTitle)) / 2)
+	szTitle	= Space$(nNumSpace) + szTitle
+
+	Dialog	Width 170
+		Title MSG_DLG_TITLE_ABOUT + PRGINFOGetApplicationTitle$()
+		Control GroupBox	Position 10,10	Width 150	Height 30
+		Control StaticText	Position 12,22
+		Title szTitle
+
+		Control StaticText	Position 10,45
+		Title "Copyright" + Chr$(169) + xYear
+
+		Control StaticText	Position 10,60
+		Title "COWI A/S - Geografisk Information og IT"
+		Control StaticText	Position 10,70
+		Title "Odensevej 95 - DK-5260 Odense S"
+		Control StaticText	Position 10,80
+		Title "Tlf.: (+45) 6311 4900 - Fax: (+45) 6311 4949"
+		Control StaticText	Position 10,100
+		Title "E-mail: mapinfo@cowi.dk"
+
+		Control OKButton	Position 10,120	Width 150
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Afslutter programmet  - Handler
+'****************************************
+Sub EndHandler
+
+OnError GoTo ErrorOccured
+
+	Call kpaSetEnableDisplayWinFocusChngHndl(FALSE)
+	Call kpdUnRegisterLayersAll
+
+	'**Closing and saving KPSystemtables...
+	Call kpaCloseKPSystemTables(TRUE)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Systemhandler - Det aktive vindue ændrer sig...
+'****************************************
+Sub WinChangedHandler
+
+Dim	nWID As Integer
+
+OnError GoTo ErrorOccured
+
+'Print "WinChangedHandler"
+	nWID = CommandInfo(CMD_INFO_WIN)
+
+	Call kppKP_WinChangedhandler(nWID)
+	Call kpdKP_WinChangedhandler(nWID)
+	'Call Tool_WinChangedhandler(nWID)
+	Call RH_WinChangedHandler(nWID)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Systemhandler - Det aktive vindue lukkes...
+'****************************************
+Sub WinClosedHandler
+
+Dim	nWID As Integer
+
+OnError GoTo ErrorOccured
+
+'Print "WinClosedHandler"
+	nWID = CommandInfo(CMD_INFO_WIN)
+
+	Call kpdKP_WinClosedHandler(nWID)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'**********************************************************************************************''
+'Systemhandler - nyt vindue fik fokus
+'**********************************************************************************************''
+Sub WinFocusChangedHandler
+
+Dim	nWID As Integer
+
+OnError GoTo ErrorOccured
+
+'Print "WinFocusChangedHandler"
+	nWID = CommandInfo(CMD_INFO_WIN)
+
+	Call kpdKP_WinFocusChangedHandler(nWID)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Systemhandler - nyt vindue fik fokus
+'**********************************************************************************************''
+Sub SelChangedHandler
+
+OnError GoTo ErrorOccured
+
+'Print "SelChangedHandler"
+	Call AutoFind_SelChangedHandler
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Skriver menupaletters opsætning til fil
+'****************************************
+Sub WriteButtonPadFile
+
+Dim	szBtnFile As String
+
+OnError GoTo ErrorOccured
+
+	szBtnFile = menuGetSetupFileNameWrite$(FILE_BTP)
+
+	If FileExists(szBtnFile) Then
+		Kill szBtnFile
+	End If
+	If FileExists(HomeDirectory$() & FILE_BTP) Then
+		Kill HomeDirectory$() & FILE_BTP
+	End If
+
+	Open File szBtnFile
+		For Output
+		As #185
+		CharSet SystemInfo(SYS_INFO_CHARSET)
+
+	Call PADWriteSetup(185, PAD_TOOLS)
+	Call PADWriteSetup(185, PAD_CONSTRUCTION)
+	Call PADWriteSetup(185, STYL_PAD_THEME_LINE)
+	Call PADWriteSetup(185, STYL_PAD_THEME_POLYGON)
+	Call PADWriteSetup(185, STYL_PAD_THEME_FONT)
+	Call PADWriteSetup(185, STYL_PAD_THEME_SYMBOL)
+	Call PADWriteSetup(185, PAD_PRINTING)
+	Call PADWriteSetup(185, PAD_SEARCHING)
+
+	Call PADWriteSetup(185, PAD_MULTIDISPLAY)
+
+	Close File #185
+
+	Call SaveCurrentToolSetup
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'------------------- R E A D I N G  /  W R I T I N G   S E T T I N G S -------------------------------------------------
+
+'****************************************
+'Skriv initialiseringsfil
+'****************************************
+Sub WriteWholeIniFile
+
+Dim	szFile As String
+
+OnError GoTo ErrorOccured
+
+	'**Setting path to ini-file...
+	szFile = menuGetSetupFileNameWrite$(FILE_INI)
+
+	'**Removing eventually existing setupfiles....
+	If FileExists(szFile) Then
+		Kill szFile
+	End If
+	If FileExists(HomeDirectory$() & FILE_INI) Then
+		Kill HomeDirectory$() & FILE_INI
+	End If
+
+OnError GoTo ErrorOccuredOpeningFile
+
+	Open File szFile
+		For Output
+		As #111
+		CharSet SystemInfo(SYS_INFO_CHARSET)
+
+OnError GoTo ErrorOccured
+
+	Call SystemWriteIniFile(111)
+	Call ToolsWriteIniFile(111)
+	Call UpdateColumnWriteIniFile(111)
+
+	Call ConstrWriteIniFile(111)
+	Call kpaWriteKPIniFile(111)
+
+	'**Settings concerning printing...
+	Call PrintWriteIniFile(111)
+	Call PrintWriteIniFileLayouts(111)
+	Call PrintingValuesWriteIniFile(111)
+
+	'**Setting concering search
+	Call SrchWriteIniFile(111)
+
+	'**Setting concering TextTool
+	Call TXTToolWriteIniFile(111)
+
+	'**Settings concerning PDA
+	If PRGINFOAllowPDATools() Then
+		Call PDAWriteIniFile(111)
+	End If
+
+	Close File #111
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+	Exit Sub
+
+'-------------------------
+ErrorOccuredOpeningFile:
+	Note  ERR_FILE_WHILE_READING + lf
+		+ MSG_TXT_FILE + " : " + szFile + lf
+		+ Error$()
+
+End Sub
+
+'****************************************
+'Læs initialiseringsfil
+'****************************************
+Sub ReadWholeIniFile
+
+Dim	szFile As String
+
+OnError GoTo ErrorOccured
+
+	'**Searching for an existing setupfile...
+	szFile = menuGetSetupFileName$(FILE_INI)
+
+	Call SystemReadIniFile(szFile)
+	Call ToolsReadIniFile(szFile)
+	Call UpdateColumnReadIniFile(szFile)
+	Call ConstrReadIniFile(szFile)
+
+	'**KPSettings...
+	'**Sets default path to Systemtables...
+	Call kpaSetKPPath(ApplicationDirectory$() + KPAK_FOLDER_SYSTEM_TABLES)
+	Call kpaReadKPIniFile(szFile)
+
+	'**Settings concerning printing...
+	Call PrintReadIniFile(szFile)
+	Call PrintReadIniFileLayouts(szFile)
+	Call PrintingValuesReadIniFile(szFile)
+
+	'**Setting concering search
+	Call SrchReadIniFile(szFile)
+
+	'**Setting concering TextTool
+	Call TXTToolReadIniFile(szFile)
+
+	'**Settings concerning PDA
+	If PRGINFOAllowPDATools() Then
+		Call PDAReadIniFile(szFile)
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Læser initieringsfil
+'****************************************
+Sub SystemReadIniFile(ByVal szFile As String)
+
+Dim	szRead As String
+
+OnError GoTo ErrorOccured
+
+	mbShowStartUpDialog	= TRUE
+	mbSetupInDialog		= TRUE
+
+	mbShowToolMenu		= TRUE
+	mbShowThemeMenu		= TRUE
+	mbShowConstructionMenu	= TRUE
+	mbShowPrintingMenu	= TRUE
+	mbShowMapCutterMenu	= TRUE
+	mbShowSearchMenu		= TRUE
+
+	If not FileExists(szFile) Then
+		Exit Function
+	End If
+
+	mbShowStartUpDialog	= (GetIniKeyValue(szFile, "[SYSTEM]", "STARTUPDLG") <> "F")
+
+	mbSetupInDialog		= (GetIniKeyValue(szFile, "[SYSTEM]", "SETUPINDLG") <> "F")
+
+	mbShowToolMenu		= (GetIniKeyValue(szFile, "[SYSTEM]", "MENUTOOL") <> "F")
+	mbShowThemeMenu		= (GetIniKeyValue(szFile, "[SYSTEM]", "MENUTHEME") <> "F")
+	mbShowConstructionMenu	= (GetIniKeyValue(szFile, "[SYSTEM]", "MENUCONSTR") <> "F")
+	mbShowPrintingMenu	= (GetIniKeyValue(szFile, "[SYSTEM]", "MENUPRINT") <> "F")
+	mbShowMapCutterMenu	= (GetIniKeyValue(szFile, "[SYSTEM]", "MENUMAPCUT") <> "F")
+	mbShowSearchMenu		= (GetIniKeyValue(szFile, "[SYSTEM]", "MENUSEARCH") <> "F")
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Skriver til initieringsfil
+'****************************************
+Sub SystemWriteIniFile(ByVal nFileNum As Integer)
+
+OnError GoTo ErrorOccured
+
+	Print #nFileNum, ""
+	Print #nFileNum, "[SYSTEM]"
+
+	Print #nFileNum, "STARTUPDLG="	& mbShowStartUpDialog
+
+	Print #nFileNum, "SETUPINDLG="	& mbSetupInDialog
+
+	Print #nFileNum, "MENUTOOL="		& mbShowToolMenu
+	Print #nFileNum, "MENUTHEME="		& mbShowThemeMenu
+	Print #nFileNum, "MENUCONSTR="	& mbShowConstructionMenu
+	Print #nFileNum, "MENUPRINT="		& mbShowPrintingMenu
+	Print #nFileNum, "MENUMAPCUT="	& mbShowMapCutterMenu
+	Print #nFileNum, "MENUSEARCH="	& mbShowSearchMenu
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'------------------- S E T U P   F U N C T I O N S ----------------------------------------------------------------
+'****************************************
+'Generel opsætningsdialog
+'****************************************
+Sub menuSetupDialog
+
+OnError GoTo ErrorOccured
+
+	Dialog
+		Title PLTM_DLG_TITLE_SETTINGS
+		'--------
+		Control GroupBox		Position 5,5	Width 120	Height 30
+			Title MSG_TEXT_GENRALLY
+		Control Button		Position 15,15	Width 100
+			Title PLTM_DLG_BTN_SETUP
+			Calling menuSetupSystem
+		'--------
+		Control GroupBox		Position 5,40	Width 120	Height 130
+			Title STYL_DLG_TXT_THEMECONTROL & " - " & STYL_DLG_TXT_EDIT_LAYERS
+		Control Button		Position 15,50	Width 100
+			Title STYL_DLG_BTN_ICONS
+			Calling kpiShowDialogIconFileInfo
+		Control Button		Position 15,70	Width 100
+			Title STYL_DLG_BTN_GROUPS
+			Calling kpgShowGroupSettingDialog
+		Control Button		Position 15,90	Width 100
+			Title STYL_DLG_BTN_TABLES
+			Calling kptShowDialogTableInformation
+		Control Button		Position 15,110	Width 100
+			Title STYL_DLG_BTN_THEMES
+			Calling kpsShowStylesDialogAllObject
+		Control Button		Position 15,130	Width 100
+			Title STYL_DLG_BTN_VALUES
+			Calling kpvShowDialogValuesControl
+		Control Button		Position 15,150	Width 100
+			Title STYL_DLG_BTN_THEME_BUTTONPADS
+			Calling menuSetupTemaPadDlg
+
+		Control GroupBox		Position 5,175	Width 120	Height 110
+			Title STYL_DLG_TXT_THEMECONTROL & " - " & STYL_DLG_TXT_SHOW_LAYERS
+		Control Button		Position 15,185	Width 100
+			Title STYL_DLG_BTN_ICONS
+			Calling kpiShowDialogIconFileInfo
+		Control Button		Position 15,205	Width 100
+			Title STYL_DLG_BTN_GROUPS
+			Calling kpgShowGroupSettingDialog
+		Control Button		Position 15,225	Width 100
+			Title STYL_DLG_BTN_TABLES
+			Calling kptShowDialogTableInformation
+		Control Button		Position 15,245	Width 100
+			Title STYL_DLG_BTN_LAYERS
+			Calling kplShowDialogSetLayerOrder
+		Control Button		Position 15,265	Width 100
+			Title STYL_DLG_BTN_MULTILAYER
+			Calling menuSetupKPMultiDisplay
+		'--------
+		Control GroupBox		Position 130,5	Width 120	Height 70
+			Title KPAK_DLG_BTN_TOOLS
+		Control Button		Position 140,15	Width 100
+			Title KPAK_DLG_BTN_SETTINGS
+			Calling menuSetupTools
+		Control Button		Position 140,35	Width 100
+			Title KPAK_DLG_BTN_TOOLBUTTONS
+			Calling ToolAddRemoveDialog
+		Control Button		Position 140,55	Width 100
+			Title KPAK_DLG_BTN_UPDATE_COLUMN
+			Calling menuSetupUpdateColumn
+		'--------
+		Control GroupBox		Position 130,80	Width 120	Height 70
+			Title KPAK_DLG_TXT_PRINTING
+		Control Button		Position 140,90	Width 100
+			Title PLTM_DLG_BTN_DEFAULTVALUES
+			Calling menuSetupPrintStandardValues
+		Control Button		Position 140,110	Width 100
+			Title PLTM_DLG_BTN_CURRENTPRINT
+			Calling menuSetupPrintCurrent
+		Control Button		Position 140,130	Width 100
+			Title PLTM_DLG_BTN_PRINTLAYOUTS
+			Calling menuSetupPrintLayout
+		'--------
+		Control GroupBox		Position 130,155	Width 120	Height 30
+			Title KPAK_DLG_TXT_CONSTRUCTION
+		Control Button		Position 140,165	Width 100
+			Title KPAK_DLG_BTN_SETTINGS
+			Calling menuSetupConstruction
+		'--------
+		Control GroupBox		Position 130,190	Width 120	Height 30
+			Title KPAK_DLG_TXT_SEARCH
+		Control Button		Position 140,200	Width 100
+			Title KPAK_DLG_BTN_SETTINGS
+			Calling menuSetupSearch
+		'--------
+		Control OKButton		Position 160,225	Width 70
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Generel opsætningsdialog
+'****************************************
+Sub menuSetupSystem
+
+Dim	snWINLan, snMILan, nInstallKind As SmallInt,
+	szSystemPath As String,
+	bUseAliasOnOpen, bUseOpenCloseBtn, bReCreateButtonPad As Logical
+
+OnError GoTo ErrorOccured
+
+	Dialog
+		Title KPAK_DLG_TITLE_SETTINGS
+		Calling HandlerSetupStartUp
+
+		'-------------
+		Control GroupBox		Position 5,5	Width 160	Height 25
+			Title KPAK_DLG_TXT_STARTUP
+		Control CheckBox		Position 15,15
+			Title PLTM_DLG_TXT_SHOW_DEFAULT_DLG
+			Value mbShowStartUpDialog
+			Into mbShowStartUpDialog
+
+		'-------------
+		Control GroupBox		Position 5,35	Width 160	Height 90
+			Title KPAK_DLG_TXT_MENUS
+		Control CheckBox		Position 15,45
+			Title KPAK_DLG_TXT_SHOW_TOOL_MENU
+			Value mbShowToolMenu
+			Into mbShowToolMenu
+		Control CheckBox		Position 15,55
+			Title KPAK_DLG_TXT_SHOW_THEME_MENU
+			Value mbShowThemeMenu
+			Into mbShowThemeMenu
+		Control CheckBox		Position 15,65
+			Title KPAK_DLG_TXT_SHOW_CONSTR_MENU
+			Value mbShowConstructionMenu
+			Into mbShowConstructionMenu
+		Control CheckBox		Position 15,75
+			Title KPAK_DLG_TXT_SHOW_MAPCUT_MENU
+			Value mbShowMapCutterMenu
+			Into mbShowMapCutterMenu
+		Control CheckBox		Position 15,85
+			Title KPAK_DLG_TXT_SHOW_PRINT_MENU
+			Value mbShowPrintingMenu
+			Into mbShowPrintingMenu
+		Control CheckBox		Position 15,95
+			Title KPAK_DLG_TXT_SHOW_SEARCH_MENU
+			Value mbShowSearchMenu
+			Into mbShowSearchMenu
+
+		Control CheckBox		Position 15,110
+			Title PLTM_DLG_TXT_SETTING_DIALOG
+			Value mbSetupInDialog
+			Into mbSetupInDialog
+
+		'-------------
+		Control GroupBox		Position 170,5	Width 85	Height 65
+			Title PLTM_DLG_TXT_LANGUAGE
+		Control StaticText	Position 180,15
+			Title PLTM_DLG_TXT_WINDOWS
+		Control PopUpMenu		Position 180,25	Width 65
+			Title PLTM_DLG_POSS_LANGUAGES
+			Value PrintGetWinLanguage()
+			Into snWinLan
+
+		Control StaticText	Position 180,40
+			Title PLTM_DLG_TXT_MAPINFO
+		Control PopUpMenu		Position 180,50	Width 65
+			Title PLTM_DLG_POSS_LANGUAGES
+			Value PrintGetMILanguage()
+			Into snMILan
+
+		'-------------
+		Control GroupBox		Position 5, 130	Width 250	Height 45
+			Title KPAK_DLG_TXT_LOCATION_SYSTEMTAB
+		Control Button		Position 15,140	Width 15	Height 12
+			Calling HandlerSelectSystemDirectory
+			Title "..."
+		Control EditText		Position 30,140	Width 215			ID 400
+			Value GetFileNameRelative$(kpaGetKPPath$())
+			Into szSystemPath
+
+		Control CheckBox		Position 15,160					ID 800
+			Title KPAK_DLG_TXT_USE_OPENCLOSE_BTN
+			Value kpaGetDiplayButtonToggle()
+			Into bUseOpenCloseBtn
+		Control CheckBox		Position 130,160					ID 900
+			Title KPAK_DLG_TXT_OPEN_AS_DESCRIPT
+			Value kpaGetOpenTablesWithAlias()
+			Into bUseAliasOnOpen
+
+		'-------------
+		Control Button		Position 15,180	Width 65
+			Title PLTM_DLG_BTN_DEFAULTVALUES
+			Calling menuSetupPrintStandardValues
+
+		Control OKButton		Position 130,180	Width 50
+			Calling HandlerSetupCloseDlg
+		Control CancelButton	Position 190,180	Width 50			ID 2
+			Calling HandlerSetupCloseDlg
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	If szSystemPath <> "" Then
+		Call kpaSetKPPath(szSystemPath)
+	End If
+
+	Call PrintSetMILanguage(snMILan)
+	Call PrintSetWinLanguage(snWinLan)
+
+	If bUseAliasOnOpen <> kpaGetOpenTablesWithAlias() Then
+		Call kpaSetOpenTablesWithAlias(bUseAliasOnOpen)
+	End If
+
+	If bUseOpenCloseBtn <> kpaGetDiplayButtonToggle() Then
+		Call kpaSetDiplayButtonToggle(bUseOpenCloseBtn)
+		bReCreateButtonPad = TRUE
+	End If
+
+	Call WriteWholeIniFile
+
+	'**Rebuilding the menus..
+	Call CreateMenus
+
+	If bReCreateButtonPad Then
+		Call kpdCreateDisplayButtonPad
+		Call PADReadSetupSingle(menuGetSetupFileName$(FILE_BTP), PAD_MULTIDISPLAY)
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Handler - Opstart af dialogen
+'****************************************
+Sub HandlerSetupStartUp
+
+OnError GoTo ErrorOccured
+
+	If mbCancelSetupDlgNotAllowed Then
+		Alter Control 2 Disable
+	End If
+
+	If NumTables() > 1 Then
+		Alter Control 900 Disable
+	Else
+		Alter Control 900 Enable
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Handler - Afslut dialogen
+'****************************************
+Sub HandlerSetupCloseDlg
+
+Dim	szFolder As String
+
+OnError GoTo ErrorOccured
+
+	szFolder = ReadControlValue(400)
+	If szFolder = "" Then
+		szFolder = ApplicationDirectory$()
+	ElseIf not Right$(szFolder, 1) = "\" Then
+		szFolder = szFolder + "\"
+	End If
+
+	szFolder	= GetFileNameAbsolute$(szFolder)
+
+	If not FileExists(szFolder) Then
+		Note ERR_STYL_PATH_NOT_FOUND_SYSTAB1
+			+ lf + szFolder
+			+ lf + lf + ERR_STYL_PATH_NOT_FOUND_SYSTAB2
+		Alter Control 400 Value szFolder
+		Dialog Preserve
+	Else
+		Alter Control 400 Value szFolder
+		Dialog Remove
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Handler - Udpegning af systembibliotek
+'****************************************
+Sub HandlerSelectSystemDirectory
+
+Dim	szPath As String
+
+OnError GoTo ErrorOccured
+
+	szPath = ReadControlValue(400)
+
+	szPath = GetDirectory$(szPath, STYL_DLG_TITLE_PICK_SYSTEMTABS)
+	If szPath = "" Then
+		Exit Sub
+	End If
+
+	Alter Control 400 Value GetFileNameRelative$(szPath)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Returnerer bibliotek til opsætningsfiler (ApplicationDir eller Windows) ...
+'****************************************
+Function menuGetSetupFileName$(ByVal szFile As String) As String
+
+Dim	szFullFile As String
+
+OnError GoTo ErrorOccured
+
+	menuGetSetupFileName$ = INIGetIniFilePathRead$(PRGINFOGetApplicationTitle$(), szFile) & szFile
+'	If FileExists(szFullFile) Then
+'		menuGetSetupFileName$ = szFullFile
+'	Else
+'		menuGetSetupFileName$ = ApplicationDirectory$() & szFile
+'	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Returnerer bibliotek til opsætningsfiler (ApplicationDir eller Windows) ...
+'****************************************
+Function menuGetSetupFileNameWrite$(ByVal szFile As String) As String
+
+OnError GoTo ErrorOccured
+
+	menuGetSetupFileNameWrite$ = INIGetIniFilePathWrite$(PRGINFOGetApplicationTitle$()) & szFile
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Opsætningsdialog til Afsætning...
+'****************************************
+Sub menuSetupConstruction
+
+OnError GoTo ErrorOccured
+
+	If ConstrSetupDialog() Then
+		Call WriteWholeIniFile
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Opsætningsdialog til værktøjerne
+'**********************************************************************************************''
+Sub menuSetupTools
+
+OnError GoTo ErrorOccured
+
+	If ToolSetupDialog() Then
+		Call WriteWholeIniFile
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Opsætningsdialog til Søgninger...
+'****************************************
+Sub menuSetupUpdateColumn
+
+OnError GoTo ErrorOccured
+
+	If UpdateColumnSetupDialog() Then
+		Call WriteWholeIniFile
+		Call DeleteAndCreateUpdateButtonPads(PAD_TOOLS)
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'****************************************
+'Dialog med standard værdier...
+'****************************************
+Sub menuSetupPrintStandardValues
+
+OnError GoTo ErrorOccured
+
+	If PrintingSetStandardValuesDialog() Then
+		Call WriteWholeIniFile
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'kald af Printeropsætning
+'****************************************
+Sub menuSetupPrintPrinter
+
+OnError GoTo ErrorOccured
+
+	If PrintingSetupCurrentPrint() Then
+		Call WriteWholeIniFile
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'kald af Printeropsætning vedr. layout
+'****************************************
+Sub menuSetupPrintLayout
+
+OnError GoTo ErrorOccured
+
+	If PrintingSetupPrintLayouts() Then
+		Call WriteWholeIniFile
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'kald af Printeropsætning ved aktuel udskrift
+'****************************************
+Sub menuSetupPrintCurrent
+
+OnError GoTo ErrorOccured
+
+	If PrintingSetupCurrentPrint() Then
+		Call WriteWholeIniFile
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'kald af Opsætning af MultiDisplay
+'****************************************
+Sub menuSetupKPMultiDisplay
+
+Dim	fX, fY As Float,
+	bFloat, bPadExists As Logical,
+	szBtnFile As String
+
+OnError GoTo ErrorOccured
+
+	szBtnFile = menuGetSetupFileName$(FILE_BTP)
+
+	bPadExists = PADExists(PAD_MULTIDISPLAY)
+	If bPadExists Then
+		fX		= ButtonPadInfo(PAD_MULTIDISPLAY, BTNPAD_INFO_X)
+		fY		= ButtonPadInfo(PAD_MULTIDISPLAY, BTNPAD_INFO_Y)
+		bFloat	= ButtonPadInfo(PAD_MULTIDISPLAY, BTNPAD_INFO_FLOATING)
+	End If
+
+	Call kpdShowDialogDisplay
+	Call WriteWholeIniFile
+
+	If bPadExists Then
+		If fX <> ButtonPadInfo(PAD_MULTIDISPLAY, BTNPAD_INFO_X) Then
+			Call PADReadSetupSingle(szBtnFile, PAD_MULTIDISPLAY)
+		ElseIf fY <> ButtonPadInfo(PAD_MULTIDISPLAY, BTNPAD_INFO_Y) Then
+			Call PADReadSetupSingle(szBtnFile, PAD_MULTIDISPLAY)
+		ElseIf bFloat <> ButtonPadInfo(PAD_MULTIDISPLAY, BTNPAD_INFO_FLOATING) Then
+			Call PADReadSetupSingle(szBtnFile, PAD_MULTIDISPLAY)
+		End If
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Laver menupaletter - Tema
+'****************************************
+Sub menuCreateTemaPad
+
+Dim	szFile As String
+
+OnError GoTo ErrorOccured
+
+	'***Generating buttonpads...
+	Call kppGenerateAllButtonPads(STYL_PAD_THEME_LINE, STYL_PAD_THEME_POLYGON,
+						STYL_PAD_THEME_SYMBOL, STYL_PAD_THEME_FONT)
+
+	szFile = menuGetSetupFileName$(FILE_BTP)
+
+	Call PADReadSetupSingle(szFile, STYL_PAD_THEME_LINE)
+	Call PADReadSetupSingle(szFile, STYL_PAD_THEME_POLYGON)
+	Call PADReadSetupSingle(szFile, STYL_PAD_THEME_SYMBOL)
+	Call PADReadSetupSingle(szFile, STYL_PAD_THEME_FONT)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Laver menupaletter - Udskriv
+'****************************************
+Sub menuCreatePlotPad
+
+OnError GoTo ErrorOccured
+
+	Create ButtonPad PAD_PRINTING As
+		PushButton
+			Icon 1 File FILE_DLL_ICONS_PLOT
+			Calling PreViewPrintScaleSetup
+			HelpMsg PPRO_BUT_HELP_QUICK_PRINT
+		Separator
+		PushButton
+			Icon 3 File FILE_DLL_ICONS_PLOT
+			Calling PrintAlterScaleForPreview
+			HelpMsg PPRO_BUT_HELP_CHANGE_SCALE
+		PushButton
+			Icon 5 File FILE_DLL_ICONS_PLOT
+			Calling PreViewPrintScaleEnd
+			HelpMsg PPRO_BUT_HELP_CONTINUE_PRINT
+		PushButton
+			Icon 7 File FILE_DLL_ICONS_PLOT
+			Calling PreViewAbort
+			HelpMsg PPRO_BUT_HELP_ABORT
+		PushButton
+			Icon 15 File FILE_DLL_ICONS_PLOT
+			Calling PRINTCloseHiddenOpenedTabsAndWins
+			HelpMsg PPRO_BTN_HLP_CLOSE_WIN_AND_TABS
+		Width 12
+		Position (10, 5) Units "cm"
+		Show
+
+	Call PreViewButtonPadDisable
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Temastyring: Udvælgelse af editeringsgrupper
+'****************************************
+Sub menuSetupTemaPadDlg
+
+OnError GoTo ErrorOccured
+
+	If kppDialogSelectEditPadGroup() Then
+		Call WriteWholeIniFile
+		Call menuCreateTemaPad
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Søgning: Opsætning af forskellige søgninger
+'****************************************
+Sub menuSetupSearch
+
+OnError GoTo ErrorOccured
+
+	If SrchSetupDialog() Then
+		Call WriteWholeIniFile
+
+		Call SRCHRemoveButtons(PAD_SEARCHING)
+		If SRCHCreateButtonPad(PAD_SEARCHING) Then
+			Call PADReadSetupSingle(menuGetSetupFileName$(FILE_BTP), PAD_SEARCHING)
+		End If
+
+		If SRCHUseMenus() Then
+			Call CreateMenus
+		End If
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub MENUPADExportSeach
+
+OnError GoTo ErrorOccured
+
+	If PDAExportSearch() Then
+		Call WriteWholeIniFile
+	End If
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub MENUPADExportThemeButtons
+
+OnError GoTo ErrorOccured
+
+	If PDAExportThemeButtons(kpaGetKPPath$()) Then
+		Call WriteWholeIniFile
+	End If
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

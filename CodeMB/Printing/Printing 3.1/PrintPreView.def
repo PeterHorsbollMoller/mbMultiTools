@@ -1,0 +1,25 @@
+Declare Sub PreViewPrintScaleSetup
+
+Declare Sub PreViewPrintScaleBegin(ByVal nScale As Integer)
+Declare Sub PreViewPrintScaleEnd
+
+Declare Function PreViewShowAreaToPrint(ByVal nMapWin As Integer, ByVal fWidth As Float, ByVal fHeight As Float) As Logical
+Declare Function PreViewGetCenterFromArea(nMapWin As Integer, fXKoord As Float, fYKoord As Float, ByVal bRemoveFrame As Logical) As Logical
+
+Declare Sub PreViewButtonPadCreate(ByVal btpTitle As String)
+Declare Sub PreViewButtonPadDisable
+Declare Sub PreViewButtonPadSaveFrameEnable
+Declare Sub PreViewButtonPadEnable
+Declare Sub PreViewButtonPadWritePadFile(ByVal btpTitle As String)
+
+Declare Sub PreViewAbort
+Declare Sub PreViewSaveFrameToTable(ByVal nRow As Integer, ByVal bFromTable As Logical, 
+						ByVal bShowAskForMoreFrames As Logical)
+
+Declare Function GetFrameObject(	ByVal nMapWin As Integer, ByVal fWidth As Float, ByVal fHeight As Float,
+						ByVal fCenterX As Float, ByVal fCenterY As Float) As Object
+Declare Function GetFrameObjectRotate(	ByVal nMapWin As Integer, ByVal fWidth As Float, ByVal fHeight As Float,
+							ByVal fCenterX As Float, ByVal fCenterY As Float, ByVal fRotation As Float) As Object
+
+Declare Sub PreViewCreateMultiFrames
+Declare Sub PreViewSaveCurrentFrameToTable

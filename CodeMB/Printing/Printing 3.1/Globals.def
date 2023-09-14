@@ -1,0 +1,57 @@
+'*******************************************************************************
+'** 	Modul:	Globals.def - Bruges af Printing.mb	
+'**			Globale variabler og definitioner...
+'*******************************************************************************
+
+'**Page Orientation...
+Define PAGE_ORIENT_PORTRAIT	1
+Define PAGE_ORIENT_LANDSCAPE	2
+
+'**Page sizes...
+Define PAGE_SIZE_A4	1
+Define PAGE_SIZE_A3	2
+Define PAGE_SIZE_A2	3
+Define PAGE_SIZE_A1	4
+Define PAGE_SIZE_A0	5
+
+Define WIN_PAPERSIZE_UNUSABLE	-999
+Define WIN_PAPERSIZE_A4		9	
+Define WIN_PAPERSIZE_A3		8
+Define WIN_PAPERSIZE_A2		WIN_PAPERSIZE_UNUSABLE	'66	Doesn't work on some HP printers eg. HP650
+Define WIN_PAPERSIZE_A1		WIN_PAPERSIZE_UNUSABLE	'267	'Only on HP650C
+Define WIN_PAPERSIZE_A0		WIN_PAPERSIZE_UNUSABLE	'268	'Only on HP650C
+
+Define LANGUAGE_DK	1
+Define LANGUAGE_US	2
+Define LANGUAGE_SE	3
+Define LANGUAGE_OTHER	4
+
+Define SCALETYPE_SELECTION		1
+Define SCALETYPE_CURRENT_MAP		2
+Define SCALETYPE_CURRENT_MAP_NO_SEL	1
+Define SCALETYPE_KEYED_IN		3
+Define SCALETYPE_KEYED_IN_NO_SEL	2
+
+Define WIN_MAX_WIDTH	27	'cm
+Define WIN_MAX_HEIGHT	19	'cm
+
+'**Definitions for printing...
+Global	arrPrintLayoutFiles(10), arrPrintLayoutText(10) As String
+
+Type T_COL_AND_VALUES
+	szColumnName	As String
+	szColumnValue	As String
+End Type
+
+Type T_ROW_AND_VALUES
+	szTabName	As String
+	nRowID	As Integer
+	oAliasObj	As Object
+	szOrigValue	As String
+	szNewValue	As String
+End Type
+
+Type T_ALIAS_AND_VALUE
+	szAlias	As String
+	szValue	As String
+End Type

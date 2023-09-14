@@ -1,0 +1,420 @@
+'********************************************************
+'**	Modul:	KPIconSetup.mb
+'**	Function:	Læs / skriv stilart fra ikontabel
+'**	Program	Shared Library...
+'********************************************************
+Include "MapBasic.def"
+
+Include "KPAdminUse.def"
+'Include "KPStyleDlg.def"
+'Include "KPStyleUse.def"
+Include "KPIconDlg.def"
+Include "KPIconUse.def"
+'Include "KPPadDlg.def"
+
+Include "Globals.def"
+
+Include "..\..\Time\Time.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\FileFunc\FileFunc.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+'--------------
+Define	KPI_CTRL_ICON_DESCR_LIST	100
+Define	KPI_CTRL_ICON_DESCR_EDIT	110
+Define	KPI_CTRL_ICON_FILENAME_EDIT	200
+Define	KPI_CTRL_ICON_FILENAME_BTN	210
+
+Define	KPI_CTRL_ADD_ICONFILE_BTN	300
+Define	KPI_CTRL_REMOVE_ICONFILE_BTN	400
+
+'--------------
+Declare Sub kpiHandlerDialogIconFilesStartup
+Declare Sub kpiHandlerIconShortNamePicked
+Declare Sub kpiHandlerPickIconFilePath
+Declare Sub kpiHandlerAddIconFile
+Declare Sub kpiHandlerRemoveIconFile
+
+Declare Sub kpiHandlerSelectIconFile
+
+Dim	arrIconShortNames(0) As String
+
+'********************************************************
+'	Dialog med alle ikonfilerne listet op...
+'********************************************************
+Sub kpiShowDialogIconFileInfo
+
+OnError GoTo ErrorOccured
+
+Dim	bCloseTab As Logical
+
+	bCloseTab = kpaOpenKPIconsTable()
+
+	If kpiDialogIconFileInfo() Then
+		'User pushed the OKButton...
+		Commit Table KPICONS
+	Else
+		'User pushed the CancelButton...
+		Rollback Table KPICONS
+	End If
+
+	If bCloseTab Then
+		Close Table KPICONS
+	Else
+		Close Table CUR_LIST_OF_ICONFILES
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Dialog til angivelse af nye ikonfiler......
+'********************************************************
+Function kpiDialogIconFileInfo() As Logical
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPIconsTable()
+
+	kpiDialogIconFileInfo = FALSE
+
+	Dialog
+		Title STYL_DLG_TITLE_ICONFILES
+		Calling kpiHandlerDialogIconFilesStartup
+
+		Control StaticText	Position 5,5
+			Title MSG_TXT_DESCRITION
+		Control ListBox		Position 5,15	Width 200	Height 70	ID KPI_CTRL_ICON_DESCR_LIST
+			Calling kpiHandlerIconShortNamePicked
+
+		Control StaticText	Position 5,90
+			Title MSG_ICON_FILE
+		Control EditText		Position 5,100	Width 185			ID KPI_CTRL_ICON_FILENAME_EDIT
+			Disable
+		Control Button		Position 190,100	Width 15	Height 12	ID KPI_CTRL_ICON_FILENAME_BTN
+			Title "..."
+			Calling kpiHandlerPickIconFilePath
+			Disable
+
+		Control Button		Position 5,120	Width 40			ID KPI_CTRL_ADD_ICONFILE_BTN
+			Title MSG_TEXT_ADD_POINTS
+			Calling kpiHandlerAddIconFile
+		Control Button		Position 55,120	Width 40			ID KPI_CTRL_REMOVE_ICONFILE_BTN
+			Title MSG_TEXT_REMOVE
+			Calling kpiHandlerRemoveIconFile
+			Hide
+
+		Control OKButton		Position 120,120	Width 40
+		Control CancelButton	Position 165,120	Width 40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Rollback Table KPICONS
+		kpiDialogIconFileInfo = FALSE
+	Else
+		Commit Table KPICONS
+		kpiDialogIconFileInfo = TRUE
+	End If
+
+	If bCloseTab Then
+		Call TABClose("KPICONS")
+	Else
+		Call TABClose("CUR_LIST_OF_ICONFILES")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Handler - Opstart af dialog til oprettelse af ikonfilreferencer......
+'********************************************************
+Sub kpiHandlerDialogIconFilesStartup
+
+OnError GoTo ErrorOccured
+
+	'Alter Control KPI_CTRL_REMOVE_ICONFILE_BTN Hide
+
+	Call kpiCreateListOfIconFileNames(arrIconShortNames)
+	Alter Control KPI_CTRL_ICON_DESCR_LIST Title From Variable arrIconShortNames	Value 2
+
+	Call kpiHandlerIconShortNamePicked
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Beskrivende tekst for ikonfil blev udvalgt......
+'********************************************************
+Sub kpiHandlerIconShortNamePicked
+
+Dim	nPick As Integer
+
+OnError GoTo ErrorOccured
+
+	nPick = ReadControlValue(KPI_CTRL_ICON_DESCR_LIST)
+
+	Do Case nPick
+		Case 0
+			'**Do nothing
+			Alter Control 100 Value 2
+			Alter Control KPI_CTRL_ICON_FILENAME_BTN Disable
+			Alter Control KPI_CTRL_REMOVE_ICONFILE_BTN Disable
+			Call kpiHandlerIconShortNamePicked
+		Case 1	'**Create new...
+			Call kpiHandlerAddIconFile
+			Alter Control KPI_CTRL_ICON_FILENAME_BTN Disable
+			Alter Control KPI_CTRL_REMOVE_ICONFILE_BTN Disable
+		Case 2
+			Alter Control KPI_CTRL_ICON_FILENAME_EDIT Value kpaGetKPDefaultDLLFile32$()	'Files with default icons...
+			Alter Control KPI_CTRL_ICON_FILENAME_BTN Disable
+			Alter Control KPI_CTRL_REMOVE_ICONFILE_BTN Disable
+		Case 3
+			Alter Control KPI_CTRL_ICON_FILENAME_EDIT Value STYL_MAPINFO_ICON_TEXT
+			Alter Control KPI_CTRL_ICON_FILENAME_BTN Disable
+			Alter Control KPI_CTRL_REMOVE_ICONFILE_BTN Disable
+		Case Else
+			Fetch Rec (nPick - 3) From CUR_LIST_OF_ICONFILES
+			Alter Control KPI_CTRL_ICON_FILENAME_EDIT Value CUR_LIST_OF_ICONFILES.ICONFILENAME
+			Alter Control KPI_CTRL_ICON_FILENAME_BTN Enable
+			Alter Control KPI_CTRL_REMOVE_ICONFILE_BTN Enable
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Udpeg ikonfil......
+'********************************************************
+Sub kpiHandlerPickIconFilePath
+
+Dim	szPath, szFile As String,
+	nRowID, nItem As Integer
+
+OnError GoTo ErrorOccured
+
+	nItem		= ReadControlValue(KPI_CTRL_ICON_DESCR_LIST)
+	szFile	= ReadControlValue(KPI_CTRL_ICON_FILENAME_EDIT)
+	If szFile <> "" Then
+		szFile	= GetFileNameAbsolute$(nItem)
+	End If
+	szPath	= PathToDirectory$(szFile)
+	szFile	= PathToFileName$(szFile)
+
+	szFile = FileOpenDlg(szPath, szFile, "DLL", STYL_DLG_TITLE_PICK_ICONFILE) 
+	If szFile = "" Then
+		Exit Sub
+	End If
+
+	nRowID	= kpiGetIconFileROWIDFromElementNo(nItem)
+	szFile	= kpaGetRelativeFileName$(szFile)
+
+	Update CUR_LIST_OF_ICONFILES
+		Set	ICONFILENAME	= szFile
+		Where	ROWID			= nRowID
+
+	Alter Control KPI_CTRL_ICON_FILENAME_EDIT Value szFile
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Tilføj ikonfil......
+'********************************************************
+Sub kpiHandlerAddIconFile
+
+OnError GoTo ErrorOccured
+
+	If kpiDialogCreateNewIconFileInfo() Then
+		Call kpiCreateListOfIconFileNames(arrIconShortNames)
+		Alter Control KPI_CTRL_ICON_DESCR_LIST Title From Variable arrIconShortNames	Value 2
+	Else
+		Alter Control KPI_CTRL_ICON_DESCR_LIST Value 2
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Fjern ikonfil......
+'********************************************************
+Sub kpiHandlerRemoveIconFile
+
+Dim	bCloseTab, bIconFileFound As Logical,
+	nPick, nRowID, nIconFileID As Integer
+
+OnError GoTo ErrorOccured
+
+	nPick		= ReadControlValue(KPI_CTRL_ICON_DESCR_LIST)
+	nRowID	= kpiGetIconFileROWIDFromElementNo(nPick)
+	If nRowID < 1 Then
+		Exit Sub
+	End If
+
+	Fetch Rec nRowID From CUR_LIST_OF_ICONFILES
+	nIconFileID = CUR_LIST_OF_ICONFILES.ICONFILEID
+
+	bIconFileFound = FALSE
+
+	If kpaUseStyles() Then
+		bCloseTab = kpaOpenKPStylesTable()
+		If kpiIconFileReferenceInTable(KPSTYLES, nIconFileID) Then
+			bIconFileFound = TRUE
+		End If
+		If bCloseTable Then
+			Close Table KPSTYLES
+		End If
+	End If
+
+	If kpaUseMultiDisplaying() Then
+		bCloseTab = kpaOpenKPDisplayTable()
+		If kpiIconFileReferenceInTable(KPDISPLAY, nIconFileID) Then
+			bIconFileFound = TRUE
+		End If
+		If bCloseTable Then
+			Close Table KPDISPLAY
+		End If
+	End If
+
+	If bIconFileFound Then
+		Note ERR_STYL_ICONFILE_IS_REFERENCED
+		Exit Sub
+	End If
+
+	Delete From CUR_LIST_OF_ICONFILES Where RowID = nRowID
+	Call kpiCreateListOfIconFileNames(arrIconShortNames)
+
+	If nPick > UBound(arrIconShortNames) Then
+		nPick = UBound(arrIconShortNames)
+	End If
+
+	Alter Control KPI_CTRL_ICON_DESCR_LIST Title From Variable arrIconShortNames	Value nPick
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Dialog til angivelse af nye ikonfiler......
+'********************************************************
+Function kpiDialogCreateNewIconFileInfo() As Logical
+
+Dim	szDescription, szFile As String,
+	nIconFileID As Integer
+
+OnError GoTo ErrorOccured
+
+'------------------
+ShowDialogAgain:
+
+	Dialog
+		Title STYL_DLG_TITLE_NEW_ICONSETUP
+
+		Control StaticText	Position 5,5
+			Title MSG_TXT_DESCRITION
+		Control EditText		Position 5,15	Width 200	ID KPI_CTRL_ICON_DESCR_EDIT
+			Value szDescription
+			Into szDescription
+		Control Button		Position 5,30	Width 15
+			Title "..."
+			Calling kpiHandlerSelectIconFile
+		Control EditText		Position 25,30	Width 180	ID KPI_CTRL_ICON_FILENAME_EDIT
+			Value szFile
+			Into szFile
+
+		Control OKButton		Position 55,45	Width 40
+		Control CancelButton	Position 105,45	Width 40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		kpiDialogCreateNewIconFileInfo = FALSE
+		Exit Function
+	ElseIf szFile = "" Then
+		kpiDialogCreateNewIconFileInfo = FALSE
+		Exit Function
+	ElseIf not FileExists(szFile) Then
+		Note ERR_ICONFILE_NOT_FOUND + szFile
+		kpiDialogCreateNewIconFileInfo = FALSE
+		Exit Function
+	Else
+		kpiDialogCreateNewIconFileInfo = TRUE
+	End If
+
+	If szDescription = "" Then
+		szDescription = PathToTableName$(szFile)
+	End If
+	szFile = kpaGetRelativeFileName$(szFile)
+
+	nIconFileID = kpiGetIconFileIDFromShortName(szDescription)
+	If nIconFileID = 0 Then
+		Insert Into KPICONS
+			(ICONFILEID, ICONFILESHORTNAME, ICONFILENAME)
+			Values (kpiGetNextIconFileID(), szDescription, szFile)
+	Else
+		Note ERR_STYL_ICONSETUP_NAME_EXISTS
+			+ lf + szDescription
+		GoTo ShowDialogAgain
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Handler - Dialog tiludpegning af ikonfil......
+'********************************************************
+Sub kpiHandlerSelectIconFile
+
+Dim	szFile As String
+
+OnError GoTo ErrorOccured
+
+	szFile = FileOpenDlg("", "", "DLL", STYL_DLG_TITLE_PICK_ICONFILE)
+	If szFile = "" Then
+		Exit Sub
+	End If
+
+	Alter Control KPI_CTRL_ICON_FILENAME_EDIT Value kpaGetRelativeFileName$(szFile)
+	If ReadControlValue(KPI_CTRL_ICON_DESCR_EDIT) = "" Then
+		Alter Control KPI_CTRL_ICON_DESCR_EDIT Value PathToFileName$(szFile) Active
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+

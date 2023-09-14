@@ -1,0 +1,741 @@
+'********************************************************
+'**	Modul:	Læs skriv stilart fra stilarttabel
+'**			Opsætning af lagstyring/label - Dialoger
+'********************************************************
+Include "MapBasic.def"
+
+Include "KPAdminUse.def"
+Include "KPStyleUse.def"
+Include "KPTableUse.def"
+Include "KPLayerDlg.def"
+Include "KPLayerUse.def"
+Include "KPGroupDlg.def"
+Include "KPGroupUse.def"
+
+Include "Globals.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\ArrayFunc\ArrayFunc.def"
+Include "..\..\WinFunc\WinFunc.def"
+Include "..\..\MapFunc\MapFunc.def"
+'------------------
+Define	KPL_CTRL_LAYERS_LIST			100
+Define	KPL_CTRL_ADD_TO_GROUP_CHK		300
+
+Define	KPL_CTRL_LAYERS_UNSORTED_LIST		100
+Define	KPL_CTRL_INSERT_BEFORE_BTN		110
+Define	KPL_CTRL_INSERT_AFTER_BTN		120
+Define	KPL_CTRL_LAYERS_SORTED_LIST		200
+Define	KPL_CTRL_MOVE_UP_BTN			210
+Define	KPL_CTRL_MOVE_DOWN_BTN			220
+Define	KPL_CTRL_MOVE_TO_UNSORTED_BTN		230
+Define	KPL_CTRL_TABLEID_EDIT			300
+
+'------------------
+Declare Sub HandlerRegisterSelectedLayers
+
+Declare Sub kplHandlerSetLayerOrderLoad
+Declare Sub kplHandlerLoadSortedLayers
+Declare Sub kplHandlerLoadUnsortedLayers
+Declare Sub kplHandlerUnsortedListClick
+Declare Sub kplHandlerMoveToSortedLayers
+Declare Sub kplHandlerMoveToUnsortedLayers
+Declare Sub kplHandlerChangeOrder
+
+Declare Sub kplHandlerCreateNewLayerSetup
+Declare Sub kplHandlerRenameLayerSetup
+
+Dim	marrLayers(0), marrLayersNoOrder(), marrLayersOrder() As String,
+	marrLayerInfo() As T_MAP_LAYER_INFO
+
+'********************************************************
+'	Kalder Dialog : Skriv udvalgte lag
+'********************************************************
+Sub kplShowDialogWriteLayerSettings
+
+Dim	bCloseLayer, bCloseTable As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseLayer	= kpaOpenKPLayersTable()
+	bCloseTable	= kpaOpenKPTablesTable()
+
+	If kplDialogWriteLayerSettings() Then
+		'**User clicked OKButton
+		Commit Table KPLAYERS
+	Else
+		'**User clicked CancelButton
+		Rollback Table KPLAYERS
+	End If
+
+	If bCloseLayer Then
+		Call TABClose("KPLAYERS")
+	End If
+	If bCloseTable Then
+		Call TABClose("KPTABLES")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Dialog : Skriv udvalgte lag
+'********************************************************
+Function kplDialogWriteLayerSettings() As Logical
+
+Dim	nNumLayers, nMID, i As Integer,
+	bCloseLayer, bCloseTable, bCloseTGroup As Logical
+
+OnError GoTo ErrorOccured
+
+kplDialogWriteLayerSettings = FALSE
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Function
+	End If
+	nMID = FrontWindow()
+	If not WindowInfo(nMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Function
+	End If
+
+	nNumLayers =  MAPCreateArrayLayerInfo(nMID, marrLayerInfo(), TRUE, TRUE, TRUE, FALSE, FALSE, FALSE, TRUE)
+	If nNumLayers = 0 Then
+		Note ERR_MAP_NO_LAYER_TO_USE
+		Exit Function
+	End If
+
+	ReDim marrLayers(nNumLayers)
+	For i = 1 To nNumLayers
+		marrLayers(i)	= marrLayerInfo(i).szName
+	Next
+
+	bCloseLayer		= kpaOpenKPLayersTable()
+	bCloseTable		= kpaOpenKPTablesTable()
+	bCloseTGroup	= kpaOpenKPTGroupTable()
+
+	Dialog
+		Title STYL_DLG_TITLE_SAVE_LAYER_SETUP
+
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_LAYER
+		Control MultiListBox	Position 5,15	Width 130	Height 100	ID KPL_CTRL_LAYERS_LIST
+			Title From Variable marrLayers
+
+		Control CheckBox		Position 10,120					ID KPL_CTRL_ADD_TO_GROUP_CHK
+			Title STYL_DLG_TXT_ASSIGN_TO_GROUP
+
+		Control OKButton		Position 45,135	Width 40
+			Calling HandlerRegisterSelectedLayers
+		Control CancelButton	Position 90,135	Width 40
+			Title MSG_CLOSE
+
+	Commit Table KPLAYERS
+	Commit Table KPTABLES
+	Commit Table KPTGROUP
+
+	If bCloseLayer Then
+		Call TABClose("KPLAYERS")
+	End If
+	If bCloseTable Then
+		Call TABClose("KPTABLES")
+	End If
+	If bCloseTGroup Then
+		Call TABClose("KPTGROUP")
+	End If
+
+	ReDim marrLayers(0)
+	ReDim marrLayerInfo(0)
+
+kplDialogWriteLayerSettings = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Handler : Registrerer udvalgte lag
+'********************************************************
+Sub HandlerRegisterSelectedLayers
+
+Dim	i, nItem, nTabID, nMID, nLayerID, nOrder, nLayer, nGroup, nSubGroup, arrItems() As Integer,
+	szLayer, szDescr As String
+
+OnError GoTo ErrorOccured
+
+	nMID		= FrontWindow()
+	nOrder	= kplGetMinOrder()
+	nItem		= ReadControlValue(KPL_CTRL_LAYERS_LIST)
+	If nItem = 0 Then
+		Exit Sub
+	End If
+	If nOrder	>= 0 Then
+		nOrder	= -1
+	End If
+
+	Do While (nItem <> 0)
+		If NOT ARRAddItemInteger(arrItems, nItem) Then
+			'**WASN'T ADDED ???
+		End If
+		nItem	= ReadControlValue(KPL_CTRL_LAYERS_LIST)
+	Loop
+	Call ARRSortIntegerDESC(arrItems)
+
+	If ReadControlValue(KPL_CTRL_ADD_TO_GROUP_CHK) Then
+		If NOT kpgSelectNewGroupSettingDialog(nGroup, nSubGroup) Then
+			Dialog Preserve
+			Exit Sub
+		End If
+	End If
+
+'	Do Until nItem = 0
+	For i = 1 To Ubound(arrItems)
+		nItem		= arrItems(i)
+		szLayer	= marrLayerInfo(nItem).szName
+		nOrder	= nOrder - 1
+		szDescr	= ""
+		nLayer 	= marrLayerInfo(nItem).nLayerID
+		nTabID 	= kptGetTableIDFromTabFile(marrLayerInfo(nItem).szTabFile)
+
+		'Print nItem & ". Lag: " & szLayer & " (" & nLayer & ") TabFile: " & marrLayerInfo(nItem).szTabFile & " TabID: " & nTabID
+
+		If nTabID = 0 Then
+			If kptRegisterSingleOpenTable(szLayer, FALSE) Then
+				nTabID	= kptGetTableIDFromTabFile(marrLayerInfo(nItem).szTabFile)
+				nLayerID	= kplDialogSelectLayerIDNew(nTabID)
+				'Print "LayerID: " & nLayerID
+				If nLayerID <> -1 Then
+					Call kplSetEntireLayerSettings(nMID, szLayer, nLayer, nTabID, nLayerID, nOrder, szDescr)
+				End If
+			End If
+		Else
+			nLayerID	= kplDialogSelectLayerIDNew(nTabID)
+			'Print "LayerID: " & nLayerID
+			If nLayerID <> -1 Then
+				Call kplSetEntireLayerSettings(nMID, szLayer, nLayer, nTabID, nLayerID, nOrder, szDescr)
+			End If
+		End If
+
+		If ((nGroup <> 0) OR (nSubGroup <> 0)) AND (nLayerID <> -1) Then
+			If kpgCreateGroupSetup(nTabID, nLayerID, nGroup, nSubGroup) <> RESULT_GROUP_SETUP_NOT_CREATED Then
+				'**Oprettet med succes
+			End If
+		End If
+'		nItem = ReadControlValue(KPL_CTRL_LAYERS_LIST)
+'	Loop
+	Next	'i
+
+	Dialog Preserve
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Kalder Dialog : Definer rækkefølge på lagene
+'**********************************************************************************************''
+Sub kplShowDialogSetLayerOrder
+
+Dim	bCloseLayer, bCloseTable As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseLayer	= kpaOpenKPLayersTable()
+	bCloseTable	= kpaOpenKPTablesTable()
+
+	If kplDialogSetLayerOrder() Then
+		'**User clicked OKButton
+		Commit Table KPLAYERS
+	Else
+		'**User clicked CancelButton
+		Rollback Table KPLAYERS
+	End If
+
+	If bCloseLayer Then
+		Call TABClose("KPLAYERS")
+	End If
+	If bCloseTable Then
+		Call TABClose("KPTABLES")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+' - Viser dialog hvor lagenes indbyrdes rækkefølge defineres
+'**********************************************************************************************''
+Function kplDialogSetLayerOrder() As Logical
+
+Dim	bCloseLayer, bCloseTable As Logical
+
+OnError GoTo ErrorOccured
+
+kplDialogSetLayerOrder = FALSE
+
+	bCloseLayer	= kpaOpenKPLayersTable()
+	bCloseTable	= kpaOpenKPTablesTable()
+
+	Dialog
+		Title STYL_DLG_TITLE_LAYER_ORDER
+		Calling kplHandlerSetLayerOrderLoad
+		'-------------
+		Control StaticText	Position 5,5
+			Title MSG_NOT_SORTED_ORDER
+		Control MultiListBox	Position 5,15	Width 150	Height 75	ID KPL_CTRL_LAYERS_UNSORTED_LIST
+			Title From Variable marrLayersNoOrder
+			Calling kplHandlerUnsortedListClick
+		Control GroupBox		Position 160,15	Width 60	Height 45
+			Title MSG_INSERT
+		Control Button		Position 168,25	Width 44	Height 15	ID KPL_CTRL_INSERT_BEFORE_BTN
+			Title MSG_BEFORE
+			Calling kplHandlerMoveToSortedLayers
+		Control Button		Position 168,40	Width 44	Height 15	ID KPL_CTRL_INSERT_AFTER_BTN
+			Title MSG_AFTER
+			Calling kplHandlerMoveToSortedLayers
+		'-------------
+		Control StaticText	Position 5,95
+			Title MSG_SORTED_ORDER
+		Control ListBox		Position 5,105	Width 150	Height 120	ID KPL_CTRL_LAYERS_SORTED_LIST
+			Title From Variable marrLayersOrder
+		Control GroupBox		Position 160,125	Width 60	Height 45
+			Title MSG_MOVE
+		Control Button		Position 168,135	Width 44	Height 15	ID KPL_CTRL_MOVE_UP_BTN
+			Title MSG_UP
+			Calling kplHandlerChangeOrder
+		Control Button		Position 168,150	Width 44	Height 15	ID KPL_CTRL_MOVE_DOWN_BTN
+			Title MSG_DOWN
+			Calling kplHandlerChangeOrder
+
+		Control GroupBox		Position 160,175	Width 60	Height 30
+			Title MSG_MOVETO
+		Control Button		Position 168,185	Width 44	Height 15	ID KPL_CTRL_MOVE_TO_UNSORTED_BTN
+			Title MSG_UNSORTED
+			Calling kplHandlerMoveToUnsortedLayers
+
+		Control OKButton		Position 55,230	Width 40
+		Control CancelButton	Position 100,230	Width 40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		If bCloseLayer Then
+			Rollback Table KPLAYERS
+			Call TABClose("KPLAYERS")
+		End If
+		If bCloseTable Then
+			Rollback Table KPTABLES
+			Call TABClose("KPTABLES")
+		End If
+
+		Exit Function
+	End If
+
+	Commit Table KPLAYERS
+	If bCloseLayer Then
+		Call TABClose("KPLAYERS")
+	End If
+	Commit Table KPTABLES
+	If bCloseTable Then
+		Call TABClose("KPTABLES")
+	End If
+
+kplDialogSetLayerOrder = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+' Handler - opstart af dialog
+'**********************************************************************************************''
+Sub kplHandlerSetLayerOrderLoad
+
+OnError GoTo ErrorOccured
+
+	Call kplHandlerLoadSortedLayers
+	Call kplHandlerLoadUnsortedLayers
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+' Indlæser liste med sorterede lag
+'**********************************************************************************************''
+Sub kplHandlerLoadSortedLayers
+
+OnError GoTo ErrorOccured
+
+	Call kplCreateListOfLayersOrder(marrLayersOrder)
+	Alter Control KPL_CTRL_LAYERS_SORTED_LIST Title From Variable marrLayersOrder
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+' Indlæser liste med ikke-sorterede lag
+'**********************************************************************************************''
+Sub kplHandlerLoadUnsortedLayers
+
+OnError GoTo ErrorOccured
+
+	Call kplCreateListOfLayersNoOrder(marrLayersNoOrder)
+	Alter Control KPL_CTRL_LAYERS_UNSORTED_LIST Title From Variable marrLayersNoOrder
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+' Undersøger om der blev dobbeltklikket i listen med usorterede lag
+'**********************************************************************************************''
+Sub kplHandlerUnsortedListClick
+
+OnError GoTo ErrorOccured
+
+	If CommandInfo(CMD_INFO_DLG_DBL) Then
+		Call kplHandlerMoveToSortedLayers
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'**********************************************************************************************''
+' Flytter udvalgte ikke-sorterede lag til listen over sorterede lag
+'**********************************************************************************************''
+Sub kplHandlerMoveToSortedLayers
+
+Dim	i, nCount, nCtrl, nItemSorted, nItemUnsorted, nTableID, nLayerID, nOrder, arrItems() As Integer
+
+OnError GoTo ErrorOccured
+
+	nItemUnsorted	= ReadControlValue(KPL_CTRL_LAYERS_UNSORTED_LIST)
+	If nItemUnsorted = 0 Then
+		Exit Sub
+	End If
+	Do While (nItemUnsorted <> 0)
+		If NOT ARRAddItemInteger(arrItems, nItemUnsorted) Then
+			'**WASN'T ADDED ???
+		End If
+		nItemUnsorted	= ReadControlValue(KPL_CTRL_LAYERS_UNSORTED_LIST)
+	Loop
+
+	nItemSorted		= ReadControlValue(KPL_CTRL_LAYERS_SORTED_LIST)
+	If nItemSorted > 0 Then
+		nCount	= nItemSorted
+		nOrder	= kplGetLayerOrderFromElementNoOrder(nItemsorted)
+	Else
+		nCount 	= 1
+		nOrder	= 500
+	End If
+	If nOrder = 0 Then
+		nOrder = 2
+	End If
+	nCtrl			= TriggerControl()
+	If nCtrl = KPL_CTRL_INSERT_BEFORE_BTN Then
+		nOrder	= nOrder - 400
+	Else	'If nCtrl = KPL_CTRL_INSERT_AFTER_BTN Then
+		nOrder	= nOrder
+	End If
+
+	Call ARRSortIntegerASC(arrItems)
+
+'	Do While (nItemUnsorted <> 0)
+	For i = 1 To Ubound(arrItems)
+'		nTableID	= kplGetTableIDFromElementNoNoOrder(nItemUnsorted)
+'		nLayerID	= kplGetLayerIDFromElementNoNoOrder(nItemUnsorted)
+		nTableID	= kplGetTableIDFromElementNoNoOrder(arrItems(i))
+		nLayerID	= kplGetLayerIDFromElementNoNoOrder(arrItems(i))
+		nCount	= nCount + 1
+		nOrder	= nOrder + 1
+
+		'Print "Overfører " & nTableID & " / " & nLayerID & " rækkefølge " & nOrder
+		Call kplSetOrder(nTableID, nLayerID, nOrder)
+
+'		nItemUnsorted	= ReadControlValue(KPL_CTRL_LAYERS_UNSORTED_LIST)
+	Next	'i
+
+	Call kplHandlerLoadSortedLayers
+	Call kplHandlerLoadUnsortedLayers
+
+	If nItemUnsorted > Ubound(marrLayersNoOrder) Then
+		nItemUnsorted = Ubound(marrLayersNoOrder)
+	End If
+	If nCount > Ubound(marrLayersOrder) Then
+		nCount = Ubound(marrLayersOrder)
+	End If
+	Alter Control KPL_CTRL_LAYERS_UNSORTED_LIST Value nItemUnsorted
+	Alter Control KPL_CTRL_LAYERS_SORTED_LIST Value nCount
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Flytter givent lag fra sorteret til ikke-sorteret liste
+'**********************************************************************************************''
+Sub kplHandlerMoveToUnsortedLayers
+
+Dim	nOrder, nItem, nTableID, nLayerID As Integer,
+	szDescr As String
+
+OnError GoTo ErrorOccured
+
+	nItem		= ReadControlValue(KPL_CTRL_LAYERS_SORTED_LIST)
+	If nItem = 0 Then
+		Exit Sub
+	End If
+	nTableID	= kplGetTableIDFromElementNoOrder(nItem)
+	nLayerID	= kplGetLayerIDFromElementNoOrder(nItem)
+	szDescr	= marrLayersOrder(nItem)
+	nOrder	= kplGetMinOrder() - 1
+
+	Call kplSetOrder(nTableID, nLayerID, nOrder)
+	Call kplHandlerLoadSortedLayers
+	Call kplHandlerLoadUnsortedLayers
+
+	If nItem > Ubound(marrLayersOrder) Then
+		nItem = Ubound(marrLayersOrder)
+	End If
+	Alter Control KPL_CTRL_LAYERS_SORTED_LIST Value nItem
+	Alter Control KPL_CTRL_LAYERS_UNSORTED_LIST Value ARRGetItemNoString(szDescr, marrLayersNoOrder)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Flytter et lag op/ned i rækkefølgende
+'**********************************************************************************************''
+Sub kplHandlerChangeOrder
+
+Dim	nCtrl, nItem, nTableID, nLayerID, nOrder As Integer
+
+OnError GoTo ErrorOccured
+
+	nItem		= ReadControlValue(KPL_CTRL_LAYERS_SORTED_LIST)
+	nTableID	= kplGetTableIDFromElementNoOrder(nItem)
+	nLayerID	= kplGetLayerIDFromElementNoOrder(nItem)
+	nOrder	= kplGetLayerOrderFromElementNoOrder(nItem)
+	nCtrl		= TriggerControl()
+
+	If nCtrl = KPL_CTRL_MOVE_DOWN_BTN Then
+		If nItem = Ubound(marrLayersOrder) Then
+			Exit Sub
+		End If
+		nOrder	= nOrder + 600
+		nItem		= nItem + 1
+	ElseIf nCtrl = KPL_CTRL_MOVE_UP_BTN Then
+		If nItem = 1 Then
+			Exit Sub
+		End If
+		nOrder	= nOrder - 600
+		nItem		= nItem - 1
+	Else
+		Note "Fejl ved ændring af lagets rækkefølge!"
+		Exit Sub
+	End If
+
+	Call kplSetOrder(nTableID, nLayerID, nOrder)
+	Call kplHandlerLoadSortedLayers
+	Alter Control KPL_CTRL_LAYERS_SORTED_LIST Value nItem
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Dialog: Udpeg ønsket lagvisning, hvis flere tilladt
+'**********************************************************************************************''
+Function kplDialogSelectLayerIDNew(ByVal nTableID As Integer) As Integer
+
+Dim	nLayerID, nLayer As Integer
+
+OnError GoTo ErrorOccured
+
+kplDialogSelectLayerIDNew = 0
+
+	'**Allow various layer settings
+	If NOT kpaGetAllowVariousLayerSettings() Then
+		Exit Function
+	End If
+
+	If NOT kptGetTableAllowVariousLayerSetting(nTableID) Then
+		Exit Function
+	End If
+
+	Call kplCreateListOfLayersByTable(nTableID, marrLayers)
+
+	Dialog
+		Title STYL_DLG_TITLE_LYR_DISPLAY_SEL
+
+		Control StaticText	Position 5,5
+			Title MSG_TAB_TABLE
+		Control EditText	Position 5,15	Width 60
+			Value kptGetMapInfoTableName$(nTableID)
+			Disable
+		Control EditText	Position 5,15	Width 10				ID KPL_CTRL_TABLEID_EDIT
+			Value Str$(nTableID)
+			Hide
+
+		Control Button		Position 70,27	Width 30	Height 12
+			Title MSG_NEW
+			Calling kplHandlerCreateNewLayerSetup
+		Control Button		Position 105,27	Width 30	Height 12
+			Title MSG_RENAME
+			Calling kplHandlerRenameLayerSetup
+
+		Control StaticText	Position 5,30
+			Title STYL_DLG_TXT_LAYER_DISPLAYS
+		Control ListBox		Position 5,40	Width 130	Height 100	ID KPL_CTRL_LAYERS_LIST
+			Title From Variable marrLayers
+			Value 1
+			Into nLayer
+
+		Control OKButton		Position 50,145	Width 40
+		Control CancelButton	Position 95,145	Width 40
+	If NOT CommandInfo(CMD_INFO_DLG_OK) Then
+		kplDialogSelectLayerIDNew = -1
+		Exit Function
+	End If
+
+	nLayerID = kplGetLayerIDFromElementNoByTable(nLayer)
+
+kplDialogSelectLayerIDNew = nLayerID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Handler - Giver brugeren mulighed for at angive navnet på en ny lagvisning
+'**********************************************************************************************''
+Sub kplHandlerCreateNewLayerSetup
+
+Dim	nTableID, nLayerID, nOrder As Integer,
+	szDescr As String
+
+OnError GoTo ErrorOccured
+
+	nTableID	= Val(ReadControlValue(KPL_CTRL_TABLEID_EDIT))
+	nLayerID	= kplGetNextLayerID(nTableID)
+	nOrder	= -1
+
+	Dialog
+		Title STYL_DLG_TITLE_LYR_DISPLAY_NEW
+
+		Control StaticText	Position 5,5
+			Title MSG_NAME
+		Control EditText		Position 5,15	Width 100
+			Value STYL_DLG_TXT_LAYER_DISPLAY & nLayerID
+			Into szDescr
+
+		Control OKButton		Position 20,30
+		Control CancelButton	Position 65,30
+
+	If NOT CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	ElseIf szDescr = "" Then
+		Exit Sub
+	End If
+
+	Call kplCreateLayerSettingsDefault(nTableID, nLayerID, nOrder, szDescr)
+
+	Call kplCreateListOfLayersByTable(nTableID, marrLayers)
+	Alter Control KPL_CTRL_LAYERS_LIST Title From Variable marrLayers Value ARRGetItemNoString(szDescr, marrLayers)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Giver brugeren mulighed for at omdøbe navnet på en eksisterende lagvisning
+'**********************************************************************************************''
+Sub kplHandlerRenameLayerSetup
+
+Dim	nTableID, nLayerID, nItem As Integer,
+	szDescr As String
+
+OnError GoTo ErrorOccured
+
+	nTableID	= Val(ReadControlValue(KPL_CTRL_TABLEID_EDIT))
+	nItem		= ReadControlValue(KPL_CTRL_LAYERS_LIST)
+	nLayerID	= kplGetLayerIDFromElementNoByTable(nItem)
+
+	Dialog
+		Title STYL_DLG_TITLE_LYR_DISPLAY_REN
+
+		Control StaticText	Position 5,5
+			Title MSG_NAME
+		Control EditText		Position 5,15	Width 100
+			Value marrLayers(nItem)
+			Into szDescr
+
+		Control OKButton		Position 20,30
+		Control CancelButton	Position 65,30
+
+	If NOT CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	ElseIf szDescr = "" Then
+		Exit Sub
+	End If
+
+	Call kplSetDescription(nTableID, nLayerID, szDescr)
+
+	Call kplCreateListOfLayersByTable(nTableID, marrLayers)
+	Alter Control KPL_CTRL_LAYERS_LIST Title From Variable marrLayers
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

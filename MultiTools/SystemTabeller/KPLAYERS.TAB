@@ -1,0 +1,69 @@
+!table
+!version 300
+!charset WindowsLatin1
+
+Definition Table
+  Type NATIVE Charset "WindowsLatin1"
+  Fields 62
+    TABLEID Integer Index 1 ;
+    SELECTABLE Logical ;
+    ZOOM Logical ;
+    ZOOM_MIN Integer ;
+    ZOOM_MAX Integer ;
+    ARROWS Logical ;
+    CENTROIDS Logical ;
+    NODES Logical ;
+    DISPLAY Integer ;
+    P_WIDTH Smallint ;
+    P_PATTERN Smallint ;
+    P_COLOR Integer ;
+    P_SHOW Logical ;
+    B_PATTERN Smallint ;
+    B_FORECOLOR Integer ;
+    B_BACKCOLOR Integer ;
+    B_SHOW Logical ;
+    L_WIDTH Integer ;
+    L_PATTERN Integer ;
+    L_COLOR Integer ;
+    L_SHOW Logical ;
+    F_SHOW Logical ;
+    F_FONTNAME Char (80) ;
+    F_FONTSTYLE Integer ;
+    F_SIZE Integer ;
+    F_FORECOLOR Integer ;
+    F_BACKCOLOR Integer ;
+    S_SHAPE Integer ;
+    S_COLOR Integer ;
+    S_SIZE Integer ;
+    S_FONTNAME Char (80) ;
+    S_FONTSTYLE Integer ;
+    S_ROTATION Integer ;
+    S_FILENAME Char (31) ;
+    S_CUSTOMSTYLE Integer ;
+    S_KIND Smallint ;
+    S_SHOW Logical ;
+    LBL_LINE Integer ;
+    LBL_POSITION Char (2) ;
+    LBL_L_WIDTH Integer ;
+    LBL_L_PATTERN Integer ;
+    LBL_L_COLOR Integer ;
+    LBL_F_FONTNAME Char (80) ;
+    LBL_F_FONTSTYLE Integer ;
+    LBL_F_SIZE Integer ;
+    LBL_F_FORECOLOR Integer ;
+    LBL_F_BACKCOLOR Integer ;
+    LBL_EXPR Char (100) ;
+    LBL_PARALLEL Logical ;
+    LBL_VISIBILITY Integer ;
+    LBL_ZOOM_MIN Integer ;
+    LBL_ZOOM_MAX Integer ;
+    LBL_AUTO Logical ;
+    LBL_OVERLAP Logical ;
+    LBL_PART_SEGMENTS Logical ;
+    LBL_DUPLICATES Logical ;
+    LBL_MAX Integer ;
+    LBL_OFFSET Integer ;
+    LAYERID Integer Index 3 ;
+    ORDER Integer ;
+    DESCRIPTION Char (30) ;
+    TABLELAYERID Char (10) Index 2 ;

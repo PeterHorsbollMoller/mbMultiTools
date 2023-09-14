@@ -1,0 +1,41 @@
+'***********************************************************************
+'**
+'**	RASTHAND.DEF, Raster image handler program defines
+'**
+'***********************************************************************
+
+Declare Sub RH_WriteIniFile(ByVal nFile As Integer)
+Declare Sub RH_ReadIniFile(ByVal szFile As String)
+
+Declare Sub RH_SetRasterIndex(ByVal szTab As String)
+Declare Sub RH_SetRasterPath(ByVal szPath As String)
+Declare Sub RH_SetCloseTempRHIndexAfterUse(ByVal bValue As Logical)
+Declare Function RH_GetRasterIndex$() As String
+Declare Function RH_GetRasterPath$() As String
+Declare Function RH_CloseTempRHIndexAfterUse() As Logical
+
+Declare Function RH_IsRunning() As Logical
+Declare Function RH_IsActivated() As Logical
+Declare Function RH_GetRHWindowID() As Integer
+
+Declare Function RH_CreateTempRHIndex() As Logical
+Declare Function RH_OpenTempRHIndex() As Logical
+
+
+Declare Function RH_Main() As Logical				'initialization routine
+										'needs to be called from main program 'Sub Main'
+Declare Function RH_Initialize() As Logical			'Initializing without starting/loading raster tables
+
+
+Declare Sub RH_EndHandler						'needs to be called from main program EndHandler
+Declare Sub RH_WinChangedHandler (WID as integer)		'needs to be called from main program WinChangedHandler
+Declare sub RH_WinFocusChangedHandler (WID as integer)	'needs to be called from main program WinFocusChangedHandler
+Declare Sub RH_WinClosedHandler (WID as integer)		'needs to be called from main program WinClosedHandler
+
+Declare Sub StopRH
+Declare Sub StartStopRH							'Starts/stops the rasterhandler
+Declare Sub ActivateRHSwitch						'Makes the Rasterhandler Active/not active
+
+Define M_RHMENU_NAME     "Raster"
+
+

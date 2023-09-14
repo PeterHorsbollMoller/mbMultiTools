@@ -1,0 +1,12 @@
+!table
+!version 300
+!charset WindowsLatin1
+
+Definition Table
+  File "logo.bmp"
+  Type "RASTER"
+  (0,1) (0,0) Label "",
+  (1,1) (1,0) Label "",
+  (0,0) (0,1) Label ""
+  CoordSys NonEarth Units "ft"
+  Units "ft"

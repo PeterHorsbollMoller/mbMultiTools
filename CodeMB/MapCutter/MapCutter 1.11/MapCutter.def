@@ -1,0 +1,17 @@
+Declare Sub MapCutterStartUp
+
+Declare Sub HandlerShowPreviousDialog
+Declare Sub PrintVariables(ByVal szText As String)
+
+Declare Function GetNumberOfFrames() As Integer
+Declare Function GetNumberOfLayers() As Integer
+Declare Function GetNumberOfColumns() As Integer
+Declare Function GetNumberOfAllColumns() As Integer
+
+Declare Function GetCuttingTableName() As String
+Declare Function GetCuttingMapName() As String
+Declare Function GetCuttingColumnName() As String
+
+Declare Function CreateArraySharedLayersColumns() As Logical
+Declare Function CreateArrayAllLayersColumns() As Logical
+Declare Function CreateArrayInclLayersColumns() As Logical

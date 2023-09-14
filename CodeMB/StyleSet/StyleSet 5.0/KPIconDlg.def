@@ -1,0 +1,3 @@
+Declare Sub kpiShowDialogIconFileInfo
+Declare Function kpiDialogIconFileInfo() As Logical
+Declare Function kpiDialogCreateNewIconFileInfo() As Logical

@@ -1,0 +1,2030 @@
+'*******************************************************************************
+'** 	Program:	Alle med udskriftsfunktionalitet
+'** 	Modul:	PrintValues.mb
+'**			Functions for printing - read and write variables.
+'*******************************************************************************
+
+Include "Mapbasic.def"
+Include "Menu.def"
+
+Define	xVersionPrinting	"3.1"
+
+Include "..\..\Language\PlotDef.lng"
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+
+Include "..\..\pct\exec_lib.def"
+Include "..\..\pct\mi32bit.def"
+
+Include "..\..\Time\Time.def"
+Include "..\..\IniUtil\IniUtil.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\FileFunc\FileFunc.def"
+Include "..\..\WinFunc\WinFunc.def"
+Include "..\..\APIFunc\APIFunc.def"
+
+Include "PrintValues.def"
+Include "PrintHlp.def"
+Include "Globals.def"
+
+Declare Sub HandlerCloseSelectedWindows
+Declare Sub HandlerCloseSelectedTables
+Declare Sub HandlerWinTabNamePicked
+
+'**Definition of standard values
+Dim	mszUserID, mszUserName,mszDepartment,mszAddress,mszTelephone As String,
+	mszFaximil, mszFirm, mszZipKode, mszZipArea, mszMapName As String,
+	mszCaseNumber, mszCaseTitle, mszCaseSubTitle As String,
+	mbUserIDFromLogon As Logical
+
+'**Definitions for printing...
+Dim	msnWIN_language, msnMI_Language As SmallInt,		'Language MI/Win
+	mbShowRuntimeValuesDialog As Logical,			'Runtime dialog
+	mbAutoPrint As Logical,						'Automatic printing / no preview
+	mbBatchPrinting As Logical,					'Printing multible frames at a time
+	mbUsePreView As Logical,					'Show PreView Area
+	mbAllowSpecialPlot As Logical,				'Support User defined special plots
+	mbAllowRotatedPlot As Logical,				'Support Rotated plots
+	mbClonMapWindow As Logical,					'Original Map or Cloned copy
+	mbAskSaveFrameToTable As Logical,				'Ask if defined frame should be saved to table
+	mbCreateMoreFrames As Logical,				'Continue creating frames in mapwindow...
+	mbHideFrameTable As Logical,					'Hide FrameTable when printing...
+	mbPromptWhenChangeInPaperSize As Logical,			'Prompt when change in papersize with Batchplot
+	msnPaperOrient, msnPaperSize As SmallInt,			'Papersettings
+	mnPlotScale As Integer,						'Scale to plot
+	mnScaleType As Integer,						'Målforholdstype: tilpasset udvælgelse, Tilpasset aktuelt kort; Indtastet
+	mnScaleRounding As Integer,					'Afrunding af målforhold til dette		
+	mnMinimumScale, mnMaximumScale As Integer,		'Største og mindst tilladte målforhold
+	mnPlotRotation As Integer,					'Rotation for plot
+	mnBufferWhenAutoScaling As Integer,				'Ekstra buffer i forbindelse med autoskalering
+	mbReadFromSelection As Logical,				'Determines whether to read from a selected record or not
+	mbWarnOnPrintWithNoSelection As Logical,			'Warn when there is no selection
+	mbUseNorthArrow As Logical,					'Show north arrow on plot/layout
+	mszMapHeaderTable As String,					'Name of table with Map Header in layout
+	mszPathToTempHeaderTables As String,			'Directory for temporary header tables. Default "" = Windows Temp
+	mszSpecialPlotTabFile As String,				'TabFile with special (userdefined) plot definitions
+	mszSpecialPlotWorFile As String,				'WorFile to use for special plot
+	mszSpecialPlotName As String,					'Name of current special plot
+	mszColumnNamesToSortBy As String				'Names for columns to sort values by
+Dim	mnOrigMID As Integer,						'ID of Main MapWindow
+	mnLID As Integer,							'ID of LayoutWindow
+	mnWin, mnTab As Integer,					'Numbers of Win & Tab before Print was called
+	gfFrameWidth, gfFrameHeight As Float,			'Size of Frame ("cm")
+	mszHiddenOpenedTables As String,				'Names of tables opened by layoutworkspace
+	mszHiddenOpenedWindows As String,				'WindowID's opened by layoutworkspace
+	gfMapCenterX, gfMapCenterY As Float,			'Center coordinate for map window
+	mbReadCoordinateFromMap As Logical				'Should coordinate be read from map or from variable ?
+
+'**Some definitions for closing "hidden-opened" tabs and wins
+Dim	arrWinID(0), mnGlobalPicked As Integer,
+	arrWinName(0), arrTabName(0) As String
+
+'**********************************************************************************************''
+'Returnerer version af PRINTING modulet - som tekst
+'**********************************************************************************************''
+Function PRVALGetPrintingVersion$() As String
+
+OnError GoTo ErrorOccured
+
+	PRVALGetPrintingVersion$ = xVersionPrinting
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer version af PRINTING modulet - som flydende
+'**********************************************************************************************''
+Function PRVALGetPrintingVersion() As Float
+
+OnError GoTo ErrorOccured
+
+	PRVALGetPrintingVersion = Val(PRVALGetPrintingVersion$())
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Printing læsning af initieringsfil
+'****************************************
+Sub PrintingValuesReadIniFile(Byval szFile As String)
+
+	Call PrintSetUserName(GetIniKeyValue(szFile, "[PRINTING RUNTIME VALUES]", "USERNAME"))
+	Call PrintSetUserID(GetIniKeyValue(szFile, "[PRINTING RUNTIME VALUES]", "USERID"))
+	Call PrintSetUserIDFromLogon(GetIniKeyValue(szFile, "[PRINTING RUNTIME VALUES]", "USERIDFROMLOGON") = "T")
+
+	Call PrintSetFirm(GetIniKeyValue(szFile, "[PRINTING RUNTIME VALUES]", "FIRM"))
+	Call PrintSetDepartment(GetIniKeyValue(szFile, "[PRINTING RUNTIME VALUES]", "DEPARTMENT"))
+	Call PrintSetAddress(GetIniKeyValue(szFile, "[PRINTING RUNTIME VALUES]", "ADDRESS"))
+	Call PrintSetZipKode(GetIniKeyValue(szFile, "[PRINTING RUNTIME VALUES]", "ZIPKODE"))
+	Call PrintSetZipArea(GetIniKeyValue(szFile, "[PRINTING RUNTIME VALUES]", "ZIPAREA"))
+	Call PrintSetTelephone(GetIniKeyValue(szFile, "[PRINTING RUNTIME VALUES]", "PHONENO"))
+	Call PrintSetFaximil(GetIniKeyValue(szFile, "[PRINTING RUNTIME VALUES]", "FAXNO"))
+
+	Call PrintSetCaseNumber(GetIniKeyValue(szFile, "[PRINTING RUNTIME VALUES]", "CASENO"))
+	Call PrintSetCaseTitle(GetIniKeyValue(szFile, "[PRINTING RUNTIME VALUES]", "CASETITLE"))
+	Call PrintSetCaseSubTitle(GetIniKeyValue(szFile, "[PRINTING RUNTIME VALUES]", "CASESUBTITLE"))
+
+	If PrintGetUserIDFromLogon() Then
+		Call PrintSetUserID(APIGetUserName())
+	End If
+
+End Sub
+
+'****************************************
+'Printing Skrivning til initieringsfil
+'****************************************
+Sub PrintingValuesWriteIniFile(Byval nFile As integer)
+
+	'Print "Nu skrives inifilen mht runtime værdier"
+
+	Print #nFile, ""
+	Print #nFile, "[PRINTING RUNTIME VALUES]"	
+	Print #nFile, "USERNAME="		& PrintGetUserName()
+	Print #nFile, "USERID="			& PrintGetUserID()
+	Print #nFile, "USERIDFROMLOGON="	& PrintGetUserIDFromLogon()
+	
+	Print #nFile, "FIRM="			& PrintGetFirm()
+	Print #nFile, "DEPARTMENT="		& PrintGetDepartment()
+	Print #nFile, "ADDRESS="		& PrintGetAddress()
+	Print #nFile, "ZIPKODE="		& PrintGetZipKode()
+	Print #nFile, "ZIPAREA="		& PrintGetZipArea()
+	Print #nFile, "PHONENO="		& PrintGetTelephone()
+	Print #nFile, "FAXNO="			& PrintGetFaximil()
+
+	Print #nFile, "CASENO="			& PrintGetCaseNumber()
+	Print #nFile, "CASETITLE="		& PrintGetCaseTitle()
+	Print #nFile, "CASESUBTITLE="		& PrintGetCaseSubTitle()
+
+End sub
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Function PrintGetUsername() As String
+
+	PrintGetUsername = mszUserName
+
+End Function
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Function PrintGetUserID() As String
+
+	PrintGetUserID = mszUserID
+
+End Function
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Function PrintGetUserIDFromLogon() As Logical
+
+	PrintGetUserIDFromLogon = mbUserIDFromLogon
+
+End Function
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Function PrintGetDepartment() As String
+
+	PrintGetDepartment = mszDepartment
+
+End Function
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Function PrintGetAddress() As String
+
+	PrintGetAddress = mszAddress
+
+End Function
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Function PrintGetZipKode() As String
+
+	PrintGetZipKode = mszZipKode
+
+End Function
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Function PrintGetZipArea() As String
+
+	PrintGetZipArea = mszZipArea
+
+End Function
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Function PrintGetTelephone() As String
+
+	PrintGetTelephone = mszTelephone
+
+End Function
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Function PrintGetFaximil() As String
+
+	PrintGetFaximil = mszFaximil
+
+End Function
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Function PrintGetFirm()  As String
+
+	PrintGetFirm = mszFirm
+
+End Function
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Function PrintGetMapName() As String
+
+	PrintGetMapName = mszMapName
+
+End Function
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Function PrintGetCaseNumber() As String
+
+	PrintGetCaseNumber = mszCaseNumber
+
+End Function
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Function PrintGetCaseTitle() As String
+
+	PrintGetCaseTitle = mszCaseTitle
+
+End Function
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Function PrintGetCaseSubTitle() As String
+
+	PrintGetCaseSubTitle = mszCaseSubTitle
+
+End Function
+
+'****************************************
+'Printing sætter standard værdi...
+'****************************************
+Sub PrintSetUsername(ByVal szVal As String)
+
+	mszUserName = szVal
+
+End Sub
+
+'****************************************
+'Printing sætter standard værdi...
+'****************************************
+Sub PrintSetUserID(ByVal szVal As String)
+
+	mszUserID = szVal
+
+End Sub
+
+'****************************************
+'Printing sætter standard værdi...
+'****************************************
+Sub PrintSetUserIDFromLogon(ByVal bVal As Logical)
+
+	mbUserIDFromLogon = bVal
+
+End Sub
+
+'****************************************
+'Printing sætter standard værdi...
+'****************************************
+Sub PrintSetDepartment(ByVal szVal As String)
+
+	mszDepartment = szVal
+
+End Sub
+
+'****************************************
+'Printing sætter standard værdi...
+'****************************************
+Sub PrintSetAddress(ByVal szVal As String)
+
+	mszAddress = szVal
+
+End Sub
+
+'****************************************
+'Printing sætter standard værdi...
+'****************************************
+Sub PrintSetZipKode(ByVal szVal As String)
+
+	mszZipKode = szVal
+
+End Sub
+
+'****************************************
+'Printing sætter standard værdi...
+'****************************************
+Sub PrintSetZipArea(ByVal szVal As String)
+
+	mszZipArea = szVal
+
+End Sub
+
+'****************************************
+'Printing sætter standard værdi...
+'****************************************
+Sub PrintSetTelephone(ByVal szVal As String)
+
+	mszTelephone = szVal
+
+End Sub
+
+'****************************************
+'Printing sætter standard værdi...
+'****************************************
+Sub PrintSetFaximil(ByVal szVal As String)
+
+	mszFaximil = szVal
+
+End Sub
+
+'****************************************
+'Printing sætter standard værdi...
+'****************************************
+Sub PrintSetFirm(ByVal szVal As String)
+
+	mszFirm = szVal
+
+End Sub
+
+'****************************************
+'Printing sætter standard værdi...
+'****************************************
+Sub PrintSetMapName(ByVal szVal As String)
+
+	mszMapName = szVal
+
+End Sub
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Sub PrintSetCaseNumber(ByVal szVal As String)
+
+	mszCaseNumber = szVal
+
+End Sub
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Sub PrintSetCaseTitle(ByVal szVal As String)
+
+	mszCaseTitle = szVal
+
+End Sub
+
+'****************************************
+'Printing returnerer standard værdi...
+'****************************************
+Sub PrintSetCaseSubTitle(ByVal szVal As String)
+
+	mszCaseSubTitle = szVal
+
+End Sub
+
+'************************************************************************************************************************
+'****************************************
+'Skriv til ini-fil
+'****************************************
+Sub PrintWriteIniFile(ByVal nFile As Integer)
+
+	Print #nFile, ""
+	Print #nFile, "[PRINTING]"
+	Print #nFile, "VERSION=" 			& PRVALGetPrintingVersion$()
+	Print #nFile, "WINLANG="			+ PrintGetWinLanguage()
+	Print #nFile, "MILANG="				+ PrintGetMILanguage()
+	Print #nFile, "PAPERSIZE="			+ PrintGetPaperSize()
+	Print #nFile, "PAGEORIENT="			+ PrintGetPageOrientation()
+	Print #nFile, "AUTOPRINT="			+ PrintAutoPrint()			
+	Print #nFile, "SHOWRTVDLG="			+ PrintShowRuntimeValuesDialog()
+	Print #nFile, "CLONMAP="			+ PrintClonMapWindow()
+	Print #nFile, "PREVIEW="			+ PrintUsePreView()
+	Print #nFile, "READFROMSELECT="		+ PrintReadFromSelection()
+	Print #nFile, "WARNNOSELECTION="		+ PrintWarnOnNoSelection()
+
+	Print #nFile, "MAPHEADERTABLE="		+ PrintGetMapHeaderTableName$()
+	Print #nFile, "PATHTOTEMPHEADERTABLES="	+ PrintGetPathToTempHeaderTable$()
+	Print #nFile, "USENORTHARROW="		+ PrintUseNorthArrow()
+	Print #nFile, "NORTHARROW="			+ PrintHlpGetNorthArrowName()
+	Print #nFile, "NORTHARROWTABFILE="		+ GetFileNameRelative$(PrintHlpGetNorthArrowTabFile())
+	Print #nFile, "SORTBYCOLUMNS="		+ PrintGetColumnNamesToSortBy$()
+
+	Print #nFile, "SCALE="				+ PrintGetScale$()
+	Print #nFile, "ROTATION="			+ "0"		'Let 0 be default rotation 'PrintGetRotation$()
+	Print #nFile, "SCALEMINIMUM="			+ Str$(PrintGetMinimumScale())
+	Print #nFile, "SCALEMAXIMUM="			+ Str$(PrintGetMaximumScale())
+	Print #nFile, "SCALEROUNDING="		+ Str$(PrintGetScaleRounding())
+	Print #nFile, "SCALEBUFFER="			+ Str$(PrintGetBufferWhenAutoScale())
+
+	If PrintAllowSpecialPlot() Then
+		Print #nFile, "SPECPLOTTABFILE=" + GetFileNameRelative$(PrintGetSpecialPlotTabFileName$())
+		Print #nFile, "SPECPLOTNAME=" + PrintGetSpecPlotName$()
+	End If
+
+End Sub
+
+'****************************************
+'Læs fra ini-fil
+'****************************************
+Sub PrintReadIniFile(Byval szFile As String)
+
+Dim	szRead As String,
+	i, nVal As Integer
+
+	Call PrintSetWinLanguage(LANGUAGE_DK)
+	Call PrintSetMILanguage(LANGUAGE_DK)
+	Call PrintSetPaperSize(1)
+	Call PrintSetPageOrientation(1)
+	Call PrintSetAutoPrint(TRUE)
+	Call PrintSetShowRuntimeValuesDialog(TRUE)
+	Call PrintSetClonMapWindow(TRUE)
+	Call PrintSetPreView(FALSE)
+	Call PrintSetReadCoordinateFromMap(TRUE)
+	Call PrintSetPathToTempHeaderTable("")
+
+	If not FileExists(szFile) Then
+		Exit Sub
+	End If
+
+	Call PrintSetWinLanguage(Val(GetIniKeyValue(szFile, "[PRINTING]", "WINLANG")))
+	Call PrintSetMILanguage(Val(GetIniKeyValue(szFile, "[PRINTING]", "MILANG")))
+	Call PrintSetPaperSize(Val(GetIniKeyValue(szFile, "[PRINTING]", "PAPERSIZE")))
+	Call PrintSetPageOrientation(Val(GetIniKeyValue(szFile, "[PRINTING]", "PAGEORIENT")))
+	Call PrintSetMapHeaderTableName(GetIniKeyValue(szFile, "[PRINTING]", "MAPHEADERTABLE"))
+	Call PrintSetPathToTempHeaderTable(GetIniKeyValue(szFile, "[PRINTING]", "PATHTOTEMPHEADERTABLES"))
+	Call PrintSetColumnNamesToSortBy(GetIniKeyValue(szFile, "[PRINTING]", "SORTBYCOLUMNS"))
+
+	Call PrintSetScale(Val(GetIniKeyValue(szFile, "[PRINTING]", "SCALE")))
+	Call PrintSetRotation(Val(GetIniKeyValue(szFile, "[PRINTING]", "ROTATION")))
+	
+	'**Automatic Scale calculation
+	nVal = Val(GetIniKeyValue(szFile, "[PRINTING]", "SCALEMINIMUM"))
+	If nVal = 0 Then
+		Call PrintSetMinimumScale(100)	
+	Else
+		Call PrintSetMinimumScale(nVal)
+	End If
+	nVal = Val(GetIniKeyValue(szFile, "[PRINTING]", "SCALEMAXIMUM"))
+	If nVal = 0 Then
+		Call PrintSetMaximumScale(100000)	
+	Else
+		Call PrintSetMaximumScale(nVal)
+	End If
+	Call PrintSetScaleRounding(Val(GetIniKeyValue(szFile, "[PRINTING]", "SCALEROUNDING")))
+	Call PrintSetBufferWhenAutoScale(Val(GetIniKeyValue(szFile, "[PRINTING]", "SCALEBUFFER")))
+
+	Call PrintSetAutoPrint(GetIniKeyValue(szFile, "[PRINTING]", "AUTOPRINT") = "T")
+	Call PrintSetShowRuntimeValuesDialog(GetIniKeyValue(szFile, "[PRINTING]", "SHOWRTVDLG") <> "F")
+	Call PrintSetClonMapWindow(GetIniKeyValue(szFile, "[PRINTING]", "CLONMAP") = "T")
+	Call PrintSetPreView(GetIniKeyValue(szFile, "[PRINTING]", "PREVIEW") <> "F")
+	Call PrintSetReadFromSelection(GetIniKeyValue(szFile, "[PRINTING]", "READFROMSELECT") <> "F")
+	Call PrintSetWarnOnNoSelection(GetIniKeyValue(szFile, "[PRINTING]", "WARNNOSELECTION") = "T")
+
+	'--Nordpil
+	Call PrintHlpSetNorthArrowName(GetIniKeyValue(szFile, "[PRINTING]", "NORTHARROW"))
+	Call PrintHlpSetNorthArrowTabFile(GetFileNameAbsolute$(GetIniKeyValue(szFile, "[PRINTING]", "NORTHARROWTABFILE")))
+	If GetIniKeyValue(szFile, "[PRINTING]", "USENORTHARROW") = "T" Then
+		If PrintHlpGetNorthArrowName() <> "" Then
+			Call PrintSetUseNorthArrow(TRUE)
+		End If
+	Else
+		Call PrintSetUseNorthArrow(FALSE)
+	End If
+
+	'--Userdefined special plotlayouts
+	If PrintAllowSpecialPlot() Then
+		Call PrintSetSpecialPlotTabFileName(GetFileNameAbsolute$(GetIniKeyValue(szFile, "[PRINTING]", "SPECPLOTTABFILE"))) 	
+		Call PrintSetSpecPlotName(GetIniKeyValue(szFile, "[PRINTING]", "SPECPLOTNAME")) 
+	End If
+
+End Sub
+
+'****************************************
+'Skriv til ini-fil - udskriftslayouts
+'****************************************
+Sub PrintWriteIniFileLayouts(ByVal nFile As Integer)
+
+	Print #nFile, ""
+	Print #nFile, "[PRINTLAYOUTS]"
+	Print #nFile, "A4P="	& arrPrintLayoutFiles(1)
+	Print #nFile, "A3P="	& arrPrintLayoutFiles(2)
+	Print #nFile, "A2P="	& arrPrintLayoutFiles(3)
+	Print #nFile, "A1P="	& arrPrintLayoutFiles(4)
+	Print #nFile, "A0P="	& arrPrintLayoutFiles(5)
+	Print #nFile, "A4L="	& arrPrintLayoutFiles(6)
+	Print #nFile, "A3L="	& arrPrintLayoutFiles(7)
+	Print #nFile, "A2L="	& arrPrintLayoutFiles(8)
+	Print #nFile, "A1L="	& arrPrintLayoutFiles(9)
+	Print #nFile, "A0L="	& arrPrintLayoutFiles(10)
+
+End Sub
+
+'****************************************
+'Læs fra ini-fil - udskriftslayouts
+'****************************************
+Sub PrintReadIniFileLayouts(Byval szFile As String)
+
+Dim	szRead As String,
+	i As Integer
+
+	arrPrintLayoutText(1)	= "A4 " + PLTM_ORIENT_PORTRAIT
+	arrPrintLayoutText(2)	= "A3 " + PLTM_ORIENT_PORTRAIT
+	arrPrintLayoutText(3)	= "A2 " + PLTM_ORIENT_PORTRAIT
+	arrPrintLayoutText(4)	= "A1 " + PLTM_ORIENT_PORTRAIT
+	arrPrintLayoutText(5)	= "A0 " + PLTM_ORIENT_PORTRAIT
+	arrPrintLayoutText(6)	= "A4 " + PLTM_ORIENT_LANDSCAPE
+	arrPrintLayoutText(7)	= "A3 " + PLTM_ORIENT_LANDSCAPE
+	arrPrintLayoutText(8)	= "A2 " + PLTM_ORIENT_LANDSCAPE
+	arrPrintLayoutText(9)	= "A1 " + PLTM_ORIENT_LANDSCAPE
+	arrPrintLayoutText(10)	= "A0 " + PLTM_ORIENT_LANDSCAPE
+
+	'**Sets default names of layoutworkspaces...
+	arrPrintLayoutFiles(1) 	= "Udskriv\Map_A4P.Wor"
+	arrPrintLayoutFiles(2) 	= "Udskriv\Map_A3P.Wor"
+	arrPrintLayoutFiles(3) 	= "Udskriv\Map_A2P.Wor"
+	arrPrintLayoutFiles(4) 	= "Udskriv\Map_A1P.Wor"
+	arrPrintLayoutFiles(5) 	= "Udskriv\Map_A0P.Wor"
+	arrPrintLayoutFiles(6) 	= "Udskriv\Map_A4L.Wor"
+	arrPrintLayoutFiles(7) 	= "Udskriv\Map_A3L.Wor"
+	arrPrintLayoutFiles(8) 	= "Udskriv\Map_A2L.Wor"
+	arrPrintLayoutFiles(9) 	= "Udskriv\Map_A1L.Wor"
+	arrPrintLayoutFiles(10)	= "Udskriv\Map_A0L.Wor"
+
+
+	If GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A4L") <> "" Then
+		'--Using new way of saving printlayouts
+		If Val(GetIniKeyValue(szFile, "[PRINTING]", "VERSION")) >= 3.1 Then
+			arrPrintLayoutFiles(1) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A4P")
+			arrPrintLayoutFiles(2) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A3P")
+			arrPrintLayoutFiles(3) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A2P")
+			arrPrintLayoutFiles(4) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A1P")
+			arrPrintLayoutFiles(5) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A0P")
+			arrPrintLayoutFiles(6) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A4L")
+			arrPrintLayoutFiles(7) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A3L")
+			arrPrintLayoutFiles(8) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A2L")
+			arrPrintLayoutFiles(9) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A1L")
+			arrPrintLayoutFiles(10)	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A0L")
+		Else
+			'**Here was an error, the Portrait was marked as Landscape
+			arrPrintLayoutFiles(1) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A4L")
+			arrPrintLayoutFiles(2) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A3L")
+			arrPrintLayoutFiles(3) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A2L")
+			arrPrintLayoutFiles(4) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A1L")
+			arrPrintLayoutFiles(5) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A0L")
+			arrPrintLayoutFiles(6) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A4P")
+			arrPrintLayoutFiles(7) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A3P")
+			arrPrintLayoutFiles(8) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A2P")
+			arrPrintLayoutFiles(9) 	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A1P")
+			arrPrintLayoutFiles(10)	= GetIniKeyValue(szFile, "[PRINTLAYOUTS]", "A0P")
+		End If
+	Else
+		If not FileExists(szFile) Then
+			Exit Sub
+		End If
+	
+		Open File szFile
+			For Input
+			As #1
+			CharSet SystemInfo(SYS_INFO_CHARSET)
+	
+		If SearchFileForGroup(1, "[PRINTLAYOUTS]") Then
+			For i = 1 To 10
+				Line Input #1, szRead
+				If szRead <> "" Then	
+					arrPrintLayoutFiles(i) = szRead
+				End If
+			Next
+		End If
+	
+		Close File #1
+	End If
+	
+End Sub
+
+'****************************************
+'Returnerer navnet på udskriftlayout/arbejdsområde...
+'****************************************
+Function PrintGetLayoutFileName$() As String
+
+Dim	nVal As Integer,
+	szFile As String
+
+	If PrintSpecialPlotIsPossible() And PrintGetWorFileUsingSpecPlot$() <> "" And not PrintBatchPrint() Then
+		szFile	= PrintGetWorFileUsingSpecPlot$()
+	Else
+		nVal		= (5 * (PrintGetPageOrientation() - 1)) + PrintGetPaperSize()
+		szFile	= arrPrintLayoutFiles(nVal)
+		If szFile <> "" Then
+			szFile = GetFileNameAbsolute$(szFile)
+		End If
+	End If
+
+	PrintGetLayoutFileName$ = szFile
+
+End Function
+
+'****************************************
+'Sætter målstoksfaktoren
+'****************************************
+Sub PrintSetScale(ByVal nScale As Integer)
+
+	mnPlotScale = nScale
+
+End Sub
+
+'****************************************
+'Returnerer målstoksfaktoren
+'****************************************
+
+Function PrintGetScale() As Integer
+
+	PrintGetScale = mnPlotScale
+
+End Function
+
+'****************************************
+'Returnerer målstoksfaktoren - som tekst
+'****************************************
+Function PrintGetScale$() As String
+
+	If PrintGetScale() <= 0 Then
+		PrintGetScale$ = ""
+	Else
+		PrintGetScale$ = Str$(PrintGetScale())
+	End If
+
+End Function
+
+'****************************************
+'Sætter mindste målfohold
+'****************************************
+Sub PrintSetScaleType(ByVal nValue As Integer)
+
+	mnScaleType = nValue
+
+End Sub
+
+'****************************************
+'Returnerer mindste målfohold
+'****************************************
+Function PrintGetScaleType() As Integer
+
+	PrintGetScaleType = mnScaleType
+
+End Function
+
+'****************************************
+'Sætter mindste målfohold
+'****************************************
+Sub PrintSetMinimumScale(ByVal nValue As Integer)
+
+	mnMinimumScale = nValue
+
+End Sub
+
+'****************************************
+'Returnerer mindste målfohold
+'****************************************
+Function PrintGetMinimumScale() As Integer
+
+	PrintGetMinimumScale = mnMinimumScale
+
+End Function
+'****************************************
+'Sætter største målfohold
+'****************************************
+Sub PrintSetMaximumScale(ByVal nValue As Integer)
+
+	mnMaximumScale = nValue
+
+End Sub
+
+'****************************************
+'Returnerer største målfohold
+'****************************************
+Function PrintGetMaximumScale() As Integer
+
+	PrintGetMaximumScale = mnMaximumScale
+
+End Function
+
+'****************************************
+'Sætter målforholdsafrunding
+'****************************************
+Sub PrintSetScaleRounding(ByVal nValue As Integer)
+
+	mnScaleRounding = nValue
+
+End Sub
+
+'****************************************
+'Returnerer målforholdsafrunding
+'****************************************
+Function PrintGetScaleRounding() As Integer
+
+	PrintGetScaleRounding = mnScaleRounding
+
+End Function
+
+'****************************************
+'Sætter Buffer/kant i forbindelse med autoskalering
+'****************************************
+Sub PrintSetBufferWhenAutoScale(ByVal nValue As Integer)
+
+	mnBufferWhenAutoScaling = nValue
+
+End Sub
+
+'****************************************
+'Returnerer målforholdsafrunding
+'****************************************
+Function PrintGetBufferWhenAutoScale() As Integer
+
+	PrintGetBufferWhenAutoScale = mnBufferWhenAutoScaling
+
+End Function
+
+'****************************************
+'Sætter målstoksfaktoren
+'****************************************
+Sub PrintSetRotation(ByVal fRotation As Float)
+
+	Do While fRotation < 0
+		fRotation = fRotation + 360
+	Loop	
+	Do While fRotation > 360
+		fRotation = fRotation - 360
+	Loop
+
+	If fRotation > 90 And fRotation <= 270 Then
+		fRotation = fRotation - 180
+	End If	
+
+	Do While fRotation < 0
+		fRotation = fRotation + 360
+	Loop	
+	Do While fRotation > 360
+		fRotation = fRotation - 360
+	Loop
+
+	mnPlotRotation = Round(fRotation, 1)
+
+End Sub
+
+'****************************************
+'Returnerer målstoksfaktoren
+'****************************************
+Function PrintGetRotation() As Float
+
+	PrintGetRotation = mnPlotRotation
+
+End Function
+
+'****************************************
+'Returnerer rotationen - som tekst
+'****************************************
+Function PrintGetRotation$() As String
+
+	If mnPlotRotation <= 0 Then
+		PrintGetRotation$ = "0"
+	Else
+		PrintGetRotation$ = Str$(mnPlotRotation)
+	End If
+
+End Function
+
+'****************************************
+'Sætter kortet centerkoordinater
+'****************************************
+Sub PrintSetMapCenter(ByVal fX As Float, ByVal fY As Float)
+
+	gfMapCenterX = fX
+	gfMapCenterY = fY
+
+End Sub
+
+'****************************************
+'Sætter kortets center X-koordinat
+'****************************************
+Sub PrintSetMapCenterX(ByVal fX As Float)
+
+	gfMapCenterX = fX
+
+End Sub
+
+'****************************************
+'Sætter kortets center Y-koordinat
+'****************************************
+Sub PrintSetMapCenterY(ByVal fY As Float)
+
+	gfMapCenterY = fY
+
+End Sub
+
+'****************************************
+'Returnerer kortet centerkoordinater
+'****************************************
+Sub PrintGetMapCenter(fX As Float, fY As Float)
+
+	fX = gfMapCenterX
+	fY = gfMapCenterY
+
+End Sub
+
+'****************************************
+'Henter center X-koordinat
+'****************************************
+Function PrintGetMapCenterX() As Float
+
+	PrintGetMapCenterX = gfMapCenterX
+
+End Function
+
+'****************************************
+'Henter center Y-koordinat
+'****************************************
+Function PrintGetMapCenterY() As Float
+
+	PrintGetMapCenterY = gfMapCenterY
+
+End Function
+
+'****************************************
+'Sætter om koordinater skal læses fra kortet
+'****************************************
+Sub PrintSetReadCoordinateFromMap(ByVal bValue As Logical)
+
+	 mbReadCoordinateFromMap = bValue
+
+End Sub
+
+'****************************************
+'Undersøger om koordinater skal læses fra kortet
+'****************************************
+Function PrintReadCoordinateFromMap() As Logical
+
+	PrintReadCoordinateFromMap = mbReadCoordinateFromMap
+
+End Function
+
+'----------------------------------------------------------------------------------------------------------------
+'****************************************
+'Sætter Windows sprog
+'****************************************
+Sub PrintSetWinLanguage(ByVal snLan As SmallInt)
+
+	msnWIN_language = snLan
+
+End Sub
+'****************************************
+'Sætter MapInfo sprog
+'****************************************
+Sub PrintSetMILanguage(ByVal snLan As SmallInt)
+
+	msnMI_Language = snLan
+
+End Sub
+'****************************************
+'Returnerer værdien for Windows sprog
+'****************************************
+Function PrintGetWinLanguage() As SmallInt
+
+	PrintGetWinLanguage = msnWIN_language
+
+End Function
+
+'****************************************
+'Returnerer værdien for Mapinfo sprog
+'****************************************
+Function PrintGetMILanguage() As SmallInt
+
+	PrintGetMILanguage = msnMI_Language 
+
+End Function
+
+'****************************************
+'Sætter sproget rigtigt for PCT
+'****************************************
+Sub PrintSetLibraryLanguage
+
+	Do Case PrintGetWinLanguage()
+		Case LANGUAGE_DK
+			Call SetLibraryLanguage(LANG_DK)
+		Case LANGUAGE_US
+			Call SetLibraryLanguage(LANG_US)
+		Case LANGUAGE_SE
+			Call SetLibraryLanguage(LANG_SE)	'Yep, we are supporting Sweden as well !!
+		Case Else
+			Call SetLibraryLanguage(LANG_DK)
+	End Case
+
+End Sub
+
+'****************************************
+'Returnerer værdien for sideretning
+'****************************************
+Function PrintGetPageOrientation() As SmallInt
+
+	If msnPaperOrient = 0 Then
+		'**Setting default paperorientation
+		Call PrintSetPageOrientation$("P")	
+	End If
+
+	PrintGetPageOrientation = msnPaperOrient
+
+End Function
+
+'****************************************
+'Returnerer værdien for sideretning - som tekst
+'****************************************
+Function PrintGetPageOrientation$() As String
+
+	Do Case PrintGetPageOrientation()
+		Case 1, ORIENT_PORTRAIT, PAGE_ORIENT_PORTRAIT
+			PrintGetPageOrientation$ = "P"
+		Case 2, ORIENT_LANDSCAPE, PAGE_ORIENT_LANDSCAPE
+			PrintGetPageOrientation$ = "L"
+		Case Else
+			PrintGetPageOrientation$ = "P"
+	End Case
+
+End Function
+
+'****************************************
+'Sætter værdien for sideretning - som tekst
+'****************************************
+Sub PrintSetPageOrientation$(ByVal szOrient As String)
+
+	Do Case szOrient
+		Case "1", "P"
+			Call PrintSetPageOrientation(PAGE_ORIENT_PORTRAIT)
+		Case "2", "L"
+			Call PrintSetPageOrientation(PAGE_ORIENT_LANDSCAPE)
+		Case Else
+			Call PrintSetPageOrientation(PAGE_ORIENT_PORTRAIT)
+	End Case
+
+End Sub
+
+'****************************************
+'Returnerer værdien for papirstørrelsen
+'****************************************
+Function PrintGetPaperSize() As SmallInt
+
+'A4 = 1; A3 = 2; A2 = 3; A1 = 4; A0 = 5
+
+	If msnPaperSize = 0 Then
+		Call PrintSetPaperSize$("A4")
+	End If
+
+	PrintGetPaperSize = msnPaperSize
+
+End Function
+
+'****************************************
+'Returnerer værdien for papirstørrelsen - som tekst
+'****************************************
+Function PrintGetPaperSize$() As String
+
+	'A4 = 1; A3 = 2; A2 = 3; A1 = 4; A0 = 5
+
+	Do Case PrintGetPaperSize()
+		Case 1
+			PrintGetPaperSize$ = "A4"
+		Case 2
+			PrintGetPaperSize$ = "A3"
+		Case 3
+			PrintGetPaperSize$ = "A2"
+		Case 4
+			PrintGetPaperSize$ = "A1"
+		Case 5
+			PrintGetPaperSize$ = "A0"
+		Case Else
+			PrintGetPaperSize$ = "A4"
+	End Case
+
+End Function
+
+'****************************************
+'Returnerer værdien for papirstørrelsen - Som Windows forstår den
+'****************************************
+Function GetWindowsPaperSizeNo(ByVal snPaperSize As SmallInt) As Integer
+	'A4 = 1; A3 = 2; A2 = 3; A1 = 4; A0 = 5
+
+	Do Case PrintGetPaperSize()
+		Case 1	'A4
+			GetWindowsPaperSizeNo = WIN_PAPERSIZE_A4
+		Case 2	'A3
+			GetWindowsPaperSizeNo = WIN_PAPERSIZE_A3
+		Case 3	'A2
+			GetWindowsPaperSizeNo = WIN_PAPERSIZE_A2
+		Case 4	'A1
+			GetWindowsPaperSizeNo = WIN_PAPERSIZE_A1
+		Case 5	'A0
+			GetWindowsPaperSizeNo = WIN_PAPERSIZE_A0
+	End Case
+
+End Function
+
+'****************************************
+'Sætter værdien for papirstørrelsen - som tekst
+'****************************************
+Sub PrintSetPaperSize$(ByVal szSize As String)
+
+	'A4 = 1; A3 = 2; A2 = 3; A1 = 4; A0 = 5
+
+	Do Case szSize
+		Case "A4"
+			Call PrintSetPaperSize(1)
+		Case "A3"
+			Call PrintSetPaperSize(2)
+		Case "A2"
+			Call PrintSetPaperSize(3)
+		Case "A1"
+			Call PrintSetPaperSize(4)
+		Case "A0"
+			Call PrintSetPaperSize(5)
+		Case Else
+			Call PrintSetPaperSize(1)
+	End Case
+
+End Sub
+
+'****************************************
+'Sætter sideorientering - værdien
+'****************************************
+Sub PrintSetPageOrientation(ByVal snOrient As SmallInt)
+
+	Do Case snOrient
+		Case 1, ORIENT_PORTRAIT
+			msnPaperOrient = PAGE_ORIENT_PORTRAIT
+		Case PAGE_ORIENT_PORTRAIT
+			msnPaperOrient = PAGE_ORIENT_PORTRAIT
+		Case 2, ORIENT_LANDSCAPE, PAGE_ORIENT_LANDSCAPE
+			msnPaperOrient = PAGE_ORIENT_LANDSCAPE
+		Case PAGE_ORIENT_LANDSCAPE
+			msnPaperOrient = PAGE_ORIENT_LANDSCAPE
+	End Case
+
+End Sub
+
+'****************************************
+'Sætter sideorientering - før udskrivning
+'****************************************
+Sub PrintSetPageOrientationBeforePrinting
+
+	If SystemInfo(SYS_INFO_MIVERSION) >= 550 Then
+		Call PrintMI55ZPageOrientBeforePrint
+	Else
+		Call PrintMI4ZPageOrientBeforePrint
+	End If
+
+End Sub
+
+'****************************************
+'Sætter sideorientering - før udskrivning - MapInfo 4
+'****************************************
+Sub PrintMI4ZPageOrientBeforePrint
+
+	Call PrintSetLibraryLanguage
+
+	Do Case PrintGetPageOrientation()
+		Case PAGE_ORIENT_PORTRAIT, 1
+			Call SetPageOrient(ORIENT_PORTRAIT)
+		Case PAGE_ORIENT_LANDSCAPE, 2
+			Call SetPageOrient(ORIENT_LANDSCAPE)
+	End Case
+
+End Sub
+
+'****************************************
+'Sætter sideorientering - før udskrivning - MapInfo 5.5
+'****************************************
+Sub PrintMI55ZPageOrientBeforePrint
+
+Dim	szCmdStr As String
+
+	Do Case PrintGetPageOrientation()
+		Case PAGE_ORIENT_PORTRAIT, 1
+			szCmdStr = "Set Window " + FrontWindow()
+					+ " Printer"
+					+ " Orientation Portrait"
+		Case PAGE_ORIENT_LANDSCAPE, 2
+			szCmdStr = "Set Window " + FrontWindow()
+					+ " Printer"
+					+ " Orientation Landscape"
+	End Case
+
+	If SystemInfo(SYS_INFO_MIVERSION) > 550 Then
+		If GetWindowsPaperSizeNo(PrintGetPaperSize()) <> WIN_PAPERSIZE_UNUSABLE Then
+			szCmdStr = szCmdStr + 
+						" Papersize " + GetWindowsPaperSizeNo(PrintGetPaperSize())		
+		End If
+	End If
+
+	If GetWindowsPaperSizeNo(PrintGetPaperSize()) <> WIN_PAPERSIZE_UNUSABLE Then
+		Run Command szCmdStr
+	End If
+	
+End Sub
+
+'****************************************
+
+'Sætter værdien for papirstørrelsen
+'****************************************
+Sub PrintSetPaperSize(ByVal snSize As SmallInt)
+
+'A4 = 1; A3 = 2; A2 = 3; A1 = 4; A0 = 5
+
+	msnPaperSize = snSize
+
+End Sub
+
+'****************************************
+'Returnerer værdien for Udskriv automatisk
+'****************************************
+Function PrintAutoPrint() As Logical
+
+	PrintAutoPrint = mbAutoPrint
+
+End Function
+
+'****************************************
+'Sætter værdien for Udskriv automatisk
+'****************************************
+Sub PrintSetAutoPrint(ByVal bValue As Logical)
+
+	mbAutoPrint = bValue
+
+End Sub
+
+'****************************************
+'Returnerer værdien for "Vis altid Rumtime værdier dialogen"
+'****************************************
+Function PrintShowRuntimeValuesDialog() As Logical
+
+	PrintShowRuntimeValuesDialog = mbShowRuntimeValuesDialog
+
+End Function
+
+'****************************************
+'Sætter værdien for "Vis altid Rumtime værdier dialogen"
+'****************************************
+Sub PrintSetShowRuntimeValuesDialog(ByVal bValue As Logical)
+
+	mbShowRuntimeValuesDialog = bValue
+
+End Sub
+
+'****************************************
+'Returnerer værdien for Brug klon vindue ved udskrift
+'****************************************
+Function PrintClonMapWindow() As Logical
+
+	PrintClonMapWindow = mbClonMapWindow
+
+End Function
+
+'****************************************
+'Sætter værdien for Brug klon vindue ved udskrift
+'****************************************
+Sub PrintSetClonMapWindow(ByVal bValue As Logical)
+
+	mbClonMapWindow = bValue
+
+End Sub
+
+'****************************************
+'Returnerer værdien for Brug PreView ved udskrift
+'****************************************
+Function PrintUsePreview() As Logical
+
+	PrintUsePreview = mbUsePreView
+
+End Function
+
+'****************************************
+'Sætter værdien for Brug PreView ved udskrift
+'****************************************
+Sub PrintSetPreview(ByVal bValue As Logical)
+
+	mbUsePreView = bValue
+
+End Sub
+
+'****************************************
+'Returnerer værdien for Brug klon vindue ved udskrift
+'****************************************
+Function PrintBatchPrint() As Logical
+
+	PrintBatchPrint = mbBatchPrinting
+
+End Function
+
+'****************************************
+'Sætter værdien for BatchPrint - Multi udskrift...
+'****************************************
+Sub PrintSetBatchPrint(ByVal bValue As Logical)
+
+	mbBatchPrinting = bValue
+
+End Sub
+
+'****************************************
+'Returnerer værdien for Rammens bredde
+'****************************************
+Function PrintGetFrameWidth() As Float
+
+	PrintGetFrameWidth = gfFrameWidth
+
+End Function
+
+'****************************************
+'Sætter værdien for Rammens bredde
+'****************************************
+Sub PrintSetFrameWidth(ByVal fValue As Float)
+
+	gfFrameWidth = fValue
+
+End Sub
+
+'****************************************
+'Returnerer værdien for Rammens højde
+'****************************************
+Function PrintGetFrameHeight() As Float
+
+	PrintGetFrameHeight = gfFrameHeight
+
+End Function
+
+'****************************************
+'Sætter værdien for Rammens højde
+'****************************************
+Sub PrintSetFrameHeight(ByVal fValue As Float)
+
+	gfFrameHeight = fValue
+
+End Sub
+
+'****************************************
+'Returnerer kortvinduets ID
+'****************************************
+Function PrintGetMapWinID() As Integer
+
+	PrintGetMapWinID = mnOrigMID
+
+End Function
+
+'****************************************
+'Sætter værdien for Kortvindues ID
+'****************************************
+Sub PrintSetMapWinID(ByVal nWID As Integer)
+
+	mnOrigMID = nWID
+	
+End Sub
+
+'****************************************
+'Returnerer Layoutvinduets ID
+'****************************************
+Function PrintGetLayoutWinID() As Integer
+
+	PrintGetLayoutWinID = mnLID
+
+End Function
+
+'****************************************
+'Sætter værdien for Layoutvinudets ID
+'****************************************
+Sub PrintSetLayoutWinID(ByVal nWID As Integer)
+
+	mnLID = nWID
+
+End Sub
+
+'****************************************
+'Returnerer antallet af åbne vinduer
+'****************************************
+Function PrintGetNumberOfWin() As Integer
+
+	PrintGetNumberOfWin = mnWin
+
+End Function
+
+'****************************************
+'Sætter værdien for antal åbne vinduer
+'****************************************
+Sub PrintSetNumberOfWin(ByVal nWin As Integer)
+
+	mnWin = nWin
+
+End Sub
+
+'****************************************
+'Returnerer antallet af åbne tabeller
+'****************************************
+Function PrintGetNumberOfTab() As Integer
+
+	PrintGetNumberOfTab = mnTab
+
+End Function
+
+'****************************************
+'Sætter værdien for antal åbne tabeller
+'****************************************
+Sub PrintSetNumberOfTab(ByVal nTab As Integer)
+
+	mnTab = nTab
+
+End Sub
+
+'****************************************
+'Returnerer om srpøgsmålet om gemme ramme skal stilles
+'****************************************
+Function PrintAskSaveFrameToTable() As Logical
+
+	PrintAskSaveFrameToTable = mbAskSaveFrameToTable
+
+End Function
+
+'****************************************
+'Sætter værdien for om der skal spørges om rammen skal gemmes
+'****************************************
+Sub PrintSetAskSaveFrameToTable(ByVal bValue As Logical)
+
+	mbAskSaveFrameToTable = bValue
+
+End Sub
+
+'****************************************
+'Returnerer om der skal oprettes flere rammer...
+'****************************************
+Function PrintCreateMoreFrames() As Logical
+
+	PrintCreateMoreFrames = mbCreateMoreFrames
+
+End Function
+
+'****************************************
+'Sætter værdien for om der oprettes flere rammer...
+'****************************************
+Sub PrintSetCreateMoreFrames(ByVal bValue As Logical)
+
+	mbCreateMoreFrames = bValue
+
+End Sub
+
+'****************************************
+'Returnerer om rammetabel skal skjules ved udskrift...
+'****************************************
+Function PrintHideFrameTable() As Logical
+
+	PrintHideFrameTable = mbHideFrameTable
+
+End Function
+
+'****************************************
+'Sætter værdien for om rammetabel skal skjules ved udskrift...
+'****************************************
+Sub PrintSetHideFrameTable(ByVal bValue As Logical)
+
+	mbHideFrameTable = bValue
+
+End Sub
+
+'****************************************
+'Returnerer om rammetabel skal skjules ved udskrift...
+'****************************************
+Function PrintPromptWhenChangeInPaperSize() As Logical
+
+	PrintPromptWhenChangeInPaperSize = mbPromptWhenChangeInPaperSize
+
+End Function
+
+'****************************************
+'Sætter værdien for om rammetabel skal skjules ved udskrift...
+'****************************************
+Sub PrintSetPromptWhenChangeInPaperSize(ByVal bValue As Logical)
+
+	mbPromptWhenChangeInPaperSize = bValue
+
+End Sub
+
+'****************************************
+'Returnerer om der skal læses værdier fra selection...
+'****************************************
+Function PrintReadFromSelection() As Logical
+
+	PrintReadFromSelection = mbReadFromSelection
+
+End Function
+
+'****************************************
+'Sætter om der skal læses værdier fra selection...
+'****************************************
+Sub PrintSetReadFromSelection(ByVal bValue As Logical)
+
+	mbReadFromSelection = bValue
+
+End Sub
+
+'****************************************
+'Returnerer navnet på tabel med tegningshoved...
+'****************************************
+Function PrintGetMapHeaderTableName$() As String
+
+	PrintGetMapHeaderTableName$ = mszMapHeaderTable
+
+End Function
+
+'****************************************
+'Sætter navnet på tabel med tegningshoved...
+'****************************************
+Sub PrintSetMapHeaderTableName(ByVal szValue As String)
+
+	mszMapHeaderTable = szValue
+
+End Sub
+
+'****************************************
+'Sætter stien til temporære tegningshovedtabeller
+'****************************************
+Sub PrintSetPathToTempHeaderTable(ByVal szPath As String)
+
+Dim	szDir As String
+
+	szDir = szPath
+	If szPath <> "" Then
+		If not Right$(szDir, 1) = "\" Then
+			szDir = szDir + "\"
+		End If
+
+		szDir = PathToDirectory$(szDir)
+		If not FileExists(szDir) Then
+			szDir = ""
+		End If
+	End If
+
+	mszPathToTempHeaderTables = szDir
+
+End Sub
+
+'****************************************
+'Sætter stien til temporære tegningshovedtabeller
+'****************************************
+Function PrintGetPathToTempHeaderTable$() As String
+
+	PrintGetPathToTempHeaderTable$ = mszPathToTempHeaderTables
+
+End Function
+
+'****************************************
+'Returnerer filnavnet på tabel med specialplot...
+'****************************************
+Function PrintGetSpecialPlotTabFileName$() As String
+
+	PrintGetSpecialPlotTabFileName$ = mszSpecialPlotTabFile
+
+End Function
+
+'****************************************
+'Sætter filnavnet på tabel med specialplot...
+'****************************************
+Sub PrintSetSpecialPlotTabFileName(ByVal szValue As String)
+
+	mszSpecialPlotTabFile = szValue
+
+End Sub
+
+'****************************************
+'Returnerer om det er tilladt at lave specialplot...
+'****************************************
+Function PrintAllowSpecialPlot() As Logical
+
+	PrintAllowSpecialPlot = mbAllowSpecialPlot
+
+End Function
+
+'****************************************
+'Sætter om det er tilladt at lave specialplot...
+'****************************************
+Sub PrintSetAllowSpecialPlot(ByVal bValue As Logical)
+
+	mbAllowSpecialPlot = bValue
+
+End Sub
+
+'****************************************
+'Returnerer om det er tilladt at lave roterede plot...
+'****************************************
+Function PrintAllowRotatedPlot() As Logical
+
+	PrintAllowRotatedPlot = mbAllowRotatedPlot
+
+End Function
+
+'****************************************
+'Sætter om det er tilladt at lave roterede plot...
+'****************************************
+Sub PrintSetAllowRotatedPlot(ByVal bValue As Logical)
+
+	mbAllowRotatedPlot = bValue
+
+End Sub
+
+'****************************************
+'Returnerer om det er tilladt at lave roterede plot...
+'****************************************
+Function PrintWarnOnNoSelection() As Logical
+
+	PrintWarnOnNoSelection = mbWarnOnPrintWithNoSelection
+
+End Function
+
+'****************************************
+'Sætter om det er tilladt at lave roterede plot...
+'****************************************
+Sub PrintSetWarnOnNoSelection(ByVal bValue As Logical)
+
+	mbWarnOnPrintWithNoSelection = bValue
+
+End Sub
+
+'****************************************
+'Returnerer navnene på sorteringskolonner...
+'****************************************
+Function PrintGetColumnNamesToSortBy$() As String
+
+	PrintGetColumnNamesToSortBy$ = mszColumnNamesToSortBy
+
+End Function
+
+'****************************************
+'Sætter navnene på sorteringskolonner...
+'****************************************
+Sub PrintSetColumnNamesToSortBy(ByVal szValue As String)
+
+	mszColumnNamesToSortBy = szValue
+	If not Right$(mszColumnNamesToSortBy, 1) = ";" Then
+		mszColumnNamesToSortBy = mszColumnNamesToSortBy & ";"
+	End If
+
+End Sub
+
+'****************************************
+'Returnere om det er muligt at anvende roterede plot...
+'****************************************
+Function PrintIsRotatedPlotPossible(ByVal nMapID As Integer) As Logical
+
+Dim	i As Integer,
+	szTab As String
+
+PrintIsRotatedPlotPossible = FALSE
+
+	If Not PrintAllowRotatedPlot() Then
+		Exit Function
+	End If
+
+	If SystemInfo(SYS_INFO_MIVERSION) < 412 Then
+		Exit Function
+	End If
+
+	For i = 1 To MapperInfo(nMapID, MAPPER_INFO_LAYERS)
+		If LayerInfo(nMapID, i, LAYER_INFO_TYPE) <> LAYER_INFO_TYPE_THEMATIC Then
+			szTab = LayerInfo(nMapID, i, LAYER_INFO_NAME)
+			If TableInfo(szTab, TAB_INFO_TYPE) = TAB_TYPE_IMAGE Then
+				Exit Function
+			End If
+		End If
+	Next
+
+PrintIsRotatedPlotPossible = TRUE
+
+End Function
+
+'****************************************
+'Returnere om det er muligt at anvende roterede plot...
+'****************************************
+Function PrintIsMapRotated(ByVal nMapID As Integer) As Logical
+
+Dim	szCoordSys As String
+
+	PrintIsMapRotated = FALSE
+
+	szCoordSys = MapperInfo(nMapID, MAPPER_INFO_COORDSYS_CLAUSE)
+	If InStr(1, szCoordSys, "Affine") > 0 Then
+		PrintIsMapRotated = TRUE
+	End If
+
+End Function
+
+(bUseNothArrow)
+'****************************************
+'Sætter om der skal anvendes nordpil på plottet
+'****************************************
+Sub PrintSetUseNorthArrow(ByVal bValue As Logical)
+
+	mbUseNorthArrow = bValue
+
+End Sub
+
+'****************************************
+'Returnerer om der skal anvendes nordpil på plottet
+'****************************************
+Function PrintUseNorthArrow() As Logical
+
+	PrintUseNorthArrow = mbUseNorthArrow
+
+End Function
+
+'****************************************
+'Sætter filnavnet på wor til specialplot...
+'****************************************
+Sub PrintSetWorFileUsingSpecPlot(ByVal szFile As String)
+
+	mszSpecialPlotWorFile = szFile
+
+End Sub
+
+'****************************************
+'Returnerer filnavnet på wor til specialplot...
+'Returns an empty string if standard print else worfile
+'****************************************
+Function PrintGetWorFileUsingSpecPlot$() As String
+
+	PrintGetWorFileUsingSpecPlot$ = mszSpecialPlotWorFile
+
+End Function
+
+'****************************************
+'Sætter navnet på aktivt specialplot...
+'****************************************
+Sub PrintSetSpecPlotName(ByVal szFile As String)
+
+	mszSpecialPlotName = szFile
+
+End Sub
+
+'****************************************
+'Returnerer navnet på aktivt specialplot...
+'Returns an empty string if standard print
+'****************************************
+Function PrintGetSpecPlotName$() As String
+
+	PrintGetSpecPlotName$ = mszSpecialPlotName
+
+End Function
+
+'****************************************
+'Undersøger om specialplot skal anvendes...
+'****************************************
+Function PrintUseSpecialPlot() As Logical
+
+PrintUseSpecialPlot = FALSE
+
+	If PrintGetSpecPlotName$() <> "" Then
+		PrintUseSpecialPlot = TRUE		
+	End If
+
+End Function
+
+'****************************************
+'Undersøger om det er muligt at anvende specialplot...
+'****************************************
+Function PrintSpecialPlotIsPossible() As Logical
+
+	If Not PrintAllowSpecialPlot() Then
+		PrintSpecialPlotIsPossible = FALSE
+	ElseIf PrintGetSpecialPlotTabFileName$() = "" Then
+		PrintSpecialPlotIsPossible = FALSE
+	ElseIf Not FileExists(PrintGetSpecialPlotTabFileName$()) Then
+		PrintSpecialPlotIsPossible = FALSE
+	Else
+		PrintSpecialPlotIsPossible = TRUE
+	End If
+
+End Function
+
+'****************************************
+'Opretter liste med layout-åbnede tabeller...
+'****************************************
+Sub PrintCreateHiddenOpenedTables(ByVal nFromTabNo As Integer)
+
+Dim	i As Integer,
+	szTab AS String
+
+	For i = (nFromTabNo + 1) To NumTables()
+		szTab = TableInfo(i, TAB_INFO_NAME)
+		If szTab <> "KJSDFDFKLKDF" Then
+			If TableOpen(szTab) Then
+				If mszHiddenOpenedTables = "" Then
+					mszHiddenOpenedTables = szTab 
+				Else
+					mszHiddenOpenedTables = mszHiddenOpenedTables + ";" + szTab 
+				End If		
+			End If
+		End If
+	Next
+
+End Sub
+
+'****************************************
+'Opretter liste med layout-åbnede tabeller...
+'****************************************
+Sub PrintCloseHiddenOpenedTables(ByVal bAskBeforeClose As Logical)
+
+Dim	i, nTabs, nCount As Integer,
+	arrSub(0) As String
+
+	If mszHiddenOpenedTables = "" Then
+		Exit Sub
+	End If
+
+	nTabs = StrSplitDefinedChar(mszHiddenOpenedTables, ";", arrSub, 999)
+
+	ReDim arrTabName(nTabs)
+	nCount = 0
+	For i = 1 To nTabs
+		If TableOpen(arrSub(i)) Then
+			nCount 			= nCount + 1
+			arrTabName(nCount)	= arrSub(i)
+		End If
+	Next
+
+	'**Checking if any of the tables where open...
+	If nCount = 0 Then
+		mszHiddenOpenedTables = ""
+		Exit Sub
+	Else
+		ReDim arrTabName(nCount)
+	End If
+
+	If bAskBeforeClose Then
+		Dialog 
+			Title PLTM_DLG_TITLE_CLOSE_TABLES	Width 160
+			Control StaticText	Position 10,5
+				Title PLTM_DLG_TXT_CLOSE_TAB_1
+			Control StaticText	Position 10,15
+				Title PLTM_DLG_TXT_CLOSE_TAB_2
+			Control MultiListBox	Position 10,30	Width 140	Height 60	ID 100
+				Title From Variable arrTabName
+				Calling HandlerWinTabNamePicked
+
+			Control OKButton		Position 10,105	Width 40
+				Title MSG_CLOSE_ALL
+			Control Button		Position 60,105	Width 40			ID 1000
+				Title MSG_CLOSE
+				Calling HandlerCloseSelectedTables
+				Disable
+			Control CancelButton	Position 110,105	Width 40
+
+		If not CommandInfo(CMD_INFO_DLG_OK) Then
+			Exit Sub
+		End If
+	End If
+
+	For i = 1 To nCount
+		If TableOpen(arrTabName(i)) Then
+			Close Table arrTabName(i)
+		End If
+	Next
+
+mszHiddenOpenedTables = ""
+
+End Sub
+
+'****************************************
+'Erstatter et tabelnavn med et andet i listen med tabeller, der ksal lukkes
+'****************************************
+Sub PrintReplaceHiddenOpenedTable(ByVal szReplaceTab As String, ByVal szReplaceWithTab As String)
+
+Dim	i, nTabs As Integer,
+	arrTab(0) As String
+
+	If mszHiddenOpenedTables = "" Then
+		Exit Sub
+	End If
+
+	nTabs = StrSplitDefinedChar(mszHiddenOpenedTables, ";", arrTab, 999)
+
+	For i = 1 To nTabs
+		If arrTab(i) = szReplaceTab Then
+			arrTab(i) = szReplaceWithTab
+		End If
+		If i = 1 Then
+			mszHiddenOpenedTables = arrTab(i)
+		Else
+			mszHiddenOpenedTables = mszHiddenOpenedTables + ";" + arrTab(i)
+		End If
+	Next
+
+End Sub
+
+'****************************************
+'Lukker layout-åbnede tabeller udvalgt i listen...
+'****************************************
+Sub HandlerCloseSelectedTables
+
+Dim	nID As Integer,
+	szTab As String
+
+	Dialog Remove
+
+	If mnGlobalPicked > 0 Then
+		nID = mnGlobalPicked
+	Else
+		nID = ReadControlValue(100)
+	End If
+
+	If nID = 0 Then
+		ReDim arrTabName(0)
+		Exit Sub
+	End If
+
+	Do Until (nID = 0)
+		szTab = arrTabName(nID)
+
+		If TableOpen(szTab) Then
+			Close Table szTab
+		End If
+
+		nID = ReadControlValue(100)
+	Loop
+
+	ReDim arrTabName(0)
+
+End Sub
+
+'****************************************
+'Opretter liste med layout-åbnede vinduer...
+'****************************************
+Sub PrintCreateHiddenOpenedWindows(ByVal nFromWinNo As Integer)
+
+Dim	i As Integer,
+	szID As String
+
+	For i = (nFromWinNo + 1) To NumWindows()
+		szID = Right$(String$(8, "0") & Str$(WindowID(i)), 8)
+		If mszHiddenOpenedTables = "" Then
+			mszHiddenOpenedWindows = szID
+		Else
+			If InStr(1, mszHiddenOpenedWindows, szID) = 0 Then
+				mszHiddenOpenedWindows = mszHiddenOpenedWindows + ";" + szID 
+			End If
+		End If		
+	Next
+
+End Sub
+
+'****************************************
+'Lukker layout-åbnede vinduer...
+'****************************************
+Sub PrintCloseHiddenOpenedWindows(ByVal bAskBeforeClose As Logical)
+
+Dim	i, nWins, nCount As Integer,
+	arrSub(0) As String
+
+	If mszHiddenOpenedWindows = "" Then
+		Exit Sub
+	End If
+
+	nWins = StrSplitDefinedChar(mszHiddenOpenedWindows, ";", arrSub, 999)
+
+	ReDim arrWinID(nWins)
+	ReDim arrWinName(nWins)
+	nCount = 0
+	For i = 1 To nWins
+		If WindowExists(Val(arrSub(i))) Then
+			nCount 			= nCount + 1
+			arrWinID(nCount)		= Val(arrSub(i))
+			arrWinName(nCount)	= WindowInfo(arrWinID(nCount), WIN_INFO_NAME)
+		End If
+	Next
+
+	'**Checking if any of the tables where open...
+	If nCount = 0 Then
+		mszHiddenOpenedWindows = ""
+		Exit Sub
+	Else
+		ReDim arrWinID(nCount)
+		ReDim arrWinName(nCount)
+	End If
+
+	If bAskBeforeClose Then
+		Dialog 
+			Title PLTM_DLG_TITLE_CLOSE_WINDOWS	Width 160
+			Control StaticText	Position 10,5
+				Title PLTM_DLG_TXT_CLOSE_WIN_1
+			Control StaticText	Position 10,15
+				Title PLTM_DLG_TXT_CLOSE_WIN_2
+			Control MultiListBox	Position 10,30	Width 140	Height 60	ID 100
+				Title From Variable arrWinName
+				Calling HandlerWinTabNamePicked
+
+			Control OKButton	Position 10,105	Width 40
+				Title MSG_CLOSE_ALL
+			Control Button		Position 60,105	Width 40			ID 1000
+				Title MSG_CLOSE
+				Calling HandlerCloseSelectedWindows
+				Disable
+			Control CancelButton	Position 110,105	Width 40
+
+		If not CommandInfo(CMD_INFO_DLG_OK) Then
+			Exit Sub
+		End If
+	End If
+
+	For i = 1 To nCount
+		If WindowExists(arrWinID(i)) Then
+			Close Window arrWinID(i)
+		End If
+	Next
+
+mszHiddenOpenedWindows = ""
+
+End Sub
+
+'****************************************
+'Lukker layout-åbnede vinduer udvalgt i listen...
+'****************************************
+Sub HandlerCloseSelectedWindows
+
+Dim	nID, nWinID As Integer
+
+	Dialog Remove
+
+	If mnGlobalPicked > 0 Then
+		nID = mnGlobalPicked
+	Else
+		nID = ReadControlValue(100)
+	End If
+
+	If nID = 0 Then
+		ReDim arrWinName(0)
+		ReDim arrWinID(0)
+		Exit Sub
+	End If
+
+	Do Until (nID = 0)
+		nWinID = arrWinID(nID)
+
+		If WindowExists(nWinID) Then
+			Close Window nWinID
+		End If
+	
+		nID = ReadControlValue(100)
+	Loop
+
+	ReDim arrWinName(0)
+	ReDim arrWinID(0)
+
+End Sub
+
+'****************************************
+'Handler - Funktion til dis-/enabling af OKButton
+'****************************************
+Sub HandlerWinTabNamePicked
+
+	mnGlobalPicked = ReadControlValue(100)
+	
+	If mnGlobalPicked > 0 Then
+		Alter Control 1000 Enable
+	Else
+		Alter Control 1000 Disable
+	End If
+
+End Sub
+

@@ -1,0 +1,508 @@
+'********************************************************
+'**	Modul:	PadFunc.mb
+'**			Functions for buttonpads
+'********************************************************
+
+Include "MapBasic.def"
+
+Include "PadFunc.def"
+Include "..\IniUtil\iniUtil.def"
+
+'********************************************************
+'	Vis / skjul enhver palette
+'********************************************************
+Function PADExists (ByVal szPadName As String )	As Logical
+
+Dim	nWID As Integer
+
+OnError GoTo ErrorOccured
+
+	PADExists = FALSE
+
+	nWID = ButtonPadInfo(szPadName, BTNPAD_INFO_WINID)
+
+	PADExists = TRUE
+
+	Exit Function
+'-------------------
+ErrorOccured:
+
+End Function
+
+'********************************************************
+'	Vis / skjul enhver palette
+'********************************************************
+Sub PADShowHide(ByVal szPadName As String )
+
+Dim	nWID As Integer
+
+OnError GoTo ErrorOccured
+
+	nWID = ButtonPadInfo(szPadName, BTNPAD_INFO_WINID)
+
+	If WindowInfo(nWID, WIN_INFO_OPEN) Then
+		Alter ButtonPad szPadName Hide
+	Else
+		Alter ButtonPad szPadName Show
+	End If
+
+'-------------------
+ErrorOccured:
+
+End Sub
+
+'********************************************************
+'	Vis / skjul Tekst paletten
+'********************************************************
+Sub PADDestroy (ByVal szPadName As String )
+
+OnError Goto ErrorOccured
+
+	Alter ButtonPad szPadName
+		Destroy
+
+ErrorOccured:
+
+End Sub
+
+'********************************************************
+'	Læser paletters position med mere fra tekstfil
+'********************************************************
+Sub PADReadSetupAll(ByVal szFile As String)
+
+Dim	szCase, szName, szStatus As String,
+	fBtnX, fBtnY, fWidth As Float
+
+	If not FileExists(szFile) Then
+		Exit Sub
+	End If
+
+	Open File szFile
+		For Input
+		As #199
+		CharSet SystemInfo(SYS_INFO_CHARSET)
+
+'----------------------------
+StartingPoint:
+
+	OnError GoTo ErrorOccured
+
+	If EOF(199) Then
+		Close File #199
+		Exit Sub
+	End If
+
+	szName 	= ReadInitLineFromFile(199)
+	szCase 	= ReadInitLineFromFile(199)
+	fBtnX 	= Val (ReadInitLineFromFile(199))
+	fBtnY 	= Val (ReadInitLineFromFile(199))
+	fWidth 	= Val (ReadInitLineFromFile(199))
+	szStatus 	= ReadInitLineFromFile(199)
+
+	If PADExists(szName) Then
+		Do Case szCase
+			Case "FLOAT"
+				If szStatus = "SHOW" Then
+					Alter Buttonpad szName
+						Width fWidth
+						Position (fBtnX, fBtnY) Units "cm"
+						Float
+						Show
+				Else
+					Alter Buttonpad szName
+						Width fWidth
+						Position (fBtnX, fBtnY) Units "cm"
+						Float
+						Hide
+				End If
+			Case "FIXED"
+				If szStatus = "SHOW" Then
+					Alter Buttonpad szName
+						Width fWidth
+						ToolbarPosition (fBtnY, fBtnX)
+						Fixed
+						Show
+				Else
+					Alter Buttonpad szName
+						Width fWidth
+						ToolbarPosition (fBtnY, fBtnX)
+						Fixed
+						Hide
+				End If
+		End Case
+	End If
+
+	GoTo StartingPoint
+
+'----------------------
+ErrorOccured:
+
+	Print Error$()
+	Resume StartingPoint
+
+End Sub
+
+'********************************************************
+'	Læser én palettes position med mere fra tekstfil
+'********************************************************
+Sub PADReadSetupSingle(ByVal szFile As String, ByVal szPadName As String)
+
+Dim	szCase, szName, szStatus As String,
+	fBtnX, fBtnY, fWidth As Float
+
+	If not FileExists(szFile) Then
+		Exit Sub
+	End If
+
+	Open File szFile
+		For Input
+		As #199
+		CharSet SystemInfo(SYS_INFO_CHARSET)
+
+'----------------------------
+StartingPoint:
+
+	OnError GoTo ErrorOccured
+
+	If EOF(199) Then
+		Close File #199
+		Exit Sub
+	End If
+
+	szName	 = ReadInitLineFromFile(199)
+
+	If szName = szPadName Then
+		If ButtonPadExists(szName) Then
+
+			szCase	= ReadInitLineFromFile(199)
+			fBtnX		= Val(ReadInitLineFromFile(199))
+			fBtnY		= Val(ReadInitLineFromFile(199))
+			fWidth 	= Val(ReadInitLineFromFile(199))
+			szStatus 	= ReadInitLineFromFile(199)
+
+			Do Case szCase
+				Case "FLOAT"
+					If szStatus = "SHOW" Then
+						Alter Buttonpad szName
+							Width fWidth
+							Position (fBtnX, fBtnY) Units "cm"
+							Float
+							Show
+					Else
+						Alter Buttonpad szName
+							Width fWidth
+							Position (fBtnX, fBtnY) Units "cm"
+							Float
+								Hide
+					End If
+				Case "FIXED"
+					If szStatus = "SHOW" Then
+						Alter Buttonpad szName
+							Width fWidth
+							ToolbarPosition (fBtnY, fBtnX)
+							Fixed
+							Show
+					Else
+						Alter Buttonpad szName
+							Width fWidth
+							ToolbarPosition (fBtnY, fBtnX)
+							Fixed
+							Hide
+					End If
+			End Case
+
+			Close File #199
+			Exit Sub
+		End If
+	End If
+
+	GoTo StartingPoint
+'----------------------
+ErrorOccured:
+
+	Print Error$()
+	Resume StartingPoint
+
+End Sub
+
+'********************************************************
+'	Skriver paletters position med mere til tekstfil
+'********************************************************
+Sub PADWriteSetup(ByVal nFile As Integer, ByVal szPadName As String)
+
+	Set Paper Units "cm"
+
+	OnError GoTo ErrorOccured
+
+	Print #nFile, szPadName
+
+	If not ButtonPadInfo(szPadName, BTNPAD_INFO_FLOATING) Then
+		Print #nFile, "FIXED"
+		Print #nFile, ButtonPadInfo(szPadName, BTNPAD_INFO_X)
+		Print #nFile, ButtonPadInfo(szPadName, BTNPAD_INFO_Y)
+	Else
+		Print #nFile, "FLOAT"
+		Print #nFile, ButtonPadInfo(szPadName, BTNPAD_INFO_X)
+		Print #nFile, ButtonPadInfo(szPadName, BTNPAD_INFO_Y)
+	End If
+
+	Print #nFile, ButtonPadInfo(szPadName, BTNPAD_INFO_WIDTH)
+
+	If WindowInfo(ButtonPadInfo(szPadName, BTNPAD_INFO_WINID), WIN_INFO_OPEN) Then
+		Print #nFile, "SHOW"
+	Else
+		Print #nFile, "HIDE"
+	End If
+
+Exit Sub
+
+'-------------------
+ErrorOccured:
+	Print #nFile, "FLOAT"
+	Print #nFile, 10
+	Print #nFile, 5
+	Print #nFile, 5
+	Print #nFile, "SHOW"
+
+End Sub
+
+'********************************************************
+'	Skriver én palettes position med mere til tekstfil
+'********************************************************
+Sub PADWriteSetupSingle(ByVal szFile As String, ByVal szPadName As String, ByVal bOverWrite As Logical)
+
+OnError GoTo ErrorOccured
+
+	If bOverWrite Then
+		If FileExists(szFile) Then
+			Kill szFile
+		End If
+	End If
+
+	If FileExists(szFile) Then
+		Open File szFile
+			For Append
+			As #199
+			CharSet SystemInfo(SYS_INFO_CHARSET)
+	Else
+		Open File szFile
+			For Output
+			As #199
+			CharSet SystemInfo(SYS_INFO_CHARSET)
+	End If
+
+	Call PADWriteSetup (199, szPadName)
+
+	Close File #199
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub PADGetSettings(ByVal szPadName As String, piCur As T_BUTTONPAD)
+
+	Set Paper Units "cm"
+
+OnError GoTo ErrorOccured
+
+	piCur.szName	= szPadName
+
+	If NOT PADExists(szPadName) Then
+		piCur.nWinID	= 0
+
+		piCur.bFloating	= TRUE
+		piCur.fPositionX	= 5
+		piCur.fPositionY	= 5
+
+		piCur.nWidth	= 10
+		piCur.bHidden	= FALSE
+	Else
+		piCur.nWinID	= ButtonPadInfo(szPadName, BTNPAD_INFO_WINID)
+
+		If NOT ButtonPadInfo(szPadName, BTNPAD_INFO_FLOATING) Then
+			piCur.bFloating 	= FALSE
+			piCur.fPositionX	= ButtonPadInfo(szPadName, BTNPAD_INFO_X)
+			piCur.fPositionY	= ButtonPadInfo(szPadName, BTNPAD_INFO_Y)
+		Else
+			piCur.bFloating	= TRUE
+			piCur.fPositionX	= ButtonPadInfo(szPadName, BTNPAD_INFO_X)
+			piCur.fPositionY	= ButtonPadInfo(szPadName, BTNPAD_INFO_Y)
+		End If
+
+		piCur.nWidth	= ButtonPadInfo(szPadName, BTNPAD_INFO_WIDTH)
+		piCur.bHidden	= NOT (WindowInfo(piCur.nWinID, WIN_INFO_OPEN))
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub PADSetSettings(ByVal szPadName As String, piCur As T_BUTTONPAD)
+
+Dim	szName As String
+
+OnError GoTo ErrorOccured
+
+	If szPadName = "" Then
+		szName = piCur.szName
+	Else
+		szName = szPadName
+	End If
+
+	If NOT PADExists(szName) Then
+		Exit Sub
+	End If
+
+	If piCur.bHidden Then
+		Alter Buttonpad szName
+			Hide
+	Else
+		Alter Buttonpad szName
+			Show
+	End If
+
+	If piCur.bFloating Then
+		Alter Buttonpad szName
+			Width piCur.nWidth
+			Position (piCur.fPositionX, piCur.fPositionY) Units "cm"
+			Float
+	Else
+		Alter Buttonpad szName
+			Width piCur.nWidth
+			ToolbarPosition (piCur.fPositionY, piCur.fPositionX)
+			Fixed
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'**************************************************************************************************************
+ 'B A C K W A R D S   C O M P A T A B I L I T Y
+'**************************************************************************************************************
+'********************************************************
+'	Vis / skjul enhver palette
+'********************************************************
+Function ButtonPadExists (ByVal szPadName As String )	As Logical
+
+OnError GoTo ErrorOccured
+
+	ButtonPadExists = PADExists(szPadName)
+
+	Exit Function
+'-------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Vis / skjul enhver palette
+'********************************************************
+Sub ShowHideAnyButtonPad (ByVal szPadName As String )
+
+OnError GoTo ErrorOccured
+
+	Call PADShowHide(szPadName)
+
+	Exit Sub
+'-------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Vis / skjul Tekst paletten
+'********************************************************
+Sub DestroyAnyButtonPad (ByVal szPadName As String )
+
+OnError Goto ErrorOccured
+
+	Call PADDestroy(szPadName)
+
+	Exit Sub
+'----------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+
+'********************************************************
+'	Læser paletters position med mere fra tekstfil
+'********************************************************
+Sub ReadButtonPadSetup(ByVal szFile As String)
+
+OnError GoTo ErrorOccured
+
+	Call PADReadSetupAll(szFile)
+
+	Exit Sub
+'----------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Læser én palettes position med mere fra tekstfil
+'********************************************************
+Sub ReadButtonPadSetupOnePad (ByVal szPadName As String, ByVal szFile As String)
+
+OnError GoTo ErrorOccured
+
+	Call PADReadSetupSingle(szFile, szPadName)
+
+	Exit Sub
+'----------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Skriver paletters position med mere til tekstfil
+'********************************************************
+Sub WriteButtonPadSetup (ByVal szPadName As String, ByVal nFile As Integer )
+
+OnError GoTo ErrorOccured
+
+	Call PADWriteSetup (nFile, szPadName)
+
+	Exit Sub
+'-------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Skriver én palettes position med mere til tekstfil
+'********************************************************
+Sub WriteButtonPadSetupOnePad(ByVal szPadName As String, ByVal szFile As String, ByVal bOverWrite As Logical)
+
+OnError GoTo ErrorOccured
+
+	Call PADWriteSetupSingle(szFile, szPadName, bOverWrite)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

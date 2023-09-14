@@ -1,0 +1,47 @@
+'*******************************************************************************
+'** 	Program:	
+'** 	Modul:		
+'**			
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+Define	xApplicTitle	"MultiTools PDA"
+'-----------------------------------------------------------------------------------------
+Include "ProgramInfo.def"
+
+'**Includes of language-files...
+Include "..\Language\Message.lng"
+Include "..\Language\Errors.lng"
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function PRGINFOGetApplicationTitle$() As Logical
+
+OnError GoTo ErrorOccured
+
+	PRGINFOGetApplicationTitle$	= xApplicTitle
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function PRGINFOAllowPDATools() As Logical
+
+OnError GoTo ErrorOccured
+
+	PRGINFOAllowPDATools	= TRUE
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function

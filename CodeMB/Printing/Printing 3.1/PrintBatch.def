@@ -1,0 +1,3 @@
+Declare Sub BatchStartBatchPlotting		'Plotting selected plot frames automatically
+Declare Sub BatchStartResizingFrames	'Resizing plot frames to size of frame in layout
+Declare Sub BatchExportMapAsBitmap		'Saving Map Window as bitmap automatically

@@ -1,0 +1,93 @@
+Include "MapBasic.def"
+
+Include "MapHelp.def"
+
+Include "..\..\IniUtil\iniUtil.def"
+
+Include "..\..\Language\Kommune.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\Message.lng"
+
+Dim	mszDefaultName As String,
+	mnWID As Integer
+
+'---------------
+Sub WindowChange
+
+Dim	szWidth, szHeight, szName, szNewName As String
+
+	Set Paper Units "cm"
+
+	mnWID = FrontWindow()
+	If mnWID = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Sub
+	End If
+
+	szWidth	= WindowInfo(mnWID,WIN_INFO_WIDTH)
+	szHeight	= WindowInfo(mnWID,WIN_INFO_HEIGHT)
+	szName	= WindowInfo(mnWID,WIN_INFO_NAME)
+
+	Set Window mnWID
+		Title Default
+	mszDefaultName = WindowInfo(mnWID,WIN_INFO_NAME)
+	If not mszDefaultName = szName Then
+		Set Window mnWID
+			Title szName
+	End If
+
+	Dialog 
+		Title KPAK_DLG_TITLE_CHANGE_WINDOW
+		Control GroupBox		Position 5,5	Width 150	Height 45
+			Title KPAK_DLG_TXT_WINDOW_TITLE
+		Control EditText		Position 15,15	Width 130			ID 2
+			Value szName
+			Into szNewName
+		Control Button		Position 15,30
+			Calling SetWinNameDefault
+			Title KPAK_DLG_TXT_SET_TO_DEFAULT
+		Control GroupBox		Position 5,55	Width 150	Height 45
+			Title KPAK_DLG_TXT_WINDOW_SIZE
+		Control StaticText	Position 15,67
+			Title KPAK_DLG_TXT_WINDOW_WIDTH
+		Control EditText		Position 60,65	Width 90
+			Value szWidth
+			Into szWidth
+		Control StaticText	Position 15,82
+			Title KPAK_DLG_TXT_WINDOW_HEIGHT
+		Control EditText		Position 60,80	Width 90
+			Value szHeight
+			Into szHeight
+		Control OKButton
+		Control CancelButton
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	Set Paper Units "cm"
+
+	If szNewName = mszDefaultName Then
+		Set Window mnWID
+			Title Default
+			Width Val(KommaToPoint(szWidth))
+			Height Val(KommaToPoint(szHeight))
+	ElseIf szName <> szNewname Then
+		Set Window mnWID
+			Title szNewName
+			Width Val(KommaToPoint(szWidth))
+			Height Val(KommaToPoint(szHeight))
+	Else
+		Set Window mnWID
+			Width Val(KommaToPoint(szWidth))
+			Height Val(KommaToPoint(szHeight))
+	End If
+
+End Sub
+
+'---------------
+Sub SetWinNameDefault
+
+	Alter Control 2   Value mszDefaultName
+
+End Sub

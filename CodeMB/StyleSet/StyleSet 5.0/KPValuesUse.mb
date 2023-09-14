@@ -1,0 +1,674 @@
+'********************************************************
+'**	Modul:		KPValuesUse.mb
+'**	Funktioner:		Læs fra / skriv til KPValues tabellen
+'**				Funktioner til Værditilknytning
+'********************************************************
+Include "MapBasic.def"
+Include "Menu.def"
+
+Include "KPAdminUse.def"
+Include "KPTableUse.def"
+Include "KPGroupUse.def"
+Include "KPStyleUse.def"
+Include "KPValuesUse.def"
+
+Include "Globals.def"
+
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\IniUtil\IniUtil.def"
+Include "..\..\Time\Time.def"
+
+Include "..\..\Printing\Printing 3.1\PrintValues.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+'********************************************************
+'	Array med værdier til bestemt StyleID...
+'********************************************************
+Sub kpvCreateColAndValListSingle(ByVal nStyleID As Integer, arrValues() As String)
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPVALUES
+		Where	STYLEID	= nStyleID
+		Order By ORDERBY
+		Into CUR_LIST_OF_SINGLEVALUES NoSelect
+'	Browse * From CUR_LIST_OF_SINGLEVALUES
+
+	If TableInfo("CUR_LIST_OF_SINGLEVALUES", TAB_INFO_NROWS) > 0 Then
+		If NOT TableInfo("KPVALUES", TAB_INFO_READONLY) Then
+			Update CUR_LIST_OF_SINGLEVALUES
+				Set ORDERBY	= ROWID * 10
+		End If
+
+		ReDim arrValues(TableInfo("CUR_LIST_OF_SINGLEVALUES", TAB_INFO_NROWS))
+		i = 0
+
+		Fetch First From CUR_LIST_OF_SINGLEVALUES
+		Do Until EOT(CUR_LIST_OF_SINGLEVALUES)
+			i = i + 1
+			arrValues(i) = CUR_LIST_OF_SINGLEVALUES.COLUMNNAME + " : " + CUR_LIST_OF_SINGLEVALUES.VALUE
+
+			Fetch Next From CUR_LIST_OF_SINGLEVALUES
+		Loop
+	Else
+		ReDim	arrValues(1)
+		arrValues(1) = MSG_TEXT_NO_VALUES
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Array med værdier fælles for alle tabeller...
+'********************************************************
+Sub kpvCreateColAndValListCommon(arrValues() As String)
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPVALUES
+		Where	STYLEID	= -999
+		Order By ORDERBY
+		Into CUR_LIST_OF_COMMONVALUES NoSelect
+'	Browse * From CUR_LIST_OF_COMMONVALUES
+
+	If TableInfo("CUR_LIST_OF_COMMONVALUES", TAB_INFO_NROWS) > 0 Then
+		If NOT TableInfo("KPVALUES", TAB_INFO_READONLY) Then
+			Update CUR_LIST_OF_COMMONVALUES
+				Set ORDERBY	= ROWID * 10
+		End If
+
+		ReDim arrValues(TableInfo("CUR_LIST_OF_COMMONVALUES", TAB_INFO_NROWS))
+		i = 0
+
+		Fetch First From CUR_LIST_OF_COMMONVALUES
+		Do Until EOT(CUR_LIST_OF_COMMONVALUES)
+			i = i + 1
+			arrValues(i) = CUR_LIST_OF_COMMONVALUES.COLUMNNAME + " : " + CUR_LIST_OF_COMMONVALUES.VALUE
+
+			Fetch Next From CUR_LIST_OF_COMMONVALUES
+		Loop
+	Else
+		ReDim	arrValues(1)
+		arrValues(1) = MSG_TEXT_NO_VALUES
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Returnerer Common ValueID udfra ElementNr......
+'********************************************************
+Function kpvGetCommonValueIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	If TableInfo("CUR_LIST_OF_COMMONVALUES", TAB_INFO_NROWS) = 0 Then
+		kpvGetCommonValueIDFromElementNo = -1
+		Exit Function
+	End If
+
+	Fetch Rec (nElementNo) From CUR_LIST_OF_COMMONVALUES
+
+	kpvGetCommonValueIDFromElementNo = CUR_LIST_OF_COMMONVALUES.VALUEID
+
+	Exit Function
+'--------------------
+ErrorOccured:
+	kpvGetCommonValueIDFromElementNo = 0
+
+End Function
+
+'********************************************************
+'	Returnerer Single ValueID udfra ElementNr......
+'********************************************************
+Function kpvGetSingleValueIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	If TableInfo("CUR_LIST_OF_SINGLEVALUES", TAB_INFO_NROWS) = 0 Then
+		kpvGetSingleValueIDFromElementNo = -1
+		Exit Function
+	End If
+
+	Fetch Rec (nElementNo) From CUR_LIST_OF_SINGLEVALUES
+
+	kpvGetSingleValueIDFromElementNo = CUR_LIST_OF_SINGLEVALUES.VALUEID
+
+	Exit Function
+'--------------------
+ErrorOccured:
+	kpvGetSingleValueIDFromElementNo = 0
+
+End Function
+
+'********************************************************
+'	Returnerer største ValueID...
+'********************************************************
+Function kpvMaxValueID() As Integer
+
+Dim	bCloseTab As Logical,
+	nMax As Integer
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPValuesTable()
+
+	Select Max(VALUEID) "MAXVALUEID"
+		From KPVALUES
+		Into MAX_VALUEID NoSelect
+
+	If TableInfo("MAX_VALUEID", TAB_INFO_NROWS) = 0 Then
+		nMax = 0
+	Else
+		Fetch First From MAX_VALUEID
+		nMax = MAX_VALUEID.MAXVALUEID
+	End If
+
+	If bCloseTab Then
+		Close Table KPVALUES
+	Else
+		Close Table MAX_VALUEID
+	End If
+
+	kpvMaxValueID	= nMax
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer næste ledige ValueID...
+'********************************************************
+Function kpvGetNextValueID() As Integer
+
+OnError GoTo ErrorOccured
+
+	kpvGetNextValueID = kpvMaxValueID() + 1
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer største ListID...
+'********************************************************
+Function kpvMaxListID() As Integer
+
+Dim	bCloseTab As Logical,
+	nMax As Integer
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPListValuesTable()
+
+	Select Max(LISTID) "MAXLISTID"
+		From KPLISTVALUES
+		Into MAX_LISTID NoSelect
+
+	If TableInfo("MAX_LISTID", TAB_INFO_NROWS) = 0 Then
+		nMax = 0
+	Else
+		Fetch First From MAX_LISTID
+		nMax = MAX_LISTID.MAXLISTID
+	End If
+
+	If bCloseTab Then
+		Close Table KPLISTVALUES
+	Else
+		Close Table MAX_LISTID
+	End If
+
+kpvMaxListID	= nMax
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer næste ledige ListID...
+'********************************************************
+Function kpvGetNextListID() As Integer
+
+OnError GoTo ErrorOccured
+
+	kpvGetNextListID = kpvMaxListID() + 1
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Opdaterer RowId i tabel med værdier...
+'********************************************************
+Function kpvUpdateTableWithValues(	ByVal szTable As String, ByVal nStyleID As Integer, ByVal nRowID As Integer,
+						ByVal bUseCommonValues As Logical, ByVal bUseSingleValues As Logical) As Logical
+
+Dim	bCloseTab, bMakeUpdate, bConvertTime As Logical,
+	szValue, szColName, szCmdStr As String,
+	a As Alias,
+	i, nWidth As Integer,
+	oNewObject As Object
+
+	kpvUpdateTableWithValues = FALSE
+
+	bCloseTab = kpaOpenKPValuesTable()
+
+	If not TableOpen(szTable) Then
+		GoTo BeForeExitFunction
+	End If
+
+	Fetch Rec nRowID From szTable
+	a = szTable + ".OBJ"	oNewObject = a
+
+	For i = 1 To 2
+
+		bMakeUpdate = FALSE
+
+		If i = 1 AND bUseSingleValues Then
+
+			Select * From KPVALUES
+				Where STYLEID = nStyleID
+				AND	Left$(VALUE, 5) <> "[LIST"
+				AND	ACTIVE
+				Into CUR_VALUES_TO_INSERT NoSelect
+
+			If TableInfo("CUR_VALUES_TO_INSERT", TAB_INFO_NROWS) > 0 Then
+				bMakeUpdate = TRUE
+			End If
+		End If
+
+		If i = 2 AND bUseCommonValues Then
+
+			Select * From KPVALUES
+				Where STYLEID = -999
+				AND	Left$(VALUE, 5) <> "[LIST"
+				AND	ACTIVE
+				AND 	NOT COLUMNNAME In (Select COLUMNNAME
+									From KPVALUES
+									Where STYLEID = nStyleID)
+				Into CUR_VALUES_TO_INSERT NoSelect
+
+			If TableInfo("CUR_VALUES_TO_INSERT", TAB_INFO_NROWS) > 0 Then
+				bMakeUpdate = TRUE
+			End If
+		End If
+
+		If bMakeUpdate Then
+
+			Set CoordSys Table szTable
+
+			Fetch First From CUR_VALUES_TO_INSERT
+			Do Until EOT(CUR_VALUES_TO_INSERT)
+				szColName = CUR_VALUES_TO_INSERT.COLUMNNAME
+				If ColExist(szTable, szColName) Then
+
+					szValue = CUR_VALUES_TO_INSERT.VALUE
+					If szValue = "[TIME]" Then
+						bConvertTime = TRUE
+					Else
+						bConvertTime = FALSE
+					End If
+					szValue = kpvGetValueToInsert$(szValue, nStyleID, oNewObject)
+
+
+					szCmdStr = "Update " + szTable
+							+ " Set " +	szColName + " = "
+
+					Do Case ColumnInfo(szTable, szColName, COL_INFO_TYPE)
+						Case COL_TYPE_CHAR
+							If bConvertTime Then
+								nWidth = ColumnInfo(szTable, szColName, COL_INFO_WIDTH)
+								If nWidth < 4 Then
+									'**Time will give no correct value with so few chars
+								ElseIf nWidth = 4 Then
+									szValue = Left$(szValue, 2) & Mid$(szValue, 4, 2)
+								ElseIf nWidth = 5 Then
+									szValue = Left$(szValue, 2) & ":" & Mid$(szValue, 4, 2)
+								ElseIf nWidth = 6 OR nWidth = 7 Then
+									szValue = Left$(szValue, 2) & Mid$(szValue, 4, 2) & Right$(szValue, 2)
+								Else
+									'**Let's keep the value as it is
+								End If
+							End If
+							szCmdStr = szCmdStr + eye + szValue + eye
+						Case COL_TYPE_DECIMAL, COL_TYPE_FLOAT
+							If bConvertTime Then
+								szValue = Str$(Val(Left$(szValue, 2)) + (Val(Mid$(szValue, 4, 2)) / 60) + (Val(Right$(szValue, 2)) / 3600))
+							End If
+							szCmdStr = szCmdStr + KommaToPoint(szValue)
+						Case COL_TYPE_INTEGER
+							If bConvertTime Then
+								szValue = Str$((3600 * Val(Left$(szValue, 2))) + (60 * Val(Mid$(szValue, 4, 2))) + Val(Right$(szValue, 2)))
+							End If
+							szCmdStr = szCmdStr + szValue
+						Case COL_TYPE_SMALLINT
+							If bConvertTime Then
+								szValue = Str$((60 * Val(Left$(szValue, 2))) + Val(Mid$(szValue, 4, 2)))
+'								szValue = Left$(szValue, 2) & Mid$(szValue, 4, 2)
+							End If
+							szCmdStr = szCmdStr + szValue
+						Case COL_TYPE_DATE
+							Set Format Date "Local"
+							szCmdStr = szCmdStr + " StringToDate(" + eye + szValue + eye + ")"
+						Case Else
+							szCmdStr = szCmdStr + szValue
+					End Case
+
+					szCmdStr = szCmdStr + " Where RowID = " + nRowID
+
+					OnError GoTo ErrorOccured
+
+					Run Command szCmdStr
+
+				End If
+
+			'----------------------------------
+					ContinueAfterError:
+				OnError GoTo 0
+				Fetch Next From CUR_VALUES_TO_INSERT
+			Loop
+		End If
+
+		Call TABClose("CUR_VALUES_TO_INSERT")
+	Next
+
+	kpvUpdateTableWithValues = TRUE
+	GoTo BeForeExitFunction
+
+'-------------------------
+ErrorOccured:
+	Print ERR_TXT_ERRORMSG + Error$() + lf
+		+ "........" + szCmdStr
+
+	Resume ContinueAfterError
+
+'-------------------------
+BeForeExitFunction:
+
+	If bCloseTab Then
+		Close Table KPVALUES
+	Else
+		Call TABClose("CUR_VALUES_TO_INSERT")
+	End If
+
+End Function
+
+'********************************************************
+'	Returnerer værdi til indsættelse...
+'********************************************************
+Function kpvGetValueToInsert$(ByVal szValue As String, ByVal nStyleID As Integer,
+					oCurObject As Object) As String
+
+OnError GoTo ErrorOccured
+
+	Do Case szValue
+		Case "[THEMENAME]"
+			kpvGetValueToInsert$ = kpsGetStyleName$(nStyleID)
+		Case "[USERID]"
+			kpvGetValueToInsert$ = PrintGetUserID()
+		Case "[USERNAME]"
+			kpvGetValueToInsert$ = PrintGetUsername()
+		Case "[DATE]"
+			kpvGetValueToInsert$ = GetDate$()
+		Case "[TIME]"
+			kpvGetValueToInsert$ = GetTime$()
+		Case "[CENTROIDX]"
+			kpvGetValueToInsert$ = CentroidX(oCurObject)
+		Case "[CENTROIDY]"
+			kpvGetValueToInsert$ = CentroidY(oCurObject)
+		Case "[AREA_M2]"
+			kpvGetValueToInsert$ = Area(oCurObject, "sq m")
+		Case "[AREA_KM2]"
+			kpvGetValueToInsert$ = Area(oCurObject, "sq km")
+		Case "[LENGTH_M]"
+			kpvGetValueToInsert$ = ObjectLen(oCurObject, "m")
+		Case "[LENGTH_KM]"
+			kpvGetValueToInsert$ = ObjectLen(oCurObject, "km")
+		Case "[ROWID]"
+			kpvGetValueToInsert$ = "RowID"
+		Case Else
+			kpvGetValueToInsert$ = szValue
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Dialog - Opret fælles værditilknytning uden liste over kolonnenavne...
+'********************************************************
+Sub kpvCreateArraysWithSystemValues(arrValues() As String, arrAlias() As String)
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	ReDim arrValues(13)
+	ReDim arrAlias(13)
+	i = 0
+
+	i = i + 1
+	arrValues(i)	= "[AREA_M2]"
+	arrAlias(i)		= STYLE_SYSTEM_VALUES_1
+	i = i + 1
+	arrValues(i)	= "[AREA_KM2]"
+	arrAlias(i)		= STYLE_SYSTEM_VALUES_2
+	i = i + 1
+	arrValues(i)	= "[USERID]"
+	arrAlias(i)		= STYLE_SYSTEM_VALUES_3
+	i = i + 1
+	arrValues(i)	= "[USERNAME]"
+	arrAlias(i)		= STYLE_SYSTEM_VALUES_4
+	i = i + 1
+	arrValues(i)	= "[CENTROIDX]"
+	arrAlias(i)		= STYLE_SYSTEM_VALUES_5
+	i = i + 1
+	arrValues(i)	= "[CENTROIDY]"
+	arrAlias(i)		= STYLE_SYSTEM_VALUES_6
+	i = i + 1
+	arrValues(i)	= "[DATE]"
+	arrAlias(i)		= STYLE_SYSTEM_VALUES_7
+	i = i + 1
+	arrValues(i)	= "[TIME]"
+	arrAlias(i)		= STYLE_SYSTEM_VALUES_13
+	i = i + 1
+	arrValues(i)	= "[LENGTH_M]"
+	arrAlias(i)		= STYLE_SYSTEM_VALUES_8
+	i = i + 1
+	arrValues(i)	= "[LENGTH_KM]"
+	arrAlias(i)		= STYLE_SYSTEM_VALUES_9
+	i = i + 1
+	'ITEM_NO_LIST_VALUE	11, see KPValuesUse.def
+	arrValues(i)	= "[LIST]"
+	arrAlias(i)		= STYLE_SYSTEM_VALUES_12
+	i = i + 1
+	arrValues(i)	= "[ROWID]"
+	arrAlias(i)		= STYLE_SYSTEM_VALUES_10
+	i = i + 1
+	arrValues(i)	= "[THEMENAME]"
+	arrAlias(i)		= STYLE_SYSTEM_VALUES_11
+'	i = i + 1		'**13
+'	arrValues(i)	= "[]"
+'	arrAlias(i)		= ""
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub KPVCreateListOfListIDs(arrListIDs() As Integer)
+
+Dim	bWasOpened As Logical,
+	nRows As Integer
+
+OnError GoTo ErrorOccured
+
+	bWasOpened = kpaOpenKPListValuesTable()
+
+	Select LISTID
+		From KPLISTVALUES
+		Order By LISTID
+		Group By LISTID
+		Into LIST__OF__LISTID NoSelect
+
+	nRows = TableInfo("LIST__OF__LISTID", TAB_INFO_NROWS)
+	ReDim arrListIDs(nRows)
+
+	nRows	= 0
+	Fetch First From LIST__OF__LISTID
+	Do Until EOT(LIST__OF__LISTID)
+		nRows			= nRows + 1
+		arrListIDs(nRows)	= LIST__OF__LISTID.LISTID
+
+		Fetch Next From LIST__OF__LISTID
+	Loop
+
+	If bWasOpened Then
+		Call TABClose("KPLISTVALUES")
+	Else
+		Call TABClose("LIST__OF__LISTID")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub KPVCreateListOfListNames(arrListIDs() As Integer, arrListNames() As String)
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	ReDim arrListNames(Ubound(arrListIDs))
+	For i = 1 To Ubound(arrListIDs)
+		arrListNames(i)	= KPVGetListNameFromListID$(arrListIDs(i))
+	Next
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function KPVGetListNameFromListID$(ByVal nListID As Integer) As String
+
+Dim	bWasOpened As Logical
+
+OnError GoTo ErrorOccured
+
+KPVGetListNameFromListID$ = Str$(nListID)
+
+	bWasOpened = kpaOpenKPListValuesTable()
+
+	Select LISTNAME, Count(*) "ANTAL"
+		From KPLISTVALUES
+		Where LISTNAME 	<> ""
+		AND	LISTID	= nListID
+		Order By ANTAL Desc
+		Into LIST__OF__LISTNAMES NoSelect
+
+	If TableInfo("LIST__OF__LISTNAMES", TAB_INFO_NROWS) > 0 Then
+		Fetch First From LIST__OF__LISTNAMES
+
+		KPVGetListNameFromListID$ = Str$(nListID) & " - " & LIST__OF__LISTNAMES.LISTNAME
+	End If
+
+	If bWasOpened Then
+		Call TABClose("KPLISTVALUES")
+	Else
+		Call TABClose("LIST__OF__LISTNAMES")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub KPVCreateListOfValuesAndDescr(ByVal nListID As Integer, arrValueAndDescript() As String)
+
+Dim	bWasOpened As Logical,
+	nRows As Integer
+
+OnError GoTo ErrorOccured
+
+	bWasOpened = kpaOpenKPListValuesTable()
+
+	Select VALUETEXT, VALUE, ORDERBY, LISTNAME
+		From KPLISTVALUES
+		Where LISTID = nListID
+		Order By ORDERBY
+		Into CUR__LIST__OF__VALUES NoSelect
+
+	nRows = TableInfo("CUR__LIST__OF__VALUES", TAB_INFO_NROWS)
+	ReDim arrValueAndDescript(nRows)
+
+	If NOT TableInfo("KPLISTVALUES", TAB_INFO_READONLY) Then
+		Update CUR__LIST__OF__VALUES
+			Set ORDERBY = (ROWID * 10)
+	End If
+
+	nRows	= 0
+	Fetch First From CUR__LIST__OF__VALUES
+	Do Until EOT(CUR__LIST__OF__VALUES)
+		nRows					= nRows + 1
+		arrValueAndDescript(nRows)	= CUR__LIST__OF__VALUES.VALUETEXT & " - " & CUR__LIST__OF__VALUES.VALUE
+
+		Fetch Next From CUR__LIST__OF__VALUES
+	Loop
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

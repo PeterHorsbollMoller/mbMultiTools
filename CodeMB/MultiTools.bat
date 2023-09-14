@@ -1,0 +1,16 @@
+"C:\MapBasic\MapBasic 6.5\MapBasic.exe" -NoSplash -d "MultiMenu.mb" "ProgramInfo\ProgramInfo.mb" "PDATools\PDATools.mb"
+"C:\MapInfo\MapBasic\17.3\MapBasic.exe" -NoSplash -d "ToolFunc\ToolFunc.mb" "ToolFunc\ToolSplit.mb" "ToolFunc\ToolUpdate.mb" "ToolFunc\Minis\ReplChar.mb" "ToolFunc\Minis\AutoFind.mb" "ToolFunc\Minis\MapHelp.mb"
+"C:\MapInfo\MapBasic\17.3\MapBasic.exe" -NoSplash -d "TextTool\TextToolDlg.mb" "TextTool\TextToolFunc.mb" "TextTool\TextToolIni.mb"
+"C:\MapInfo\MapBasic\17.3\MapBasic.exe" -NoSplash -d "SelectFunc\SelectFunc.mb" "Rasthand\RastHand.mb" "Construction\ToolConstr.mb"
+"C:\MapInfo\MapBasic\17.3\MapBasic.exe" -NoSplash -d "SearchFunc\SearchFunc 2.1\SearchFunc.mb" "SearchFunc\SearchFunc 2.1\SearchMain.mb" "SearchFunc\SearchFunc 2.1\SearchDlgFunc.mb" "SearchFunc\SearchFunc 2.1\SearchOpslagMatr1Dlg.mb"
+"C:\MapInfo\MapBasic\17.3\MapBasic.exe" -NoSplash -d "SearchFunc\SearchFunc 2.1\SearchOpslagMatr2Dlg.mb" "SearchFunc\SearchFunc 2.1\SearchOpslagAdr1Dlg.mb" "SearchFunc\SearchFunc 2.1\SearchOpslagAdr2Dlg.mb"
+"C:\MapInfo\MapBasic\17.3\MapBasic.exe" -NoSplash -d "MapCutter\MapCutter 1.11\MapCutter.mb" "MapCutter\MapCutter 1.11\MapCutterDlg.mb"
+"C:\MapInfo\MapBasic\17.3\MapBasic.exe" -NoSplash -d "PadFunc\PadFunc.mb" "IniUtil\IniUtil.mb" "FileFunc\FileFunc.mb" "StyleFunc\StyleFunc.mb" "TabFunc\TabFunc.mb" "GeoFunc\GeoFunc.mb"
+"C:\MapInfo\MapBasic\17.3\MapBasic.exe" -NoSplash -d "MapFunc\MapFunc.mb" "WinFunc\WinFunc.mb" "APIFunc\APIFunc.mb" "ArrayFunc\ArrayFunc.mb" "Time\Time.mb" "DLLView\DLLView.mb"
+"C:\MapInfo\MapBasic\17.3\MapBasic.exe" -NoSplash -d "Printing\Printing 3.1\PrintDlg.mb" "Printing\Printing 3.1\PrintValues.mb" "Printing\Printing 3.1\PrintPreView.mb" "Printing\Printing 3.1\Printing.mb" "Printing\Printing 3.1\PrintHlp.mb"
+"C:\MapInfo\MapBasic\17.3\MapBasic.exe" -NoSplash -d "StyleSet\StyleSet 5.0\KPAdminDlg.mb" "StyleSet\StyleSet 5.0\KPAdminUse.mb" "StyleSet\StyleSet 5.0\KPTableDlg.mb" "StyleSet\StyleSet 5.0\KPTableUse.mb" "StyleSet\StyleSet 5.0\KPLayerDlg.mb"
+"C:\MapInfo\MapBasic\17.3\MapBasic.exe" -NoSplash -d "StyleSet\StyleSet 5.0\KPLayerUse.mb" "StyleSet\StyleSet 5.0\KPGroupDlg.mb" "StyleSet\StyleSet 5.0\KPGroupUse.mb" "StyleSet\StyleSet 5.0\KPStyleDlg.mb" "StyleSet\StyleSet 5.0\KPStyleUse.mb"
+"C:\MapInfo\MapBasic\17.3\MapBasic.exe" -NoSplash -d "StyleSet\StyleSet 5.0\KPValuesDlg.mb" "StyleSet\StyleSet 5.0\KPValuesUse.mb" "StyleSet\StyleSet 5.0\KPIconDlg.mb" "StyleSet\StyleSet 5.0\KPIconUse.mb" "StyleSet\StyleSet 5.0\KPPadDlg.mb"
+"C:\MapInfo\MapBasic\17.3\MapBasic.exe" -NoSplash -d "StyleSet\StyleSet 5.0\KPPadUse.mb" "StyleSet\StyleSet 5.0\KPDisplayDlg.mb" "StyleSet\StyleSet 5.0\KPDisplayUse.mb"
+dir *.err /s
+Pause

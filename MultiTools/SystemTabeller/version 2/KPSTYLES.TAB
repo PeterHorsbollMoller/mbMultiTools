@@ -1,0 +1,40 @@
+!table
+!version 300
+!charset WindowsLatin1
+
+Definition Table
+  Type NATIVE Charset "WindowsLatin1"
+  Fields 33
+    STYLEID Integer Index 1 ;
+    TABLEID Integer ;
+    STYLENAME Char (40) ;
+    P_WIDTH Smallint ;
+    P_PATTERN Smallint ;
+    P_COLOR Integer ;
+    P_SHOW Logical ;
+    B_PATTERN Smallint ;
+    B_FORECOLOR Integer ;
+    B_BACKCOLOR Integer ;
+    B_SHOW Logical ;
+    L_WIDTH Integer ;
+    L_PATTERN Integer ;
+    L_COLOR Integer ;
+    L_SHOW Logical ;
+    F_SHOW Logical ;
+    F_FONTNAME Char (80) ;
+    F_FONTSTYLE Integer ;
+    F_SIZE Integer ;
+    F_FORECOLOR Integer ;
+    F_BACKCOLOR Integer ;
+    S_SHAPE Integer ;
+    S_COLOR Integer ;
+    S_SIZE Integer ;
+    S_FONTNAME Char (80) ;
+    S_FONTSTYLE Integer ;
+    S_ROTATION Integer ;
+    S_FILENAME Char (31) ;
+    S_CUSTOMSTYLE Integer ;
+    S_KIND Smallint ;
+    S_SHOW Logical ;
+    ICONFILEID Integer ;
+    ICON Integer ;

@@ -1,0 +1,970 @@
+'*******************************************************************************
+'** 	Program:	Multi possible programs
+'** 	Modul:	ToolConstr.mb	
+'**			Konstruktions- og afsætningsværktøjer
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+Define CONSTRUCTION_LAYER_COSMETIC	1
+
+''***Default icon-files...(16 & 32 bit)
+Define FILE_DLL_ICONS_CONSTR		ApplicationDirectory$() + "MTools32.dll"
+
+Include "..\TabFunc\TabFunc.def"
+Include "..\IniUtil\IniUtil.def"
+Include "..\GeoFunc\GeoFunc.def"
+Include "..\PadFunc\PadFunc.def"
+Include "..\StyleFunc\StyleFunc.def"
+
+Include "ToolConstr.def"
+
+Include "..\Language\Message.lng"
+Include "..\Language\Errors.lng"
+Include "..\Language\Kommune.lng"
+
+Declare Sub HandlerTableSelected
+Declare Sub HandlerTargetKindSelected
+Declare Sub HandlerSetupDialogStartUp
+Declare Sub HandlerInputDialogStartUp
+
+'Declare Function Sign (Byval fv as float) As Float
+Declare Sub HandlerCalculateOrthoPoint
+Declare Sub HandlerCalculatePolarPoint
+Declare Sub HandlerCalculateCirclePoints
+Declare Sub HandlerCalculateXYPoint
+
+Declare Sub ConstrOrthoDialog
+Declare Sub ConstrPolarDialog
+Declare Sub ConstrCircleIntersectionDialog
+Declare Sub ConstrXYDialog
+
+Declare Function ConstrCreatePoint(pConstr As T_POINT, szID As String, szValue As String) As Logical
+
+Dim	mfPointingAngle As Float,
+	marrTab(0), marrCol(0) As String,
+	msymMarkingPoint As Symbol,
+	mnLayerToUse As Integer,
+	mpA, mpB As T_POINT,
+	mszConstructTable, mszConstructIDCol, mszConstructValueCol As String
+	
+'********************************************************
+'	OpSætning af afsætningsfunktioner
+'********************************************************
+Function ConstrSetupDialog() As Logical
+
+Dim	symTemp As Symbol,
+	i, nLayer, nTab, nIDCol, nValCol As Integer,
+	szTitle As String
+
+OnError GoTo ErrorOccured
+
+	ConstrSetupDialog = FALSE
+
+	szTitle = MSG_LAYER_COSMETIC + ";" + MSG_LAYER_EDITABLE + ";" + MSG_SELECTED_TABLE
+
+	If not CreateArrayTables(marrTab, TRUE, TRUE, FALSE, FALSE, TRUE) Then
+		'**Do nothing...
+	End If
+
+	nTab = 1
+	For i = 1 To Ubound(marrTab)
+		If marrTab(i) = mszConstructTable Then
+			nTab = i
+		End If
+	Next	'i
+
+	Dialog
+		Title KPAK_DLG_TITLE_CONSTRUCTION
+		Calling HandlerSetupDialogStartUp
+
+		Control GroupBox		Position 5,5	Width 90	Height 35
+			Title MSG_OBJ_SYMBOL
+		Control SymbolPicker	Position 40,15
+			Value msymMarkingPoint
+			Into symTemp
+
+		Control GroupBox		Position 5,45	Width 90	Height 135
+			Title KPAK_DLG_TXT_PUT_PNTS_INTO
+	   	Control RadioGroup	Position 15,55			ID 100
+			Calling HandlerTargetKindSelected
+			Title szTitle
+			Value mnLayerToUse
+			Into nLayer
+		Control StaticText	Position 15,100
+			Title MSG_TAB_TABLE
+		Control PopUpMenu		Position 15,110	Width 70	ID 200
+			Title From Variable marrTab
+			Calling HandlerTableSelected
+			Value nTab
+			Into nTab
+		Control StaticText	Position 15,125
+			Title KPAK_DLG_TXT_COL_FOR_ID
+		Control PopUpMenu		Position 15,135	Width 70	ID 210
+			Title From Variable marrCol
+			Value nIDCol
+			Into nIDCol
+		Control StaticText	Position 15,150
+			Title KPAK_DLG_TXT_COL_FOR_VAL
+		Control PopUpMenu		Position 15,160	Width 70	ID 220
+			Title From Variable marrCol
+			Value nValCol
+			Into nValCol
+
+		Control OKButton
+		Control CancelButton
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit sub
+	End If
+
+	msymMarkingPoint		= symTemp
+	mnLayerToUse		= nLayer
+	mszConstructTable	= marrTab(nTab)
+	mszConstructIDCol	= marrCol(nIDCol)
+	mszConstructValueCol	= marrCol(nValCol)
+
+	ReDim marrTab(0)
+	ReDim marrCol(0)
+
+	ConstrSetupDialog = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'********************************************************
+'	Handler - Tabel udpeget...
+'********************************************************
+Sub HandlerSetupDialogStartUp
+
+OnError GoTo ErrorOccured
+
+	Call HandlerTargetKindSelected
+	Call HandlerTableSelected 
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Tabel udpeget...
+'********************************************************
+Sub HandlerTableSelected
+
+Dim	szTab As String,
+	nMax, nCol1, nCol2, i As Integer
+
+OnError GoTo ErrorOccured
+
+	szTab = marrTab(ReadControlValue(200))
+
+	If not CreateArrayColumns(szTab, marrCol, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE, FALSE) Then
+		'This isn't good...
+	End If
+
+	nMax 			= Ubound(marrCol)
+	If marrCol(nMax) <> MSG_TEXT_NONE Then
+		nMax 			= nMax + 1
+		ReDim marrCol(nMax)
+		marrCol(nMax)	= MSG_TEXT_NONE
+	End If
+
+	nCol1			= nMax
+	nCol2			= nMax
+
+	For i = 1 To nMax
+		If marrCol(i) = mszConstructIDCol Then
+			nCol1 = i
+		ElseIf marrCol(i) = mszConstructValueCol Then
+			nCol2 = i
+		End If
+	Next	'i
+
+	Alter Control 210 Title From Variable marrCol Value nCol1
+	Alter Control 220 Title From Variable marrCol Value nCol2
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Måltabeltype udpeget...
+'********************************************************
+Sub HandlerTargetKindSelected
+
+OnError GoTo ErrorOccured
+
+	If ReadControlValue(100) = 3 Then
+		Alter Control 200 Enable
+		Alter Control 210 Enable
+		Alter Control 220 Enable
+	Else
+		Alter Control 200 Disable
+		Alter Control 210 Disable
+		Alter Control 220 Disable
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'********************************************************
+'	Opret afsætningspaletten
+'********************************************************
+Sub ConstrCreateButtonPad(ByVal szButtonPadName As String)
+
+OnError GoTo ErrorOccured
+
+	Do Case SystemInfo(SYS_INFO_MIPLATFORM)
+		Case MIPLATFORM_WIN16
+			Note "Unsupported operationsystem: 16 bit"
+			Exit Sub
+		Case MIPLATFORM_WIN32
+			'**Yes, this is an OK operationsystem
+		Case Else
+			Note MSG_SYS_WINDOWS_APPLICATION
+			Exit Sub
+	End Case
+
+	Create ButtonPad szButtonPadName As
+		ToolButton
+			ID 100
+			Calling ConstrShowLine
+			Icon 33	File FILE_DLL_ICONS_CONSTR
+			Cursor MI_CURSOR_CROSSHAIR
+			DrawMode DM_CUSTOM_LINE
+			HelpMsg KPAK_BTN_HLP_ORTHO_CONSTR
+		ToolButton
+			ID 200
+			Calling ConstrShowLine
+			Icon 35	File FILE_DLL_ICONS_CONSTR
+			Cursor MI_CURSOR_CROSSHAIR
+			DrawMode DM_CUSTOM_LINE
+			HelpMsg KPAK_BTN_HLP_POLAR_CONSTR
+		ToolButton
+			ID 300
+			Calling ConstrShowLine
+			Icon 37	File FILE_DLL_ICONS_CONSTR
+			Cursor MI_CURSOR_CROSSHAIR
+			DrawMode DM_CUSTOM_LINE
+			HelpMsg KPAK_BTN_HLP_CIRCLE_CONSTR
+		PushButton
+			Calling ConstrXYDialog
+			Icon 31	File FILE_DLL_ICONS_CONSTR
+			HelpMsg KPAK_BTN_HLP_COORD_CONSTR
+		Show
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'********************************************************
+'	Orthogonal afsætning
+'********************************************************
+Sub ConstrOrthoDialog
+
+OnError GoTo ErrorOccured
+
+	Set CoordSys Window FrontWindow()
+
+	Dialog
+		Title KPAK_DLG_TITLE_ENTER_DISTANCES
+		Calling HandlerInputDialogStartUp
+
+		Control StaticText	Position 5,5
+			Title KPAK_DLG_TXT_FOOT_POINT_DIST
+		Control EditText		Position 100,5	Width 60	ID 100
+		Control StaticText	Position 5,20
+			Title KPAK_DLG_TXT_PERPENDIC_DIST
+		Control EditText		Position 100,20	Width 60	ID 200
+
+		Control StaticText	Position 5,35
+			Title KPAK_DLG_TXT_POINT_NO
+		Control EditText		Position 100,35	Width 60	ID 300
+		Control StaticText	Position 5,50
+			Title KPAK_DLG_TXT_VALUE
+		Control EditText		Position 100,50	Width 60	ID 400
+
+		Control OKButton		Title KPAK_DLG_BTN_CONSTRUCT
+			Calling HandlerCalculateOrthoPoint
+		Control CancelButton	Title MSG_TEXT_STOP
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'********************************************************
+'	Orthogonal afsætning - beregning
+'********************************************************
+Sub HandlerCalculateOrthoPoint
+
+Dim	fDFP, fDPP As Float,
+	pConstr As T_POINT,
+	szID, szValue As String
+
+OnError GoTo ErrorOccured
+
+	'*Behandler indtastede værdier...
+	fDFP 		= Val(KommaToPoint(ReadControlValue(100)))
+	fDPP 		= Val(KommaToPoint(ReadControlValue(200))) * -1		'in signed meters
+	szID 		= ReadControlValue(300)
+	szValue	= ReadControlValue(400)
+
+	If CreateOrthoPoint(mpA, mpB, fDFP, fDPP, pConstr) Then
+		If not ConstrCreatePoint(pConstr, szID, szValue) Then
+			Exit Sub
+		Else
+			If mszConstructIDCol <> MSG_NONE Then
+				Alter Control 300 Value szID
+			End If
+			If mszConstructValueCol <> MSG_NONE Then
+				Alter Control 400 Value szValue
+			End If
+		End If
+	End If
+
+	Dialog Preserve
+	Alter Control 100 Active
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'********************************************************
+' Polær afsætning	- dialog
+'********************************************************
+Sub ConstrPolarDialog
+
+OnError GoTo ErrorOccured
+
+	Set CoordSys Window FrontWindow()
+
+	'*udgangsvinkel i grader
+	If (mpB.X - mpA.X) = 0 Then
+		'**not allowed to divide by zero..
+		If mpB.Y > mpA.Y Then
+			'**second point north of first point...
+			mfPointingAngle = 90	'degrees
+		Else
+			'**second point south of first point...
+			mfPointingAngle = 270	'degrees
+		End If
+	Else
+		mfPointingAngle = Atn((mpB.Y - mpA.Y) / (mpB.X - mpA.X)) * RAD_2_DEG
+	
+		If (mpB.X < mpA.X) And (mpB.Y > mpA.Y) Then
+			'**second point north west of first point...
+			mfPointingAngle = mfPointingAngle + 180	'degrees
+		ElseIf (mpB.X < mpA.X) And (mpB.Y < mpA.Y) Then
+			'**seconf point south west of first point...
+			mfPointingAngle = mfPointingAngle + 180	'degrees
+		ElseIf (mpB.X < mpA.X) And (mpB.Y = mpA.Y) Then
+			'**second point straight west of first point....
+			mfPointingAngle = 180	'degrees
+		End If
+	End If
+
+	'Print "Udgangsvinkel : " + mfPointingAngle
+
+	Do Until mfPointingAngle >= 0
+		mfPointingAngle = mfPointingAngle + 360
+	Loop
+	Do Until mfPointingAngle <= 360
+		mfPointingAngle = mfPointingAngle - 360
+	Loop
+
+	'Print "Udgangsvinkel : " + mfPointingAngle
+
+	Dialog
+		Title KPAK_DLG_TITLE_ENTER_DIST_ANGLE
+		Calling HandlerInputDialogStartUp
+
+		Control StaticText	Position 5,5
+			Title KPAK_DLG_TXT_DIRECTION
+		Control EditText		Position 100,5	Width 60	ID 100
+		Control StaticText	Position 5,20
+			Title KPAK_DLG_TXT_DISTANCE
+		Control EditText		Position 100,20	Width 60	ID 200
+
+		Control StaticText	Position 5,35
+			Title KPAK_DLG_TXT_POINT_NO
+		Control EditText		Position 100,35	Width 60	ID 300
+		Control StaticText	Position 5,50
+			Title KPAK_DLG_TXT_VALUE
+		Control EditText		Position 100,50	Width 60	ID 400
+
+		Control OKButton		Title KPAK_DLG_BTN_CONSTRUCT
+			Calling HandlerCalculatePolarPoint
+		Control CancelButton	Title MSG_TEXT_STOP
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'********************************************************
+' Polær afsætning	- beregning
+'********************************************************
+Sub HandlerCalculatePolarPoint
+
+Dim	fAngle, fDist As Float,
+	pConstr As T_POINT,
+	szID, szValue As String
+
+OnError GoTo ErrorOccured
+
+	fAngle	= Val(KommaToPoint(ReadControlValue(100)))  'in signed meters
+	fDist		= Val(KommaToPoint(ReadControlValue(200)))
+	szID 		= ReadControlValue(300)
+	szValue	= ReadControlValue(400)
+
+	'*Omregner gon til grader
+	fAngle = (fAngle / 400) * 360
+	fAngle = fAngle * -1
+	fAngle = mfPointingAngle + fAngle 
+	Do Until fAngle >= 0
+		fAngle = fAngle + 360
+	Loop
+	Do Until fAngle <= 360
+		fAngle = fAngle - 360
+	Loop
+
+	Set CoordSys Window FrontWindow()
+	pConstr.X = GeoFuncCalcX(mpA.X, fAngle, fDist)
+	pConstr.Y = GeoFuncCalcY(mpA.Y, fAngle, fDist)
+	'Print "Afstand  : " + fDist
+	'Print "Vinkel   : " + fAngle
+	'Print "Udgang X : " + mpA.X
+	'Print "Udgang Y : " + mpA.Y
+	'Print "Ny X     : " + pConstr.X
+	'Print "Ny Y     : " + pConstr.Y
+	'Print "Beregnet afstand ved " + fAngle + " grader: " + Distance(mpA.X, mpA.Y, pConstr.X, pConstr.Y, "m") + " m."
+
+	If not ConstrCreatePoint(pConstr, szID, szValue) Then
+		Exit Sub
+	Else
+		If mszConstructIDCol <> MSG_NONE Then
+			Alter Control 300 Value szID
+		End If
+		If mszConstructValueCol <> MSG_NONE Then
+			Alter Control 400 Value szValue
+		End If
+	End If
+
+	Dialog Preserve
+	Alter Control 100 Active
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'********************************************************
+' Digitalisering af linie	
+'********************************************************
+Sub ConstrShowLine
+
+Dim	nWID As Integer
+
+OnError GoTo ErrorOccured
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Sub
+	End If
+	
+	nWID = FrontWindow()
+	If mnLayerToUse = 2 Then
+		If MapperInfo(nWID, MAPPER_INFO_EDIT_LAYER) = -1 Then
+			Note ERR_WIN_NO_EDIT_LAYER
+			Exit Sub
+		End If
+	ElseIf mnLayerToUse = 3 Then
+		If not TableOpen(mszConstructTable) Then
+			Note ERR_TAB_NOT_OPEN + mszConstructTable
+			Exit Sub
+		End If
+	End If
+
+	Set CoordSys Window nWID
+	mpA.X = CommandInfo(CMD_INFO_X )
+	mpA.Y = CommandInfo(CMD_INFO_Y )
+	mpB.X = CommandInfo(CMD_INFO_X2)
+	mpB.Y = CommandInfo(CMD_INFO_Y2)
+
+	'*	Vector shorter than 10 cm => errornous click
+	If GetPythDistance(mpA, mpB) < 0.1 Then	
+		Note ERR_DRAW_HOLD_MOUSE_BTN_DOWN
+		Exit Sub
+	End If
+
+	Do Case CommandInfo(CMD_INFO_TOOLBTN)
+		Case 100		'Orthogonal afsætning
+			Call ConstrOrthoDialog
+		Case 200		'Polær afsætning
+			Call ConstrPolarDialog
+		Case 300
+			Call ConstrCircleIntersectionDialog
+	End Case
+
+	mpA.X = 0
+	mpA.Y = 0
+	mpB.X = 0
+	mpA.Y = 0
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'********************************************************
+' Oprettelse af konstruktionspunkt
+'********************************************************
+Function ConstrCreatePoint(pConstr As T_POINT, szID As String, szValue As String) As Logical
+
+Dim	oConstr As object,
+	nWID As Integer
+
+OnError GoTo ErrorOccured
+
+	ConstrCreatePoint = FALSE
+
+	nWID	= FrontWindow()
+	If mnLayerToUse = CONSTRUCTION_LAYER_COSMETIC Then
+		Create Point
+			Into Variable oConstr
+			(pConstr.X, pConstr.Y)
+			Symbol msymMarkingPoint
+
+		Insert Into WindowInfo(nWID,WIN_INFO_TABLE)
+			(OBJ)
+			Values (oConstr)
+	ElseIf mnLayerToUse = 2 Then
+		Create Point
+			Into Window nWID
+			(pConstr.X, pConstr.Y)
+			Symbol msymMarkingPoint
+	Else
+		Create Point
+		   Into Variable oConstr
+		   (pConstr.X, pConstr.Y)
+		   Symbol msymMarkingPoint
+
+		If mszConstructIDCol <> MSG_TEXT_NONE Then
+
+			Do Case ColumnInfo(mszConstructTable, mszConstructIDCol, COL_INFO_TYPE)
+				Case COL_TYPE_CHAR
+					'**Do nothing...
+				Case COL_TYPE_INTEGER, COL_TYPE_SMALLINT
+					szID = Str$(Int(szID))
+				Case COL_TYPE_FLOAT, COL_TYPE_DECIMAL
+					szID = Str$(Val(KommaToPoint(szID)))
+			End Case
+
+			If mszConstructValueCol <> MSG_TEXT_NONE Then
+				Do Case ColumnInfo(mszConstructTable, mszConstructValueCol, COL_INFO_TYPE)
+					Case COL_TYPE_CHAR
+						'**Do nothing...
+					Case COL_TYPE_INTEGER, COL_TYPE_SMALLINT
+						szValue = Str$(Int(szValue))
+					Case COL_TYPE_FLOAT, COL_TYPE_DECIMAL
+						szValue = Str$(Val(KommaToPoint(szValue)))
+				End Case
+
+				Insert Into mszConstructTable
+					(mszConstructIDCol, mszConstructValueCol, OBJ)
+					Values (szID, szValue, oConstr)
+			Else
+				Insert Into mszConstructTable
+					(mszConstructIDCol, obj)
+					Values (szID, oConstr)		
+			End If
+		Else
+			If mszConstructValueCol <> MSG_TEXT_NONE Then
+				Do Case ColumnInfo(mszConstructTable, mszConstructValueCol, COL_INFO_TYPE)
+					Case COL_TYPE_CHAR
+						'**Do nothing...
+					Case COL_TYPE_INTEGER, COL_TYPE_SMALLINT
+						szValue = Str$(Int(szValue))
+					Case COL_TYPE_FLOAT, COL_TYPE_DECIMAL
+						szValue = Str$(Val(KommaToPoint(szValue)))
+				End Case
+
+				Insert Into mszConstructTable
+					(mszConstructValueCol, obj)
+					Values (szValue, oConstr)		
+			Else
+				Insert Into mszConstructTable
+					(obj)
+					Values (oConstr)		
+			End If
+		End If
+	End If
+
+	ConstrCreatePoint = TRUE
+
+	Exit Function
+'------------------------
+ErrorOccured:
+	Note ERR_KPAK_CONSTR_CREATING_POINT + lf
+		+ Error$()
+
+End Function
+
+'********************************************************
+' Cirkelskæring - dialog
+'********************************************************
+Sub ConstrCircleIntersectionDialog
+
+Dim	nWID, nLayer As Integer
+
+OnError GoTo ErrorOccured
+
+	nWID = FrontWindow()
+	If mnLayerToUse = CONSTRUCTION_LAYER_COSMETIC Then
+		Set CoordSys Window nWID
+	ElseIf mnLayerToUse = 2 Then
+		Set CoordSys Table LayerInfo(nWID, MapperInfo(nWID, MAPPER_INFO_EDIT_LAYER), LAYER_INFO_NAME)
+	Else
+		Set CoordSys Table mszConstructTable
+	End If
+
+	Dialog
+		Title KPAK_DLG_TITLE_ENTER_CIRC_RADII
+		Calling HandlerInputDialogStartUp
+
+		Control StaticText	Position 5,5
+			Title KPAK_DLG_TXT_CIRC1_RADIUS
+		Control EditText		Position 100,5	Width 60	ID 100
+		Control StaticText	Position 5,20
+			Title KPAK_DLG_TXT_CIRC2_RADIUS
+		Control EditText		Position 100,20	Width 60	ID 200
+
+		Control StaticText	Position 5,35
+			Title KPAK_DLG_TXT_POINT_NO
+		Control EditText		Position 100,35	Width 60	ID 300
+		Control StaticText	Position 5,50
+			Title KPAK_DLG_TXT_VALUE
+		Control EditText		Position 100,50	Width 60	ID 400
+
+		Control OKButton		Title KPAK_DLG_BTN_CONSTRUCT
+			Calling HandlerCalculateCirclePoints
+		Control CancelButton	Title MSG_TEXT_STOP
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'********************************************************
+' Cirkelskæring - beregning
+'********************************************************
+Sub HandlerCalculateCirclePoints
+
+Dim	szR1, szR2 as string,
+	oCircle1, oCircle2, oResult As Object,
+	nR1, nR2 as float,
+	i as Integer,
+	pConstr As T_POINT,
+	szID, szValue As String
+
+OnError GoTo ErrorOccured
+
+	pConstr.X = 0
+	pConstr.Y = 0
+
+	Set CoordSys Window FrontWindow()
+
+	'*Behandler indtastede værdier...
+	szR1		= KommaToPoint(ReadControlValue(100))
+	szR2 		= KommaToPoint(ReadControlValue(200))
+	szID 		= ReadControlValue(300)
+	szValue	= ReadControlValue(400)
+
+	nR1 = Abs(Val(szR1))
+	nR2 = Abs(Val(szR2))
+
+	Set Distance Units "m"
+	oCircle1 = CreateCircle(mpA.X, mpA.Y, nR1)
+	oCircle2 = CreateCircle(mpB.X, mpB.Y, nR2)
+
+	oResult = InterSectNodes(oCircle1, oCircle2, INCL_CROSSINGS)
+
+	If ObjectInfo(oResult, OBJ_INFO_NPOLYGONS) > 0 Then
+		For i = 1 To ObjectInfo(oResult, OBJ_INFO_NPOLYGONS+1)
+			pConstr.X = ObjectNodeX(oResult, 1, i)
+			pConstr.Y = ObjectNodeY(oResult, 1, i)
+			If not ConstrCreatePoint(pConstr, szID, szValue) Then
+				Exit Sub
+			Else
+				If mszConstructIDCol <> MSG_NONE Then
+					Alter Control 300 Value szID
+				End If
+				If mszConstructValueCol <> MSG_NONE Then
+					Alter Control 400 Value szValue
+				End If
+				End If
+		Next
+	Else
+		Note ERR_KPAK_CONSTR_NO_INTERSECTION
+	End If
+
+	Dialog Preserve
+	Alter Control 100 Active
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'********************************************************
+' Indsæt punkt - Dialog
+'********************************************************
+Sub ConstrXYDialog
+
+Dim	szCoordSysName As String,
+	nWID, nLayerID As Integer
+
+OnError GoTo ErrorOccured
+
+	If NumWindows() = 0 Then 
+		Note ERR_WIN_NO_OPEN
+		Exit Sub
+	End If
+
+	nWID = FrontWindow()
+	If not WindowInfo(nWID,WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Sub
+
+	End If
+
+	If mnLayerToUse = CONSTRUCTION_LAYER_COSMETIC Then
+		szCoordSysName = MSG_TXT_PROJECTION + ": " + MapperInfo(nWID, MAPPER_INFO_COORDSYS_NAME)
+	ElseIf mnLayerToUse = 2 Then
+		If MapperInfo(nWID, MAPPER_INFO_EDIT_LAYER) = -1 Then
+			Note ERR_WIN_NO_EDIT_LAYER
+			Exit Sub
+		End If
+		nLayerID = MapperInfo(nWID, MAPPER_INFO_EDIT_LAYER)
+		szCoordSysName = MSG_TXT_PROJECTION + ": " + TableInfo(LayerInfo(nWID, nLayerID, LAYER_INFO_NAME), TAB_INFO_COORDSYS_NAME)
+	ElseIf mnLayerToUse = 3 Then
+		If not TableOpen(mszConstructTable) Then
+			Note ERR_TAB_NOT_OPEN + mszConstructTable
+			Exit Sub
+		End If
+		szCoordSysName = MSG_TXT_PROJECTION + ": " + TableInfo(mszConstructTable, TAB_INFO_COORDSYS_NAME)
+	End If
+
+	Dialog
+		Title KPAK_DLG_TITLE_ENTER_COORDS
+		Calling HandlerInputDialogStartUp
+
+		Control StaticText	Position 5,5
+			Title KPAK_DLG_TXT_X_COORDINATE
+		Control EditText		Position 90,5	Width 60	ID 100
+		Control StaticText	Position 5,20
+			Title KPAK_DLG_TXT_Y_COORDINATE
+		Control EditText		Position 90,20	Width 60	ID 200
+	
+		Control StaticText	Position 5,35
+			Title KPAK_DLG_TXT_POINT_NO
+		Control EditText		Position 90,35	Width 60	ID 300
+		Control StaticText	Position 5,50
+			Title KPAK_DLG_TXT_VALUE
+		Control EditText		Position 90,50	Width 60	ID 400
+
+		Control Statictext	Position 5,65
+			Title szCoordSysName
+		Control OKButton		Title KPAK_DLG_BTN_CONSTRUCT
+			Calling HandlerCalculateXYPoint
+		Control CancelButton	Title MSG_TEXT_STOP
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'********************************************************
+' Indsæt punkt - Beregning
+'********************************************************
+Sub HandlerCalculateXYPoint
+
+Dim	nWID, nLayerID As Integer,
+	pConstr As T_POINT,
+	szID, szValue As String
+
+OnError GoTo ErrorOccured
+
+	nWID = FrontWindow()
+
+	pConstr.X	= Val(KommaToPoint(ReadControlValue(100)))
+	pConstr.Y	= Val(KommaToPoint(ReadControlValue(200)))
+	szID 		= ReadControlValue(300)
+	szValue	= ReadControlValue(400)
+
+	If mnLayerToUse = CONSTRUCTION_LAYER_COSMETIC Then
+		Set CoordSys Window nWID
+	ElseIf mnLayerToUse = 2 Then
+		nLayerID = MapperInfo(nWID, MAPPER_INFO_EDIT_LAYER)
+		Set CoordSys Table LayerInfo(nWID, nLayerID, LAYER_INFO_NAME)
+	Else
+		Set CoordSys Table mszConstructTable
+	End If
+
+	If not ConstrCreatePoint(pConstr, szID, szValue) Then
+		Exit Sub
+	Else
+		If mszConstructIDCol <> MSG_NONE Then
+			Alter Control 300 Value szID
+		End If
+		If mszConstructValueCol <> MSG_NONE Then
+			Alter Control 400 Value szValue
+		End If
+	End If
+
+	Dialog Preserve
+	Alter Control 100 Active
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'****************************************
+'Konstruktion: læsning af initieringsfil
+'****************************************
+Sub ConstrReadIniFile(Byval szFile As String)
+
+OnError GoTo ErrorOccured
+
+	mnLayerToUse		= CONSTRUCTION_LAYER_COSMETIC
+	msymMarkingPoint		= MakeSymbol(49,RED,18)
+	mszConstructTable		= MSG_TEXT_NONE
+	mszConstructIDCol		= MSG_TEXT_NONE
+	mszConstructValueCol	= MSG_TEXT_NONE
+
+	If not FileExists(szFile) Then
+		Exit Sub
+	End If
+
+	mnLayerToUse		= Val(GetIniKeyValue(szFile, "[CONSTRUCTION]", "USELAYER"))
+	msymMarkingPoint 		= StyleFuncGetSymbolFromString(GetIniKeyValue(szFile, "[CONSTRUCTION]", "SYMBOL"))
+
+	mszConstructTable		= GetIniKeyValue(szFile, "[CONSTRUCTION]", "TABLENAME")
+	mszConstructIDCol		= GetIniKeyValue(szFile, "[CONSTRUCTION]", "IDCOLUMN")
+	mszConstructValueCol	= GetIniKeyValue(szFile, "[CONSTRUCTION]", "VALUECOLUMN")
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'****************************************
+'Konstruktion: Skrivning til initieringsfil
+'****************************************
+Sub ConstrWriteIniFile(Byval nFile As integer)
+
+OnError GoTo ErrorOccured
+
+	Print #nFile, ""
+	Print #nFile, "[CONSTRUCTION]"
+	Print #nFile, "USELAYER="	+ mnLayerToUse
+	Print #nFile, "SYMBOL="		+ StyleFuncGetStringFromSymbol$(msymMarkingPoint)
+	Print #nFile, "TABLENAME="	+ mszConstructTable
+	Print #nFile, "IDCOLUMN="	+ mszConstructIDCol
+	Print #nFile, "VALUECOLUMN="	+ mszConstructValueCol
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End sub
+
+'****************************************
+'Handler - Opstart af dialog til indtastning af afstande/værdier
+'****************************************
+Sub HandlerInputDialogStartUp
+
+OnError GoTo ErrorOccured
+
+	If mnLayerToUse = 3 Then
+		If mszConstructIDCol = MSG_TEXT_NONE Then
+			Alter Control 300 Disable
+		Else
+			Alter Control 300 Enable
+		End If
+		
+		If mszConstructValueCol = MSG_TEXT_NONE Then
+			Alter Control 400 Disable
+		Else
+			Alter Control 400 Enable
+		End If
+	Else
+		Alter Control 300 Disable
+		Alter Control 400 Disable
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub

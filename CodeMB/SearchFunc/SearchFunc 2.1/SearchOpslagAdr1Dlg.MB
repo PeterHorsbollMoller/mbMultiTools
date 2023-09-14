@@ -1,0 +1,1639 @@
+'*******************************************************************************
+'** 	Program:	Searching
+'** 	Modul:	SearchOpslagDlg	
+'**			Dialoger til opslagssøgninger
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+'-----------------------------------------------------------------------------------------
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+
+'-----------------------------------------------------------------------------------------
+Include "SearchMain.def"
+Include "SearchFunc.def"
+Include "SearchDlgFunc.def"
+Include "SearchOpslagAdr1Dlg.def"
+
+Include "..\..\IniUtil\IniUtil.def"
+Include "..\..\ArrayFunc\ArrayFunc.def"
+Include "..\..\TabFunc\TabFunc.def"
+
+Define	SRCH_CTRL_ADR_KOMMUNENR_TITLE		101
+Define	SRCH_CTRL_ADR_KOMMUNENR_LIST		100
+Define	SRCH_CTRL_ADR_KOMMUNENR_VALUE		102
+Define	SRCH_CTRL_ADR_KOMMUNENR_BUTTON	103
+Define	SRCH_CTRL_ADR_POSTNR_TITLE		201
+Define	SRCH_CTRL_ADR_POSTNR_LIST		200
+Define	SRCH_CTRL_ADR_POSTNR_VALUE		202
+Define	SRCH_CTRL_ADR_POSTNR_BUTTON		203
+Define	SRCH_CTRL_ADR_VEJKODE_TITLE		301
+Define	SRCH_CTRL_ADR_VEJKODE_LIST		300
+Define	SRCH_CTRL_ADR_VEJKODE_VALUE		302
+Define	SRCH_CTRL_ADR_VEJKODE_BUTTON		303
+Define	SRCH_CTRL_ADR_VEJNAVN_TITLE		401
+Define	SRCH_CTRL_ADR_VEJNAVN_LIST		400
+Define	SRCH_CTRL_ADR_VEJNAVN_VALUE		402
+Define	SRCH_CTRL_ADR_VEJNAVN_BUTTON		403
+Define	SRCH_CTRL_ADR_HUSNR_TITLE		501
+Define	SRCH_CTRL_ADR_HUSNR_LIST		500
+Define	SRCH_CTRL_ADR_HUSNR_BUTTON		503
+Define	SRCH_CTRL_ADR_HUSNR_VALUE		502
+Define	SRCH_CTRL_ADR_BOGSTAV_TITLE		601
+Define	SRCH_CTRL_ADR_BOGSTAV_LIST		600
+Define	SRCH_CTRL_ADR_BOGSTAV_BUTTON		603
+Define	SRCH_CTRL_ADR_BOGSTAV_VALUE		602
+Define	SRCH_CTRL_ADR_ZOOM			1000
+Define	SRCH_CTRL_ADR_AUTOCLOSE			2000
+
+'------------ VEJNAVN + HUSNR+BOGST
+Declare Sub HandlerAdr1VnvnHnrLoad
+Declare Sub HandlerAdr1VnvnHnrList
+Declare Sub HandlerAdr1VnvnHnrButton
+Declare Sub Adr1VnvnHnrListCTRL(ByVal nCtrl As Integer, ByVal bSelectAll As Logical, ByVal bReCalled As Logical)
+Declare Sub Adr1VnvnHnrButtonCTRL(ByVal nCtrl As Integer)
+
+'------------ VEJKODE + VEJNAVN + HUSNR+BOGST
+Declare Sub HandlerAdr1VnrVnvnHnrLoad
+Declare Sub HandlerAdr1VnrVnvnHnrList
+Declare Sub HandlerAdr1VnrVnvnHnrButton
+Declare Sub Adr1VnrVnvnHnrListCTRL(ByVal nCtrl As Integer, ByVal bSelectAll As Logical, ByVal bReCalled As Logical)
+Declare Sub Adr1VnrVnvnHnrButtonCTRL(ByVal nCtrl As Integer)
+
+'------------ KOMNR + VEJNAVN + HUSNR+BOGST
+Declare Sub HandlerAdr1KnrVnvnHnrLoad
+Declare Sub HandlerAdr1KnrVnvnHnrList
+Declare Sub HandlerAdr1KnrVnvnHnrButton
+Declare Sub Adr1KnrVnvnHnrListCTRL(ByVal nCtrl As Integer, ByVal bSelectAll As Logical, ByVal bReCalled As Logical)
+Declare Sub Adr1KnrVnvnHnrButtonCTRL(ByVal nCtrl As Integer)
+
+'------------ KOMNR + VEJKODE + VEJNAVN + HUSNR+BOGST
+Declare Sub HandlerAdr1KnrVnrVnvnHnrLoad
+Declare Sub HandlerAdr1KnrVnrVnvnHnrList
+Declare Sub HandlerAdr1KnrVnrVnvnHnrButton
+Declare Sub Adr1KnrVnrVnvnHnrListCTRL(ByVal nCtrl As Integer, ByVal bSelectAll As Logical, ByVal bReCalled As Logical)
+Declare Sub Adr1KnrVnrVnvnHnrButtonCTRL(ByVal nCtrl As Integer)
+
+'------------ POSTNR + VEJNAVN + HUSNR+BOGST
+Declare Sub HandlerAdr1PnrVnvnHnrLoad
+Declare Sub HandlerAdr1PnrVnvnHnrList
+Declare Sub HandlerAdr1PnrVnvnHnrButton
+Declare Sub Adr1PnrVnvnHnrListCTRL(ByVal nCtrl As Integer, ByVal bSelectAll As Logical, ByVal bReCalled As Logical)
+Declare Sub Adr1PnrVnvnHnrButtonCTRL(ByVal nCtrl As Integer)
+
+'------------
+Declare Sub HandlerAdr1OpslagZoom
+
+Dim	marrValues1(), marrValues2(), marrValues3(), marrValues4(), marrValues5() As String,
+	marrssdInfo(6) As T_SRCH_SETTINGS_DIALOG,
+	mbHusnrBogstavCombined As Logical
+
+'**********************************************************************************************''
+' Dialog til opslagssøgning i en enkelte tabel
+'**********************************************************************************************''
+Sub SRCHOpslagAdrOneTable(sbtnCur As T_SEARCHBTN)
+
+Dim	i, j As Integer,
+	szTab, szCol As String
+
+OnError GoTo ErrorOccured
+
+	'Nulstiller arrays med tabeller, kolonner og betingelser
+	For i = 1 To Ubound(marrssdInfo)
+		marrssdInfo(i).szTab	= ""
+		marrssdInfo(i).szCol	= ""
+		marrssdInfo(i).szCond	= ""
+		marrssdInfo(i).szDesc	= ""
+	Next
+
+	'**Checking table structure
+	For i = 1 To Ubound(sbtnCur.stabTabs)
+		szTab = sbtnCur.stabTabs(i).szName
+		If szTab = "" Then
+			Note ERR_KPAK_NO_SEARCH_TAB_NAME
+			Exit Sub
+		ElseIf NOT TableOpen(szTab) Then
+			Note ERR_KPAK_SEARCH_TAB_NOT_OPEN & szTab
+			Exit Sub
+		End If
+		
+		For j = 1 To Ubound(sbtnCur.stabTabs(i).scolCols)
+			szCol = sbtnCur.stabTabs(i).scolCols(j).szName
+			If szCol = "" Then
+				Note ERR_KPAK_NO_SEARCH_COL_NAME & " (" & sbtnCur.stabTabs(i).scolCols(j).szDescription & ")"
+				Exit Sub
+			ElseIf NOT ColExist(szTab, szCol) Then
+				Note ERR_KPAK_SEARCH_COL_DONT_EXIST & szTab & "(" & szCol & ")"
+				Exit Sub
+			ElseIf NOT ColumnInfo(szTab, szCol, COL_INFO_INDEXED) AND SRCHPrintIndexImprovement() Then
+				Print "Søgningen kan eventuelt optimeres ved at oprette indeks på denne kolonne: " & szTab & "(" & szCol & ")"
+			End If
+		Next	'j
+	Next	'i
+
+	Do Case sbtnCur.nSearchType
+		Case SSTYPE_3_VNVN_HNR, 301, 1
+			mbHusnrBogstavCombined = TRUE
+			Call SRCHOpslagAdr1VnvnHnr(sbtnCur)
+
+		Case SSTYPE_3_VNVN_HNR_B, 302, 2
+			mbHusnrBogstavCombined = FALSE
+			Call SRCHOpslagAdr1VnvnHnr(sbtnCur)
+
+		Case SSTYPE_3_VNR_VNVN_HNR, 303, 3
+			mbHusnrBogstavCombined = TRUE
+			Call SRCHOpslagAdr1VnrVnvnHnr(sbtnCur)
+
+		Case SSTYPE_3_VNR_VNVN_HNR_B, 304, 4
+			mbHusnrBogstavCombined = FALSE
+			Call SRCHOpslagAdr1VnrVnvnHnr(sbtnCur)
+
+		Case SSTYPE_3_KNR_VNVN_HNR, 305, 5
+			mbHusnrBogstavCombined = TRUE
+			Call SRCHOpslagAdr1KnrVnvnHnr(sbtnCur)
+
+		Case SSTYPE_3_KNR_VNVN_HNR_B, 306, 6
+			mbHusnrBogstavCombined = FALSE
+			Call SRCHOpslagAdr1KnrVnvnHnr(sbtnCur)
+
+		Case SSTYPE_3_KNR_VNR_VNVN_HNR, 307, 7
+			mbHusnrBogstavCombined = TRUE
+			Call SRCHOpslagAdr1KnrVnrVnvnHnr(sbtnCur)
+
+		Case SSTYPE_3_KNR_VNR_VNVN_HNR_B, 308, 8
+			mbHusnrBogstavCombined = FALSE
+			Call SRCHOpslagAdr1KnrVnrVnvnHnr(sbtnCur)
+
+		Case SSTYPE_3_PNR_VNVN_HNR, 309, 9
+			mbHusnrBogstavCombined = TRUE
+			Call SRCHOpslagAdr1PnrVnvnHnr(sbtnCur)
+
+		Case SSTYPE_3_PNR_VNVN_HNR_B, 310, 10
+			mbHusnrBogstavCombined = FALSE
+			Call SRCHOpslagAdr1PnrVnvnHnr(sbtnCur)
+
+	End Case
+
+	'Nulstiller array's med værdier
+	ReDim marrValues1(0)
+	ReDim marrValues2(0)
+	ReDim marrValues3(0)
+	ReDim marrValues4(0)
+	ReDim marrValues5(0)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**************************************************************************************************************************''
+'   A D R E S S E O P S L A G :  V E J N A V N  +  ( H U S N R + B O G S T A V )
+'**************************************************************************************************************************''
+'**********************************************************************************************''
+' Dialog til opslagssøgning i en enkelte tabel - Vejnavn & Husnr
+'**********************************************************************************************''
+Sub SRCHOpslagAdr1VnvnHnr(sbtnCur As T_SEARCHBTN)
+
+OnError GoTo ErrorOccured
+
+	marrssdInfo(4).szTab	= sbtnCur.stabTabs(1).szName
+	marrssdInfo(5).szTab	= sbtnCur.stabTabs(1).szName
+	marrssdInfo(4).szCol	= sbtnCur.stabTabs(1).scolCols(1).szName
+	marrssdInfo(5).szCol	= sbtnCur.stabTabs(1).scolCols(2).szName
+	marrssdInfo(4).szDesc	= sbtnCur.stabTabs(1).scolCols(1).szDescription
+	marrssdInfo(5).szDesc	= sbtnCur.stabTabs(1).scolCols(2).szDescription
+
+	If NOT mbHusnrBogstavCombined Then
+		marrssdInfo(6).szCol	= sbtnCur.stabTabs(1).scolCols(3).szName	
+	End If
+
+	If sbtnCur.nZoom < 1 Then
+		sbtnCur.nZoom = VALUE_DEFAULT_ZOOM
+	End If
+
+	Dialog
+		Title "Søgning (Jokertegn: % eller _)"
+		Calling HandlerAdr1VnvnHnrLoad
+		'----------
+		Control StaticText	Position 5,5					ID SRCH_CTRL_ADR_VEJNAVN_TITLE
+			Title marrssdInfo(4).szDesc
+		Control EditText		Position 5,15	Width 115			ID SRCH_CTRL_ADR_VEJNAVN_VALUE
+		Control Button		Position 120,15	Width 15	Height 12	ID SRCH_CTRL_ADR_VEJNAVN_BUTTON
+			Calling HandlerAdr1VnvnHnrButton
+			Title ">>"
+		Control ListBox		Position 5,27	Width 130	Height 80	ID SRCH_CTRL_ADR_VEJNAVN_LIST
+			Calling HandlerAdr1VnvnHnrList
+		'----------
+		Control StaticText	Position 140,5					ID SRCH_CTRL_ADR_HUSNR_TITLE
+			Title marrssdInfo(5).szDesc
+		Control EditText		Position 140,15	Width 40			ID SRCH_CTRL_ADR_HUSNR_VALUE
+		Control Button		Position 180,15	Width 15	Height 12	ID SRCH_CTRL_ADR_HUSNR_BUTTON
+			Calling HandlerAdr1VnvnHnrButton
+			Title ">>"
+		Control ListBox		Position 140,27	Width 55	Height 80	ID SRCH_CTRL_ADR_HUSNR_LIST
+			Calling HandlerAdr1VnvnHnrList
+
+		'----------
+		Control StaticText	Position 5,112
+			Title "Zoom, m"
+		Control EditText		Position 40,110	Width 30			ID SRCH_CTRL_ADR_ZOOM
+			Value Str$(sbtnCur.nZoom)
+		Control Button		Position 70,110	Width 30	Height 12
+			Calling HandlerAdr1OpslagZoom
+			Title "Zoom"
+
+		Control CheckBox		Position 105,112					ID SRCH_CTRL_ADR_AUTOCLOSE
+			Title "&Auto luk"
+			Value SRCHAutoCloseSearchDialog()
+			
+		Control CancelButton	Position 155,110	Width 40
+			Title MSG_CLOSE
+					
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Loading dialog and setting up controls
+'**********************************************************************************************''
+Sub HandlerAdr1VnvnHnrLoad
+
+OnError GoTo ErrorOccured
+
+	Call Adr1VnvnHnrButtonCTRL(SRCH_CTRL_ADR_VEJNAVN_BUTTON)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev udpeget en post i en liste
+'**********************************************************************************************''
+Sub HandlerAdr1VnvnHnrList
+
+Dim	nCtrl As Integer,
+	bSelectAll As Logical
+
+OnError GoTo ErrorOccured
+
+	nCtrl		= TriggerControl()
+	bSelectAll	= CommandInfo(CMD_INFO_DLG_DBL)
+	
+	Call Adr1VnvnHnrListCTRL(nCtrl, bSelectAll, FALSE)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev udpeget en post i en liste
+'**********************************************************************************************''
+Sub Adr1VnvnHnrListCTRL(ByVal nCtrl As Integer, ByVal bSelectAll As Logical, ByVal bReCalled As Logical)
+
+Dim	nCtrlItem, nItem As Integer,
+	szValue, szCmdStr As String
+
+OnError GoTo ErrorOccured
+
+	nCtrlItem	= nCtrl / 100
+	nItem		= ReadControlValue(nCtrl)
+
+	Do Case nCtrlItem
+		Case 4	'VEJNAVN
+			If nItem = 0 Then
+				ReDim marrValues5(0)
+			Else
+				szValue = marrValues4(nItem)
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "=", szValue)
+			End If
+
+			Call Adr1VnvnHnrButtonCTRL(SRCH_CTRL_ADR_HUSNR_BUTTON)
+
+			If bSelectAll Then
+				Call HandlerAdr1OpslagZoom
+				Call SRCHSelectAll(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCond)
+			End If
+
+		Case 5	'HUSNR
+			szValue = marrValues5(nItem)
+			If mbHusnrBogstavCombined Then
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "=", szValue)
+			Else
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol & "+" & marrssdInfo(6).szCol, "=", szValue)				
+			End If		
+			marrssdInfo(nCtrlItem).szCond = SRCHCombineConditions$(marrssdInfo(4).szCond, marrssdInfo(nCtrlItem).szCond)
+		
+			Call HandlerAdr1OpslagZoom
+			Call SRCHSelectAll(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCond)
+			
+			If ReadControlValue(SRCH_CTRL_ADR_AUTOCLOSE) Then
+				Dialog Remove
+			End If
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev trykket på 'søg' knappen
+'**********************************************************************************************''
+Sub HandlerAdr1VnvnHnrButton
+
+Dim	nCtrl As Integer
+
+OnError GoTo ErrorOccured
+
+	nCtrl		= TriggerControl()
+	Call Adr1VnvnHnrButtonCTRL(nCtrl)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev trykket på 'søg' knappen
+'**********************************************************************************************''
+Sub Adr1VnvnHnrButtonCTRL(ByVal nCtrl As Integer)
+
+Dim	nCtrlItem, nLstCtrl As Integer,
+	szValue, szCond As String
+
+OnError GoTo ErrorOccured
+
+	nCtrlItem	= (nCtrl - 3) / 100
+
+	Do Case nCtrlItem
+		Case 4	'VEJNAVN
+			nLstCtrl	= nCtrl - 3
+			szValue	= ReadControlValue(nLstCtrl + 2)
+			szCond	= SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "Like", szValue)
+
+			If SRCHLoadValuesIntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, szCond, marrValues4, FALSE) Then
+				Call Adr1VnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+			End If
+
+		Case 5	'HUSNR
+			nLstCtrl	= nCtrl - 3
+			szValue	= ReadControlValue(nLstCtrl + 2)
+
+			If mbHusnrBogstavCombined Then
+				szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "Like", szValue)
+			Else
+				szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol & "+" & marrssdInfo(6).szCol, "Like", szValue)				
+			End If		
+
+			szCond = SRCHCombineConditions$(marrssdInfo(4).szCond, szCond)
+
+			If mbHusnrBogstavCombined Then
+				If SRCHLoadValuesIntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, szCond, marrValues5, TRUE) Then
+					Call Adr1VnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+				End If
+			Else
+				If SRCHLoadValues2IntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, marrssdInfo(6).szCol, szCond, marrValues5, TRUE) Then
+					Call Adr1VnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+				End If
+			End If
+	End Case
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Der blev trykket på knappen til zoom
+'**********************************************************************************************''
+Sub HandlerAdr1OpslagZoom
+
+Dim	nMID As Integer,
+	fZoom As Float
+
+OnError GoTo ErrorOccured
+
+	nMID = FrontWindow()
+	If nMID > 0 Then
+		If WindowInfo(nMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+			fZoom	= Val(KommaToPoint(ReadControlValue(SRCH_CTRL_ADR_ZOOM)))
+			If fZoom < 1 Then
+				fZoom = VALUE_DEFAULT_ZOOM
+			End If
+			
+			Set Map
+				Window nMID
+				Zoom fZoom Units "m"	
+		End If
+	End If
+
+	'**Setting value for AutoClose
+	Call SRCHSetAutoCloseSearchDialog(ReadControlValue(SRCH_CTRL_ADR_AUTOCLOSE))
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**************************************************************************************************************************''
+'   A D R E S S E O P S L A G :  V E J K O D E  +  V E J N A V N  +  ( H U S N R + B O G S T A V )
+'**************************************************************************************************************************''
+'**********************************************************************************************''
+' Dialog til opslagssøgning i en enkelte tabel - Vejkode + Vejnavn & Husnr
+'**********************************************************************************************''
+Sub SRCHOpslagAdr1VnrVnvnHnr(sbtnCur As T_SEARCHBTN)
+
+OnError GoTo ErrorOccured
+
+	marrssdInfo(3).szTab	= sbtnCur.stabTabs(1).szName
+	marrssdInfo(4).szTab	= sbtnCur.stabTabs(1).szName
+	marrssdInfo(5).szTab	= sbtnCur.stabTabs(1).szName
+	marrssdInfo(3).szCol	= sbtnCur.stabTabs(1).scolCols(1).szName
+	marrssdInfo(4).szCol	= sbtnCur.stabTabs(1).scolCols(2).szName
+	marrssdInfo(5).szCol	= sbtnCur.stabTabs(1).scolCols(3).szName
+	marrssdInfo(3).szDesc	= sbtnCur.stabTabs(1).scolCols(1).szDescription
+	marrssdInfo(4).szDesc	= sbtnCur.stabTabs(1).scolCols(2).szDescription
+	marrssdInfo(5).szDesc	= sbtnCur.stabTabs(1).scolCols(3).szDescription
+
+	If NOT mbHusnrBogstavCombined Then
+		marrssdInfo(6).szCol	= sbtnCur.stabTabs(1).scolCols(4).szName	
+	End If
+
+	If sbtnCur.nZoom < 1 Then
+		sbtnCur.nZoom = VALUE_DEFAULT_ZOOM
+	End If
+
+	Dialog
+		Title "Søgning (Jokertegn: % eller _)"
+		Calling HandlerAdr1VnrVnvnHnrLoad
+		'----------
+		Control StaticText	Position 5,5					ID SRCH_CTRL_ADR_VEJKODE_TITLE
+			Title marrssdInfo(3).szDesc
+		Control EditText		Position 5,15	Width 55			ID SRCH_CTRL_ADR_VEJKODE_VALUE
+		Control Button		Position 60,15	Width 15	Height 12	ID SRCH_CTRL_ADR_VEJKODE_BUTTON
+			Calling HandlerAdr1VnrVnvnHnrButton
+			Title ">>"
+		Control ListBox		Position 5,27	Width 70	Height 80	ID SRCH_CTRL_ADR_VEJKODE_LIST
+			Calling HandlerAdr1VnrVnvnHnrList
+		'----------
+		Control StaticText	Position 80,5					ID SRCH_CTRL_ADR_VEJNAVN_TITLE
+			Title marrssdInfo(4).szDesc
+		Control EditText		Position 80,15	Width 115			ID SRCH_CTRL_ADR_VEJNAVN_VALUE
+		Control Button		Position 195,15	Width 15	Height 12	ID SRCH_CTRL_ADR_VEJNAVN_BUTTON
+			Calling HandlerAdr1VnrVnvnHnrButton
+			Title ">>"
+		Control ListBox		Position 80,27	Width 130	Height 80	ID SRCH_CTRL_ADR_VEJNAVN_LIST
+			Calling HandlerAdr1VnrVnvnHnrList
+		'----------
+		Control StaticText	Position 215,5					ID SRCH_CTRL_ADR_HUSNR_TITLE
+			Title marrssdInfo(5).szDesc
+		Control EditText		Position 215,15	Width 40			ID SRCH_CTRL_ADR_HUSNR_VALUE
+		Control Button		Position 255,15	Width 15	Height 12	ID SRCH_CTRL_ADR_HUSNR_BUTTON
+			Calling HandlerAdr1VnrVnvnHnrButton
+			Title ">>"
+		Control ListBox		Position 215,27	Width 55	Height 80	ID SRCH_CTRL_ADR_HUSNR_LIST
+			Calling HandlerAdr1VnrVnvnHnrList
+
+		'----------
+		Control StaticText	Position 5,112
+			Title "Zoom, m"
+		Control EditText		Position 40,110	Width 30			ID SRCH_CTRL_ADR_ZOOM
+			Value Str$(sbtnCur.nZoom)
+		Control Button		Position 70,110	Width 30	Height 12
+			Calling HandlerAdr1OpslagZoom
+			Title "Zoom"
+
+		Control CheckBox		Position 105,112					ID SRCH_CTRL_ADR_AUTOCLOSE
+			Title "&Auto luk"
+			Value SRCHAutoCloseSearchDialog()
+
+			
+		Control CancelButton	Position 220,110	Width 40
+			Title MSG_CLOSE
+					
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Loading dialog and setting up controls
+'**********************************************************************************************''
+Sub HandlerAdr1VnrVnvnHnrLoad
+
+Dim	bUseFirst, bUseSecond As Logical
+
+OnError GoTo ErrorOccured
+
+	Call Adr1VnrVnvnHnrButtonCTRL(SRCH_CTRL_ADR_VEJKODE_BUTTON)
+	Call Adr1VnrVnvnHnrButtonCTRL(SRCH_CTRL_ADR_VEJNAVN_BUTTON)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev udpeget en post i en liste
+'**********************************************************************************************''
+Sub HandlerAdr1VnrVnvnHnrList
+
+Dim	nCtrl As Integer,
+	bSelectAll As Logical
+
+OnError GoTo ErrorOccured
+
+	nCtrl		= TriggerControl()
+	bSelectAll	= CommandInfo(CMD_INFO_DLG_DBL)
+	
+	Call Adr1VnrVnvnHnrListCTRL(nCtrl, bSelectAll, FALSE)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev udpeget en post i en liste
+'**********************************************************************************************''
+Sub Adr1VnrVnvnHnrListCTRL(ByVal nCtrl As Integer, ByVal bSelectAll As Logical, ByVal bReCalled As Logical)
+
+Dim	nCtrlItem, nItem, nMatchItem As Integer,
+	szValue, szMatchVal, szCmdStr As String
+
+OnError GoTo ErrorOccured
+
+	nCtrlItem	= nCtrl / 100
+	nItem		= ReadControlValue(nCtrl)
+
+	Do Case nCtrlItem
+		'---------------------------------------------
+		Case 3	'VEJKODE
+			If nItem = 0 Then
+				ReDim marrValues5
+			Else
+				szValue = marrValues3(nItem)
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "=", szValue)
+		
+				'**Finding the matching VEJKODE
+				If NOT bReCalled Then
+					If NOT SRCHShowMatchValueInListControl(SRCH_CTRL_ADR_VEJNAVN_LIST, marrssdInfo(nCtrlItem).szTab,
+							marrssdInfo(nCtrlItem).szCol, marrssdInfo(4).szCol, marrssdInfo(nCtrlItem).szCond, marrValues4) Then
+					
+						Note szValue & ": Tilsvarende " & marrssdInfo(4).szDesc & " ikke fundet!"
+					End If				
+				End If
+			End If
+				
+			Call Adr1VnrVnvnHnrButtonCTRL(SRCH_CTRL_ADR_HUSNR_BUTTON)
+		
+			If bSelectAll Then
+				Call HandlerAdr1OpslagZoom
+				Call SRCHSelectAll(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCond)
+			End If
+			
+		'---------------------------------------------
+		Case 4	'VEJNAVN
+			If nItem = 0 Then
+				ReDim marrValues5
+			Else
+				szValue = marrValues4(nItem)
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "=", szValue)
+	
+				'**Finding the matching VEJNAVN
+				If NOT SRCHShowMatchValueInListControl(SRCH_CTRL_ADR_VEJKODE_LIST, marrssdInfo(nCtrlItem).szTab,
+						marrssdInfo(nCtrlItem).szCol, marrssdInfo(3).szCol, marrssdInfo(nCtrlItem).szCond, marrValues3) Then
+				
+					Note szValue & ": Tilsvarende " & marrssdInfo(3).szDesc & " ikke fundet!"
+				End If				
+			End If
+
+			Call Adr1VnrVnvnHnrListCTRL(SRCH_CTRL_ADR_VEJKODE_LIST, bSelectAll, TRUE)
+
+		'---------------------------------------------
+		Case 5	'HUSNR
+			If nItem = 0 Then
+				Exit Sub
+			End If
+
+			szValue = marrValues5(nItem)
+			If mbHusnrBogstavCombined Then
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "=", szValue)
+			Else
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol & "+" & marrssdInfo(6).szCol, "=", szValue)				
+			End If		
+
+			If marrssdInfo(3).szCond = "" Then
+				marrssdInfo(nCtrlItem).szCond = SRCHCombineConditions$(marrssdInfo(4).szCond, marrssdInfo(nCtrlItem).szCond)
+			Else
+				marrssdInfo(nCtrlItem).szCond = SRCHCombineConditions$(marrssdInfo(3).szCond, marrssdInfo(nCtrlItem).szCond)
+			End If
+
+			Call HandlerAdr1OpslagZoom
+			Call SRCHSelectAll(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCond)
+			
+			If ReadControlValue(SRCH_CTRL_ADR_AUTOCLOSE) Then
+				Dialog Remove
+			End If
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev trykket på 'søg' knappen
+'**********************************************************************************************''
+Sub HandlerAdr1VnrVnvnHnrButton
+
+Dim	nCtrl As Integer
+
+OnError GoTo ErrorOccured
+
+	nCtrl		= TriggerControl()
+	Call Adr1VnrVnvnHnrButtonCTRL(nCtrl)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev trykket på 'søg' knappen
+'**********************************************************************************************''
+Sub Adr1VnrVnvnHnrButtonCTRL(ByVal nCtrl As Integer)
+
+Dim	nCtrlItem, nLstCtrl As Integer,
+	szValue, szCond As String
+
+OnError GoTo ErrorOccured
+
+	nCtrlItem	= (nCtrl - 3) / 100
+
+	Do Case nCtrlItem
+		Case 3	'VEJKODE
+			nLstCtrl	= nCtrl - 3
+			szValue	= ReadControlValue(nLstCtrl + 2)
+			szCond	= SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "Like", szValue)
+		
+			If SRCHLoadValuesIntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, szCond, marrValues3, FALSE) Then
+				Call Adr1VnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+			End If
+			
+		Case 4	'VEJNAVN
+			nLstCtrl	= nCtrl - 3
+			szValue	= ReadControlValue(nLstCtrl + 2)
+			szCond	= SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "Like", szValue)
+
+			If SRCHLoadValuesIntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, szCond, marrValues4, FALSE) Then
+				Call Adr1VnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+			End If
+
+		Case 5	'HUSNR
+			nLstCtrl	= nCtrl - 3
+			szValue	= ReadControlValue(nLstCtrl + 2)
+			If mbHusnrBogstavCombined Then
+				szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "Like", szValue)
+			Else
+				szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol & "+" & marrssdInfo(6).szCol, "Like", szValue)				
+			End If		
+
+			szCond 	= SRCHCombineConditions$(marrssdInfo(3).szCond, szCond)
+
+			If mbHusnrBogstavCombined Then
+				If SRCHLoadValuesIntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, szCond, marrValues5, TRUE) Then
+					Call Adr1VnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+				End If
+			Else
+				If SRCHLoadValues2IntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, marrssdInfo(6).szCol, szCond, marrValues5, TRUE) Then
+					Call Adr1VnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+				End If
+			End If
+	End Case
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**************************************************************************************************************************''
+'   A D R E S S E O P S L A G :  K O M N R  +  V E J N A V N  +  ( H U S N R + B O G S T A V )
+'**************************************************************************************************************************''
+'**********************************************************************************************''
+' Dialog til opslagssøgning i en enkelte tabel - Komnr + Vejnavn & Husnr
+'**********************************************************************************************''
+Sub SRCHOpslagAdr1KnrVnvnHnr(sbtnCur As T_SEARCHBTN)
+
+OnError GoTo ErrorOccured
+
+	marrssdInfo(1).szTab	= sbtnCur.stabTabs(1).szName
+	marrssdInfo(4).szTab	= sbtnCur.stabTabs(1).szName
+	marrssdInfo(5).szTab	= sbtnCur.stabTabs(1).szName
+	marrssdInfo(1).szCol	= sbtnCur.stabTabs(1).scolCols(1).szName
+	marrssdInfo(4).szCol	= sbtnCur.stabTabs(1).scolCols(2).szName
+	marrssdInfo(5).szCol	= sbtnCur.stabTabs(1).scolCols(3).szName
+	marrssdInfo(1).szDesc	= sbtnCur.stabTabs(1).scolCols(1).szDescription
+	marrssdInfo(4).szDesc	= sbtnCur.stabTabs(1).scolCols(2).szDescription
+	marrssdInfo(5).szDesc	= sbtnCur.stabTabs(1).scolCols(3).szDescription
+
+	If NOT mbHusnrBogstavCombined Then
+		marrssdInfo(6).szTab	= sbtnCur.stabTabs(1).szName
+		marrssdInfo(6).szCol	= sbtnCur.stabTabs(1).scolCols(4).szName	
+		marrssdInfo(6).szDesc	= sbtnCur.stabTabs(1).scolCols(4).szDescription
+	End If
+
+	If sbtnCur.nZoom < 1 Then
+		sbtnCur.nZoom = VALUE_DEFAULT_ZOOM
+	End If
+
+	Dialog
+		Title "Søgning (Jokertegn: % eller _)"
+		Calling HandlerAdr1KnrVnvnHnrLoad
+		'----------
+		Control StaticText	Position 5,5					ID SRCH_CTRL_ADR_KOMMUNENR_TITLE
+			Title marrssdInfo(1).szDesc
+		Control EditText		Position 5,15	Width 40			ID SRCH_CTRL_ADR_KOMMUNENR_VALUE
+		Control Button		Position 45,15	Width 15	Height 12	ID SRCH_CTRL_ADR_KOMMUNENR_BUTTON
+			Calling HandlerAdr1KnrVnvnHnrButton
+			Title ">>"
+		Control ListBox		Position 5,27	Width 55	Height 80	ID SRCH_CTRL_ADR_KOMMUNENR_LIST
+			Calling HandlerAdr1KnrVnvnHnrList
+		'----------
+		Control StaticText	Position 65,5					ID SRCH_CTRL_ADR_VEJNAVN_TITLE
+			Title marrssdInfo(4).szDesc
+		Control EditText		Position 65,15	Width 115			ID SRCH_CTRL_ADR_VEJNAVN_VALUE
+		Control Button		Position 180,15	Width 15	Height 12	ID SRCH_CTRL_ADR_VEJNAVN_BUTTON
+			Calling HandlerAdr1KnrVnvnHnrButton
+			Title ">>"
+		Control ListBox		Position 65,27	Width 130	Height 80	ID SRCH_CTRL_ADR_VEJNAVN_LIST
+			Calling HandlerAdr1KnrVnvnHnrList
+		'----------
+		Control StaticText	Position 200,5					ID SRCH_CTRL_ADR_HUSNR_TITLE
+			Title marrssdInfo(5).szDesc
+		Control EditText		Position 200,15	Width 40			ID SRCH_CTRL_ADR_HUSNR_VALUE
+		Control Button		Position 240,15	Width 15	Height 12	ID SRCH_CTRL_ADR_HUSNR_BUTTON
+			Calling HandlerAdr1KnrVnvnHnrButton
+			Title ">>"
+		Control ListBox		Position 200,27	Width 55	Height 80	ID SRCH_CTRL_ADR_HUSNR_LIST
+			Calling HandlerAdr1KnrVnvnHnrList
+
+		'----------
+		Control StaticText	Position 5,112
+			Title "Zoom, m"
+		Control EditText		Position 40,110	Width 30			ID SRCH_CTRL_ADR_ZOOM
+			Value Str$(sbtnCur.nZoom)
+		Control Button		Position 70,110	Width 30	Height 12
+			Calling HandlerAdr1OpslagZoom
+			Title "Zoom"
+
+		Control CheckBox		Position 105,112					ID SRCH_CTRL_ADR_AUTOCLOSE
+			Title "&Auto luk"
+			Value SRCHAutoCloseSearchDialog()
+			
+		Control CancelButton	Position 215,110	Width 40
+			Title MSG_CLOSE
+					
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Loading dialog and setting up controls
+'**********************************************************************************************''
+Sub HandlerAdr1KnrVnvnHnrLoad
+
+OnError GoTo ErrorOccured
+
+	Call Adr1KnrVnvnHnrButtonCTRL(SRCH_CTRL_ADR_KOMMUNENR_BUTTON)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev udpeget en post i en liste
+'**********************************************************************************************''
+Sub HandlerAdr1KnrVnvnHnrList
+
+Dim	nCtrl As Integer,
+	bSelectAll As Logical
+
+OnError GoTo ErrorOccured
+
+	nCtrl		= TriggerControl()
+	bSelectAll	= CommandInfo(CMD_INFO_DLG_DBL)
+	
+	Call Adr1KnrVnvnHnrListCTRL(nCtrl, bSelectAll, FALSE)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev udpeget en post i en liste
+'**********************************************************************************************''
+Sub Adr1KnrVnvnHnrListCTRL(ByVal nCtrl As Integer, ByVal bSelectAll As Logical, ByVal bReCalled As Logical)
+
+Dim	nCtrlItem, nItem As Integer,
+	szValue, szCmdStr As String
+
+OnError GoTo ErrorOccured
+
+	nCtrlItem	= nCtrl / 100
+	nItem		= ReadControlValue(nCtrl)
+
+	Do Case nCtrlItem
+		Case 1	'KOMMUNENR
+			If nItem = 0 Then
+				ReDim marrValues4(0)
+			Else
+				szValue = marrValues1(nItem)
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "=", szValue)
+			End If
+
+			Call Adr1KnrVnvnHnrButtonCTRL(SRCH_CTRL_ADR_VEJNAVN_BUTTON)
+
+			If bSelectAll Then
+				Call HandlerAdr1OpslagZoom
+				Call SRCHSelectAll(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCond)
+			End If
+			
+		Case 4	'VEJNAVN
+			If nItem = 0 Then
+				ReDim marrValues5
+			Else
+				szValue = marrValues4(nItem)
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "=", szValue)
+				marrssdInfo(nCtrlItem).szCond = SRCHCombineConditions$(marrssdInfo(1).szCond, marrssdInfo(nCtrlItem).szCond)
+			End If
+	
+			Call Adr1KnrVnvnHnrButtonCTRL(SRCH_CTRL_ADR_HUSNR_BUTTON)
+		
+			If bSelectAll Then
+				Call HandlerAdr1OpslagZoom
+				Call SRCHSelectAll(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCond)
+			End If
+
+		Case 5	'HUSNR
+			If nItem = 0 Then
+				Exit Sub
+			End If
+
+			szValue = marrValues5(nItem)
+			If mbHusnrBogstavCombined Then
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "=", szValue)
+			Else
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol & "+" & marrssdInfo(6).szCol, "=", szValue)				
+			End If		
+			marrssdInfo(nCtrlItem).szCond = SRCHCombineConditions$(marrssdInfo(4).szCond, marrssdInfo(nCtrlItem).szCond)
+
+			Call HandlerAdr1OpslagZoom
+			Call SRCHSelectAll(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCond)
+
+			If ReadControlValue(SRCH_CTRL_ADR_AUTOCLOSE) Then
+				Dialog Remove
+			End If
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev trykket på 'søg' knappen
+'**********************************************************************************************''
+Sub HandlerAdr1KnrVnvnHnrButton
+
+Dim	nCtrl As Integer
+
+OnError GoTo ErrorOccured
+
+	nCtrl		= TriggerControl()
+	Call Adr1KnrVnvnHnrButtonCTRL(nCtrl)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev trykket på 'søg' knappen
+'**********************************************************************************************''
+Sub Adr1KnrVnvnHnrButtonCTRL(ByVal nCtrl As Integer)
+
+Dim	nCtrlItem, nLstCtrl As Integer,
+	szValue, szLstValue, szCond As String
+
+OnError GoTo ErrorOccured
+
+	nCtrlItem	= (nCtrl - 3) / 100
+
+	Do Case nCtrlItem
+		Case 1	'KOMMUNENR
+			nLstCtrl	= nCtrl - 3
+			szValue	= ReadControlValue(nLstCtrl + 2)
+			szCond	= SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "Like", szValue)
+
+			If SRCHLoadValuesIntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, szCond, marrValues1, FALSE) Then
+				Call Adr1KnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+			End If
+
+		Case 4	'VEJNAVN
+			nLstCtrl	= nCtrl - 3
+			szValue	= ReadControlValue(nLstCtrl + 2)
+			szCond	= SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "Like", szValue)
+			szCond 	= SRCHCombineConditions$(marrssdInfo(1).szCond, szCond)
+
+			If SRCHLoadValuesIntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, szCond, marrValues4, FALSE) Then
+				Call Adr1KnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+			End If
+
+		Case 5	'HUSNR
+			nLstCtrl	= nCtrl - 3
+			szValue	= ReadControlValue(nLstCtrl + 2)
+
+			If mbHusnrBogstavCombined Then
+				szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "Like", szValue)
+			Else
+				szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol & "+" & marrssdInfo(6).szCol, "Like", szValue)				
+			End If		
+			szCond 	= SRCHCombineConditions$(marrssdInfo(4).szCond, szCond)
+
+			If mbHusnrBogstavCombined Then
+				If SRCHLoadValuesIntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, szCond, marrValues5, TRUE) Then
+					Call Adr1KnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+				End If
+			Else
+				If SRCHLoadValues2IntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, marrssdInfo(6).szCol, szCond, marrValues5, TRUE) Then
+					Call Adr1KnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+				End If
+			End If		
+	End Case
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**************************************************************************************************************************''
+'   A D R E S S E O P S L A G :  K O M N R  +  V E J K O D E  +  V E J N A V N  +  ( H U S N R + B O G S T A V )
+'**************************************************************************************************************************''
+'**********************************************************************************************''
+' Dialog til opslagssøgning i en enkelte tabel - Knr + Vejkode + Vejnavn & Husnr
+'**********************************************************************************************''
+Sub SRCHOpslagAdr1KnrVnrVnvnHnr(sbtnCur As T_SEARCHBTN)
+
+OnError GoTo ErrorOccured
+
+	marrssdInfo(1).szTab	= sbtnCur.stabTabs(1).szName
+	marrssdInfo(3).szTab	= sbtnCur.stabTabs(1).szName
+	marrssdInfo(4).szTab	= sbtnCur.stabTabs(1).szName
+	marrssdInfo(5).szTab	= sbtnCur.stabTabs(1).szName
+	marrssdInfo(1).szCol	= sbtnCur.stabTabs(1).scolCols(1).szName
+	marrssdInfo(3).szCol	= sbtnCur.stabTabs(1).scolCols(2).szName
+	marrssdInfo(4).szCol	= sbtnCur.stabTabs(1).scolCols(3).szName
+	marrssdInfo(5).szCol	= sbtnCur.stabTabs(1).scolCols(4).szName
+	marrssdInfo(1).szDesc	= sbtnCur.stabTabs(1).scolCols(1).szDescription
+	marrssdInfo(3).szDesc	= sbtnCur.stabTabs(1).scolCols(2).szDescription
+	marrssdInfo(4).szDesc	= sbtnCur.stabTabs(1).scolCols(3).szDescription
+	marrssdInfo(5).szDesc	= sbtnCur.stabTabs(1).scolCols(4).szDescription
+
+	If NOT mbHusnrBogstavCombined Then
+		marrssdInfo(6).szTab	= sbtnCur.stabTabs(1).szName
+		marrssdInfo(6).szCol	= sbtnCur.stabTabs(1).scolCols(5).szName	
+		marrssdInfo(6).szDesc	= sbtnCur.stabTabs(1).scolCols(5).szDescription
+	End If
+
+	If sbtnCur.nZoom < 1 Then
+		sbtnCur.nZoom = VALUE_DEFAULT_ZOOM
+	End If
+
+	Dialog
+		Title "Søgning (Jokertegn: % eller _)"
+		Calling HandlerAdr1KnrVnrVnvnHnrLoad
+		'----------
+		Control StaticText	Position 5,5					ID SRCH_CTRL_ADR_KOMMUNENR_TITLE
+			Title marrssdInfo(1).szDesc
+		Control EditText		Position 5,15	Width 40			ID SRCH_CTRL_ADR_KOMMUNENR_VALUE
+		Control Button		Position 45,15	Width 15	Height 12	ID SRCH_CTRL_ADR_KOMMUNENR_BUTTON
+			Calling HandlerAdr1KnrVnrVnvnHnrButton
+			Title ">>"
+		Control ListBox		Position 5,27	Width 55	Height 80	ID SRCH_CTRL_ADR_KOMMUNENR_LIST
+			Calling HandlerAdr1KnrVnrVnvnHnrList
+		'----------
+		Control StaticText	Position 65,5					ID SRCH_CTRL_ADR_VEJKODE_TITLE
+			Title marrssdInfo(3).szDesc
+		Control EditText		Position 65,15	Width 55			ID SRCH_CTRL_ADR_VEJKODE_VALUE
+		Control Button		Position 120,15	Width 15	Height 12	ID SRCH_CTRL_ADR_VEJKODE_BUTTON
+			Calling HandlerAdr1KnrVnrVnvnHnrButton
+			Title ">>"
+		Control ListBox		Position 65,27	Width 70	Height 80	ID SRCH_CTRL_ADR_VEJKODE_LIST
+			Calling HandlerAdr1KnrVnrVnvnHnrList
+		'----------
+		Control StaticText	Position 140,5					ID SRCH_CTRL_ADR_VEJNAVN_TITLE
+			Title marrssdInfo(4).szDesc
+		Control EditText		Position 140,15	Width 115			ID SRCH_CTRL_ADR_VEJNAVN_VALUE
+		Control Button		Position 255,15	Width 15	Height 12	ID SRCH_CTRL_ADR_VEJNAVN_BUTTON
+			Calling HandlerAdr1KnrVnrVnvnHnrButton
+			Title ">>"
+		Control ListBox		Position 140,27	Width 130	Height 80	ID SRCH_CTRL_ADR_VEJNAVN_LIST
+			Calling HandlerAdr1KnrVnrVnvnHnrList
+		'----------
+		Control StaticText	Position 275,5					ID SRCH_CTRL_ADR_HUSNR_TITLE
+			Title marrssdInfo(5).szDesc
+		Control EditText		Position 275,15	Width 40			ID SRCH_CTRL_ADR_HUSNR_VALUE
+		Control Button		Position 315,15	Width 15	Height 12	ID SRCH_CTRL_ADR_HUSNR_BUTTON
+			Calling HandlerAdr1KnrVnrVnvnHnrButton
+			Title ">>"
+		Control ListBox		Position 275,27	Width 55	Height 80	ID SRCH_CTRL_ADR_HUSNR_LIST
+			Calling HandlerAdr1KnrVnrVnvnHnrList
+
+		'----------
+		Control StaticText	Position 5,112
+			Title "Zoom, m"
+		Control EditText		Position 40,110	Width 30			ID SRCH_CTRL_ADR_ZOOM
+			Value Str$(sbtnCur.nZoom)
+		Control Button		Position 70,110	Width 30	Height 12
+			Calling HandlerAdr1OpslagZoom
+			Title "Zoom"
+
+		Control CheckBox		Position 105,112					ID SRCH_CTRL_ADR_AUTOCLOSE
+			Title "&Auto luk"
+			Value SRCHAutoCloseSearchDialog()
+			
+		Control CancelButton	Position 280,110	Width 40
+			Title MSG_CLOSE
+					
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Loading dialog and setting up controls
+'**********************************************************************************************''
+Sub HandlerAdr1KnrVnrVnvnHnrLoad
+
+OnError GoTo ErrorOccured
+
+	Call Adr1KnrVnrVnvnHnrButtonCTRL(SRCH_CTRL_ADR_KOMMUNENR_BUTTON)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev udpeget en post i en liste
+'**********************************************************************************************''
+Sub HandlerAdr1KnrVnrVnvnHnrList
+
+Dim	nCtrl As Integer,
+	bSelectAll As Logical
+
+OnError GoTo ErrorOccured
+
+	nCtrl		= TriggerControl()
+	bSelectAll	= CommandInfo(CMD_INFO_DLG_DBL)
+	
+	Call Adr1KnrVnrVnvnHnrListCTRL(nCtrl, bSelectAll, FALSE)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev udpeget en post i en liste
+'**********************************************************************************************''
+Sub Adr1KnrVnrVnvnHnrListCTRL(ByVal nCtrl As Integer, ByVal bSelectAll As Logical, ByVal bReCalled As Logical)
+
+Dim	nCtrlItem, nItem, nMatchItem As Integer,
+	szValue, szMatchVal, szCmdStr As String
+
+OnError GoTo ErrorOccured
+
+	nCtrlItem	= nCtrl / 100
+	nItem		= ReadControlValue(nCtrl)
+
+	Do Case nCtrlItem
+		'---------------------------------------------
+		Case 1	'KOMMUNENR
+			If nItem = 0 Then
+				ReDim marrValues3(0)
+				ReDim marrValues4(0)
+			Else
+				szValue = marrValues1(nItem)
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "=", szValue)
+			End If
+
+			Call Adr1KnrVnrVnvnHnrButtonCTRL(SRCH_CTRL_ADR_VEJKODE_BUTTON)
+			Call Adr1KnrVnrVnvnHnrButtonCTRL(SRCH_CTRL_ADR_VEJNAVN_BUTTON)
+
+			If bSelectAll Then
+				Call HandlerAdr1OpslagZoom
+				Call SRCHSelectAll(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCond)
+			End If
+
+		'---------------------------------------------
+		Case 3	'VEJKODE
+			If nItem = 0 Then
+				ReDim marrValues5
+			Else
+				szValue = marrValues3(nItem)
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "=", szValue)
+				marrssdInfo(nCtrlItem).szCond = SRCHCombineConditions$(marrssdInfo(1).szCond, marrssdInfo(nCtrlItem).szCond)
+		
+				'**Finding the matching VEJNAVN
+				If NOT bReCalled Then
+					If NOT SRCHShowMatchValueInListControl(SRCH_CTRL_ADR_VEJNAVN_LIST, marrssdInfo(nCtrlItem).szTab,
+							marrssdInfo(nCtrlItem).szCol, marrssdInfo(4).szCol, marrssdInfo(nCtrlItem).szCond, marrValues4) Then
+					
+						Note szValue & ": Tilsvarende " & marrssdInfo(4).szDesc & " ikke fundet!"
+					End If				
+				End If
+			End If
+				
+			Call Adr1KnrVnrVnvnHnrButtonCTRL(SRCH_CTRL_ADR_HUSNR_BUTTON)
+		
+			If bSelectAll Then
+				Call HandlerAdr1OpslagZoom
+				Call SRCHSelectAll(marrssdInfo(3).szTab, marrssdInfo(3).szCond)
+			End If
+			
+		'---------------------------------------------
+		Case 4	'VEJNAVN
+			If nItem = 0 Then
+				ReDim marrValues5
+			Else
+				szValue = marrValues4(nItem)
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "=", szValue)
+				marrssdInfo(nCtrlItem).szCond = SRCHCombineConditions$(marrssdInfo(1).szCond, marrssdInfo(nCtrlItem).szCond)
+	
+				'**Finding the matching VEJKODE
+				If NOT SRCHShowMatchValueInListControl(SRCH_CTRL_ADR_VEJKODE_LIST, marrssdInfo(nCtrlItem).szTab,
+						marrssdInfo(nCtrlItem).szCol, marrssdInfo(3).szCol, marrssdInfo(nCtrlItem).szCond, marrValues3) Then
+				
+					Note szValue & ": Tilsvarende " & marrssdInfo(3).szDesc & " ikke fundet!"
+				End If				
+			End If
+
+			Call Adr1KnrVnrVnvnHnrListCTRL(SRCH_CTRL_ADR_VEJKODE_LIST, bSelectAll, TRUE)
+
+		'---------------------------------------------
+		Case 5	'HUSNR
+			If nItem = 0 Then
+				Exit Sub
+			End If
+
+			szValue = marrValues5(nItem)
+			If mbHusnrBogstavCombined Then
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "=", szValue)
+			Else
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol & "+" & marrssdInfo(6).szCol, "=", szValue)				
+			End If		
+
+			If marrssdInfo(3).szCond = "" Then
+				marrssdInfo(nCtrlItem).szCond = SRCHCombineConditions$(marrssdInfo(4).szCond, marrssdInfo(nCtrlItem).szCond)
+			Else
+				marrssdInfo(nCtrlItem).szCond = SRCHCombineConditions$(marrssdInfo(3).szCond, marrssdInfo(nCtrlItem).szCond)
+			End If
+		
+			Call HandlerAdr1OpslagZoom
+			Call SRCHSelectAll(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCond)
+
+			If ReadControlValue(SRCH_CTRL_ADR_AUTOCLOSE) Then
+				Dialog Remove
+			End If
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev trykket på 'søg' knappen
+'**********************************************************************************************''
+Sub HandlerAdr1KnrVnrVnvnHnrButton
+
+Dim	nCtrl As Integer
+
+OnError GoTo ErrorOccured
+
+	nCtrl		= TriggerControl()
+	Call Adr1KnrVnrVnvnHnrButtonCTRL(nCtrl)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev trykket på 'søg' knappen
+'**********************************************************************************************''
+Sub Adr1KnrVnrVnvnHnrButtonCTRL(ByVal nCtrl As Integer)
+
+Dim	nCtrlItem, nLstCtrl As Integer,
+	szValue, szCond As String
+
+OnError GoTo ErrorOccured
+
+	nCtrlItem	= (nCtrl - 3) / 100
+
+	Do Case nCtrlItem
+		Case 1	'KOMMUNENR
+			nLstCtrl	= nCtrl - 3
+			szValue	= ReadControlValue(nLstCtrl + 2)
+			szCond	= SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "Like", szValue)
+
+			If SRCHLoadValuesIntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, szCond, marrValues1, FALSE) Then
+				Call Adr1KnrVnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+			End If
+
+		Case 3	'VEJKODE
+			nLstCtrl	= nCtrl - 3
+			szValue	= ReadControlValue(nLstCtrl + 2)
+			szCond	= SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "Like", szValue)
+			szCond 	= SRCHCombineConditions$(marrssdInfo(1).szCond, szCond)
+
+			If SRCHLoadValuesIntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, szCond, marrValues3, FALSE) Then
+				Call Adr1KnrVnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+			End If
+			
+		Case 4	'VEJNAVN
+			nLstCtrl	= nCtrl - 3
+			szValue	= ReadControlValue(nLstCtrl + 2)
+			szCond	= SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "Like", szValue)
+			szCond = SRCHCombineConditions$(marrssdInfo(1).szCond, szCond)
+
+			If SRCHLoadValuesIntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, szCond, marrValues4, FALSE) Then
+				Call Adr1KnrVnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+			End If
+			
+		Case 5	'HUSNR
+			nLstCtrl	= nCtrl - 3
+			szValue	= ReadControlValue(nLstCtrl + 2)
+
+			If mbHusnrBogstavCombined Then
+				szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "Like", szValue)
+			Else
+				szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol & "+" & marrssdInfo(6).szCol, "Like", szValue)				
+			End If		
+
+			szCond 	= SRCHCombineConditions$(marrssdInfo(3).szCond, szCond)
+
+			If mbHusnrBogstavCombined Then
+				If SRCHLoadValuesIntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, szCond, marrValues5, TRUE) Then
+					Call Adr1KnrVnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+				End If
+			Else
+				If SRCHLoadValues2IntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, marrssdInfo(6).szCol, szCond, marrValues5, TRUE) Then
+					Call Adr1KnrVnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+				End If
+			End If		
+
+	End Case
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**************************************************************************************************************************''
+'   A D R E S S E O P S L A G :  P O S T N R  +  V E J N A V N  +  ( H U S N R + B O G S T A V )
+'**************************************************************************************************************************''
+'**********************************************************************************************''
+' Dialog til opslagssøgning i en enkelte tabel - Postnr + Vejnavn & Husnr
+'**********************************************************************************************''
+Sub SRCHOpslagAdr1PnrVnvnHnr(sbtnCur As T_SEARCHBTN)
+
+OnError GoTo ErrorOccured
+
+	marrssdInfo(2).szTab	= sbtnCur.stabTabs(1).szName
+	marrssdInfo(4).szTab	= sbtnCur.stabTabs(1).szName
+	marrssdInfo(5).szTab	= sbtnCur.stabTabs(1).szName
+	marrssdInfo(2).szCol	= sbtnCur.stabTabs(1).scolCols(1).szName
+	marrssdInfo(4).szCol	= sbtnCur.stabTabs(1).scolCols(2).szName
+	marrssdInfo(5).szCol	= sbtnCur.stabTabs(1).scolCols(3).szName
+	marrssdInfo(2).szDesc	= sbtnCur.stabTabs(1).scolCols(1).szDescription
+	marrssdInfo(4).szDesc	= sbtnCur.stabTabs(1).scolCols(2).szDescription
+	marrssdInfo(5).szDesc	= sbtnCur.stabTabs(1).scolCols(3).szDescription
+
+	If NOT mbHusnrBogstavCombined Then
+		marrssdInfo(6).szTab	= sbtnCur.stabTabs(1).szName
+		marrssdInfo(6).szCol	= sbtnCur.stabTabs(1).scolCols(4).szName	
+		marrssdInfo(6).szDesc	= sbtnCur.stabTabs(1).scolCols(4).szDescription
+	End If
+
+	If sbtnCur.nZoom < 1 Then
+		sbtnCur.nZoom = VALUE_DEFAULT_ZOOM
+	End If
+
+	Dialog
+		Title "Søgning (Jokertegn: % eller _)"
+		Calling HandlerAdr1PnrVnvnHnrLoad
+		'----------
+		Control StaticText	Position 5,5					ID SRCH_CTRL_ADR_POSTNR_TITLE
+			Title marrssdInfo(2).szDesc
+		Control EditText		Position 5,15	Width 40			ID SRCH_CTRL_ADR_POSTNR_VALUE
+		Control Button		Position 45,15	Width 15	Height 12	ID SRCH_CTRL_ADR_POSTNR_BUTTON
+			Calling HandlerAdr1PnrVnvnHnrButton
+			Title ">>"
+		Control ListBox		Position 5,27	Width 55	Height 80	ID SRCH_CTRL_ADR_POSTNR_LIST
+			Calling HandlerAdr1PnrVnvnHnrList
+		'----------
+		Control StaticText	Position 65,5					ID SRCH_CTRL_ADR_VEJNAVN_TITLE
+			Title marrssdInfo(4).szDesc
+		Control EditText		Position 65,15	Width 115			ID SRCH_CTRL_ADR_VEJNAVN_VALUE
+		Control Button		Position 180,15	Width 15	Height 12	ID SRCH_CTRL_ADR_VEJNAVN_BUTTON
+			Calling HandlerAdr1PnrVnvnHnrButton
+			Title ">>"
+		Control ListBox		Position 65,27	Width 130	Height 80	ID SRCH_CTRL_ADR_VEJNAVN_LIST
+			Calling HandlerAdr1PnrVnvnHnrList
+		'----------
+		Control StaticText	Position 200,5					ID SRCH_CTRL_ADR_HUSNR_TITLE
+			Title marrssdInfo(5).szDesc
+		Control EditText		Position 200,15	Width 40			ID SRCH_CTRL_ADR_HUSNR_VALUE
+		Control Button		Position 240,15	Width 15	Height 12	ID SRCH_CTRL_ADR_HUSNR_BUTTON
+			Calling HandlerAdr1PnrVnvnHnrButton
+			Title ">>"
+		Control ListBox		Position 200,27	Width 55	Height 80	ID SRCH_CTRL_ADR_HUSNR_LIST
+			Calling HandlerAdr1PnrVnvnHnrList
+
+		'----------
+		Control StaticText	Position 5,112
+			Title "Zoom, m"
+		Control EditText		Position 40,110	Width 30			ID SRCH_CTRL_ADR_ZOOM
+			Value Str$(sbtnCur.nZoom)
+		Control Button		Position 70,110	Width 30	Height 12
+			Calling HandlerAdr1OpslagZoom
+			Title "Zoom"
+
+		Control CheckBox		Position 105,112					ID SRCH_CTRL_ADR_AUTOCLOSE
+			Title "&Auto luk"
+			Value SRCHAutoCloseSearchDialog()
+			
+		Control CancelButton	Position 215,110	Width 40
+			Title MSG_CLOSE
+					
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Loading dialog and setting up controls
+'**********************************************************************************************''
+Sub HandlerAdr1PnrVnvnHnrLoad
+
+OnError GoTo ErrorOccured
+
+	Call Adr1PnrVnvnHnrButtonCTRL(SRCH_CTRL_ADR_POSTNR_BUTTON)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev udpeget en post i en liste
+'**********************************************************************************************''
+Sub HandlerAdr1PnrVnvnHnrList
+
+Dim	nCtrl As Integer,
+	bSelectAll As Logical
+
+OnError GoTo ErrorOccured
+
+	nCtrl		= TriggerControl()
+	bSelectAll	= CommandInfo(CMD_INFO_DLG_DBL)
+	
+	Call Adr1PnrVnvnHnrListCTRL(nCtrl, bSelectAll, FALSE)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev udpeget en post i en liste
+'**********************************************************************************************''
+Sub Adr1PnrVnvnHnrListCTRL(ByVal nCtrl As Integer, ByVal bSelectAll As Logical, ByVal bReCalled As Logical)
+
+Dim	nCtrlItem, nItem As Integer,
+	szValue, szCmdStr As String
+
+OnError GoTo ErrorOccured
+
+	nCtrlItem	= nCtrl / 100
+	nItem		= ReadControlValue(nCtrl)
+
+	Do Case nCtrlItem
+		Case 2	'POSTNR
+			If nItem = 0 Then
+				ReDim marrValues4(0)
+			Else
+				szValue = marrValues2(nItem)
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "=", szValue)
+			End If
+
+			Call Adr1PnrVnvnHnrButtonCTRL(SRCH_CTRL_ADR_VEJNAVN_BUTTON)
+
+			If bSelectAll Then
+				Call HandlerAdr1OpslagZoom
+				Call SRCHSelectAll(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCond)
+			End If
+			
+		Case 4	'VEJNAVN
+			If nItem = 0 Then
+				ReDim marrValues5
+			Else
+				szValue = marrValues4(nItem)
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "=", szValue)
+				marrssdInfo(nCtrlItem).szCond = SRCHCombineConditions$(marrssdInfo(1).szCond, marrssdInfo(nCtrlItem).szCond)
+			End If
+	
+			Call Adr1PnrVnvnHnrButtonCTRL(SRCH_CTRL_ADR_HUSNR_BUTTON)
+		
+			If bSelectAll Then
+				Call HandlerAdr1OpslagZoom
+				Call SRCHSelectAll(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCond)
+			End If
+		Case 5	'HUSNR
+			If nItem = 0 Then
+				Exit Sub
+			End If
+
+			szValue = marrValues5(nItem)
+			If mbHusnrBogstavCombined Then
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "=", szValue)
+			Else
+				marrssdInfo(nCtrlItem).szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol & "+" & marrssdInfo(6).szCol, "=", szValue)				
+			End If		
+			marrssdInfo(nCtrlItem).szCond = SRCHCombineConditions$(marrssdInfo(4).szCond, marrssdInfo(nCtrlItem).szCond)
+
+			Call HandlerAdr1OpslagZoom
+			Call SRCHSelectAll(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCond)
+
+			If ReadControlValue(SRCH_CTRL_ADR_AUTOCLOSE) Then
+				Dialog Remove
+			End If
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev trykket på 'søg' knappen
+'**********************************************************************************************''
+Sub HandlerAdr1PnrVnvnHnrButton
+
+Dim	nCtrl As Integer
+
+OnError GoTo ErrorOccured
+
+	nCtrl		= TriggerControl()
+	Call Adr1PnrVnvnHnrButtonCTRL(nCtrl)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Der blev trykket på 'søg' knappen
+'**********************************************************************************************''
+Sub Adr1PnrVnvnHnrButtonCTRL(ByVal nCtrl As Integer)
+
+Dim	nCtrlItem, nLstCtrl As Integer,
+	szValue, szLstValue, szCond As String
+
+OnError GoTo ErrorOccured
+
+	nCtrlItem	= (nCtrl - 3) / 100
+
+	Do Case nCtrlItem
+		Case 2	'POSTNR
+			nLstCtrl	= nCtrl - 3
+			szValue	= ReadControlValue(nLstCtrl + 2)
+			szCond	= SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "Like", szValue)
+
+			If SRCHLoadValuesIntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, szCond, marrValues2, FALSE) Then
+				Call Adr1PnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+			End If
+
+		Case 4	'VEJNAVN
+			nLstCtrl	= nCtrl - 3
+			szValue	= ReadControlValue(nLstCtrl + 2)
+			szCond	= SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "Like", szValue)
+			szCond 	= SRCHCombineConditions$(marrssdInfo(2).szCond, szCond)
+
+			If SRCHLoadValuesIntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, szCond, marrValues4, FALSE) Then
+				Call Adr1PnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+			End If
+
+		Case 5	'HUSNR
+			nLstCtrl	= nCtrl - 3
+			szValue	= ReadControlValue(nLstCtrl + 2)
+
+			If mbHusnrBogstavCombined Then
+				szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, "Like", szValue)
+			Else
+				szCond = SRCHGetConditionFromValue$(marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol & "+" & marrssdInfo(6).szCol, "Like", szValue)				
+			End If		
+
+			szCond 	= SRCHCombineConditions$(marrssdInfo(4).szCond, szCond)
+
+			If mbHusnrBogstavCombined Then
+				If SRCHLoadValuesIntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, szCond, marrValues5, TRUE) Then
+					Call Adr1PnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+				End If
+			Else
+				If SRCHLoadValues2IntoListControl(nLstCtrl, -1, marrssdInfo(nCtrlItem).szTab, marrssdInfo(nCtrlItem).szCol, marrssdInfo(6).szCol, szCond, marrValues5, TRUE) Then
+					Call Adr1PnrVnvnHnrListCTRL(nLstCtrl, FALSE, FALSE)
+				End If
+			End If		
+	End Case
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

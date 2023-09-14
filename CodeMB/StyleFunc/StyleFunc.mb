@@ -1,0 +1,325 @@
+'******************************************
+'	Modul:	StyleFunc.mb
+'	Function:	Function for styles
+'******************************************
+Include "MapBasic.def"
+
+Include "..\Language\Message.lng"
+Include "..\Language\Errors.lng"
+
+Include "StyleFunc.def"
+Include "..\IniUtil\IniUtil.def"
+
+'******************************************
+'	Returnerer Font som tekst
+'******************************************
+Function StyleFuncGetStringFromFont$(ByVal fntValue As Font) As String
+
+	StyleFuncGetStringFromFont$ = 	StyleAttr(fntValue, FONT_NAME)
+					+ "," +	StyleAttr(fntValue, FONT_STYLE)
+					+ "," +	StyleAttr(fntValue, FONT_POINTSIZE)
+					+ "," +	StyleAttr(fntValue, FONT_FORECOLOR)
+					+ "," +	StyleAttr(fntValue, FONT_BACKCOLOR)
+
+End Function
+
+'******************************************
+'	Returnerer Font som tekst
+'******************************************
+Function StyleFuncGetStringFromSymbol$(ByVal symValue As Symbol) As String
+
+	Do Case StyleAttr(symValue, SYMBOL_KIND)
+		Case 1			'MapInfo 3.0 symbol
+			StyleFuncGetStringFromSymbol$ = "1"
+					+ "," + StyleAttr(symValue, SYMBOL_CODE)
+					+ "," + StyleAttr(symValue, SYMBOL_COLOR)
+					+ "," + StyleAttr(symValue, SYMBOL_POINTSIZE)
+		Case 2			'TrueType symbol
+			StyleFuncGetStringFromSymbol$ = "2"
+					+ "," + StyleAttr(symValue, SYMBOL_CODE)
+					+ "," + StyleAttr(symValue, SYMBOL_COLOR)
+					+ "," + StyleAttr(symValue, SYMBOL_POINTSIZE)
+					+ "," + StyleAttr(symValue, SYMBOL_FONT_NAME)
+					+ "," + StyleAttr(symValue, SYMBOL_FONT_STYLE)
+					+ "," + StyleAttr(symValue, SYMBOL_ANGLE)
+		Case 3			'Bitmap file symbol
+			StyleFuncGetStringFromSymbol$ = "3"
+					+ "," + StyleAttr(symValue, SYMBOL_CUSTOM_NAME)
+					+ "," + StyleAttr(symValue, SYMBOL_COLOR)
+					+ "," + StyleAttr(symValue, SYMBOL_POINTSIZE)
+					+ "," + StyleAttr(symValue, SYMBOL_CUSTOM_STYLE)
+	End Case
+
+End Function
+
+'******************************************
+'	Returnerer Font som tekst
+'******************************************
+Function StyleFuncGetStringFromPen$(ByVal penValue As Pen) As String
+
+	StyleFuncGetStringFromPen$ = 	StyleAttr(penValue, PEN_WIDTH)
+				+ "," +	StyleAttr(penValue, PEN_PATTERN)
+				+ "," +	StyleAttr(penValue, PEN_COLOR)
+
+End Function
+
+'******************************************
+'	Returnerer Font som tekst
+'******************************************
+Function StyleFuncGetStringFromBrush$(ByVal brsValue As Brush) As String
+
+	StyleFuncGetStringFromBrush$ = 	StyleAttr(brsValue, BRUSH_PATTERN)
+				+ "," +	StyleAttr(brsValue, BRUSH_FORECOLOR)
+				+ "," +	StyleAttr(brsValue, BRUSH_BACKCOLOR)
+
+End Function
+
+'******************************************
+'	Returnerer Font
+'******************************************
+Function StyleFuncGetFontFromString(ByVal szStyleStr As String) As Font
+
+Dim	arrStr() As String
+
+	OnError GoTo ErrorOccured
+
+	If StrSplitKomma(szStyleStr, arrStr, 10) >= 5 Then
+		StyleFuncGetFontFromString = 
+				StyleFuncGetOKFont(	arrStr(1),
+								Val(arrStr(2)),
+								Val(arrStr(3)),
+								Val(arrStr(4)),
+								Val(arrStr(5)))
+	Else
+		StyleFuncGetFontFromString = CurrentFont()
+	End If
+
+	Exit Function
+
+'------------------------
+ErrorOccured:
+	Print "Font " + Error$()
+	StyleFuncGetFontFromString = CurrentFont()
+
+End Function
+
+'******************************************
+'	Returnerer Symbol
+'******************************************
+Function StyleFuncGetSymbolFromString(ByVal szStyleStr As String) As Symbol
+
+Dim	arrStr() As String
+
+	OnError GoTo ErrorOccured
+
+	If StrSplitKomma(szStyleStr, arrStr, 10) > 3 Then
+		Do Case arrStr(1)
+			Case "1"
+				StyleFuncGetSymbolFromString = 
+					StyleFuncGetOKSymbol(	Val(arrStr(2)),
+									Val(arrStr(3)),
+									Val(arrStr(4)))
+			Case "2"			'TrueType symbol
+				StyleFuncGetSymbolFromString = 
+					StyleFuncGetOKFontSymbol(	Val(arrStr(2)),
+										Val(arrStr(3)),
+										Val(arrStr(4)),
+										arrStr(5),
+										Val(arrStr(6)),
+										Val(arrStr(7)))
+			Case "3"			'Bitmap file symbol
+				StyleFuncGetSymbolFromString = 
+					StyleFuncGetOKCustomSymbol(	arrStr(2),
+										Val(arrStr(3)),
+										Val(arrStr(4)),
+										Val(arrStr(5)))
+		End Case
+	Else
+		StyleFuncGetSymbolFromString = CurrentSymbol()
+	End If
+
+	Exit Function
+
+'------------------------
+ErrorOccured:
+	Print "Symbol " + Error$()
+	StyleFuncGetSymbolFromString = CurrentSymbol()
+
+End Function
+
+'******************************************
+'	Returnerer Font
+'******************************************
+Function StyleFuncGetPenFromString(ByVal szStyleStr As String) As Pen
+
+Dim	arrStr() As String
+
+	OnError GoTo ErrorOccured
+
+	If StrSplitKomma(szStyleStr, arrStr, 10) >= 3 Then
+		StyleFuncGetPenFromString = 
+				StyleFuncGetOKPen(Val(arrStr(1)),
+							Val(arrStr(2)),
+							Val(arrStr(3)))
+	Else
+		StyleFuncGetPenFromString= CurrentPen()
+	End If
+
+	Exit Function
+
+'------------------------
+ErrorOccured:
+	Print "Pen " + Error$()
+	StyleFuncGetPenFromString = CurrentPen()
+
+End Function
+
+'******************************************
+'	Returnerer Font
+'******************************************
+Function StyleFuncGetBrushFromString(ByVal szStyleStr As String) As Brush
+
+Dim	arrStr() As String
+
+	OnError GoTo ErrorOccured
+
+	If StrSplitKomma(szStyleStr, arrStr, 10) >= 3 Then
+		StyleFuncGetBrushFromString = 
+				StyleFuncGetOKBrush(	Val(arrStr(1)),
+								Val(arrStr(2)),
+								Val(arrStr(3)))
+	Else
+		StyleFuncGetBrushFromString = CurrentBrush()
+	End If
+
+	Exit Function
+
+'------------------------
+ErrorOccured:
+	Print "Brush " + Error$()
+	StyleFuncGetBrushFromString = CurrentBrush()
+
+End Function
+
+'************** R E T U R N E R E R   E N   O K   S T I L A R T ******************************************
+'********************************************************
+'	Returnerer OK Brushstilart......
+'********************************************************
+Function StyleFuncGetOKBrush(ByVal nPattern As Integer, ByVal nForeColor As Integer, ByVal nBackColor As Integer) As Brush
+
+	OnError GoTo ErrorOccured
+
+	StyleFuncGetOKBrush = MakeBrush(nPattern, nForeColor, nBackColor)
+
+	Exit Function 	
+'-----------------------
+ErrorOccured:
+	Print "OKBrush " + Error$()
+	StyleFuncGetOKBrush = CurrentBrush()
+
+End Function
+
+'********************************************************
+'	Returnerer OK Penstilart - linie......
+'********************************************************
+Function StyleFuncGetOKPen(ByVal nWidth As Integer, ByVal nPattern As Integer, ByVal nColor As Integer) As Pen
+
+	OnError GoTo ErrorOccured
+
+	StyleFuncGetOKPen = MakePen(nWidth, nPattern, nColor)
+
+	Exit Function 	
+'-----------------------
+ErrorOccured:
+	Print "OKPen " + Error$()
+	StyleFuncGetOKPen = CurrentPen()
+
+End Function
+
+'********************************************************
+'	Returnerer OK Penstilart - afgrænsning......
+'********************************************************
+Function StyleFuncGetOKLine(ByVal nWidth As Integer, ByVal nPattern As Integer, ByVal nColor As Integer) As Pen
+
+	OnError GoTo ErrorOccured
+
+	StyleFuncGetOKLine = MakePen(nWidth, nPattern, nColor)
+
+	Exit Function 	
+'-----------------------
+ErrorOccured:
+	Print "OKLine " + Error$()
+	StyleFuncGetOKLine = CurrentPen()	
+
+End Function
+
+'********************************************************
+'	Returnerer OK Font stilart......
+'********************************************************
+Function StyleFuncGetOKFont(ByVal szName As String, ByVal nStyle As Integer,
+				 ByVal nSize As Integer, ByVal nForeColor As Integer,
+				 ByVal nBackColor As Integer) As Font
+
+	OnError GoTo ErrorOccured
+
+	StyleFuncGetOKFont = MakeFont(szName, nStyle, nSize, nForeColor, nBackColor)
+
+	Exit Function 	
+'-----------------------
+ErrorOccured:
+	Print "OKFont " + Error$()
+	StyleFuncGetOKFont = CurrentFont()
+
+End Function
+
+'********************************************************
+'	Returnerer OK Symbol stilart......
+'********************************************************
+Function StyleFuncGetOKSymbol(ByVal nShape As Integer, ByVal nColor As Integer, ByVal nSize As Integer) As Symbol
+
+	OnError GoTo ErrorOccured
+
+	StyleFuncGetOKSymbol = MakeSymbol(nShape, nColor, nSize)
+
+	Exit Function 	
+'-----------------------
+ErrorOccured:
+	Print "OKSymbol " + Error$()
+	StyleFuncGetOKSymbol = CurrentSymbol()
+
+End Function
+
+'********************************************************
+'	Returnerer OK CustomSymbol stilart......
+'********************************************************
+Function StyleFuncGetOKCustomSymbol(ByVal szFilename As String, ByVal nColor As Integer, ByVal nSize As Integer, ByVal nCustomStyle As Integer) As Symbol
+
+	OnError GoTo ErrorOccured
+
+	StyleFuncGetOKCustomSymbol = MakeCustomSymbol(szFilename, nColor, nSize, nCustomStyle)
+
+	Exit Function 	
+'-----------------------
+ErrorOccured:
+	Print "OKCustomSymbol " + Error$()
+	StyleFuncGetOKCustomSymbol = CurrentSymbol()
+
+End Function
+
+'********************************************************
+'	Returnerer OK FontSymbol stilart......
+'********************************************************
+Function StyleFuncGetOKFontSymbol(ByVal nShape As Integer, ByVal nColor As Integer, ByVal nSize As Integer, ByVal szFontname As String, ByVal nFontstyle As Integer, ByVal fRotation As Float) As Symbol
+
+	OnError GoTo ErrorOccured
+
+	StyleFuncGetOKFontSymbol = MakeFontSymbol(nShape, nColor, nSize, szFontname, nFontstyle, fRotation)
+
+	Exit Function 	
+'-----------------------
+ErrorOccured:
+	Print "OKFontSymbol " + Error$()
+	StyleFuncGetOKFontSymbol = CurrentSymbol()
+
+End Function
+

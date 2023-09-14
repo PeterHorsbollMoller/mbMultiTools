@@ -1,0 +1,20 @@
+'****************************************************************************************************************
+'26.10.2004/PEM:	- Tilføjet TOOLSetBTNFile, som angiver navn og placering af fil til værktøjsknapper
+'			- Når Værktøjspaletten nu genskabes læses først placering fra den eksisterende udgave af paletten
+'****************************************************************************************************************
+
+Declare Sub ToolCreateButtonpad(ByVal szBtpTitle As String)
+
+Declare Function ToolSetupDialog() As Logical
+
+Declare Sub ToolsWriteIniFile(ByVal fileNum As Integer)
+Declare Sub ToolsReadIniFile(ByVal szIniFile As String)
+
+Declare Sub TOOLSetBTNFile(ByVal szFile As String)
+
+Declare Sub AddIcon
+Declare Sub IconRemove
+Declare Sub SetUpIconArray
+Declare Sub SaveCurrentToolSetup
+
+Declare Sub ToolAddRemoveDialog

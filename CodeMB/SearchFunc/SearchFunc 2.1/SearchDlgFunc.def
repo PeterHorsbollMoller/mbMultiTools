@@ -1,0 +1,12 @@
+Declare Function SRCHLoadValuesIntoListControl(	ByVal nListCtrl As Integer, ByVal nCurItem As Integer,
+								ByVal szTab As String, ByVal szCol As String, ByVal szCond As String,
+								arrValues() As String, ByVal bUseExtLoad As Logical) As Logical
+Declare Function SRCHLoadValues2IntoListControl(ByVal nListCtrl As Integer, ByVal nCurItem As Integer,
+								ByVal szTab As String, ByVal szCol1 As String, ByVal szCol2 As String,
+								ByVal szCond As String, arrValues() As String, ByVal bUseExtLoad As Logical) As Logical
+
+Declare Function SRCHShowMatchValueInListControl(	ByVal nListCtrl As Integer,
+									ByVal szTab As String, ByVal szCol As String, ByVal szMatchCol As String,
+									ByVal szCond As String, arrMatchValues() As String) As Logical
+
+Declare Sub SRCHSelectAll(ByVal szTab As String, ByVal szCond As String)

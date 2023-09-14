@@ -1,0 +1,63 @@
+'-----------------------------------------------------------------------
+'Copyright (c) 1996 Software Factory International, Ltd.
+'-----------------------------------------------------------------------
+
+Define WM_COMMAND 273
+Define WM_SETTEXT 12
+Define WM_GETTEXT 13
+Define BM_GETCHECK	1024
+Define BM_SETCHECK	1025
+Define CB_GETCURSEL	1031
+Define CB_SETCURSEL	1038
+
+Define MAXSTRLEN  128
+
+'-----------------------------------------------------------------------
+
+Type CommandDescr
+  CtrlID As Integer
+  CmdType As SmallInt
+  iValue As Integer
+  sValue As String*MAXSTRLEN
+End Type
+
+Type Margins
+  Left As String
+  Top As String
+  Right As String
+  Bottom As String
+End Type
+
+'-----------------------------------------------------------------------
+
+Define ORIENT_PORTRAIT		1056
+Define ORIENT_LANDSCAPE		1057
+
+Define PAGE_ID		1137
+Define SOURCE_ID	1138
+
+Define LEFT_MAR		1155
+Define RIGHT_MAR	1157
+Define TOP_MAR		1156
+Define BOTTOM_MAR	1158
+
+Define LANG_US 0
+Define LANG_DK 1
+
+'-----------------------------------------------------------------------
+
+'Appended LVN 970122:
+Declare Sub SetLibraryLanguage (ByVal lang As SmallInt)
+Declare Sub SetDialogTitle (ByVal dlgtxt As String)
+
+Declare Sub SetPageOrient(ByVal OrientType As SmallInt)
+Declare Sub SetPrinterOptions(ByVal OrientType, ByVal SizeInd, ByVal SrcId As SmallInt, SMargins As Margins)
+Declare Function GetPageOrient() As SmallInt
+Declare Sub GetPrinterOptions(iOrient, iSize, iSrc As SmallInt, Mgn As Margins)
+
+Declare Sub ExecuteCommandScript16 Lib "exec_c16.dll" Alias "ExecuteCommandScript" (ByVal WinTitle As String, Commands As CommandDescr, ByVal NumCmd As SmallInt)
+Declare Sub ExecuteCommandScript32 Lib "exec_c32.dll" Alias "ExecuteCommandScript" (ByVal WinTitle As String, Commands As CommandDescr, ByVal NumCmd As SmallInt)
+
+Declare Sub GetCommands16 Lib "exec_c16.dll" Alias "GetCommands" (Commands As CommandDescr, ByVal NumCmd As SmallInt)
+Declare Sub GetCommands32 Lib "exec_c32.dll" Alias "GetCommands" (Commands As CommandDescr, ByVal NumCmd As SmallInt)
+

@@ -1,0 +1,843 @@
+'*******************************************************************************
+'** 	Program:	Alle med udskriftsfunktionalitet
+'** 	Modul:	PrintBatch.mb
+'**			Batch function.
+'*******************************************************************************
+
+Include "Mapbasic.def"
+Include "Menu.def"
+Include "Icons.def"
+
+Include "..\..\Language\PlotDef.lng"
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\Kommune.lng"
+
+Include "Globals.def"
+Include "PrintPreView.def"
+Include "PrintBatch.def"
+Include "Printing.def"
+Include "PrintValues.def"
+Include "PrintDlg.def"
+
+Include "..\..\WinFunc\WinFunc.def"
+Include "..\..\FileFunc\FileFunc.def"
+Include "..\..\TabFunc\TabFunc.def"
+
+Declare Sub BatchStartBatchPlotting_Single
+Declare Sub BatchResizingFrames_Single
+Declare Sub BatchExportMapAsBitmap_Single
+
+Declare Sub BatchHandlerPickDirectoryForBitmaps
+Declare Sub BatchHandlerExportBitmapStartup
+Declare Function BatchGetCorrectFileType$(ByVal szTypeDescription As String) As String
+
+Dim	arrColAndVal() As T_COL_AND_VALUES,
+	mnMainMID, mnMainLID As Integer,
+	arrAliasText() As T_ROW_AND_VALUES,
+	arrLayoutFrames() As T_LAYOUT_FRAME,
+	marrAliasValues() As T_ALIAS_AND_VALUE,
+	mszDefaultPath, mszDefaultBitmapType As String,
+	mbReadDirectoryFromColumn, mbReadBitmapTypeFromColumn, mbReadFileTypeFromColumn, mbReadSizeFromColumn As Logical,
+	mszCopyRight As String,
+	mfntCopyright As Font,
+	mfWidth, mfHeight As Float
+'****************************************
+'Batch plot af rammer...
+'****************************************
+Sub BatchStartBatchPlotting
+
+Dim	nWin, nTab As Integer,
+	szSize, szOrient, szPrevPaper, szLayout As String
+
+	If not TableOpen(TAB_STORE_FRAME) Then
+		Note ERR_PLT_FRAME_TABLE_NOT_OPEN
+		Exit Sub
+	End If
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Sub
+	End If
+
+	mnMainMID = FrontWindow()
+	If not WindowInfo(mnMainMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Sub
+	End If
+
+	If SelectionInfo(SEL_INFO_NROWS) > 0 And SelectionInfo(SEL_INFO_TABLENAME) = TAB_STORE_FRAME Then
+		If Ask(PLTM_ASK_PRINT_FRAMES, MSG_YES, MSG_NO) Then
+
+			'**Print selected frames...
+			Select * From Selection
+				Order By PAPERSIZE, ORIENTATION, MAPSCALE
+				Into FRAMES_TO_PRINT NoSelect
+	
+			If TableOpen(SelectionInfo(SEL_INFO_SELNAME)) Then
+				Close Table SelectionInfo(SEL_INFO_SELNAME)
+			End If
+			Run Menu Command M_QUERY_UNSELECT
+
+		Else
+			'**Print items picked in listbox...
+			If not PrintGetFramesToPrint(PLTM_DLG_TITLE_FRAMES_TO_PRINT) Then
+				Exit Sub
+			End If
+		End If
+	Else
+		'**Print items picked in listbox...
+		If not PrintGetFramesToPrint(PLTM_DLG_TITLE_FRAMES_TO_PRINT) Then
+			Exit Sub
+		End If
+
+	End If
+
+	Call PrintSetBatchPrint(TRUE)
+	Call PrintSetAutoPrint(TRUE)
+	Call PrintSetMapWinID(mnMainMID)
+
+	nWin = NumWindows()
+	nTab = NumTables()
+
+	Call PrintCheckForHideFrameTable(FrontWindow())
+
+	Select PAPERSIZE, ORIENTATION
+		From FRAMES_TO_PRINT
+		Order By PAPERSIZE, ORIENTATION
+		Group By PAPERSIZE, ORIENTATION
+		Into FRAMES_GROUPED NoSelect
+
+	Fetch First From FRAMES_GROUPED
+	Do Until EOT(FRAMES_GROUPED)
+		szSize	= FRAMES_GROUPED.PAPERSIZE
+		szOrient	= FRAMES_GROUPED.ORIENTATION
+
+		szPrevPaper = PrintGetPaperSize$() + PrintGetPageOrientation$()
+		Call PrintSetPaperSize$(szSize)
+		Call PrintSetPageOrientation$(szOrient)
+
+		If WindowExists(mnMainLID) Then
+			Close Window mnMainLID
+		End if
+		szLayout = PrintGetLayoutFileName$()
+		If szLayout = "" Then
+			Note ERR_PRINTLAYOUT_NOT_NAMED
+			GoTo GoToNextPaperSize
+		ElseIf not FileExists(szLayout) Then
+			Note ERR_PRINTLAYOUT_NOT_FOUND
+			GoTo GoToNextPaperSize
+		End if
+
+		mnMainLID = PrintOpenWorkspace(szLayout)
+		If mnMainLID = 0 Then
+			Note ERR_PRINTLAYOUT
+			GoTo GoToNextPaperSize
+		End If
+
+		Call PrintSetPageOrientationBeforePrinting
+
+		If PrintPromptWhenChangeInPaperSize() Then
+			Update Window mnMainLID
+			Set Window mnMainLID
+				Front
+			Call PrintChangePrinterSetting(szPrevPaper, szSize + szOrient)
+		End If
+
+		If not WindowInfo(mnMainMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+			Note ERR_WIN_NOT_MAP
+			GoTo GoToNextPaperSize
+		End If
+
+		Set Window mnMainLID
+			Min
+
+		'Print "Læser ramme størrelse"
+		If not PrintGetFrameSizesAndIDs(mnMainLID, arrLayoutFrames) Then
+			Note ERR_PRINTLAYOUT_NO_FRAMES
+			GoTo GoToNextPaperSize
+		End If
+
+		'Print "Læser tekster med runtime værdier fra layout"
+		If PrintReadTextFromLayoutToArray(mnMainLID, arrAliasText) Then
+			'Print "Finder runtime værdier i teksterne"
+			If PrintReadAliasesFromTextArray(arrAliasText, marrAliasValues) Then
+				'**Runtime values found in layout
+			End If
+		End If
+
+		Select * From FRAMES_TO_PRINT
+			Where PAPERSIZE	= szSize
+			And	ORIENTATION	= szOrient
+			Into CUR_FRAMES_TO_PRINT NoSelect
+
+		Fetch First From CUR_FRAMES_TO_PRINT
+		ProgressBar PLTM_DLG_TITLE_BATCH_PLOTTING
+			Calling BatchStartBatchPlotting_Single
+			Range GetNumRows("CUR_FRAMES_TO_PRINT")
+
+		If not CommandInfo(CMD_INFO_STATUS) Then
+			Note PLTM_INF_BATCHPRINT_CANCELLED
+			Exit Do
+		End If
+
+		'--------------------
+		GoToNextPaperSize:
+		Fetch Next From FRAMES_GROUPED
+	Loop
+
+	Call PrintCreateHiddenOpenedTables(nTab)
+	Call PrintCreateHiddenOpenedWindows(nWin)
+	Call PrintCloseHiddenOpenedTables(FALSE)
+	Call PrintCloseHiddenOpenedWindows(FALSE)
+
+	If TableOpen(FRAMES_TO_PRINT) Then
+		Close Table FRAMES_TO_PRINT
+	End If
+
+	Call PrintSetBatchPrint(FALSE)
+
+End Sub
+
+'****************************************
+'Batch plot af rammer... - en ramme ad gangen
+'****************************************
+Sub BatchStartBatchPlotting_Single
+
+Dim	curRow, nMapScale, nRotation As Integer,
+	szPrevPaper, szSize, szOrient, szName As String,
+	oFrame As Object,
+	nClonMID As Integer,
+	szLayout As String,
+	fX, fY As Float,
+	bRuntimeValuesFound As Logical
+
+	szName	= CUR_FRAMES_TO_PRINT.NAME
+	szSize	= CUR_FRAMES_TO_PRINT.PAPERSIZE
+	szOrient	= CUR_FRAMES_TO_PRINT.ORIENTATION
+	nMapScale	= CUR_FRAMES_TO_PRINT.MAPSCALE
+	If ColExist("CUR_FRAMES_TO_PRINT", "ROTATION") Then
+		nRotation = CUR_FRAMES_TO_PRINT.ROTATION
+	Else
+		nRotation = 0
+	End If
+	oFrame	= CUR_FRAMES_TO_PRINT.OBJ
+	curRow	= CUR_FRAMES_TO_PRINT.ROWID
+
+	Call PrintSetMapName(szName)
+	Call PrintSetScale(nMapScale)
+	Call PrintSetRotation(nRotation)
+
+	'Print "Udskriver : " + szName + " " + szSize + szOrient
+
+	'**Checking if there are any runtime values in layout
+	If Ubound(marrAliasValues) > 0 Then
+		bRuntimeValuesFound = TRUE
+	End If
+
+	Set CoordSys Window mnMainMID
+	If not PrintCheckMapFrameSizeWithLayoutFrameSize(oFrame, arrLayoutFrames(1).fWidth, arrLayoutFrames(1).fHeight) Then
+		GoTo BeforeExitSub
+	End If
+
+	If bRuntimeValuesFound Then
+		'***Reading values from current row in frametable
+		Call PrintReadValuesFromFrameTable(arrColAndVal)
+
+		If not PrintEnterAliasValuesDialog(marrAliasValues, arrColAndVal, TRUE) Then
+			GoTo BeforeExitSub
+		End If
+
+		'Print "Erstatter værdier i layout og korthovedtabel"	
+		If not PrintWriteTextFromArrayToTable(arrAliasText, marrAliasValues) Then
+			Note ERR_PLT_REPLACE_RUNTIME_VAL
+			GoTo BeforeExitSub
+		End If
+	End If
+
+	'Print "Kloner kortvinduet.."
+	If PrintClonMapWindow() Then
+		nClonMID = PrintClonMap(mnMainMID)
+		If nClonMID = 0 Then
+			Note ERR_WIN_MAP_CLON
+			GoTo BeforeExitSub
+		End If
+	Else
+		nClonMID = mnMainMID
+	End if
+
+	Set CoordSys Window nClonMID
+	fX = CentroidX(oFrame)
+	fY = CentroidY(oFrame)
+
+	'Print "Ændrer kortvinduets bredde..."
+	If not PrintAlterMapperWidth(nClonMID, arrLayoutFrames(1).fWidth, arrLayoutFrames(1).fHeight) Then
+		Note ERR_WIN_MAP_WIDTH
+		GoTo BeforeExitSub
+	End If
+
+	'Print "Ændrer kortvinduets centrum og zoom..."
+	If not PrintAlterMapperZoom(nClonMID, fX, fY, arrLayoutFrames(1).fWidth) Then
+		Note ERR_WIN_MAP_XY_ZOOM
+		GoTo BeforeExitSub
+	End If
+
+	If not PrintRotateMapWindow(nClonMID, fX, fY, PrintGetRotation()) Then
+		Note ERR_PLT_ROTATION_MAP
+	End If
+
+	'Print "Indsætter kortet i layoutet..."
+	If not PrintInsertMapInFrameByRowID(mnMainLID, arrLayoutFrames(1).nRowID , mnMainMID) Then
+		Note ERR_WIN_LAYOUT_INSERT_MAP
+		GoTo BeforeExitSub
+	End If
+
+	'Print "Minimerer det klonede kortvindue..."
+	If PrintClonMapWindow() Then
+		Set Window nClonMID
+		   Min
+	End If
+
+'---------------
+
+	'**Printing the generated layout-window...
+	'***Restore
+	Set Window mnMainLID
+		Restore
+	Set Window mnMainLID
+		Front
+	Update Window mnMainLID
+	PrintWin Window mnMainLID
+
+	Set Window mnMainMID
+		Front
+
+'---------------------
+BeforeExitSub:
+
+	Set Window mnMainMID
+		Front
+
+	Fetch Next From CUR_FRAMES_TO_PRINT
+
+	If EOT(CUR_FRAMES_TO_PRINT) Then
+		ProgressBar = -1		'tell caller "All Done!" 
+	Else
+		ProgressBar = curRow	'tell caller "Partly done"
+	End If 
+
+End Sub
+
+'****************************************
+'Batch plot af rammer...
+'****************************************
+Sub BatchStartResizingFrames
+
+Dim	nWin, nTab As Integer
+
+	If not TableOpen(TAB_STORE_FRAME) Then
+		Note ERR_PLT_FRAME_TABLE_NOT_OPEN
+		Exit Sub
+	End If
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Sub
+	End If
+
+	If not WindowInfo(FrontWindow(), WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Sub
+	End If
+
+	If SelectionInfo(SEL_INFO_NROWS) > 0 And SelectionInfo(SEL_INFO_TABLENAME) = TAB_STORE_FRAME Then
+
+		'**Print selected frames...
+		Select * From Selection
+			Order By PAPERSIZE, ORIENTATION, MAPSCALE
+			Into FRAMES_TO_PRINT NoSelect
+
+		If TableOpen(SelectionInfo(SEL_INFO_SELNAME)) Then
+			Close Table SelectionInfo(SEL_INFO_SELNAME)
+		End If
+		Run Menu Command M_QUERY_UNSELECT
+	Else
+		'**Print items picked in listbox...
+		If not PrintGetFramesToPrint(PLTM_DLG_TITLE_FRAMES_TO_RESIZE) Then
+			Exit Sub
+		End If
+	End If
+
+	Call PrintSetBatchPrint(TRUE)
+	Call PrintSetAutoPrint(TRUE)
+
+	nWin = NumWindows()
+	nTab = NumTables()
+
+	Fetch First From FRAMES_TO_PRINT
+
+	ProgressBar PLTM_DLG_TITLE_CHANGE_FRAMESIZE
+		Calling BatchResizingFrames_Single
+		Range TableInfo(FRAMES_TO_PRINT, TAB_INFO_NROWS)
+
+	If not CommandInfo(CMD_INFO_STATUS) Then
+		Note PLTM_INF_BATCHPRINT_CANCELLED
+	End If
+
+	Call PrintCreateHiddenOpenedTables(nTab)
+	Call PrintCreateHiddenOpenedWindows(nWin)
+	Call PrintCloseHiddenOpenedTables(FALSE)
+	Call PrintCloseHiddenOpenedWindows(FALSE)
+
+	If TableOpen(FRAMES_TO_PRINT) Then
+		Close Table FRAMES_TO_PRINT
+	End If
+
+	Call PrintSetBatchPrint(FALSE)
+
+End Sub
+
+'****************************************
+'Ændrer størrelsen på rammer... - en ramme ad gangen
+'****************************************
+Sub BatchResizingFrames_Single
+
+Dim	curRow, nMapScale, nRotation As Integer,
+	szSize, szOrient As String,
+	oFrame As Object,
+	nOrigMID, nLID As Integer,
+	szLayout As String,
+	fX, fY, fWidth, fHeight As Float,
+	bReloadWorkspace As Logical
+	
+	szSize	= FRAMES_TO_PRINT.PAPERSIZE
+	szOrient	= FRAMES_TO_PRINT.ORIENTATION
+	nMapScale	= FRAMES_TO_PRINT.MAPSCALE
+	If ColExist("FRAMES_TO_PRINT", "ROTATION") Then
+		nRotation	= FRAMES_TO_PRINT.ROTATION
+	Else
+		nRotation	= 0
+	End If
+	oFrame	= FRAMES_TO_PRINT.OBJ
+	curRow	= FRAMES_TO_PRINT.ROWID
+
+	bReloadWorkspace = FALSE
+
+	Call PrintSetScale(nMapScale)
+
+	If PrintGetPaperSize$() <> szSize Then
+		Call PrintSetPaperSize$(szSize)
+		bReloadWorkspace = TRUE
+	End If
+
+	If PrintGetPageOrientation$() <> szOrient Then
+		Call PrintSetPageOrientation$(szOrient)
+		bReloadWorkspace = TRUE
+	End If
+
+	nOrigMID = FrontWindow()
+
+	If not WindowInfo(nOrigMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		GoTo BeforeExitSub
+	End If
+
+	If bReloadWorkspace OR curRow = 1 Then
+		szLayout = PrintGetLayoutFileName$()
+
+		If szLayout = "" Then
+			Note ERR_PRINTLAYOUT_NOT_NAMED
+			Exit Sub
+		End If
+
+		nLID = PrintOpenWorkspace(szLayout)
+		If nLID = 0 Then
+			Note ERR_PRINTLAYOUT
+			GoTo BeforeExitSub
+		End If
+
+		'Print "Læser ramme størrelse"
+		If not PrintGetFrameSize(nLID, fWidth, fHeight) Then
+			Note ERR_PRINTLAYOUT_NO_FRAMES
+			Close Window nLID
+			GoTo BeforeExitSub
+		End If
+
+		Close Window nLID
+
+		Call PrintSetFrameWidth(fWidth)
+		Call PrintSetFrameHeight(fHeight)
+
+	End If
+
+	Set CoordSys Window nOrigMID
+	fX = CentroidX(oFrame)
+	fY = CentroidY(oFrame)
+
+	Update FRAMES_TO_PRINT
+		Set OBJ	= GetFrameObjectRotate(nOrigMID, PrintGetFrameWidth(), PrintGetFrameHeight(), fX , fY, nRotation)
+		Where RowID	= curRow
+
+	'---------------------
+	BeforeExitSub:
+
+	Set Window nOrigMID
+		Front
+
+	Fetch Next From FRAMES_TO_PRINT
+
+	If EOT(FRAMES_TO_PRINT) Then
+		ProgressBar = -1		'tell caller "All Done!" 
+	Else
+		ProgressBar = curRow	'tell caller "Partly done"
+	End If 
+
+End Sub
+
+
+'****************************************
+'Exporterer kortvinduet som bitmap - en ramme ad gangen
+'****************************************
+Sub BatchExportMapAsBitmap
+
+Dim	arrFileType() As String,
+	szHeight, szWidth As String,
+	nFileType As String
+
+	If not TableOpen(TAB_STORE_FRAME) Then
+		Note ERR_PLT_FRAME_TABLE_NOT_OPEN
+		Exit Sub
+	End If
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Sub
+	End If
+
+	If not WindowInfo(FrontWindow(), WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Sub
+	End If
+
+	If SelectionInfo(SEL_INFO_NROWS) > 0 And SelectionInfo(SEL_INFO_TABLENAME) = TAB_STORE_FRAME Then
+		'**Print selected frames...
+		Select * From Selection
+			Order By PAPERSIZE, ORIENTATION, MAPSCALE
+			Into FRAMES_TO_PRINT NoSelect
+
+		If TableOpen(SelectionInfo(SEL_INFO_SELNAME)) Then
+			Close Table SelectionInfo(SEL_INFO_SELNAME)
+		End If
+		Run Menu Command M_QUERY_UNSELECT
+	Else
+		'**Print items picked in listbox...
+		If not PrintGetFramesToPrint(PLTM_DLG_TITLE_FRAMES_TO_RESIZE) Then
+			Exit Sub
+		End If
+	End If
+
+	ReDim arrFileType(7)
+	arrFileType(1) = "BMP - Bitmap format"
+	arrFileType(2) = "WMF - Windows Metafile format"
+	arrFileType(3) = "EMF - Enhanced Metafile format"
+	arrFileType(4) = "JPEG - JPEG format"
+	arrFileType(5) = "PNG - Portable Network Graphics format"
+	arrFileType(6) = "TIFF - TIFF format"
+	arrFileType(7) = "PSD - Photoshop 3.0 format"
+
+	If mszCopyRight = "" Then
+		mszCopyRight = PrintGetFirm()
+	End If
+	mfntCopyright = CurrentFont()
+	If mszDefaultPath = "" Then
+		mszDefaultPath = PathToDirectory$(TableInfo(TAB_STORE_FRAME, TAB_INFO_TABFILE))
+	End If
+
+	Dialog
+		Title PLTM_DLG_TITLE_SETUP_TO_BITMAP
+		Calling BatchHandlerExportBitmapStartup
+
+		Control StaticText	Position 5,5
+			Title KPAK_DLG_TXT_LOCATION
+		Control EditText		Position 5,15	Width 200			ID 100
+			Value mszDefaultPath
+			Into mszDefaultPath
+		Control Button		Position 205,15	Width 10	Height 13
+			Title "..."
+			Calling BatchHandlerPickDirectoryForBitmaps
+		Control CheckBox		Position 5,30					ID 101
+			Title PLTM_DLG_TXT_READ_VAL_FROM_COL + PLTM_FRAME_COL_BITMAP_DIRECTORY
+			Value mbReadDirectoryFromColumn
+			Into mbReadDirectoryFromColumn
+
+		Control StaticText	Position 5,47
+			Title MSG_TXT_FILETYPE
+		Control PopUpMenu		Position 35,45	Width 150
+			Title From Variable arrFileType
+			Value nFileType
+			Into nFileType
+		Control CheckBox		Position 5,60					ID 201
+			Title PLTM_DLG_TXT_READ_VAL_FROM_COL + PLTM_FRAME_COL_BITMAP_FILETYPE
+			Value mbReadFileTypeFromColumn
+			Into mbReadFileTypeFromColumn
+
+		Control StaticText	Position 5,75
+			Title "Copyright"
+		Control EditText		Position 5,85	Width 90
+			Value mszCopyRight
+			Into mszCopyRight
+		Control FontPicker	Position 105,75	Width 20	Height 20
+			Value mfntCopyright
+			Into mfntCopyRight
+
+		Control StaticText	Position 5,100
+			Title MSG_WIDTH_CM
+		Control EditText		Position 5,110	Width 50
+			Value Str$(mfWidth)
+			Into szWidth
+		Control StaticText	Position 60,100
+			Title MSG_HEIGHT_CM
+		Control EditText		Position 60,110	Width 50
+			Value Str$(mfHeight)
+			Into szHeight
+		Control CheckBox		Position 5,125					ID 301
+			Title PLTM_DLG_TXT_READ_VAL_FROM_COLS + PLTM_FRAME_COL_BITMAP_WIDTH + " " + MSG_AND + " " + PLTM_FRAME_COL_BITMAP_HEIGHT
+			Value mbReadSizeFromColumn
+			Into mbReadSizeFromColumn
+
+		Control OKButton
+		Control CancelButton
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		GoTo BeforeExitingSub
+	End If		
+
+	If mszDefaultPath = "" Then
+		GoTo BeforeExitingSub
+	End If
+	mszDefaultBitmapType = RTrim$(LTrim$(Left$(arrFileType(nFileType), InStr(1, arrFileType(nFileType), " "))))
+
+	mfWidth	= Val(szWidth)
+	mfHeight	= Val(szHeight)
+
+	Call PrintCheckForHideFrameTable(FrontWindow())
+
+	Set CoordSys Table FRAMES_TO_PRINT
+	Fetch First From FRAMES_TO_PRINT
+	ProgressBar PLTM_DLG_TITLE_BATCH_TO_BITMAP
+		Calling BatchExportMapAsBitmap_Single
+		Range GetNumRows("FRAMES_TO_PRINT")
+
+	If not CommandInfo(CMD_INFO_STATUS) Then
+		Note PLTM_INF_BATCHPRINT_CANCELLED
+	End If
+
+'---------------------
+BeforeExitingSub:
+	If TableOpen(FRAMES_TO_PRINT) Then
+		Close Table FRAMES_TO_PRINT
+	End If
+
+End Sub
+
+'****************************************
+'Udpegning af bibliotek til filerne
+'****************************************
+Sub BatchHandlerPickDirectoryForBitmaps
+
+Dim	szDir As String
+
+	szDir = GetDirectory$("", PLTM_DLG_TXT_PICK_EXPORT_BITMAP)
+	If szDir = "" Then
+		Exit Sub
+	End If
+
+	Alter Control 100 Value szDir
+
+End Sub
+
+'****************************************
+'Opstart af dialog - check på kolonner
+'****************************************
+Sub BatchHandlerExportBitmapStartup
+
+	If not ColExist("FRAMES_TO_PRINT", PLTM_FRAME_COL_BITMAP_DIRECTORY) Then
+		Alter Control 101 Value FALSE Disable
+	Else
+		Alter Control 101 Value TRUE Enable
+	End If
+	If not ColExist("FRAMES_TO_PRINT", PLTM_FRAME_COL_BITMAP_FILETYPE) Then
+		Alter Control 201 Value FALSE Disable
+	Else
+		Alter Control 201 Value TRUE Enable
+	End If
+	If not ColExist("FRAMES_TO_PRINT", PLTM_FRAME_COL_BITMAP_WIDTH) Or not ColExist("FRAMES_TO_PRINT", PLTM_FRAME_COL_BITMAP_HEIGHT) Then
+		Alter Control 301 Value FALSE Disable
+	Else
+		Alter Control 301 Value TRUE Enable
+	End If
+
+End Sub
+
+'****************************************
+'Exporterer kortvinduet som bitmap - en ramme ad gangen
+'****************************************
+Sub BatchExportMapAsBitmap_Single
+
+Dim	nRow As Integer,
+	fOrigWidth, fOrigHeight, fWidth, fHeight, fX, fY As Float, 
+	nOrigScale, nScale, nRotation, nWID As Integer,
+	szDir, szFileType, szName, szFile As String,
+	oFrame As Object,
+	a As Alias
+
+	nWID		= FrontWindow()
+	fOrigWidth	= mfWidth
+	fOrigHeight	= mfHeight
+	szDir		= mszDefaultPath
+	szFileType	= mszDefaultBitmapType
+	szName	= FRAMES_TO_PRINT.NAME
+	nOrigScale	= FRAMES_TO_PRINT.MAPSCALE
+	oFrame	= FRAMES_TO_PRINT.OBJ
+	nRow		= FRAMES_TO_PRINT.ROWID
+
+	If ColExist(FRAMES_TO_PRINT, "ROTATION") And PrintAllowRotatedPlot() Then
+		nRotation	= FRAMES_TO_PRINT.ROTATION
+	End If
+	If mbReadDirectoryFromColumn Then
+		a = "FRAMES_TO_PRINT." + PLTM_FRAME_COL_BITMAP_DIRECTORY	szDir = a
+	End If
+	If mbReadFileTypeFromColumn Then
+		a = "FRAMES_TO_PRINT." + PLTM_FRAME_COL_BITMAP_FILETYPE
+		If a <> "" Then
+			szFileType = a
+		End If
+	End If
+	If mbReadSizeFromColumn Then
+		a = "FRAMES_TO_PRINT." + PLTM_FRAME_COL_BITMAP_WIDTH
+		If a > 0 Then
+			fOrigWidth	= a
+		End If
+		a = "FRAMES_TO_PRINT." + PLTM_FRAME_COL_BITMAP_HEIGHT
+		If a > 0 Then
+			fOrigHeight	= a
+		End If
+	End If
+
+	fWidth	= fOrigWidth
+	fHeight	= fOrigHeight
+	nScale	= nOrigScale
+
+	szFile = szDir + szName + "." + BatchGetCorrectFileType$(szFileType)
+	If szFile <> "" Then
+		szFile = GetFileNameAbsolutePath$(szFile, PathToDirectory$(TableInfo(PLTM_TAB_STORE_FRAME, TAB_INFO_TABFILE))) 
+
+		Do While fWidth > WIN_MAX_WIDTH
+			fWidth	= fWidth / 2
+			fHeight	= fHeight / 2
+			nScale	= nScale * 2
+		Loop
+		Do While fHeight > WIN_MAX_HEIGHT
+			fWidth	= fWidth / 2
+			fHeight	= fHeight / 2
+			nScale	= nScale * 2
+		Loop
+
+		Call PrintSetRotation(nRotation)
+		Call PrintSetScale(nScale)
+
+		'Print "------------------------"
+		'Print "Ramme: " + szName
+		'Print "Rotation: " + nRotation
+		'Print "Målforhold: " + nOrigScale + " -> " + nScale
+		'Print "Højde: " + fOrigHeight + " -> " + fHeight
+		'Print "Bredde: " + fOrigWidth + " -> " + fWidth
+		'Print "Center: (" + fX + ", " + fY + ")" 
+
+		Set CoordSys Window nWID
+		fX = CentroidX(oFrame)
+		fY = CentroidY(oFrame)
+
+		'Print "Ændrer kortvinduets bredde..."
+		If not PrintAlterMapperSize(nWID, fWidth, fHeight) Then
+			Note ERR_WIN_MAP_WIDTH
+			GoTo NextFile
+		End If
+
+		Set Paper Units "cm"
+		'Print "Height: " + WindowInfo(nWID, WIN_INFO_HEIGHT) + " WindowInfo()"
+		'Print "Width: " + WindowInfo(nWID, WIN_INFO_WIDTH) + " WindowInfo()"
+
+		Set Map
+			Window nWID
+			Scale 1 Units "m" For nScale Units "m"
+
+		Set Map
+			Window nWID
+			Center (fX, fY)
+
+		If not PrintRotateMapWindow(nWID, fX, fY, PrintGetRotation()) Then
+			Note ERR_PLT_ROTATION_MAP
+		End If
+
+		OnError GoTo ErrorSavingWindowAs
+
+		'***Exporting window to bitmap
+		Save  Window  nWID
+			As		szFile
+			Type		szFileType
+			Width		fOrigWidth		Units "cm"
+			Height	fOrigHeight		Units "cm"
+			Copyright	mszCopyright	Font mfntCopyright
+
+		OnError GoTo 0
+	End If
+
+'-------------
+NextFile:
+
+	Fetch Next From FRAMES_TO_PRINT
+
+	If EOT(FRAMES_TO_PRINT) Then
+		ProgressBar = -1		'tell caller "All Done!" 
+	Else
+		ProgressBar = nRow	'tell caller "Partly done"
+	End If
+	Exit Sub
+
+'------------------
+ErrorSavingWindowAs:
+	Print ERR_TXT_ERRORMSG + Error$() + " - " + szFile
+	OnError GoTo 0
+	Resume NextFile
+
+End Sub
+
+'****************************************
+'Returnerer korrekt filtype til filnavn
+'****************************************
+Function BatchGetCorrectFileType$(ByVal szTypeDescription As String) As String
+
+Dim	szFileType As String
+
+BatchGetCorrectFileType$ = ""
+
+	Do Case szTypeDescription
+		Case "BMP"
+			szFileType = "BMP"
+		Case "WMF"
+			szFileType = "WMF"
+		Case "EMF"
+			szFileType = "EMF"
+		Case "JPEG"
+			szFileType = "JPG"
+		Case "PNG"
+			szFileType = "PNG"
+		Case "TIFF"
+			szFileType = "TIF"
+		Case "PSD"
+			szFileType = "PSD"
+	End Case
+
+BatchGetCorrectFileType$ = szFileType
+
+End Function

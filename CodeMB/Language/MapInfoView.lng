@@ -1,0 +1,64 @@
+Define MIVW_MNU_TITLE_SYSTEM_PROP                        "&System opsætning..."
+
+Define MIVW_MNU_HLP_SYSTEM_PROP                          "Opsætning af sprog, standard arbejdsområde og værdier."
+
+'--------------MENU - VIEW
+Define MIVW_MENU_VIEW                                    "V&is"
+Define MIVW_MNU_TITLE_ZOOMIN                             "Zoom &ind"
+Define MIVW_MNU_HLP_ZOOMIN                               "Zoom ind ved at klikke på kortet eller trække en ramme om det ønskede område."
+Define MIVW_MNU_TITLE_ZOOMOUT                            "Zoom &ud"
+Define MIVW_MNU_HLP_ZOOMOUT                              "Zoom ud ved at klikke på kortet - Zoomniveauet fordobles ved hvert klik."
+Define MIVW_MNU_TITLE_ZOOMAREA                           "Zoom &område..."
+Define MIVW_MNU_HLP_ZOOMAREA                             "Angiv det ønskede zoomniveau via dialogboks."
+Define MIVW_MNU_TITLE_PAN                                "&Panorér"
+Define MIVW_MNU_HLP_PAN                                  "Klik i kortet og panorer til en anden position."
+Define MIVW_MNU_TITLE_VIEW_ALL_LAYERS                    "&Vis oversigtskort"
+Define MIVW_MNU_HLP_VIEW_ALL_LAYERS                      "Zoom ud så hele kortet vises."
+
+
+'------------- TOOLS menu
+Define MIVW_MENU_TOOLS                                   "F&unktioner"
+Define MIVW_MNU_TITLE_TOOLS_SELECT                       "&Vælg"
+Define MIVW_MNU_HLP_TOOLS_SELECT                         "Vælg et eller flere kort/layoutobjekter eller listeposter.\nVælg"
+Define MIVW_MNU_TITLE_TOOLS_INFO                         "&Info"
+Define MIVW_MNU_HLP_TOOLS_INFO                           "Søg information om objekters attributter"
+Define MIVW_MNU_TITLE_TOOLS_LABELS                       "&Labels"
+Define MIVW_MNU_HLP_TOOLS_LABELS                         "Påfør labels på kortet via objektattributter"
+Define MIVW_MNU_TITLE_DELETE_POINTER                     "Fjern &søgemarkør"
+Define MIVW_MNU_HLP_DELETE_POINTER                       "Fjern markør fra kortvinduet der angiver resultat af søgninger."
+Define MIVW_MNU_TITLE_TOOLS_SETUP                        "I&ndstillinger..."
+Define MIVW_MNU_HLP_TOOLS_SETUP                          "Indstil programmet"
+
+'--------- Menupaletter og knapper ---------------
+Define MIVW_BTN_TOGGLE_SNAP                              "Slå snap til og fra.\nSnap"
+Define MIVW_BTN_ZOOM_ALL_LAYERS                          "Zoom kortet ud så alle lag vises.\nVis oversigtskort"
+
+
+Define MIVW_DLG_CHOOSE_STARTUP_WOR                       "Udpeg opstartsarbejdsområde..."
+Define MIVW_DLG_CHOOSE_TEMA_LOCATION                     "Udpeg placeringen af tabeller til tema funktion (kpTables.TAB)"
+
+Define MIVW_DLG_TITLE_SELECTSEARCHDLG                    "Vælg søgeemne"
+Define MIVW_DLG_TXT_SEARCHTOPIC                          "Søgeemner"
+Define MIVW_DLG_TXT_STATUS                               "Status"
+Define MIVW_DLG_TXT_REDL_TOPIC                           "&Emne - Redline ID"
+Define MIVW_DLG_TXT_SYS34COORD                           "&System 34 koordinat"
+Define MIVW_DLG_TITLE_SEARCH_S34COORD                    "Søg på system 34 koordinat"
+Define MIVW_DLG_TXT_X_COORD                              "Angiv x-koordinat"
+Define MIVW_DLG_TXT_Y_COORD                              "Angiv y-koordinat"
+Define MIVW_DLG_TXT_SEARCH_TITLE                         "Angiv søgetema"
+Define MIVW_DLG_TXT_SEARCH_SETUP                         "Opsætning af søgefunktioner"
+Define MIVW_DLG_TXT_SEARCHTOPIC_1                        "Opsætning af 1. Søgetema"
+Define MIVW_DLG_TXT_SEARCHTOPIC_2                        "Opsætning af 2. Søgetema"
+Define MIVW_DLG_TXT_SEARCHTOPIC_3                        "Opsætning af 3. Søgetema"
+Define MIVW_DLG_TXT_SEARCHTOPIC_4                        "Opsætning af 4. Søgetema"
+Define MIVW_DLG_TXT_SEARCHTOPIC_5                        "Opsætning af 5. Søgetema"
+Define MIVW_DLG_TXT_TOPIC                                "Søgning på emner i redlines-tabellen"
+Define MIVW_DLG_TXT_SEARCH_IN_TABLE                      "Søg i tabel"
+Define MIVW_DLG_TXT_SEARCH_IN_COLUMN                     "Søg i kolonne"
+Define MIVW_DLG_TXT_REFINE_TABLE                         "Afgræns med tabel"
+Define MIVW_DLG_TXT_REFINE_COLUMN                        "Afgræns via kolonne"
+Define MIVW_DLG_TXT_HELP                                 "Hjælp"
+Define MIVW_DLG_TXT_MULTI_LAYER                          "Oprettede temaer"
+Define MIVW_DLG_TXT_MULTI_LAYER_SELECT                   "Valgte temaer"
+
+

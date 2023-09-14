@@ -1,0 +1,25 @@
+Define ITEM_NO_LIST_VALUE	11
+
+Declare Sub kpvCreateColAndValListSingle(ByVal nStyleID As Integer, arrValues() As String)
+Declare Sub kpvCreateColAndValListCommon(arrValues() As String)
+
+Declare Function kpvGetSingleValueIDFromElementNo(ByVal nElementNo As Integer) As Integer
+Declare Function kpvGetCommonValueIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+Declare Function kpvMaxValueID() As Integer
+Declare Function kpvGetNextValueID() As Integer
+Declare Function kpvMaxListID() As Integer
+Declare Function kpvGetNextListID() As Integer
+
+Declare Function kpvUpdateTableWithValues(	ByVal szTable As String, ByVal nStyleID As Integer, ByVal nRowID As Integer,
+								ByVal bUseCommonValues As Logical, ByVal bUseSingleValues As Logical) As Logical
+Declare Function kpvGetValueToInsert$(	ByVal szValue As String, ByVal nStyleID As Integer,
+							oCurObject As Object) As String
+
+Declare Sub kpvCreateArraysWithSystemValues(arrValues() As String, arrAlias() As String)
+
+Declare Sub KPVCreateListOfListIDs(arrListIDs() As Integer)
+Declare Sub KPVCreateListOfListNames(arrListIDs() As Integer, arrListNames() As String)
+Declare Function KPVGetListNameFromListID$(ByVal nListID As Integer) As String
+
+Declare Sub KPVCreateListOfValuesAndDescr(ByVal nListID As Integer, arrValueAndDescript() As String)

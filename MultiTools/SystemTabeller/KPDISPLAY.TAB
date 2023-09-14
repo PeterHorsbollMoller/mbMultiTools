@@ -1,0 +1,15 @@
+!table
+!version 300
+!charset WindowsLatin1
+
+Definition Table
+  Type NATIVE Charset "WindowsLatin1"
+  Fields 8
+    DISPLAYID Integer Index 1 ;
+    DISPLAYNAME Char (35) ;
+    ICONFILEID Integer ;
+    ICONNO Integer ;
+    CLOSEALL Logical ;
+    WORFILE Char (220) ;
+    ORDER Integer ;
+    ACTIVE Logical ;

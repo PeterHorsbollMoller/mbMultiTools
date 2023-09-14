@@ -1,0 +1,237 @@
+'********************************************************************************************************
+'13.05.2002/PEM:	Omdøbt alle funktioner, så de alle starter med MAP.
+'			De oprindelige funktioner er placeret nederst i modulet og kalder de nye omdøbte
+'			funktioner
+'22.07.2002/PEM:  Tilføjes funktioner til understøttelse af læsning og skrivning af lagindstillinger
+'			og labelindstillinger med T_LAYER_SETUP og T_LABEL_SETUP
+'04.11.2002/PEM:	Tilføjet:
+'				- MAPReadLayerSetupByLayerID()
+'				- MAPWriteLayerSetupByLayerID()
+'				- MAPReadLabelSetupByLayerID()
+'				- MAPWriteLabelSetupByLayerID()
+'			Ændret funktioner:
+'				- MAPReadLayerSetup()	kalder nu MAPReadLayerSetupByLayerID()
+'				- MAPWriteLayerSetup()	kalder nu MAPWriteLayerSetupByLayerID()
+'				- MAPReadLabelSetup()	kalder nu MAPReadLabelSetupByLayerID()
+'				- MAPWriteLabelSetup()	kalder nu MAPWriteLabelSetupByLayerID()
+'21.02.2003/PEM:	Tilrettet:
+'				- MAPWriteLabelSetupByLayerID() , så labels ikke påføres TAB_TYPE_IMAGE
+'18.03.2003/PEM	- MAPGetFirstMapWID er rettet så den nu altid sikrer sig at WindowID() eler FrontWindow
+'			ikke peger på et Window med ID 0 (f.eks. i forbindelse med WinClosedHandler)
+'19.03.2003/PEM:  - Fejl i MAPWriteLayerSetupByNum rettet så der nu skelnes mellem Global Line og Global Pen
+'26.03.2003/PEM:	- Tilføjet disse funktioner pga backwards compatability
+'				- MAPReadLayerSetupByNum()
+'				- MAPWriteLayerSetupByNum()
+'				- MAPReadLabelSetupByNum()
+'				- MAPWriteLabelSetupByNum()
+'17.10.2003/PEM	- Tilrettet så de håndterer raster:
+'				- MAPWriteLayerSetupByLayerID
+'				- MAPReadLabelSetupByLayerID
+'08.08.2004/PEM	- Tilføjet
+'				- MAPZoomToObject()
+'				- MAPZoomToExtent()
+'				- MAPZoomToTable()
+'12.10.2004/PEM	- Rettet MAPGetLayerID, så den tjekker om nWID findes eller er 0
+'			- Rettet MAPWriteLayerSetupByLayerID så der skelnes mellem Global Line og Global Pen
+'17.11.2004/PEM	- Ændret typen T_LABEL_SETUP.nVisibility fra Logical til Integer
+'20.11.2004/PEM	- Ændret læsning af labelopsætning, da zoomniveau blev læst fra laget
+'23.11.2004/PEM	- Ændret MAPGetFirstMapWID() så der returneres 0 (i stedet for MAP_CREATE_NEW), hvis der ikke blev fundet et kortvindue
+'25.01.2005/PEM	- Ændret MAPZoomToTable() så der returneres TRUE hvis det går godt
+'20.09.2005/PEM	- Rettet, så szSelTab kun lukkes hvis den ikke svarer til szTab:
+'				- MAPMakeSelectionLayerEditable
+'				- MAPMakeSelectionLayerNonVisible
+'				- MAPMakeSelectionLayerNonSelectable
+'17.02.2006/PEM	- Rettet MAPWriteLabelSetupByLayerID: testet nu om tabel er en WMS i så fald skrives labels ikke
+'27.06.2006/PEM	- Tilføjet funktionerne:
+'				- MAPCreateArrayLayersExt()
+'				- MAPCreateArrayLayerInfoExt()
+'				- MAPGetLayerNumDlg()
+'			- og proceduren
+'				- MAPSetUseLayerTypeTrue()
+'			- og typen
+'				- T_USE_LAYER_TYPE
+'********************************************************************************************************
+
+Type T_MAP_LAYER_INFO
+	nLayerID	As Integer
+	szName	As String
+	nType		As Integer
+	bReadOnly	As Logical
+	szTab		As String
+	szTabFile	As String
+End Type
+
+Type	T_LAYER_SETUP
+	szLayerName		As String
+	bEditable		As Logical
+	bSelectable		As Logical
+	bZoomLayered	As Logical
+	fMinZoom		As Float
+	fMaxZoom		As Float
+	nDisplay		As Integer
+	penGlobalLine	As Pen
+	penGlobalBorder	As Pen
+	brsGlobal		As Brush
+	fntGlobal		As Font
+	symGlobal		As Symbol
+	bShowArrows		As Logical
+	bShowNodes		As Logical
+	bShowCentroids	As Logical
+End Type
+
+Type T_LABEL_SETUP
+	szLayerName	As String
+	nLineType	As Integer
+	nPosition	As Integer
+	fntLabel 	As Font
+	penLine	As Pen
+	szExpr	As String
+	bParallel	As Logical
+	nVisibility	As Integer
+	fZoomMin	As Float
+	fZoomMax 	As Float
+	bAuto		As Logical
+	bOverlap	As Logical
+	bPartial	As Logical
+	bDuplicate 	As String
+	nMaxLabels	As Integer
+	nOffSet 	As Integer
+End Type
+
+Type T_USE_LAYER_TYPE
+	bUseNormal		As Logical
+	bUseImage		As Logical
+	bUseGrid		As Logical
+	bUseView		As Logical
+	bUseLinked		As Logical
+	bUseSeamless	As Logical
+	bUseCosmetic	As Logical
+	bUseThematic	As Logical
+	bUseTemp		As Logical
+	bUseReadOnly	As Logical
+	bUseNotSelectable	As Logical
+	bUseWMS		As Logical
+	bUseWFS		As Logical
+End Type
+
+Define	MAP_CREATE_NEW	-999
+
+Define	MAP_LAYER_TYPE_NORMAL		LAYER_INFO_TYPE_NORMAL
+Define	MAP_LAYER_TYPE_COSMETIC		LAYER_INFO_TYPE_COSMETIC
+Define	MAP_LAYER_TYPE_IMAGE		LAYER_INFO_TYPE_IMAGE
+Define	MAP_LAYER_TYPE_THEMATIC		LAYER_INFO_TYPE_THEMATIC
+Define	MAP_LAYER_TYPE_GRID		LAYER_INFO_TYPE_GRID
+Define	MAP_LAYER_TYPE_TEMP		99
+
+Declare Sub MAPMakeNoLayerEditable
+Declare Sub MAPMakeSelectionLayerEditable
+Declare Sub MAPMakeSelectionLayerNonVisible
+Declare Sub MAPMakeSelectionLayerNonSelectable
+
+Declare Function MAPLayerExists(ByVal nWID As Integer, ByVal szLayer As String) As Logical
+Declare Function MAPGetLayerID(ByVal nWID As Integer, ByVal szLayer As String) As Integer
+
+Declare Function MAPZoomToObject(	ByVal nMID As Integer, ByVal bTurnRedrawOff As Logical,
+						ByVal oZoom As Object, ByVal fZoomBuffer As Float,
+						ByVal fZoomFactor As Float,
+						ByVal fMinZoom As Float, ByVal fMaxZoom As Float) As Logical
+Declare Function MAPZoomToTable(	ByVal nMID As Integer, ByVal bTurnRedrawOff As Logical,
+						ByVal szTab As String, ByVal fZoomBuffer As Float,
+						ByVal fZoomFactor As Float,
+						ByVal fMinZoom As Float, ByVal fMaxZoom As Float) As Logical
+Declare Function MAPZoomToExtent(	ByVal nMID As Integer, ByVal bTurnRedrawOff As Logical,
+						ByVal fCenterX As Float, ByVal fCenterY As Float,
+						ByVal fWidth As Float, ByVal fHeight As Float,
+						ByVal fZoomFactor As Float,
+						ByVal fMinZoom As Float, ByVal fMaxZoom As Float) As Logical
+
+Declare Function MAPCreateArrayAllMapWindows(arrNames(0) As String) As Integer
+Declare Function MAPCreateArrayMapWindows(arrWin(0) As String,
+							ByVal bUseNew As Logical,
+							ByVal bUseNone As Logical,
+							ByVal bAddNone As Logical) As Logical
+
+Declare Sub MAPSetUseLayerTypeTrue(	tUseLayerType As T_USE_LAYER_TYPE)
+Declare Function MAPCreateArrayLayersExt(	nMID As Integer, arrLayerNames(0) As String, arrLayerNums(0) As Integer,
+							tUseLayerType As T_USE_LAYER_TYPE) As Integer
+Declare Function MAPCreateArrayLayers(	nMID As Integer, arrLayer(0) As String,
+							ByVal bUseImage As Logical,
+							ByVal bUseSeamless As Logical,
+							ByVal bUseCosmetic As Logical,
+							ByVal bUseThematic As Logical,
+							ByVal bUseTemp As Logical) As Integer
+
+Declare Function MAPCreateArrayLayerInfoExt(	nMID As Integer, arrLayerInfo(0) As T_MAP_LAYER_INFO,
+								tUseLayerType As T_USE_LAYER_TYPE) As Integer
+Declare Function MAPCreateArrayLayerInfo(	nMID As Integer, arrLayerInfo(0) As T_MAP_LAYER_INFO,
+							ByVal bUseImage As Logical,
+							ByVal bUseGrid As Logical,
+							ByVal bUseSeamless As Logical,
+							ByVal bUseCosmetic As Logical,
+							ByVal bUseThematic As Logical,
+							ByVal bUseTemp As Logical,
+							ByVal bUseReadOnly As Logical) As Integer
+
+Declare Function MAPGetLayerNumDlg(	ByVal szDlgTitle As String, ByVal nMID As Integer,
+						tUseLayerType As T_USE_LAYER_TYPE) As Integer
+
+Declare Function MAPGetFirstMapWID() As Integer
+Declare Function MAPGetMapWIDDialog(ByVal bUseNew As Logical,
+						ByVal bUseNone As Logical,
+						ByVal bAddNone As Logical) As Integer
+
+Declare Function MAPConvertLayerSetup2String$(laySetup As T_LAYER_SETUP) As String
+Declare Function MAPConvertString2LayerSetup(ByVal szLayerSetup As String, laySetup As T_LAYER_SETUP) As Logical
+Declare Sub MAPCopyLayerSetup(layFromSetup As T_LAYER_SETUP, layToSetup As T_LAYER_SETUP)
+Declare Sub MAPResetLayerSetup(laySetup As T_LAYER_SETUP)
+Declare Function MAPReadLayerSetup(	ByVal nMID As Integer, ByVal szLayer As String,
+						laySetup As T_LAYER_SETUP) As Logical
+Declare Function MAPWriteLayerSetup(ByVal nMID As Integer, ByVal szLayer As String,
+						laySetup As T_LAYER_SETUP) As Logical
+Declare Function MAPReadLayerSetupByLayerID(	ByVal nMID As Integer, ByVal nLayer As Integer,
+								laySetup As T_LAYER_SETUP) As Logical
+Declare Function MAPWriteLayerSetupByLayerID(	ByVal nMID As Integer, ByVal nLayer As Integer,
+								laySetup As T_LAYER_SETUP) As Logical
+
+Declare Function MAPConvertLabelSetup2String$(lblSetup As T_LABEL_SETUP) As String
+Declare Function MAPConvertString2LabelSetup(ByVal szLabelSetup As String, lblSetup As T_LABEL_SETUP) As Logical
+Declare Sub MAPCopyLabelSetup(lblFromSetup As T_LABEL_SETUP, lblToSetup As T_LABEL_SETUP)
+Declare Sub MAPResetLabelSetup(lblSetup As T_LABEL_SETUP)
+
+Declare Function MAPReadLabelSetup(	ByVal nMID As Integer, ByVal szLayer As String,
+						lblSetup As T_LABEL_SETUP) As Logical
+Declare Function MAPWriteLabelSetup(ByVal nMID As Integer, ByVal szLayer As String,
+						lblSetup As T_LABEL_SETUP) As Logical
+Declare Function MAPReadLabelSetupByLayerID(	ByVal nMID As Integer, ByVal nLayer As Integer,
+								lblSetup As T_LABEL_SETUP) As Logical
+Declare Function MAPWriteLabelSetupByLayerID(	ByVal nMID As Integer, ByVal nLayer As Integer,
+								lblSetup As T_LABEL_SETUP) As Logical
+
+'**************************************************************************************************************
+ 'B A C K W A R D S   C O M P A T A B I L I T Y
+'**************************************************************************************************************
+Declare Function CreateArrayMapLayers(	nMID As Integer, arrLayer(0) As String,
+							ByVal bUseImage As Logical,
+							ByVal bUseSeamless As Logical,
+							ByVal bUseCosmetic As Logical,
+							ByVal bUseThematic As Logical,
+							ByVal bUseTemp As Logical) As Integer
+Declare Function LayerExists(ByVal szLayer As String, ByVal nWID As Integer) As Logical
+Declare Sub MakeNoLayerEditable
+Declare Sub MakeLayerEditable
+Declare Sub MakeLayerNonVisible
+Declare Sub MakeLayerNonSelectable
+Declare Function CreateArrayMapWindows(	arrWin(0) As String,
+							ByVal bUseNew As Logical,
+							ByVal bUseNone As Logical,
+							ByVal bAddNone As Logical) As Logical
+Declare Function LayerID(ByVal szLayer As String, ByVal nWID As Integer) As Integer
+Declare Function CreateArrayMapperName(arrCur(0) As String) As Integer
+Declare Function MAPReadLayerSetupByNum(	ByVal nMID As Integer, ByVal nLayer As Integer,
+							laySetup As T_LAYER_SETUP) As Logical
+Declare Function MAPWriteLayerSetupByNum(	ByVal nMID As Integer, ByVal nLayer As Integer,
+							laySetup As T_LAYER_SETUP) As Logical
+Declare Function MAPReadLabelSetupByNum(	ByVal nMID As Integer, ByVal nLayer As Integer,
+							lblSetup As T_LABEL_SETUP) As Logical
+Declare Function MAPWriteLabelSetupByNum(	ByVal nMID As Integer, ByVal nLayer As Integer,
+							lblSetup As T_LABEL_SETUP) As Logical

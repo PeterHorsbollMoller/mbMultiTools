@@ -1,0 +1,29 @@
+'*****************************************************************************************
+' H I S T O R I K
+' 27.04.2005/PEM	- Nu sorteres knapperne på Tema paletterne efter STYLENAME
+'			- Hvis der findes en kolonnen med navnet BUTTONORDER i STYLES tabellen sorteres knapperne efter BUTTONORDER, STYLENAME
+'				Værdierne i BUTTONORDER skal vedligeholdes af brugeren. Der er intet visuelt værktøj til dette
+'*****************************************************************************************
+Declare Sub kppSetEditGroupName(ByVal szName As String)
+Declare Sub kppSetEditSubGroupName(ByVal szName As String)
+Declare Function kppGetEditSubGroupName$() As String
+Declare Function kppGetEditGroupName$() As String
+Declare Function kppGetEditGroupID() As Integer
+Declare Function kppGetEditSubGroupID() As Integer
+
+Declare Sub kppGenerateAnyButtonPad(ByVal szType As String, ByVal szButtonpad As String)
+Declare Sub kppGenerateAllButtonPads(	ByVal szPadLine As String, ByVal szPadPolygon As String,
+							ByVal szPadPoint As String, ByVal szPadText As String)
+Declare Sub kppGenerateLineButtonPad(ByVal szButtonpad As String)
+Declare Sub kppGenerateRegionButtonPad(ByVal szButtonpad As String)
+Declare Sub kppGenerateSymbolButtonPad(ByVal szButtonpad As String)
+Declare Sub kppGenerateFontButtonPad(ByVal szButtonpad As String)
+Declare Sub kppDestroyAllButtonPads(ByVal szPadLine As String, ByVal szPadPolygon As String,
+						ByVal szPadPoint As String, ByVal szPadText As String)
+
+Declare Sub kppSetUpLineDrawing
+Declare Sub kppSetUpRegionDrawing
+Declare Sub kppSetUpSymbolDrawing
+Declare Sub kppSetUpTextDrawing
+
+Declare Sub kppKP_WinChangedhandler(ByVal nWID As Integer)

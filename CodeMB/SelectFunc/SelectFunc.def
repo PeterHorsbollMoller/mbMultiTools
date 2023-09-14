@@ -1,0 +1,6 @@
+Declare Sub SelectInsideRegion_With_Obj
+Declare Sub SelectInsideRegion_With_Table
+Declare Sub SelectInsideRegion_With_Tool
+
+Declare Sub SelectObjUsingCurSelection
+Declare Sub SelectObjUsingCurSelectionExt

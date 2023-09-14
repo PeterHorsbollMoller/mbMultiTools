@@ -1,0 +1,44 @@
+'*********************************************************************************************************
+'Historik:
+' 30.09.2002/PEM	- Opdelt IniUtil i IniUtil og StrFunc, se nærmere i StrFunc
+'			- Omdøbt alle procedure så de starter med enten INI eller STR
+'			- Tilføjet STRRTrimAtChar$()
+'06.11.2002/PEM	- Rettet fejl i STRRTrimAtChar
+'07.11.2002/PEM	- Tilføjet STRFloatToStringWithNDecimals$() erstatter CONVValueToStringWithNDecimals$()
+'13.11.2002/PEM	- Tilføjet STRLogicalToYesNo$()
+'*********************************************************************************************************
+
+Declare Function STRSplitAtSpace(	szText As String, arrTexts(0) As String, 
+					 	ByVal nMaxItems As Integer) As Integer
+Declare Function STRSplitAtKomma(	szText As String, arrTexts(0) As String,
+					 	ByVal nMaxItems As Integer) As Integer
+Declare Function STRSplitAtPoint(	szText As String, arrTexts(0) As String,
+					 	ByVal nMaxItems As Integer) As Integer
+Declare Function STRSplitAtChar(	szText As String, ByVal szChar As String,
+						arrTexts(0) As String, ByVal nMaxItems As Integer) As Integer
+
+Declare Function STRRTrimAtChar$(	ByVal szText As String, ByVal szChar As String) As String
+Declare Function STRKommaToPoint$(ByVal szText As String) As String
+Declare Function STRPointToKomma$(ByVal szText As String) As String
+Declare Function STRSearchAndReplace$(ByVal szText As String, ByVal szSearch As String, ByVal szReplace As String) As String
+
+Declare Function STRGetKeyFromKeyString$(ByVal szKeyString As String) As String
+Declare Function STRGetValueFromKeyString$(ByVal szKeyString As String) As String
+
+Declare Function STRInteger2StringNoZero$(ByVal nNumber As Integer) As String
+
+Declare Function STRListNumItems(szStringList As String) As Integer
+Declare Function STRListExtractItem$(ByVal szStringList As String, ByVal nItem As Integer) As String
+Declare Function STRListAddItem$(ByVal szStringList As String, ByVal szItem As String) As String
+Declare Function STRListRTrim$(ByVal szStringList As String) As String
+Declare Function STRListGetUnique$(ByVal szStringList As String) As String
+
+Declare Function STRGetValueInBrackets$(ByVal szText As String) As String
+Declare Function STRGetValueInSquareBrackets$(ByVal szText As String) As String
+
+Declare Function STRSetSpaceAfter$(ByVal szText As String, ByVal nNumChars As Integer) As String
+Declare Function STRSetZeroBefore$(ByVal nValue As Integer, ByVal nNumChars As Integer) As String
+
+Declare Function STRFloatToStringWithNDecimals$(ByVal fValue As Float, ByVal nDecimals As Integer,
+								ByVal szDecimalChar As String) As String
+Declare Function STRLogicalToYesNo$(ByVal bValue As Logical) As String

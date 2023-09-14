@@ -1,0 +1,205 @@
+'*******************************************************************************
+'** 	Program:	
+'** 	Modul:		
+'**			
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+'-----------------------------------------------------------------------------------------
+Include "SearchDlgFunc.def"
+Include "SearchFunc.def"
+
+Include "..\..\ArrayFunc\ArrayFunc.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\MapFunc\MapFunc.def"
+
+'**Includes of language-files...
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+
+'**********************************************************************************************''
+'Indlæser værdier og indsætter disse i den definerede list control
+'**********************************************************************************************''
+Function SRCHLoadValuesIntoListControl(	ByVal nListCtrl As Integer, ByVal nCurItem As Integer,
+							ByVal szTab As String, ByVal szCol As String, ByVal szCond As String,
+							arrValues() As String, ByVal bUseExtLoad As Logical) As Logical
+
+Dim	szLstValue As String
+
+SRCHLoadValuesIntoListControl = FALSE
+
+OnError GoTo ErrorOccured
+
+	If nCurItem = -1 Then
+		nCurItem	= ReadControlValue(nListCtrl)
+	End If
+	If nCurItem > 0 Then
+		szLstValue	= arrValues(nCurItem)
+	End If
+
+	If bUseExtLoad Then
+		If not SRCHLoadUniqueValuesFromColExt(szTab, szCol, szCond, arrValues) Then
+			'--no found
+		End If
+	Else
+		If not SRCHLoadUniqueValuesFromCol(szTab, szCol, szCond, arrValues) Then
+			'--no found
+		End If
+	End If
+
+	If Ubound(arrValues) > 0 AND nCurItem > 0 Then
+		Alter Control nListCtrl Title From Variable arrValues Value ARRGetItemNoStringFuzzy(szLstValue, arrValues)
+		SRCHLoadValuesIntoListControl = TRUE
+	Else
+		Alter Control nListCtrl Title From Variable arrValues Value 0
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Indlæser værdier og indsætter disse i den definerede list control
+'**********************************************************************************************''
+Function SRCHLoadValues2IntoListControl(	ByVal nListCtrl As Integer, ByVal nCurItem As Integer,
+							ByVal szTab As String, ByVal szCol1 As String, ByVal szCol2 As String,
+							ByVal szCond As String, arrValues() As String, ByVal bUseExtLoad As Logical) As Logical
+
+Dim	szLstValue As String
+
+SRCHLoadValues2IntoListControl = FALSE
+
+OnError GoTo ErrorOccured
+
+	If nCurItem = -1 Then
+		nCurItem	= ReadControlValue(nListCtrl)
+	End If
+	If nCurItem > 0 Then
+		szLstValue	= arrValues(nCurItem)
+	End If
+
+'	If bUseExtLoad Then
+		'Does allways use extended
+		If NOT SRCHLoadUniqueValuesFrom2ColsExt(szTab, szCol1, szCol2, szCond, arrValues) Then
+			'--no found
+		End If
+'	Else
+'		If not SRCHLoadUniqueValuesFromCol(szTab, szCol, szCond, arrValues) Then
+'			'--no found
+'		End If
+'	End If
+
+	If Ubound(arrValues) > 0 AND nCurItem > 0 Then
+		Alter Control nListCtrl Title From Variable arrValues Value ARRGetItemNoStringFuzzy(szLstValue, arrValues)
+		SRCHLoadValues2IntoListControl = TRUE
+	Else
+		Alter Control nListCtrl Title From Variable arrValues Value 0
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Viser en tilsvarende værdi i angivet list control, afh. af cond og tabel/kolonne
+'**********************************************************************************************''
+Function SRCHShowMatchValueInListControl(	ByVal nListCtrl As Integer,
+							ByVal szTab As String, ByVal szCol As String, ByVal szMatchCol As String,
+							ByVal szCond As String, arrMatchValues() As String) As Logical
+Dim	szMatchVal As String,
+	nMatchItem As Integer
+
+SRCHShowMatchValueInListControl = FALSE
+
+OnError GoTo ErrorOccured
+
+	If Ubound(arrMatchValues) = 0 Then
+		Exit Function
+	End If
+
+	szMatchVal	= SRCHGetMatchingValueInOtherCol$(szTab, szCol, szMatchCol, szCond)
+
+	If szMatchVal <> "" Then
+		nMatchItem	= ARRGetItemNoString(szMatchVal, arrMatchValues)
+
+		If szMatchVal = arrMatchValues(nMatchItem) Then
+			Alter Control nListCtrl Value nMatchItem
+			SRCHShowMatchValueInListControl = TRUE
+		Else
+			Alter Control nListCtrl Value 0
+		End If
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Laver en udvælgelse af alle der opfylder en given betingelse
+'**********************************************************************************************''
+Sub SRCHSelectAll(ByVal szTab As String, ByVal szCond As String)
+
+Dim	szCmdStr, szSelName As String,
+	nMID As Integer,
+	bRemoveLayer As Logical
+
+OnError GoTo ErrorOccured
+
+	szCmdStr	= "Select * From " & szTab & " Where " & szCond
+	'Print szCmdStr
+	Run Command szCmdStr
+
+	nMID = FrontWindow()
+	If nMID > 0 Then
+		If WindowInfo(nMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+			If NOT MAPLayerExists(nMID, szTab) Then	
+				bRemoveLayer = TRUE
+			
+				Set Map
+					Window nMID
+					Redraw Off
+			
+				Add Map
+					Window nMID
+					Layer szTab
+			End If
+		End If
+	End If
+	'If SelectionInfo(SEL_INFO_NROWS) > 0 Then
+		Run Menu Command M_QUERY_FIND_SELECTION
+	'	szSelName = SelectionInfo(SEL_INFO_SELNAME)
+	'	If TableOpen(szSelName) Then
+	'		Close Table szSelName
+	'	End If
+'	Else
+'		Note "Ingen poster fundet!"
+'	End If
+	
+	If bRemoveLayer Then
+		Remove Map
+			Window nMID
+			Layer szTab
+
+		Set Map
+			Window nMID
+			Redraw On
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

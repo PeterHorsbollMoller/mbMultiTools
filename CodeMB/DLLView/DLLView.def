@@ -1,0 +1,3 @@
+Declare Function GetUserPickedIconNoFromDLL(ByVal szDLLPath As String) As Integer
+Declare Function GetUserPickedIconNoFromDLLExt(ByVal szDLLPath As String, ByVal nPosLeft As Integer, ByVal nPosTop As Integer) As Integer
+Declare Function GetUserPickedIconNoFromDLLAtMouse(ByVal szDLLPath As String) As Integer

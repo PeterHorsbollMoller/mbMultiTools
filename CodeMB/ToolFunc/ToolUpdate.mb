@@ -1,0 +1,1626 @@
+'****************************************************
+'**       Program: MultiTools
+'**		Modul: ToolFunc
+'**		Diverse funktioner	
+'****************************************************
+Include "MapBasic.def"
+Include "Menu.def"
+Include "Icons.def"
+
+Define	UPDATE_BTN_ID		1200
+
+Define	TAB_COL_AND_VALUES	"UpdateColumn"
+Define	TABFILE_COL_AND_VALUES	ApplicationDirectory$() + TAB_COL_AND_VALUES + ".TAB"
+
+Type T_UPDATEBTN
+	nButtonID		As Integer
+	bUseThisButton	As Logical
+	szDescription	As String
+	szIconFile		As String
+	nIconNo		As Integer
+	bIsPushedDown	As Logical
+	bReadAndWrite	As Logical
+End Type
+
+Type T_READANDWRITE
+	nButtonID		As Integer
+	szUpdateColumn	As String
+	szOrigValue		As String
+	szReadColumn	As String
+	szReadValue		As String
+	bPrompt		As Logical
+End Type
+
+'Include "Globals.def"
+
+Include "ToolUpdate.def"
+
+Include "..\Time\Time.def"
+Include "..\TabFunc\TabFunc.def"
+Include "..\IniUtil\IniUtil.def"
+Include "..\PadFunc\PadFunc.def"
+Include "..\APIFunc\APIFunc.def"
+Include "..\FileFunc\FileFunc.def"
+Include "..\DLLView\DLLView.def"
+
+Include "..\Language\Message.lng"
+Include "..\Language\Errors.lng"
+Include "..\Language\Kommune.lng"
+Include "..\Language\StyleDef.lng"
+
+Declare Function OpenTableWithColumnAndValues() As Logical
+Declare Function CloseTableWithColumnAndValues() As Logical
+
+Declare Sub HandlerUpdateColDialogStartUp
+Declare Sub HandlerUpdateColDialogEnd
+Declare Sub HandlerChangeKindOfUpdate
+Declare Sub HandlerPickIconFileForUpdate
+Declare Sub HandlerPickIconNoForUpdate
+Declare Sub HandlerUpdateDialogWithValAndCol
+Declare Sub HandlerColAndValPicked
+
+Declare Sub HandlerAddUpdateColumn
+Declare Sub HandlerRemoveUpdateColumn
+Declare Sub HandlerAlterUpdateColumn
+
+Declare Sub AlterDialogKindOfUpdate(ByVal snKind As SmallInt)
+
+Declare Sub AddSingleUpdateButtonToPad(ByVal szButtonPad As String, ByVal nBtnID As Integer)
+
+Declare Function UpdateGetReadColumnName$(ByVal szValue As String) As String
+Declare Function UpdateGetValue$(ByVal szOrigValue As String, ByVal szReadTab As String) As String
+
+Declare Sub UpdateRemoveButtonFromList(ByVal nBtnID As Integer, arrValues() As T_READANDWRITE)
+Declare Sub UpdateAllColumnsWithValues(ByVal szTab As String, nBtnID As Integer, arrValuesUpdate() As T_READANDWRITE)
+Declare Sub UpdateColumnWithValue(ByVal szTab As String, ByVal szCol As String, ByVal szVal As String)
+
+Declare Function UpdatePromptUser(ByVal nBtnID As Integer, arrColAndValues() As T_READANDWRITE) As Logical
+
+Declare Function UpdatePromptUserFew() As Logical
+Declare Sub HandlerUpdatePromptFewDialogStartUp
+Declare Sub HandlerUpdatePromptFewDialogEnd
+
+Declare Function UpdatePromptUserMulti() As Logical
+Declare Sub HandlerUpdatePickedupdateValue
+
+Declare Function UpdateReadValuesFromSelection(ByVal nBtnID As Integer, ByVal szReadTable As String) As Logical
+
+Dim	mszColumnName, mszUpdateValue As String,
+	arrUpdateButtons(), arrTempUpdateButtons() As T_UPDATEBTN,
+	arrUpdateNames(), arrColumnAndValues() As String,
+	mnPrev, nPrevPicked As Integer,
+	mbStartUp As Logical,
+	arrColumn(), arrValues(), arrOrigValues() As String,
+	arrValuesReadAndWrite() As T_READANDWRITE,
+	arrValuesUpdate() As T_READANDWRITE
+'****************************************
+'Opsætning af Opdatér Kolonne knapper
+'****************************************
+Function UpdateColumnSetupDialog() As Logical
+
+Dim	szName, szValue As String,
+	bPrompt As Logical,
+	i, nButtons As Integer
+
+OnError GoTo ErrorOccured
+
+UpdateColumnSetupDialog = FALSE
+
+	If not OpenTableWithColumnAndValues() Then
+		Exit Function
+	End If
+
+	nButtons = Ubound(arrUpdateButtons)
+	ReDim arrTempUpdateButtons(nButtons)
+	ReDim arrUpdateNames(nButtons)
+
+	For i = 1 To nButtons
+		arrUpdateNames(i)					= arrUpdateButtons(i).szDescription
+		arrTempUpdateButtons(i).nButtonID		= arrUpdateButtons(i).nButtonID
+		arrTempUpdateButtons(i).bUseThisButton	= arrUpdateButtons(i).bUseThisButton
+		arrTempUpdateButtons(i).szDescription	= arrUpdateButtons(i).szDescription
+		arrTempUpdateButtons(i).szIconFile		= arrUpdateButtons(i).szIconFile
+		arrTempUpdateButtons(i).nIconNo		= arrUpdateButtons(i).nIconNo
+		arrTempUpdateButtons(i).bReadAndWrite	= arrUpdateButtons(i).bReadAndWrite
+	Next
+
+	mnPrev	= 1
+	mbStartUp	= TRUE
+
+	Dialog
+		Title KPAK_DLG_TITLE_UPDATE_COLUMN
+		Calling HandlerUpdateColDialogStartUp
+
+		Control PopUpMenu		Position 5,5	Width 220			ID 100
+			Calling HandlerChangeKindOfUpdate
+			Title From Variable arrUpdateNames
+			Value mnPrev
+
+		Control GroupBox		Position 5,15	Width 220	Height 185
+
+	'-----HelpMessage for Update buttons------------------------------------
+		Control StaticText	Position 15,27
+			Title MSG_TXT_DESCRITION
+		Control EditText		Position 55,25	Width 160			ID 500
+
+		Control CheckBox		Position 25,40					ID 501
+			Title MSG_ACTIVE
+		Control CheckBox		Position 75,40					ID 502
+			Title KPAK_DLG_TXT_READ_AND_WRITE_BTN
+
+		Control GroupBox		Position 10,55	Width 210	Height 110
+			Title KPAK_DLG_TXT_OPDATE_COLS
+
+		Control StaticText	Position 20,65
+			Title KPAK_DLG_TXT_UPDATE_COLUMN
+		Control EditText		Position 20,75	Width 90			ID 511
+			Into szName
+
+		Control StaticText	Position 120,65
+			Title KPAK_DLG_TXT_WITH_VALUE
+		Control EditText		Position 120,75	Width 90			ID 512
+			Into szValue
+		Control CheckBox		Position 20,90					ID 513
+			Title KPAK_DLG_TXT_PROMPT_ON_OPDATE
+			Into bPrompt
+
+		Control ListBox		Position 20,105	Width 145	Height 50	ID 520
+			Calling HandlerColAndValPicked
+
+		Control Button		Position 170,107	Width 40			ID 601
+			Title MSG_TEXT_ADD
+			Calling HandlerAddUpdateColumn
+		Control Button		Position 170,122	Width 40			ID 602
+			Title MSG_TEXT_REMOVE
+			Calling HandlerRemoveUpdateColumn
+		Control Button		Position 170,137	Width 40			ID 603
+			Title MSG_TEXT_UPDATE
+			Calling HandlerAlterUpdateColumn
+
+	'------------Icon and Icon file-------------------------------------
+		Control Button		Position 15,180	Width 10	Height 12
+			Calling HandlerPickIconFileForUpdate
+			Title "..."
+		Control StaticText	Position 15,170
+			Title KPAK_DLG_TXT_ICON_FILE_DLL
+		Control EditText		Position 25,180	Width 155			ID 540
+
+		Control Button		Position 205,180	Width 10	Height 12
+			Calling HandlerPickIconNoForUpdate
+			Title "..."
+		Control StaticText	Position 185,170
+			Title KPAK_DLG_TXT_ICON_NO
+		Control EditText		Position 185,180	Width 20			ID 541
+
+		Control OKButton		Position 130,205
+			Calling HandlerUpdateColDialogEnd
+		Control CancelButton	Position 175,205
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		RollBack Table TAB_COL_AND_VALUES
+	Else
+		Commit Table TAB_COL_AND_VALUES
+	End If
+
+	For i = 1 To nButtons
+		arrUpdateButtons(i).nButtonID		= arrTempUpdateButtons(i).nButtonID
+		arrUpdateButtons(i).bUseThisButton	= arrTempUpdateButtons(i).bUseThisButton
+		arrUpdateButtons(i).szDescription	= arrTempUpdateButtons(i).szDescription
+		arrUpdateButtons(i).szIconFile	= arrTempUpdateButtons(i).szIconFile
+		arrUpdateButtons(i).nIconNo		= arrTempUpdateButtons(i).nIconNo
+		arrUpdateButtons(i).bReadAndWrite	= arrTempUpdateButtons(i).bReadAndWrite
+	Next
+
+	If not CloseTableWithColumnAndValues() Then End If
+
+UpdateColumnSetupDialog = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Åbner tabel med opdater kolonne indstillinger
+'****************************************
+Function CloseTableWithColumnAndValues() As Logical
+
+OnError GoTo ErrorOccured
+
+CloseTableWithColumnAndValues = FALSE
+
+	If TableOpen(TAB_COL_AND_VALUES) Then
+		Close Table TAB_COL_AND_VALUES
+		CloseTableWithColumnAndValues = TRUE
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function 
+
+'****************************************
+'Åbner tabel med opdater kolonne indstillinger
+'****************************************
+Function OpenTableWithColumnAndValues() As Logical
+
+OnError GoTo ErrorOccured
+
+OpenTableWithColumnAndValues = FALSE
+
+	If TableFileOpen(TABFILE_COL_AND_VALUES) Then
+		If not GetTableFromFilename$(TABFILE_COL_AND_VALUES) = TAB_COL_AND_VALUES Then
+			Note ERR_KPAK_UPD_COL_TAB_OPEN_AS1 + GetTableFromFilename$(TABFILE_COL_AND_VALUES) + "."
+				+ lf + ERR_KPAK_UPD_COL_TAB_OPEN_AS2
+			Exit Function
+		End if
+	End if
+
+	If FileExists(TABFILE_COL_AND_VALUES) Then
+		Open Table TABFILE_COL_AND_VALUES
+	Else
+		OnError GoTo ErrorCreatingTable
+
+		Create Table TAB_COL_AND_VALUES
+			(
+			BUTTONID		Integer,
+			ORDER			Integer,
+			COLUMN		Char(50),
+			VALUE			Char(100),
+			PROMPT		Logical
+			)
+			File TABFILE_COL_AND_VALUES
+	End If
+	
+	If not ColExist(TAB_COL_AND_VALUES, "PROMPT") Then
+		Alter Table TAB_COL_AND_VALUES
+			(
+			Add	PROMPT	Logical
+			)
+	End If
+
+	OpenTableWithColumnAndValues = TRUE
+
+	Exit Function
+'-----------------------
+ErrorCreatingTable:
+	Note ERR_TXT_ERRORMSG
+		+ Error$()
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Handler - Opstart af dialog
+'****************************************
+Sub HandlerUpdateColDialogStartUp
+
+OnError GoTo ErrorOccured
+
+	If TableInfo(TAB_COL_AND_VALUES, TAB_INFO_READONLY) Then
+		Alter Control 601 Disable
+		Alter Control 602 Disable
+		Alter Control 603 Disable
+	End If
+
+	Call AlterDialogKindOfUpdate(1)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Handler - Afslutning af dialog
+'****************************************
+Sub HandlerUpdateColDialogEnd
+
+OnError GoTo ErrorOccured
+
+	Call AlterDialogKindOfUpdate(mnPrev)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Handler - Brugeren valgte en anden Opdater knap
+'****************************************
+Sub HandlerChangeKindOfUpdate
+
+OnError GoTo ErrorOccured
+
+	Call AlterDialogKindOfUpdate(ReadControlValue(100))
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Handler - Brugeren valgte en Opsætning
+'****************************************
+Sub HandlerColAndValPicked
+
+Dim	szColumn, szValue As String,
+	bPrompt As Logical,
+	nPick As Integer
+
+OnError GoTo ErrorOccured
+
+	nPick		= ReadControlValue(520)
+
+	If nPick <> 0 Then
+		Fetch Rec nPick From CUR_LIST_IN_DIALOG
+		szColumn	= CUR_LIST_IN_DIALOG.COLUMN
+		szValue	= CUR_LIST_IN_DIALOG.VALUE
+		bPrompt	= CUR_LIST_IN_DIALOG.PROMPT
+	Else
+		szColumn	= ""
+		szValue	= ""
+		bPrompt	= FALSE
+	End If
+
+	Alter Control 511 Value szColumn
+	Alter Control 512 Value szValue
+	Alter Control 513 Value bPrompt
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Handler - Tilføj ny opsætning
+'****************************************
+Sub HandlerAddUpdateColumn
+
+Dim	szColumn, szValue As String,
+	bPrompt As Logical,
+	nBtnID As Integer
+
+OnError GoTo ErrorOccured
+
+	szColumn		= ReadControlValue(511)
+	szValue		= ReadControlValue(512)
+	bPrompt		= ReadControlValue(513)
+	nBtnID		= arrTempUpdateButtons(ReadControlValue(100)).nButtonID
+
+	If szColumn = "" Then
+		Note ERR_COL_NAME_MUST_BE_ENTERED
+		Exit Sub
+	End If
+
+	Insert Into TAB_COL_AND_VALUES
+		(BUTTONID, COLUMN, VALUE, PROMPT, ORDER)
+		Values (nBtnID, szColumn, szValue, bPrompt, 10000)
+
+	Call HandlerUpdateDialogWithValAndCol
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Handler - Fjern udpeget opsætning
+'****************************************
+Sub HandlerRemoveUpdateColumn
+
+Dim	nRow As Integer
+
+OnError GoTo ErrorOccured
+
+	nRow		= ReadControlValue(520)
+
+	Delete From CUR_LIST_IN_DIALOG Where RowID = nRow
+
+	Call HandlerUpdateDialogWithValAndCol
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Handler - Ret udpeget opsætning
+'****************************************
+Sub HandlerAlterUpdateColumn
+
+Dim	szColumn, szValue As String,
+	bPrompt As Logical,
+	nRow As Integer
+
+OnError GoTo ErrorOccured
+
+	szColumn	= ReadControlValue(511)
+	szValue	= ReadControlValue(512)
+	bPrompt	= ReadControlValue(513)
+	nRow		= ReadControlValue(520)
+
+	If szColumn = "" Then
+		Note ERR_COL_NAME_MUST_BE_ENTERED
+		Exit Sub
+	ElseIf nRow = 0 Then
+		Note ERR_KPAK_UPD_COL_NO_ZUP_PICKED
+		Exit Sub
+	ElseIf nRow > GetNumRows("CUR_LIST_IN_DIALOG") Then
+		Note ERR_KPAK_UPD_COL_ERROR_UPDATING
+		Exit Sub
+	End If
+
+	Update CUR_LIST_IN_DIALOG
+		Set	COLUMN	= szColumn,
+			VALUE		= szValue,
+			PROMPT	= bPrompt
+		Where	ROWID		= nRow
+
+	Call HandlerUpdateDialogWithValAndCol
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Handler - Opdater listen med kolonner og værdier
+'****************************************
+Sub HandlerUpdateDialogWithValAndCol
+
+Dim	nItem, nPick, nBtnID, nRow As Integer
+
+OnError GoTo ErrorOccured
+
+	nPick		= ReadControlValue(100)
+	nBtnID	= arrTempUpdateButtons(nPick).nButtonID
+
+	Select * From TAB_COL_AND_VALUES
+		Where BUTTONID = nBtnID
+		Order By ORDER
+		Into CUR_LIST_IN_DIALOG NoSelect
+
+	If not TableInfo(TAB_COL_AND_VALUES, TAB_INFO_READONLY) Then
+		Update TAB_COL_AND_VALUES
+			Set ORDER = ROWID
+	End If
+
+	If GetNumRows("CUR_LIST_IN_DIALOG") = 0 Then
+		ReDim arrColumnAndValues(0)
+		nItem = 0
+	Else
+		nItem = 1
+		ReDim arrColumnAndValues(GetNumRows("CUR_LIST_IN_DIALOG"))
+		Fetch First From CUR_LIST_IN_DIALOG
+		Do Until EOT(CUR_LIST_IN_DIALOG)
+
+			nRow = CUR_LIST_IN_DIALOG.ROWID
+			arrColumnAndValues(nRow)	= CUR_LIST_IN_DIALOG.COLUMN + " = " + CUR_LIST_IN_DIALOG.VALUE 
+			If CUR_LIST_IN_DIALOG.PROMPT Then
+				arrColumnAndValues(nRow)	= "+ " + arrColumnAndValues(nRow)
+			Else
+				arrColumnAndValues(nRow)	= "- " + arrColumnAndValues(nRow)
+			End If
+
+			Fetch Next From CUR_LIST_IN_DIALOG
+		Loop
+	End If
+
+	If nItem = 0 Then
+		Alter Control 520 Title From Variable arrColumnAndValues
+	Else
+		Alter Control 520 Title From Variable arrColumnAndValues Value nItem
+	End If
+
+	Call HandlerColAndValPicked
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Handler - Udpeg fil med ikoner
+'****************************************
+Sub HandlerPickIconFileForUpdate
+
+Dim	szFile, szPath, szName As String
+
+OnError GoTo ErrorOccured
+
+	szFile = ReadControlValue(540)
+	If szFile <> "" And szFile <> MSG_NONE Then
+		szFile = GetFileNameAbsolute$(szFile)
+		szPath = PathToDirectory$(szFile)	
+		szName = PathToFileName$(szFile)
+	End If
+
+	szFile = FileOpenDlg(szPath, szName, "DLL", STYL_DLG_TITLE_PICK_ICONFILE)
+	If szFile = "" Then
+		Exit Sub
+	End If
+
+	Alter Control 540 Value GetFileNameRelative$(szFile)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'	Udpeg icon visuelt med IconPicker
+'**********************************************************************************************''
+Sub HandlerPickIconNoForUpdate
+
+Dim	nIcon As Integer,
+	szFile As String
+
+OnError GoTo ErrorOccured
+
+	szFile = ReadControlValue(540)
+	If szFile <> "" And szFile <> MSG_NONE Then
+		szFile = GetFileNameAbsolute$(szFile)
+	End If
+	nIcon		= GetUserPickedIconNoFromDLLAtMouse(szFile)
+	If nIcon = 0 Then
+		Exit Sub
+	End If
+	
+	Alter Control 541 Value Str$(nIcon)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************
+'Handler : Ændre dialog til at visse den just udpegede knap
+'********************************************
+Sub AlterDialogKindOfUpdate(ByVal snKind As SmallInt)
+
+OnError GoTo ErrorOccured
+
+	If NOT mbStartUp Then
+		arrTempUpdateButtons(mnPrev).szDescription	= ReadControlValue(500)
+		arrUpdateNames(mnPrev)					= arrTempUpdateButtons(mnPrev).szDescription
+		Alter Control 100 Title From Variable arrUpdateNames Value snKind
+
+		arrTempUpdateButtons(mnPrev).bUseThisButton	= ReadControlValue(501)
+		arrTempUpdateButtons(mnPrev).bReadAndWrite	= ReadControlValue(502)
+
+		arrTempUpdateButtons(mnPrev).szIconFile		= ReadControlValue(540)
+		arrTempUpdateButtons(mnPrev).nIconNo		= Val(ReadControlValue(541))
+	End If
+	mbStartUp = FALSE
+
+	Alter Control 500 Value arrTempUpdateButtons(snKind).szDescription
+	Alter Control 501 Value arrTempUpdateButtons(snKind).bUseThisButton
+	Alter Control 502 Value arrTempUpdateButtons(snKind).bReadAndWrite
+
+	Alter Control 540 Value arrTempUpdateButtons(snKind).szIconFile
+	Alter Control 541 Value Str$(arrTempUpdateButtons(snKind).nIconNo)
+
+	Call HandlerUpdateDialogWithValAndCol
+
+	mnPrev	= snKind
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Udførsel af Opdater kolonne
+'****************************************
+Sub ToolUpdateColumn
+
+Dim	szSelTab, szColName, szValue, szCmdStr As String,
+	i, nBtnID, nCount As Integer,
+	bPrompt As Logical
+
+OnError GoTo ErrorOccured
+
+	nBtnID = CommandInfo(CMD_INFO_TOOLBTN) - UPDATE_BTN_ID
+
+	If SelectionInfo(SEL_INFO_NROWS) = 0 Then
+		Exit Sub
+	End If
+
+	szSelTab	= SelectionInfo(SEL_INFO_SELNAME)
+
+	If not OpenTableWithColumnAndValues() Then
+		Exit Sub
+	End If
+
+	Select * From TAB_COL_AND_VALUES
+		Where BUTTONID = nBtnID
+		Into CUR_TO_UPDATE NoSelect
+
+	nCount = GetNumRows("CUR_TO_UPDATE")
+	If nCount > 0 Then
+	'	nButtonID		As Integer
+	'	szUpdateColumn	As String
+	'	szOrigValue		As String
+	'	szReadColumn	As String
+	'	szReadValue		As String
+
+		ReDim arrValuesUpdate(nCount)
+
+		nCount = 0
+		Fetch First From CUR_TO_UPDATE
+		Do Until EOT(CUR_TO_UPDATE)
+			szColName	= CUR_TO_UPDATE.COLUMN
+			szValue	= CUR_TO_UPDATE.VALUE
+			bPrompt	= CUR_TO_UPDATE.PROMPT
+
+			If szColName <> "" And ColExist(szSelTab, szColName) Then
+				nCount = nCount + 1
+				arrValuesUpdate(nCount).nButtonID		= nBtnID
+				arrValuesUpdate(nCount).szUpdateColumn	= szColName
+				arrValuesUpdate(nCount).szOrigValue		= szValue
+				arrValuesUpdate(nCount).bPrompt		= bPrompt
+				arrValuesUpdate(nCount).szReadValue		= UpdateGetValue$(szValue, szSelTab)
+			End If
+
+			Fetch Next From CUR_TO_UPDATE
+		Loop
+
+		If nCount > 0 Then
+			If UpdatePromptUser(nBtnID, arrValuesUpdate) Then
+				Call UpdateAllColumnsWithValues(szSelTab, nBtnID, arrValuesUpdate)
+			End If
+		End If
+	End If
+
+	If TableOpen(szSelTab) Then
+		Close Table szSelTab
+	End If
+
+	If not CloseTableWithColumnAndValues() Then End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Udførsel af Opdater kolonne - Læs & Skriv
+'****************************************
+Sub ToolUpdateColumnReadAndWrite
+
+Dim	szSelTab, szColName, szValue, szCmdStr As String,
+	i, nBtnID, nCount As Integer,
+	bPrompt As Logical
+
+OnError GoTo ErrorOccured
+
+	nBtnID = CommandInfo(CMD_INFO_TOOLBTN)
+	nBtnID = nBtnID - UPDATE_BTN_ID
+
+	If SelectionInfo(SEL_INFO_NROWS) = 0 Then
+		Note ERR_REC_NO_SELECTED
+		Call UpdateRemoveButtonFromList(nBtnID, arrValuesReadAndWrite)
+		Exit Sub
+	End If
+	szSelTab	= SelectionInfo(SEL_INFO_SELNAME)
+
+	If not OpenTableWithColumnAndValues() Then
+		Exit Sub
+	End If
+
+	If arrUpdateButtons(nBtnID).bIsPushedDown Then
+		If UpdatePromptUser(nBtnID, arrValuesReadAndWrite) Then
+			Call UpdateAllColumnsWithValues(szSelTab, nBtnID, arrValuesReadAndWrite)
+		Else
+			Call UpdateRemoveButtonFromList(nBtnID, arrValuesReadAndWrite)
+		End If
+		arrUpdateButtons(nBtnID).bIsPushedDown = FALSE
+		Alter Button ID (UPDATE_BTN_ID + nBtnID) UnCheck
+	Else
+		If UpdateReadValuesFromSelection(nBtnID, szSelTab) Then
+			arrUpdateButtons(nBtnID).bIsPushedDown = TRUE
+			Alter Button ID (UPDATE_BTN_ID + nBtnID) Check
+		End If
+	End If
+
+	If not CloseTableWithColumnAndValues() Then End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Læser værdier fra Selection
+'****************************************
+Function UpdateReadValuesFromSelection(ByVal nBtnID As Integer, ByVal szReadTable As String) As Logical
+
+Dim	nCount, nRows As Integer,
+	szColumn, szValue, szReadColumn As String,
+	bPrompt As Logical,
+	a As Alias
+
+OnError GoTo ErrorOccured
+
+	Select * From TAB_COL_AND_VALUES
+		Where BUTTONID = nBtnID
+		Into CUR_TO_UPDATE NoSelect
+
+	nRows		= GetNumRows("CUR_TO_UPDATE")
+	nCount	= Ubound(arrValuesReadAndWrite)
+	If nRows > 0 Then
+		ReDim arrValuesReadAndWrite(nCount + nRows)
+
+		Fetch First From CUR_TO_UPDATE
+		Do Until EOT(CUR_TO_UPDATE)
+			szColumn	= CUR_TO_UPDATE.COLUMN
+			szValue	= CUR_TO_UPDATE.VALUE
+			bPrompt	= CUR_TO_UPDATE.PROMPT
+
+			nCount	= nCount + 1
+			arrValuesReadAndWrite(nCount).nButtonID		= nBtnID
+			arrValuesReadAndWrite(nCount).szUpdateColumn	= szColumn
+			arrValuesReadAndWrite(nCount).szOrigValue		= szValue
+			arrValuesReadAndWrite(nCount).bPrompt		= bPrompt
+			arrValuesreadAndWrite(nCount).szReadValue		= UpdateGetValue$(szValue, szReadTable)
+			arrValuesreadAndWrite(nCount).szReadColumn	= UpdateGetReadColumnName$(szValue)
+
+
+			Fetch Next From CUR_TO_UPDATE
+		Loop
+		UpdateReadValuesFromSelection = TRUE
+	Else
+		UpdateReadValuesFromSelection = FALSE
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Returneret navn på kolonne, som skal læses fra
+'****************************************
+Function UpdateGetReadColumnName$(ByVal szValue As String) As String
+
+OnError GoTo ErrorOccured
+
+UpdateGetReadColumnName$ = ""
+
+	szValue = LTrim$(Rtrim$(szValue))
+	If Left$(szValue, 3) = "[C=" And Right$(szValue, 1) = "]" Then
+		UpdateGetReadColumnName$ = Mid$(szValue, 4, Len(szValue) - 4)
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Returneret værdi, evt. systemværdi såsom dato eller lignende
+'****************************************
+Function UpdateGetValue$(ByVal szOrigValue As String, ByVal szReadTab As String) As String
+
+Dim	szValue, szReadColumn As String,
+	dToDay As Date,
+	a As Alias
+
+OnError GoTo ErrorOccured
+
+	UpdateGetValue$ = szOrigValue
+
+	szValue = LTrim$(RTrim$(szOrigValue))
+	If not Left$(szValue, 1) = "[" Then
+		Exit Function
+	ElseIf not Right$(szValue, 1) = "]" Then
+		Exit Function
+	End If
+
+	Do Case szValue
+		Case "[DATE]", "[DATO]"
+			dToDay = CurDate()
+			szValue = Str$(Year(dToDay))+ Right$("0" + Str$(Month(dToDay)), 2) + Right$("0" + Str$(Day(dToDay)), 2)
+		Case "[DAY]", "[DAG]"
+			szValue = GetDay$()
+		Case "[WEEKDAY]", "[UGEDAG]"
+			szValue = GetWeekDay$()
+		Case "[MONTH#]", "[MÅNEDNR]"
+			szValue = GetMonthNumber$()
+		Case "[MNTH]", "[MND]"
+			szValue = GetMonthShort$()
+		Case "[MONTH]", "[MÅNED]"
+			szValue = GetMonthLong$()
+		Case "[YEAR]", "[ÅR]"
+			szValue = GetYear$()
+		Case Else
+			If Left$(szValue, 3) = "[C=" Then
+				Fetch First From szReadTab
+				szReadColumn	= UpdateGetReadColumnName$(szValue)
+
+				If ColExist(szReadTab, szReadColumn) Then
+					a = szReadTab + "." + szReadColumn
+					Do Case ColumnInfo(szReadTab, szReadColumn, COL_INFO_TYPE)
+						Case COL_TYPE_DECIMAL, COL_TYPE_FLOAT
+							szValue = PointToKomma(Str$(a))
+						Case Else
+							szValue 	= a
+					End Case
+				End If
+			End If
+	End Case
+
+UpdateGetValue$ = szValue
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Opdaterer alle kolonner i given tabelmed given værdi
+'****************************************
+Sub UpdateRemoveButtonFromList(ByVal nBtnID As Integer, arrValues() As T_READANDWRITE)
+
+Dim	i, nCount, nKeep As Integer,
+	arrTemp() As T_READANDWRITE
+
+OnError GoTo ErrorOccured
+
+	nCount	= Ubound(arrValues)
+	ReDim arrTemp(nCount)
+	nKeep		= 0
+	For i = 1 To nCount
+		If arrValues(i).nButtonID = nBtnID Then
+			'**This should be removed
+		Else
+			'**This should be kept
+			nKeep = nKeep + 1
+			arrTemp(nKeep).nButtonID	= arrValues(i).nButtonID
+			arrTemp(nKeep).szUpdateColumn	= arrValues(i).szUpdateColumn
+			arrTemp(nKeep).szOrigValue	= arrValues(i).szOrigValue
+			arrTemp(nKeep).bPrompt		= arrValues(i).bPrompt
+			arrTemp(nKeep).szReadValue	= arrValues(i).szReadValue
+			arrTemp(nKeep).szReadColumn	= arrValues(i).szReadColumn
+		End If
+	Next	'i
+
+	ReDim arrValues(nKeep)
+	For i = 1 To nKeep
+		arrValues(i).nButtonID		= arrTemp(i).nButtonID
+		arrValues(i).szUpdateColumn	= arrTemp(i).szUpdateColumn
+		arrValues(i).szOrigValue	= arrTemp(i).szOrigValue
+		arrValues(i).bPrompt		= arrTemp(i).bPrompt
+		arrValues(i).szReadValue	= arrTemp(i).szReadValue
+		arrValues(i).szReadColumn	= arrTemp(i).szReadColumn
+	Next
+
+	ReDim arrTemp(0)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Opdaterer alle kolonner i given tabelmed given værdi
+'****************************************
+Sub UpdateAllColumnsWithValues(ByVal szTab As String, nBtnID As Integer, arrValuesUpdate() As T_READANDWRITE)
+
+Dim	i, nCount, nKeep As Integer,
+	arrTemp() As T_READANDWRITE
+
+OnError GoTo ErrorOccured
+
+	'.nButtonID		= nBtnID
+	'.szUpdateColumn	= szColumn
+	'.szOrigValue	= szValue
+	'.bPrompt		= bPrompt
+	'.szReadValue	= UpdateGetValue$(szValue, szReadTable)
+	'.szReadColumn	= UpdateGetReadColumnName$(szValue)
+
+	nCount	= Ubound(arrValuesUpdate)
+	ReDim arrTemp(nCount)
+	nKeep		= 0
+	For i = 1 To nCount
+		If arrValuesUpdate(i).nButtonID = nBtnID Then
+			Call UpdateColumnWithValue(szTab, arrValuesUpdate(i).szUpdateColumn, arrValuesUpdate(i).szReadValue)
+		Else
+			nKeep = nKeep + 1
+			arrTemp(nKeep).nButtonID	= arrValuesUpdate(i).nButtonID
+			arrTemp(nKeep).szUpdateColumn	= arrValuesUpdate(i).szUpdateColumn
+			arrTemp(nKeep).szOrigValue	= arrValuesUpdate(i).szOrigValue
+			arrTemp(nKeep).bPrompt		= arrValuesUpdate(i).bPrompt
+			arrTemp(nKeep).szReadValue	= arrValuesUpdate(i).szReadValue
+			arrTemp(nKeep).szReadColumn	= arrValuesUpdate(i).szReadColumn
+		End If
+	Next	'i
+
+	ReDim arrValuesUpdate(nKeep)
+	For i = 1 To nKeep
+		arrValuesUpdate(i).nButtonID		= arrTemp(i).nButtonID
+		arrValuesUpdate(i).szUpdateColumn	= arrTemp(i).szUpdateColumn
+		arrValuesUpdate(i).szOrigValue	= arrTemp(i).szOrigValue
+		arrValuesUpdate(i).bPrompt		= arrTemp(i).bPrompt
+		arrValuesUpdate(i).szReadValue	= arrTemp(i).szReadValue
+		arrValuesUpdate(i).szReadColumn	= arrTemp(i).szReadColumn
+	Next
+
+	ReDim arrTemp(0)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Opdaterer given kolonne i given tabelmed given værdi
+'****************************************
+Sub UpdateColumnWithValue(ByVal szTab As String, ByVal szCol As String, ByVal szValue As String)
+
+Dim	szCmdStr As String,
+	szColType As String,
+	szTempValue As Logical
+
+OnError GoTo ErrorOccured
+
+	szCmdStr = "Update " + szTab
+		+ " Set " +	szCol + " = "
+
+	Do Case ColumnInfo(szTab, szCol, COL_INFO_TYPE)
+		Case COL_TYPE_CHAR
+			szColType	= "Char"
+			szCmdStr	= szCmdStr + eye + szValue + eye
+		Case COL_TYPE_DECIMAL, COL_TYPE_FLOAT
+			szColType	= "Decimal or Float"
+			szCmdStr = szCmdStr + "Val(" + eye + KommaToPoint(szValue) + eye + ")"
+		Case COL_TYPE_INTEGER, COL_TYPE_SMALLINT
+			szColType	= "Integer or SmallInt"
+			szCmdStr = szCmdStr + "Val(" + eye + szValue + eye + ")"
+		Case COL_TYPE_DATE
+			szColType	= "Date"
+			Set Format Date "US"
+			Do Case szValue
+				Case "[DATE]", "[DATO]"
+					szCmdStr = szCmdStr + " NumberToDate(" + szValue + ")"
+				Case Else
+					szCmdStr = szCmdStr + " StringToDate(" + eye + szValue + eye + ")"
+			End Case	'szValue
+			Set Format Date "Local"
+		Case COL_TYPE_LOGICAL
+			szColType	= "Logisk"
+			Do Case szValue
+				Case "T", "S"
+					szTempValue = "T"
+				Case "TRUE", "SAND"
+					szTempValue = "T"
+				Case "YES", "JA"
+					szTempValue = "T"
+				Case "Y", "J"
+					szTempValue = "T"
+				Case "1"
+					szTempValue = "T"
+				Case Else
+					szTempValue = "F"
+			End Case
+			szCmdStr = szCmdStr + " " + eye + szTempValue + eye
+		Case Else
+			szColType	= "Other ?"
+			szCmdStr = szCmdStr + szValue
+	End Case	'ColumnInfo(szSelTab, szColName, COL_INFO_TYPE)
+
+	OnError GoTo ErrorOccured
+	'Print szCmdStr
+	Run Command szCmdStr
+	OnError GoTo 0
+
+	Exit Sub
+'------------------
+ErrorOccured:
+	Print ERR_TXT_ERRORMSG + Error$()
+		+ lf + "....Update Command: " + szCmdStr
+		+ lf + "....Column type  : " + szColType
+
+End Sub
+
+'****************************************
+'Lader brugeren indtaste værdier til opdatering
+'****************************************
+Function UpdatePromptUser(ByVal nBtnID As Integer, arrColAndValues() As T_READANDWRITE) As Logical
+
+Dim	nTotal, nCount, i As Integer
+
+OnError GoTo ErrorOccured
+
+UpdatePromptUser = FALSE
+
+	nTotal = Ubound(arrColAndValues)
+	Redim	arrColumn(nTotal)
+	Redim	arrValues(nTotal)
+	For i = 1 To nTotal
+		If arrColAndValues(i).nButtonID = nBtnID Then
+			If arrColAndValues(i).bPrompt Then
+				nCount = nCount + 1
+				arrColumn(nCount)	= arrColAndValues(i).szUpdateColumn
+				arrValues(nCount)	= arrColAndValues(i).szReadValue
+			End If
+		End If
+	Next
+
+	If nCount > 0 Then
+		Redim	arrColumn(nCount)
+		Redim	arrValues(nCount)
+
+		If nCount <= 6 Then
+			If not UpdatePromptUserFew() Then
+				UpdatePromptUser = FALSE
+				Exit Function
+			End If
+		Else
+			If not UpdatePromptUserMulti() Then
+				UpdatePromptUser = FALSE
+				Exit Function
+			End If
+		End If
+
+		nCount = 0
+		For i = 1 To nTotal
+			If arrColAndValues(i).nButtonID = nBtnID Then
+				If arrColAndValues(i).bPrompt Then
+					nCount = nCount + 1
+					arrColAndValues(i).szReadValue = arrValues(nCount)
+				End If
+			End If
+		Next
+		UpdatePromptUser = TRUE
+	Else
+		'**No prompting the user, but still OK
+		UpdatePromptUser = TRUE
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Lader brugeren indtaste værdier til opdatering - få kolonner/værdier
+'****************************************
+Function UpdatePromptUserFew() As Logical
+
+Dim	nNumCols As Integer
+
+OnError GoTo ErrorOccured
+
+UpdatePromptUserFew = FALSE
+
+	nNumCols = Ubound(arrColumn)
+
+	Dialog
+		Title KPAK_DLG_TITLE_UPDATE_COLUMN	Height (nNumCols * 15) + 30
+		Calling HandlerUpdatePromptFewDialogStartUp
+
+		'---------- ID 1xx
+		Control StaticText	Position 5,7	Width 70			ID 100	Hide
+			Title ""
+		Control EditText		Position 80,5	Width 85			ID 102 	Hide
+
+		'---------- ID 2xx
+		Control StaticText	Position 5,22	Width 70			ID 200	Hide
+			Title ""
+		Control EditText		Position 80,20	Width 85			ID 202 	Hide
+
+		'---------- ID 3xx
+		Control StaticText	Position 5,37	Width 70			ID 300	Hide
+			Title ""
+		Control EditText		Position 80,35	Width 85			ID 302 	Hide
+
+		'---------- ID 4xx
+		Control StaticText	Position 5,52	Width 70			ID 400	Hide
+			Title ""
+		Control EditText		Position 80,50	Width 85			ID 402 	Hide
+
+		'---------- ID 5xx
+		Control StaticText	Position 5,67	Width 70			ID 500	Hide
+			Title ""
+		Control EditText		Position 80,65	Width 85			ID 502 	Hide
+
+		'---------- ID 6xx
+		Control StaticText	Position 5,82	Width 70			ID 600	Hide
+			Title ""
+		Control EditText		Position 80,80	Width 85			ID 602 	Hide
+
+		Control OKButton		Position 75,(nNumCols * 15) + 10	Width 40
+			Calling HandlerUpdatePromptFewDialogEnd
+		Control CancelButton	Position 120,(nNumCols * 15) + 10	Width 40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+UpdatePromptUserFew = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Handler: Starter dialog og tilretter denne
+'****************************************
+Sub HandlerUpdatePromptFewDialogStartUp
+
+Dim	i As Integer,
+	szCol, szVal As String
+
+OnError GoTo ErrorOccured
+
+	For i = 1 To Ubound(arrColumn)
+		Alter Control (i * 100)		Show
+		Alter Control (i * 100) + 2	Show
+
+		szCol		= arrColumn(i)
+		szVal		= arrValues(i)
+
+		Alter Control (i * 100)		Title szCol
+		Alter Control (i * 100)	+ 2	Value szVal
+	Next
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Handler: Afslutter dialog og opdaterer tabel
+'****************************************
+Sub HandlerUpdatePromptFewDialogEnd
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	For i = 1 To Ubound(arrColumn)
+	'	Print "Before " + arrValues(i)
+		arrValues(i) = ReadControlValue((i * 100) + 2)
+	'	Print "After " + arrValues(i)
+	Next
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Lader brugeren indtaste værdier til opdatering - mange kolonner/værdier
+'****************************************
+Function UpdatePromptUserMulti() As Logical
+
+Dim	szLastvalue As String
+
+OnError GoTo ErrorOccured
+
+UpdatePromptUserMulti = FALSE
+
+	nPrevPicked = 1
+	Dialog
+		Title KPAK_DLG_TITLE_UPDATE_COLUMN
+		' Calling PrintPickedValue
+		Control ListBox	Position 5,5	Width 100	Height 100	ID 100
+			Title From Variable arrColumn
+			Calling HandlerUpdatePickedupdateValue
+			Value nPrevPicked
+		Control ListBox	Position 110,5	Width 100	Height 100	ID 101
+			Title From Variable arrValues
+			Calling HandlerUpdatePickedupdateValue
+			Value nPrevPicked
+		Control StaticText	Position 5,115	Width 205	ID 200
+			Title arrColumn(1)
+		Control EditText	Position 5,125	Width 205	ID 201
+			Value arrValues(1)
+			Into szLastValue
+		Control OKButton		'Calling PrintPickedValue
+		Control CancelButton
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	arrValues(nPrevPicked) = szLastvalue
+
+UpdatePromptUserMulti = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Handler til styring af udpeget ...
+'**************************************************************
+Sub HandlerUpdatePickedupdateValue
+
+OnError GoTo ErrorOccured
+
+	arrValues(nPrevPicked) = ReadControlValue(201)
+
+	nPrevPicked = ReadControlValue(TriggerControl())
+
+	Alter Control 100 Value nPrevPicked
+	Alter Control 101 Title From Variable arrValues Value nPrevPicked
+
+	Alter Control 200 Title arrColumn(nPrevPicked)
+	Alter Control 201 Value arrValues(nPrevPicked) Active
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'---------------------------------------------------------------------------------------------------------------------
+'****************************************
+'Henter - Navnet på kolonnnen, som skal opdateres
+'****************************************
+Function UpdateColumnGetColumnName$() As String
+
+OnError GoTo ErrorOccured
+
+	UpdateColumnGetColumnName$	= mszColumnName
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Henter - Værdien, som skal indsættes
+'****************************************
+Function UpdateColumnGetValue$() As String
+
+OnError GoTo ErrorOccured
+
+	UpdateColumnGetValue$	= mszUpdateValue
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Sætter - Navnet på kolonnnen, som skal opdateres
+'****************************************
+Sub UpdateColumnSetColumnName(ByVal szName As String)
+
+OnError GoTo ErrorOccured
+
+	mszColumnName = szName
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Sætter - Værdien, som skal indsættes
+'****************************************
+Sub UpdateColumnSetValue(ByVal szValue As String)
+
+OnError GoTo ErrorOccured
+
+	mszUpdateValue	= szValue
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'***** F U N K T I O N E R   T I L   S K R I V N I N G   A F   I N I - F I L ************************************
+'********************************************
+'Skriv ini fil - Opdater kolonne
+'********************************************
+Sub UpdateColumnWriteIniFile(ByVal nFileNo As Integer)
+
+Dim	i, nNum As Integer
+
+OnError GoTo ErrorOccured
+
+	nNum	= Ubound(arrUpdateButtons)
+
+	Print #nFileNo, ""
+	Print #nFileNo, "[UPDATECOLUMN]"
+	Print #nFileNo, "NUMUPDATEBTN=" + nNum
+
+	For i = 1 To nNum	
+		If arrUpdateButtons(i).szDescription = "" Then
+			arrUpdateButtons(i).szDescription = KPAK_TXT_UPDATE_COLUMN + i
+		End If
+		If arrUpdateButtons(i).szIconFile = "" Then
+			arrUpdateButtons(i).szIconFile = MSG_NONE
+		End If
+
+		Print #nFileNo, "BUTTON" + i + "="
+			+ Str$(arrUpdateButtons(i).nButtonID)
+			+ "," + arrUpdateButtons(i).bUseThisButton
+			+ "," + arrUpdateButtons(i).szDescription
+			+ "," + arrUpdateButtons(i).szIconFile
+			+ "," + arrUpdateButtons(i).nIconNo
+			+ "," + arrUpdateButtons(i).bReadAndWrite
+	Next
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************
+'Update Column - Læs inifil
+'********************************************
+Sub UpdateColumnReadIniFile(ByVal szFile As String)
+
+Dim	i, nNum As Integer,
+	szRead, arrRead() As String
+
+OnError GoTo ErrorOccured
+
+	nNum = GetIniKeyValue(szFile, "[UPDATECOLUMN]", "NUMUPDATEBTN")
+	ReDim arrUpdateButtons(nNum)
+
+	For i = 1 To Ubound(arrUpdateButtons)
+		szRead = GetIniKeyValue(szFile, "[UPDATECOLUMN]", "BUTTON" + i)
+		If StrSplitKomma(szRead, arrRead, 6) >= 5 Then
+			arrUpdateButtons(i).nButtonID		= Val(arrRead(1))
+			If arrRead(2) = "F" Then
+				arrUpdateButtons(i).bUseThisButton	= FALSE
+			Else
+				arrUpdateButtons(i).bUseThisButton	= TRUE
+			End If
+			arrUpdateButtons(i).szDescription	= arrRead(3)
+
+			arrUpdateButtons(i).szIconFile	= arrRead(4)
+			arrUpdateButtons(i).nIconNo		= Val(arrRead(5))
+			If Ubound(arrRead) > 5 Then
+				If arrRead(6) = "F" Then
+					arrUpdateButtons(i).bReadAndWrite	= FALSE
+				Else
+					arrUpdateButtons(i).bReadAndWrite	= TRUE
+				End If
+			End If
+		End If
+	Next
+
+	If Ubound(arrUpdateButtons) = 0 Then
+		nNum	= 4
+		ReDim arrUpdateButtons(nNum)
+		For i = 1 To nNum
+			arrUpdateButtons(i).nButtonID		= i
+			arrUpdateButtons(i).szDescription	= KPAK_TXT_UPDATE_COLUMN + i
+			arrUpdateButtons(i).bUseThisButton	= FALSE		
+		Next
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************
+'Danner Buttonpads
+'********************************************
+Sub CreateUpdateButtonPads(ByVal szButtonPad As String)
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	Alter ButtonPad szButtonPad
+		Add Separator
+
+	'Print "Tilføjer nu " + Ubound(arrUpdateButtons) + " knapper"
+	For i = 1 To Ubound(arrUpdateButtons)
+		Call AddSingleUpdateButtonToPad(szButtonPad, i)
+	Next
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************
+'Danner Update Buttonpads
+'********************************************
+Sub AddSingleUpdateButtonToPad(ByVal szButtonPad As String, ByVal nBtnID As Integer)
+
+Dim	szIconFile, szHelpMsg As String,
+	nIcon, nToolID As Integer,
+	bReadAndWrite As Logical
+
+OnError GoTo ErrorOccured
+
+	If not arrUpdateButtons(nBtnID).bUseThisButton Then
+		Exit Sub
+	End If
+
+	szIconFile		= arrUpdateButtons(nBtnID).szIconFile
+	nIcon			= arrUpdateButtons(nBtnID).nIconNo
+	bReadAndWrite	= arrUpdateButtons(nBtnID).bReadAndWrite
+	szHelpMsg		= arrUpdateButtons(nBtnID).szDescription + "\n" + arrUpdateButtons(nBtnID).szDescription
+	nToolID		= (nBtnID + UPDATE_BTN_ID)
+
+	'Print "Tilføjer: Knap " + nToolID + " " + szHelpMsg + " til paletten " + szButtonPad
+	If szIconFile <> "" And szIconFile <> MSG_NONE Then
+		szIconFile	= GetFileNameAbsolute$(szIconFile)
+
+		If not FileExists(szIconFile) Then
+			Print ERR_ICONFILE_NOT_FOUND + szIconFile
+			GoTo AddOrdinaryButton
+		End If
+	End If
+
+	'--------------------------
+	OnError GoTo ErrorOccured
+
+	If szIconFile = "" Or szIconFile = MSG_NONE Then
+		If bReadAndWrite Then
+			Alter ButtonPad szButtonPad
+				Add	ToggleButton
+					ID nToolID
+					Icon nIcon
+					Calling ToolUpdateColumnReadAndWrite
+					HelpMsg szHelpMsg
+		Else
+			Alter ButtonPad szButtonPad
+				Add	PushButton
+					ID nToolID
+					Icon nIcon
+					Calling ToolUpdateColumn
+					HelpMsg szHelpMsg
+		End If
+	Else
+		If bReadAndWrite Then
+			Alter ButtonPad szButtonPad
+				Add	ToggleButton
+					ID nToolID
+					Icon nIcon	File szIconFile
+
+					Calling ToolUpdateColumnReadAndWrite
+					HelpMsg szHelpMsg
+		Else
+			Alter ButtonPad szButtonPad
+				Add	PushButton
+					ID nToolID
+					Icon nIcon	File szIconFile
+					Calling ToolUpdateColumn
+					HelpMsg szHelpMsg
+		End If
+	End If
+
+	Exit Sub
+
+'-------------
+AddOrdinaryButton:
+
+	OnError GoTo 0
+
+	If bReadAndWrite Then
+		Alter ButtonPad szButtonPad
+			Add	ToggleButton
+				Calling ToolUpdateColumnReadAndWrite
+				Icon MI_ICON_NUMBERS_11
+				ID nToolID
+				HelpMsg szHelpMsg
+	Else
+		Alter ButtonPad szButtonPad
+			Add	PushButton
+				Calling ToolUpdateColumn
+				Icon MI_ICON_NUMBERS_11
+				ID nToolID
+				HelpMsg szHelpMsg
+	End If
+
+	Exit Sub
+'-------------
+ErrorOccured:
+
+	Print ERR_ICON_LOADING_1 + nIcon +
+		ERR_ICON_LOADING_2 + szIconFile + " : " + lf
+		+ Error$()
+
+	Resume AddOrdinaryButton
+
+End Sub
+
+'********************************************
+'Danner Buttonpads
+'********************************************
+Sub DeleteAndCreateUpdateButtonPads(ByVal szButtonPad As String)
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	Set Event Processing Off
+
+	For i = 1 To Ubound(arrUpdateButtons)
+		Alter ButtonPad szButtonPad	Remove ID (i + UPDATE_BTN_ID)
+	Next
+
+	Call CreateUpdateButtonPads(szButtonPad)
+
+	Set Event Processing On
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

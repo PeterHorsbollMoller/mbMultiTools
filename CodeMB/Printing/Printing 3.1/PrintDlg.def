@@ -1,0 +1,32 @@
+Declare Function PrintingSetup() As Logical
+Declare Function PrintingSetupPrintLayouts() As Logical
+
+'**Dialog for setting up default printing settings...
+Declare Function PrintingSetupCurrentPrint() As Logical
+Declare Function PrintingMI4ZupCurPrint() As Logical			'**From MapInfo version 4.0
+Declare Function PrintingMI6ZupCurPrint() As Logical			'**From MapInfo version 6.0
+
+Declare Function PrintingSetupCurrentPrintNoRunTimeValues() As Logical
+Declare Function PrintingSetupCurrentPrintNoClonMap() As Logical
+
+'**Dialog for setting up Quick Print...
+Declare Function PrintingSetupCurrentPrintWithScale() As Logical
+Declare Function PrintingMI4ZupCurPrintWithScale() As Logical	'**From MapInfo version 4.0
+Declare Function PrintingMI6ZupCurPrintWithScale() As Logical	'**From MapInfo version 6.0
+
+Declare Function PrintSetScaleDialog() As Logical
+Declare Function PrintGetFramesToPrint(ByVal szTitle As String) As Logical
+Declare Sub PrintCreateTableForFrames
+Declare Sub PrintChangePrinterSetting(ByVal szCurPaper As String, ByVal szNewPaper As String)
+
+Declare Sub PrintInput
+
+Declare Function PrintingSetStandardValuesDialog() As Logical
+Declare Function PrintEnterAliasValuesDialog(	arrAliasValues(0) As T_ALIAS_AND_VALUE,
+								arrColumnAndValues() As T_COL_AND_VALUES,
+								ByVal bResetValues As Logical) As Logical
+
+Declare Sub PrintAlterScaleForPreview
+Declare Sub PrintAlterScaleRotationForPreview
+
+Declare Function PrintCheckColumnsInFrameTable(ByVal szTab As String) As Logical

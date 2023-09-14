@@ -1,0 +1,113 @@
+Define INFO_SYS_WINDOWS_APPLICATION		"Denne applikation kører kun på Windows-platform!"
+Define INFO_SYS_PROGRAM_END			"Programmet afsluttes!"
+
+Define INFO_WIN_NOT_MAP				"Det aktive vindue er ikke et kortvindue!"
+Define INFO_WIN_NOT_LAYOUT			"Det aktive vindue er ikke et layoutvindue!"
+
+Define INFO_WIN_NO_OPEN				"Ingen åbne vinduer!"
+Define INFO_WIN_LAYOUT_NOT_FOUND		"Layoutvindue ikke fundet!"
+Define INFO_WIN_MAP_NOT_FOUND			"Kortvindue ikke fundet!"
+Define INFO_WIN_NO_EDIT_LAYER			"Intet redigerbart kort i kortvinduet!"
+Define INFO_WIN_NO_MAP_OPEN			"Ingen åbne kortvinduer!"
+Define INFO_WIN_CREATE_NEW_MAP		"Opret nyt kortvindue..."
+Define INFO_WIN_MAP_CLON_ERROR		"Kunne ikke klone kortvinduet!"
+Define INFO_WIN_MAP_SIZE_ERROR		"Kunne ikke ændre kortets størrelse!"
+Define INFO_WIN_MAP_WIDTH_ERROR		"Kunne ikke ændre kortets bredde!"
+Define INFO_WIN_MAP_XY_OR_ZOOM_ERROR	"Kunne ikke ændre kortets zoom eller centerkoordinater!"
+Define INFO_WIN_MAP_XY_OR_SCALE_ERROR	"Kunne ikke ændre kortets skala eller centerkoordinater!"
+Define INFO_WIN_LAYOUT_INSERT_MAP_ERROR	"Kunne ikke indsætte kortet i layoutet!"
+
+Define INFO_MAP_COSMETIC_REMOVES		"Kosmetisk lag bliver slettet!"
+
+Define INFO_TAB_NO_OPEN				"Ingen åbne tabeller!"
+Define INFO_TAB_NOT_OPEN			"Tabel er ikke åben : "
+Define INFO_TAB_NO_COLUMNS			"Ingen kolonner!"
+Define INFO_TAB_NONE				"Ingen tabeller."
+Define INFO_TAB_TO_FEW				"For få tabeller."
+Define INFO_TAB_TABLE 				"Tabel"
+Define INFO_TAB_PICK_NEW_POINTS		"Udpeg ny tabel..."
+Define INFO_TAB_OPEN_POINTS			"Åben tabel..."
+Define INFO_TAB_NOT_FOUND			"Tabel findes ikke på disken : "
+Define INFO_TAB_NO_REC				"Ingen rækker i tabel!"
+
+Define INFO_FILE_PICK_NEW_POINTS		"Udpeg ny fil..."
+Define INFO_FILE_PICK_POINTS			"Udpeg fil..."
+
+Define INFO_WOR_PICK_NEW_POINTS		"Udpeg nyt arbejdsområde..."
+Define INFO_WOR_PICK_POINTS			"Udpeg arbejdsområde..."
+Define INFO_WOR_NO_PICKED			"Intet arbejdsområde udpeget!"
+
+Define INFO_ICON_FILE				"Ikonfil"
+Define INFO_ICON_ICONNO				"Ikonnr"
+
+Define INFO_STYLE_SYMBOL			"Symbolstil"
+Define INFO_STYLE_LINE				"Liniestil"
+Define INFO_STYLE_FONT				"Tekststil"
+Define INFO_STYLE_REGION			"Regionstil"
+Define INFO_STYLE_FILL				"Udfyldning"
+Define INFO_STYLE_BORDER			"Afgrænsning"
+
+Define INFO_OBJ_SYMBOL				"Symbol"
+Define INFO_OBJ_LINE				"Linie"
+Define INFO_OBJ_FONT				"Tekst"
+Define INFO_OBJ_REGION				"Region"
+Define INFO_OBJ_FILL				"Udfyldning"
+Define INFO_OBJ_BORDER				"Afgrænsning"
+Define INFO_OBJ_KIND				"Objekttyper"
+
+Define INFO_STYLE_SAVE				"Gem stilarter"
+Define INFO_STYLE_ADD				"Tilføj Stilart"
+Define INFO_STYLE_ALTER				"Ret stilarter"
+Define INFO_STYLE_KIND				"Stilart"
+
+Define INFO_LAYER_ADD				"Tilføj lag"
+Define INFO_LAYER_COSMETIC			"Kosmetisk lag"
+Define INFO_LAYER_EDITABLE			"Redigerbart lag"
+
+Define INFO_NONE					"Ingen"
+Define INFO_YES					"Ja"
+Define INFO_NO					"Nej"
+
+Define INFO_TEXT_NONE				"Ingen"
+Define INFO_TEXT_NEW_POINTS			"Ny..."
+Define INFO_TEXT_ALTER_POINTS			"Rediger..."
+Define INFO_TEXT_REMOVE_POINTS		"Fjern..."
+Define INFO_TEXT_PICK_POINTS			"Udpeg..."
+Define INFO_TEXT_SAVE_POINTS			"Gem..."
+Define INFO_TEXT_ADD_POINTS			"Tilføj..."
+Define INFO_TEXT_CREATE_POINTS		"Opret..."
+Define INFO_TEXT_NEW				"Ny"
+Define INFO_TEXT_ALTER				"Rediger"
+Define INFO_TEXT_REMOVE				"Fjern"
+Define INFO_TEXT_NAME				"Navn"
+Define INFO_TEXT_PICK				"Udpeg"
+Define INFO_TEXT_SAVE				"Gem"
+Define INFO_TEXT_ADD				"Tilføj"
+Define INFO_TEXT_CREATE				"Opret"
+Define INFO_TEXT_UP				"Op"
+Define INFO_TEXT_DOWN				"Ned"
+Define INFO_TEXT_CONTINUE			"Fortsæt"
+Define INFO_TEXT_STOP				"Afbryd"
+Define INFO_TEXT_PRINTSETUP_POINTS		"Printeropsætning..."	
+
+Define INFO_THEME_NAME				"Temanavn"
+Define INFO_THEME_THEMES			"Temaer"
+Define INFO_THEME_ADD_POINTS			"Tilføj tema..."
+
+Define INFO_PRINT_LAYOUT_NOT_FOUND		"Udskriftslayout findes ikke på disken : "
+Define INFO_PRINT_LAYOUT_ERROR		"Fejl i arbejdsområdet!"
+Define INFO_PRINT_LAYOUT_NO_FRAMES		"Ingen tomme rammer i layout!"
+Define INFO_PRINT_LAYOUT_NOT_NAMED		"Intet udskriftslayout angivet!"
+Define INFO_PRINT_LAYOUT_READY_TO_PRINT	"Udskriftslayout er nu klart til udskrift!"
+
+Define INFO_PRINT_PAPERORIENTATION		"Papirretning"
+Define INFO_PRINT_ORIENT_LANDSCAPE		"Liggende"
+Define INFO_PRINT_ORIENT_PORTRAIT		"Stående"
+Define INFO_PRINT_ORIENT_BOTH			"Stående;Liggende"
+
+Define INFO_MNU_EXIT_PROGRAM			"Af&slut"
+Define INFO_MNU_ABOUT_PROGRAM			"O&m "
+
+'**Predefined values
+Define eye					 	Chr$(34)
+Define lf 						Chr$(10)

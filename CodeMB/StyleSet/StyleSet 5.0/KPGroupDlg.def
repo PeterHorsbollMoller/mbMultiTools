@@ -1,0 +1,12 @@
+Declare Function kpgShowCreateNewGroupDialog() As Integer
+Declare Function kpgShowCreateNewSubGroupDialog() As Integer
+
+Declare Function kpgCreateNewGroupSettingDialog(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Logical
+Declare Function kpgSelectNewGroupSettingDialog(nGroupID As Integer, nSubGroupID As Integer) As Logical
+Declare Function kpgRemoveGroupSetting(	ByVal nTableID As Integer, ByVal nLayerID As Integer,
+							ByVal nGroupID As Integer, ByVal nSubGroupID As Integer) As Logical
+
+Declare Sub kpgShowGroupSettingDialog
+Declare Function kpgGroupSettingDialog() As Logical
+
+Declare Function kpgDialogSelectGroupSetting(nGroupId As Integer, nSubGroupId As Integer) As Logical

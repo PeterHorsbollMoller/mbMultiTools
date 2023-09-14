@@ -1,0 +1,6 @@
+Declare Sub MultiPlotReadIniFile(ByVal szIniFile As String)
+Declare Sub MultiPlotWriteIniFile(ByVal nFileNo As Integer)
+
+Declare Function MultiPlotStartPrinting() As Logical
+Declare Function MultiPlotSetup() As Logical
+

@@ -1,0 +1,47 @@
+!Workspace
+!Version 600
+!Charset WindowsLatin1
+Open Table "TegnHoved" As TegnHoved Interactive
+Map From TegnHoved 
+  Position (0.395833,2.17708) Units "in"
+  Width 7.875 Units "in" Height 2.67708 Units "in" Min
+Set Window FrontWindow() ScrollBars Off Autoscroll On Snap Mode On
+Set Map
+  CoordSys NonEarth Units "cm"
+  Center (5,1.7)
+  Zoom 10.00339698 Units "cm"
+  Preserve Zoom Display Zoom
+  Distance Units "cm" Area Units "sq cm" XY Units "cm"
+  Distance Type Cartesian
+Set Map
+  Layer 1
+    Display Graphic
+    Label Line Arrow Position Right Font ("Arial",0,9,0) Pen (1,2,0) 
+      With BESKRIVELSE
+      Parallel On Auto Off Overlap Off Duplicates On Offset 2
+      Visibility On
+Set Map Layer 1 Editable
+Set Window FrontWindow() Printer
+ Orientation Portrait Copies 1
+ Papersize 9
+Layout
+  Position (0.0833333,0.09375) Units "in"
+  Width 6.96875 Units "in" Height 5.19792 Units "in" 
+  Set CoordSys Layout Units "in"
+  Create Frame (0.2861,0.325) (11.3854,7.9854)
+    Pen (2,2,0) 
+    Brush (2,16777215,16777215)
+    Title ""
+    FillFrame On
+  Create Frame (7.4431,6.6563) (11.3854,7.9854)
+    Pen (2,2,0) 
+    Brush (2,16777215,16777215)
+    Title "TegnHoved Kort"
+    FillFrame On
+  Set Layout Ruler On Pagebreaks On Frame Contents Active
+  Zoom 56.1297 Center (5.84583,4.26324) Extents To Fit
+  Set Window FrontWindow() Autoscroll On Snap Mode On
+  Set CoordSys Earth
+Set Window FrontWindow() Printer
+ Orientation Landscape Copies 1
+ Papersize 9

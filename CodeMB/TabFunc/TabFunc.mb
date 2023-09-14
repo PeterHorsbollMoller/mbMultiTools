@@ -1,0 +1,1831 @@
+'************************************************************************************
+'	Modul:	TabFunc.mb
+'	Function:	Function for tables and columns
+'************************************************************************************
+
+Include "MapBasic.def"
+Include "Menu.def"
+
+Include "..\ArrayFunc\ArrayFunc.def"
+
+Include "..\Language\Message.lng"
+Include "..\Language\Errors.lng"
+
+Declare Sub TabHandlerTabPicked
+Declare Sub TABHandlerPickedUsingDbl
+Declare Sub TABHandlerOpenTable
+Declare Sub TABHandlerOpenTableUpdateColumn
+
+Include "TabFunc.def"
+
+Dim	mnItemPicked As Integer,
+	marrTabs(), marrCols() As String
+'******************************************
+'	Returnerer en liste/streng med navne på alle kolonner
+'******************************************
+Function GetColumnNames$(ByVal szTab As String, ByVal bUseObj As Logical) As String
+
+Dim	szCol, szColStr  As String,
+	i As Integer
+	
+OnError GoTo ErrorOccured
+
+	For i = 1 To NumCols(szTab)
+		szCol = ColumnInfo(szTab, "COL" + i, COL_INFO_NAME)
+	
+		If szColStr = "" Then
+			szColStr = szCol
+		Else
+			szColStr = szColStr + "," + szCol
+		End If
+	Next
+
+	If bUseObj And TableInfo(szTab, TAB_INFO_MAPPABLE) Then
+		If szColStr = "" Then
+			szColStr = "OBJ"
+		Else
+			szColStr = szColStr + ", OBJ"
+		End If	
+	End If
+
+	GetColumnNames$ = szColStr
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function TABGetEditableColumnNames$(ByVal szTab As String, ByVal bUseObj As Logical) As String
+
+Dim	szCol, szColStr  As String,
+	i As Integer
+	
+OnError GoTo ErrorOccured
+
+	For i = 1 To NumCols(szTab)
+		If ColumnInfo(szTab, "COL" & i, COL_INFO_EDITABLE) Then
+			szCol = ColumnInfo(szTab, "COL" & i, COL_INFO_NAME)
+	
+			If szColStr = "" Then
+				szColStr = szCol
+			Else
+				szColStr = szColStr & "," & szCol
+			End If
+		End If
+	Next
+
+	If bUseObj And TableInfo(szTab, TAB_INFO_MAPPABLE) Then
+		If szColStr = "" Then
+			szColStr = "OBJ"
+		Else
+			szColStr = szColStr & ",OBJ"
+		End If	
+	End If
+
+	TABGetEditableColumnNames$ = szColStr
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'******************************************
+'	Returnerer en liste/streng med navn = navn på alle kolonner
+'******************************************
+Function GetColumnNameEqualName$(ByVal szTab As String) As String
+
+Dim	szCol, szColStr  As String,
+	i As Integer
+	
+OnError GoTo ErrorOccured
+	
+	For i = 1 To NumCols(szTab)
+		szCol = ColumnInfo(szTab, "COL" + i, COL_INFO_NAME)
+	
+		If szColStr = "" Then
+			szColStr = szCol + " = " + szCol
+		Else
+			szColStr = szColStr + "," + szCol + " = " + szCol
+		End If
+	Next
+
+GetColumnNameEqualName$ = szColStr
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'******************************************
+'	Returnerer en liste/streng med navn og type på alle kolonner
+'******************************************
+Function GetColumnNameAndType$(ByVal szTab As String) As String
+
+Dim	szCol, szColStr  As String,
+	i As Integer
+	
+OnError GoTo ErrorOccured
+
+	For i = 1 To NumCols(szTab)
+		szCol = ColumnInfo(szTab, "COL" + i, COL_INFO_NAME)
+	
+		If szColStr = "" Then
+			szColStr = szCol + " " + GetColumnType$(szTab, szCol)
+		Else
+			szColStr = szColStr + "," + szCol + " " + GetColumnType$(szTab, szCol)
+		End If
+	Next
+
+GetColumnNameAndType$ = szColStr
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'******************************************
+'	returnerer type på kolonne szCol i tabel szTab
+'******************************************
+Function GetColumnType$(ByVal szTab As String, ByVal szCol As String) As String
+	
+OnError GoTo ErrorOccured
+
+	Do Case ColumnInfo(szTab, szCol, COL_INFO_TYPE)
+		Case COL_TYPE_CHAR
+			GetColumnType$ = "Char (" + ColumnInfo(szTab, szCol, COL_INFO_WIDTH) + ")"
+		Case COL_TYPE_DECIMAL
+			GetColumnType$ = "Decimal (" + ColumnInfo(szTab, szCol, COL_INFO_WIDTH) + "," + ColumnInfo(szTab, szCol, COL_INFO_DECPLACES) + ")"
+		Case COL_TYPE_FLOAT	
+			GetColumnType$ = "Float"
+		Case COL_TYPE_INTEGER	
+			GetColumnType$ = "Integer"
+		Case COL_TYPE_SMALLINT	
+			GetColumnType$ = "SmallInt" 
+		Case COL_TYPE_DATE
+			GetColumnType$ = "Date"
+		Case COL_TYPE_LOGICAL	
+			GetColumnType$ = "Logical"
+		Case COL_TYPE_GRAPHIC
+			GetColumnType$ = "obj"
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'Eksisterer kolonne n funktion
+'**************************************************************
+Function TABColExists(ByVal szTab As String, ByVal szCol As String) As Logical
+
+Dim	i As Integer
+	
+OnError GoTo ErrorOccured
+
+	TABColExists = FALSE
+
+	If TABIsOpen(szTab) Then
+		For i = 1 To NumCols(szTab)
+			If ColumnInfo(szTab, "COL" + i, COL_INFO_NAME) = szCol Then
+				'***Kolonnen findes...
+				TABColExists = TRUE
+				Exit For
+			End If
+		Next
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'Er tabel szTab åben funktion
+'**************************************************************
+Function TABIsOpen(ByVal szTab As String) As Logical
+
+Dim i As Integer
+	
+OnError GoTo ErrorOccured
+
+	TABIsOpen = FALSE
+
+	If szTab = "Selection" Then
+		If SelectionInfo(SEL_INFO_NROWS) = 0 Then
+			Exit Function
+		End If
+	End If
+
+	For i = 1 To NumTables()
+		If TableInfo(i,TAB_INFO_NAME) = szTab Then
+			'*** Tabellen findes...
+			TABIsOpen = TRUE
+			Exit For
+		End If
+	Next
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'Er tabel med flg filnavn åben funktion
+'**************************************************************
+Function TABIsTabFileOpen(ByVal szTabFile As String) As Logical
+
+Dim	i As Integer
+	
+OnError GoTo ErrorOccured
+
+TABIsTabFileOpen = FALSE
+
+	For i = 1 To NumTables()
+		If not TableInfo(i, TAB_INFO_TEMP) Then
+			If TableInfo(i, TAB_INFO_TABFILE) = szTabFile Then
+				TABIsTabFileOpen = TRUE
+				Exit Function
+			End If
+		End If
+	Next
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'Er tabel med flg filnavn åben funktion, hvis ja returner navn på tabel
+'**************************************************************
+Function TABGetNameFromTabFile$(ByVal szTabFile As String) As String
+
+Dim	i As Integer
+	
+OnError GoTo ErrorOccured
+
+TABGetNameFromTabFile$ = ""
+
+	If NumTables() = 0 Then
+		Exit Function
+	ElseIf szTabFile = "" Then
+		Exit Function
+	End If
+
+	For i = 1 To NumTables()
+		If NOT TableInfo(i, TAB_INFO_TEMP) Then
+			If TableInfo(i, TAB_INFO_TABFILE) = szTabFile Then
+				TABGetNameFromTabFile$ = TableInfo(i, TAB_INFO_NAME)
+				Exit Function
+			End If
+		End If
+	Next
+
+	Exit Function
+'--------------------
+ErrorOccured:
+
+End Function
+
+'**********************************************************************************************''
+'	Lukker en given tabel hvis den er åben
+'**********************************************************************************************''
+Sub TABClose(ByVal szTab As String)
+
+OnError GoTo ErrorOccured
+
+	If szTab = "" Then
+		Exit Sub
+	End If
+	
+	If TABIsOpen(szTab) Then
+		Close Table szTab
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'--------------------------------------------------------------
+'Er tabel n åben, så slet den
+'--------------------------------------------------------------
+Sub TABDrop(ByVal szTab As String)
+
+Dim i As Integer
+
+OnError GoTo ErrorOccured
+
+	If szTab = "Selection" Then
+		If SelectionInfo(SEL_INFO_NROWS) = 0 Then
+			'**Selection isn't open
+			Exit Sub
+		Else
+			Close Table SelectionInfo(SEL_INFO_SELNAME)
+		End If
+	End If
+
+	For i = 1 To NumTables()
+		If TableInfo(i,TAB_INFO_NAME) = szTab Then
+			Drop Table szTab				
+			Exit Sub
+		End If
+	Next
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'--------------------------------------------------------------
+'Er tabel n åben, så luk den
+'--------------------------------------------------------------
+Function TABCloseInteractive(ByVal szTab As String, ByVal bInteractive As Logical) As Logical
+
+Dim i As Integer
+
+OnError GoTo ErrorOccured
+
+TABCloseInteractive = FALSE
+
+	If szTab = "" Then
+		TABCloseInteractive = TRUE
+		Exit Function
+	End If
+
+	If szTab = "Selection" Then
+		If SelectionInfo(SEL_INFO_NROWS) = 0 Then
+			'**Selection isn't open
+			TABCloseInteractive = TRUE
+			Exit Function
+		End If
+	End If
+
+	For i = 1 To NumTables()
+		If TableInfo(i,TAB_INFO_NAME) = szTab Then
+			If bInteractive Then
+				Close Table szTab Interactive
+			Else
+				Close Table szTab				
+			End If
+			If not TableOpen(szTab) Then
+				TABCloseInteractive = TRUE
+			End If
+			Exit Function
+		End If
+	Next
+
+TABCloseInteractive = TRUE
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Gemmer og lukker en given tabel hvis den er åben
+'**********************************************************************************************''
+Sub TABCommitAndClose(ByVal szTab As String)
+
+OnError GoTo ErrorOccured
+
+	If TABIsOpen(szTab) Then
+
+		If TableInfo(szTab, TAB_INFO_EDITED) Then
+			Commit Table szTab
+		End If
+		
+		Close Table szTab
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Saves the given table and turns FastEdit On /Undo Off
+'**********************************************************************************************''
+Function TABCommitAndFastEditOn(ByVal szTab As String) As Logical
+
+OnError GoTo ErrorOccured
+
+TABCommitAndFastEditOn = FALSE
+
+	If TABIsOpen(szTab) Then
+		If TableInfo(szTab, TAB_INFO_EDITED) Then
+			Commit Table szTab
+		End If
+		
+		Call TABFastEditOn(szTab)
+		
+		TABCommitAndFastEditOn = TRUE
+	End If
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+''Saves the given table and turns FastEdit Off /Undo On
+'**********************************************************************************************''
+Function TABCommitAndFastEditOff(ByVal szTab As String) As Logical
+
+OnError GoTo ErrorOccured
+
+TABCommitAndFastEditOff = FALSE
+
+	If TABIsOpen(szTab) Then
+		If TableInfo(szTab, TAB_INFO_EDITED) Then
+			Commit Table szTab
+		End If
+		
+		Call TABFastEditOff(szTab)
+		
+		TABCommitAndFastEditOff = TRUE
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Turns FastEdit On /Undo Off on a given table
+'**********************************************************************************************''
+Sub TABFastEditOn(ByVal szTab As String)
+
+OnError GoTo ErrorOccured
+
+	Set Table szTab FastEdit On Undo Off
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Turns FastEdit Off /Undo On on a given table
+'**********************************************************************************************''
+Sub TABFastEditOff(ByVal szTab As String)
+
+OnError GoTo ErrorOccured
+
+	Set Table szTab FastEdit Off Undo On
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**************************************************************
+'returnerer om en tabel indeholder slettede poster
+'**************************************************************
+Function TableHasDeletedRows(ByVal szTab As String) As Logical
+
+Dim	nNumAllRows, nNumRows As Integer
+	
+OnError GoTo ErrorOccured
+
+TableHasDeletedRows = FALSE
+
+	If not TABIsOpen(szTab) Then
+		Exit Function
+	End If
+	nNumAllRows = TableInfo(szTab, TAB_INFO_NROWS)
+	If nNumAllRows = 0 Then
+		Exit Function
+	End If
+
+	'**Selecting all existing rows...
+	Select * From szTab
+		Where COL1
+		Or Not COL1
+		Into COUNT_ROWS NoSelect
+
+	nNumRows = TableInfo(COUNT_ROWS, TAB_INFO_NROWS)
+	Close Table COUNT_ROWS
+
+	If nNumRows < nNumAllRows Then
+		TableHasDeletedRows = TRUE
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'returnerer alle kolonne i tabel n til arr m
+'**************************************************************
+Function CreateArrayAllColumns(szTab As String, arrCol() As String) As Logical         '@METAGS CreateArrayAllColumns
+
+Dim	i As Integer
+	
+OnError GoTo ErrorOccured
+	
+	CreateArrayAllColumns = FALSE
+	
+	If not TABIsOpen(szTab) Then
+		Redim arrCol(1)
+		arrCol(1) = ERR_TAB_NO_COLUMNS
+		Exit Function
+	End If
+	
+	For i = 1 To TableInfo(szTab,TAB_INFO_NCOLS)
+		Redim arrCol(i)
+		arrCol(i) = ColumnInfo(szTab,"COL"+i,COL_INFO_NAME)
+	Next
+	
+	If Ubound(arrCol) = 0 Then
+		Redim arrCol(1)
+		arrCol(1) = ERR_TAB_NO_COLUMNS
+		Exit Function
+	End If
+
+CreateArrayAllColumns = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'returnerer tabeller til arr m der opfylder kravene
+'**************************************************************
+Function CreateArrayTables(	arrTab() As String,
+					ByVal bUseTemp As Logical,
+					ByVal bOnlyMaps As Logical,
+					ByVal bUseLinked As Logical,
+					ByVal bUseImage As Logical,
+					ByVal bUseNone As Logical ) As Logical
+
+Dim	i, nCount As integer,
+	bAdd As Logical
+	
+OnError GoTo ErrorOccured
+
+CreateArrayTables = FALSE
+
+	If NumTables() = 0 Then
+		Redim arrTab(1)
+		arrTab(1) = ERR_TAB_NO_OPEN
+		Exit Function
+	End If
+
+	nCount = 1
+
+	If bUseNone Then
+		ReDim arrTab(nCount)
+		arrTab(nCount) = MSG_NONE
+		nCount = nCount + 1
+	End If
+
+	If bUseTemp And SelectionInfo(SEL_INFO_NROWS) Then
+		ReDim arrTab(nCount)
+		arrTab(nCount) = "Selection"
+		nCount = nCount + 1
+	End If
+
+	For i = 1 To NumTables()
+		bAdd = TRUE
+
+		'**Selections, queries....
+		If (not bUseTemp) And (TableInfo(i, TAB_INFO_TYPE) = TAB_TYPE_RESULT) Then
+			bAdd = FALSE
+		End If
+
+		'**Only data no maps...
+		If bOnlyMaps And (not tableInfo(i, TAB_INFO_MAPPABLE)) Then
+			bAdd = FALSE
+		End If
+
+		'**linked tables eg. opende using ODBC...
+		If (not bUseLinked) And (TableInfo(i, TAB_INFO_TYPE) = TAB_TYPE_LINKED) Then
+			bAdd = FALSE
+		End If
+
+		'**Raster tables...
+
+		If (not bUseImage) And (TableInfo(i, TAB_INFO_TYPE) = TAB_TYPE_IMAGE) Then
+			bAdd = FALSE
+		End If
+
+		If bAdd Then
+			Redim arrTab(nCount)
+				arrTab(nCount) = TableInfo(i,TAB_INFO_NAME)
+			nCount = nCount + 1
+		End If
+	Next
+
+	If Ubound(arrtab) = 0 Then
+		Redim arrTab(1)
+		arrTab(1) = ERR_TAB_NO_OPEN
+		Exit Function
+	End If
+
+CreateArrayTables = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'returnerer tabeller til arr m der opfylder kravene
+'**************************************************************
+Function TABCreateArrayTablesExt(	arrTab() As String,
+						ByVal bUseTemp As Logical,
+						ByVal bOnlyMaps As Logical,
+						ByVal bUseBase As Logical,
+						ByVal bUseLinked As Logical,
+						ByVal bUseImage As Logical,
+						ByVal bUseNone As Logical ) As Logical
+
+Dim	i, nCount As integer,
+	bAdd As Logical
+	
+OnError GoTo ErrorOccured
+
+TABCreateArrayTablesExt = FALSE
+
+	If NumTables() = 0 Then
+		Redim arrTab(1)
+		arrTab(1) = ERR_TAB_NO_OPEN
+		Exit Function
+	End If
+
+	nCount = 1
+
+	If bUseNone Then
+		ReDim arrTab(nCount)
+		arrTab(nCount) = MSG_NONE
+		nCount = nCount + 1
+	End If
+
+	If bUseTemp And SelectionInfo(SEL_INFO_NROWS) Then
+		ReDim arrTab(nCount)
+		arrTab(nCount) = "Selection"
+		nCount = nCount + 1
+	End If
+
+	For i = 1 To NumTables()
+		bAdd = TRUE
+
+		'**Selections, queries....
+		If (not bUseTemp) And (TableInfo(i, TAB_INFO_TYPE) = TAB_TYPE_RESULT) Then
+			bAdd = FALSE
+		End If
+
+		'**Only data no maps...
+		If bOnlyMaps And (not tableInfo(i, TAB_INFO_MAPPABLE)) Then
+			bAdd = FALSE
+		End If
+
+		'**base tables eg. normal tables...
+		If (not bUseBase) And (TableInfo(i, TAB_INFO_TYPE) = TAB_TYPE_BASE) Then
+			bAdd = FALSE
+		End If
+
+		'**linked tables eg. opende using ODBC...
+		If (not bUseLinked) And (TableInfo(i, TAB_INFO_TYPE) = TAB_TYPE_LINKED) Then
+			bAdd = FALSE
+		End If
+
+		'**Raster tables...
+		If (not bUseImage) And (TableInfo(i, TAB_INFO_TYPE) = TAB_TYPE_IMAGE) Then
+			bAdd = FALSE
+		End If
+
+		If bAdd Then
+			Redim arrTab(nCount)
+			arrTab(nCount) = TableInfo(i,TAB_INFO_NAME)
+			nCount = nCount + 1
+		End If
+	Next
+
+	If Ubound(arrtab) = 0 Then
+		Redim arrTab(1)
+		arrTab(1) = ERR_TAB_NO_OPEN
+		Exit Function
+	End If
+
+TABCreateArrayTablesExt = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'returnerer alle tabeller til arr m
+'**************************************************************
+Function CreateArrayAllTables(arrTab() As String) As Logical		'@METAGS CreateArrayAllTables
+
+Dim	i As integer
+	
+OnError GoTo ErrorOccured
+	
+	CreateArrayAllTables = FALSE
+	
+	If NumTables() = 0 Then
+		Redim arrTab(1)
+		arrTab(1) = ERR_TAB_NO_OPEN
+		Exit Function
+	End If
+	
+	For i = 1 To NumTables()
+		Redim arrTab(i)
+		arrTab(i) = TableInfo(i,TAB_INFO_NAME)
+	Next
+
+CreateArrayAllTables = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'returnerer udvalgt tabel
+'**************************************************************
+Function GetTableName ( ByVal szDlgTitle As String,
+				ByVal bUseTemp As Logical,
+				ByVal bOnlyMaps As Logical,
+				ByVal bUseLinked As Logical,
+				ByVal bUseImage As Logical,
+				ByVal bUseNone As Logical,
+				ByVal nMinTabNum As SmallInt) As String
+
+Dim	nTab, i As Integer,
+	arrTabs(0) As String
+	
+OnError GoTo ErrorOccured
+
+	nTab = 0
+
+	If not CreateArrayTables(arrTabs, bUseTemp, bOnlyMaps, bUseLinked, bUseImage, bUseNone) Then
+		Note ERR_TAB_NONE
+		GetTableName = ""
+		Exit Function
+	ElseIf Ubound(arrTabs) < nMinTabNum Then
+		Note ERR_TAB_TO_FEW
+		GetTableName = ""
+		Exit Function
+	End If
+
+	Dialog
+		Title szDlgTitle				Width 185	Height 100
+		
+		Control StaticText	Position 10,5
+			Title MSG_TAB_SELECT
+		Control ListBox		Position 10,15	Width 110	Height 75	ID 100
+			Calling TABHandlerPickedUsingDbl
+			Title From Variable arrTabs
+			Into nTab
+			
+		Control OKButton		Position 130,15	Width 45
+		Control CancelButton	Position 130,34	Width 45
+
+	If Not CommandInfo(CMD_INFO_DLG_OK) Then
+		If mnItemPicked = 0 Then
+			GetTableName = ""
+		ElseIf mnItemPicked > Ubound(arrTabs) Then
+			GetTableName = ""
+		Else
+			GetTableName = arrTabs(mnItemPicked)		
+		End If
+	Else
+		If arrTabs(nTab) = "Selection" Then
+			GetTableName = SelectionInfo(SEL_INFO_SELNAME)  'use permanent name
+		Else
+			GetTableName = arrTabs(nTab)
+		End If
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function GetTableNameExt$ ( 	ByVal szDlgTitle As String,
+					ByVal bUseTemp As Logical,
+					ByVal bOnlyMaps As Logical,
+					ByVal bUseLinked As Logical,
+					ByVal bUseImage As Logical,
+					ByVal bUseNone As Logical,
+					ByVal nMinTabNum As SmallInt) As String
+
+Dim	nTab, i As Integer
+
+OnError GoTo ErrorOccured
+
+GetTableNameExt$ = ""
+
+	If not CreateArrayTables(marrTabs, bUseTemp, bOnlyMaps, bUseLinked, bUseImage, bUseNone) Then
+		If nMinTabNum > 0 Then
+			Note ERR_TAB_NONE
+			Exit Function
+		End If	
+	ElseIf Ubound(marrTabs) < nMinTabNum Then
+		Note ERR_TAB_TO_FEW
+		Exit Function
+	End If
+
+	nTab = 0
+
+	Dialog
+		Title szDlgTitle				Width 185	Height 100
+		
+		Control StaticText	Position 10,5
+			Title MSG_TAB_SELECT
+		Control ListBox		Position 10,15	Width 110	Height 75	ID 100
+			Calling TABHandlerPickedUsingDbl
+			Title From Variable marrTabs
+			Into nTab
+
+		Control CheckBox		Position 10,10					ID 201
+			Value bUseTemp
+			Hide
+		Control CheckBox		Position 10,10					ID 202
+			Value bOnlyMaps
+			Hide
+		Control CheckBox		Position 10,10					ID 203
+			Value bUseLinked
+			Hide
+		Control CheckBox		Position 10,10					ID 204
+			Value bUseImage
+			Hide
+		Control CheckBox		Position 10,10					ID 205
+			Value bUseNone
+			Hide
+			
+		Control OKButton		Position 130,15	Width 45
+		Control CancelButton	Position 130,34	Width 45
+		Control Button		Position 130,53	Width 45
+			Title MSG_OPEN & "..."
+			Calling TABHandlerOpenTable
+
+	If Not CommandInfo(CMD_INFO_DLG_OK) Then
+		If mnItemPicked = 0 Then
+			'***
+		ElseIf mnItemPicked > Ubound(marrTabs) Then
+			'***
+		Else
+			GetTableNameExt$ = marrTabs(mnItemPicked)		
+		End If
+	Else
+		If marrTabs(nTab) = "Selection" Then
+			GetTableNameExt$ = SelectionInfo(SEL_INFO_SELNAME)  'use permanent name
+		Else
+			GetTableNameExt$ = marrTabs(nTab)
+		End If
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+' ==== GetTableNameExt2 ======================================================================
+Function GetTableNameExt2$( 	ByVal szDlgTitle As String,
+						ByVal bUseTemp As Logical,
+						ByVal bOnlyMaps As Logical,
+						ByVal bUseBase As Logical,
+						ByVal bUseLinked As Logical,
+						ByVal bUseImage As Logical,
+						ByVal bUseNone As Logical,
+						ByVal nMinTabNum As SmallInt) As String
+
+
+Dim	nTab, i As Integer
+
+OnError GoTo ErrorOccured
+
+GetTableNameExt2$ = ""
+
+	If not TABCreateArrayTablesExt(marrTabs, bUseTemp, bOnlyMaps, bUseBase, bUseLinked, bUseImage, bUseNone) Then
+		If nMinTabNum > 0 Then
+			Note ERR_TAB_NONE
+			Exit Function
+		End If	
+	ElseIf Ubound(marrTabs) < nMinTabNum Then
+		Note ERR_TAB_TO_FEW
+		Exit Function
+	End If
+
+	nTab = 0
+
+	Dialog
+		Title szDlgTitle				Width 185	Height 100
+		
+		Control StaticText	Position 10,5
+			Title MSG_TAB_SELECT
+		Control ListBox		Position 10,15	Width 110	Height 75	ID 100
+			Calling TABHandlerPickedUsingDbl
+			Title From Variable marrTabs
+			Into nTab
+
+		Control CheckBox		Position 10,10					ID 201
+			Value bUseTemp
+			Hide
+		Control CheckBox		Position 10,10					ID 202
+			Value bOnlyMaps
+			Hide
+		Control CheckBox		Position 10,10					ID 203
+			Value bUseLinked
+			Hide
+		Control CheckBox		Position 10,10					ID 204
+			Value bUseImage
+			Hide
+		Control CheckBox		Position 10,10					ID 205
+			Value bUseNone
+			Hide
+			
+		Control OKButton		Position 130,15	Width 45
+		Control CancelButton	Position 130,34	Width 45
+		Control Button		Position 130,53	Width 45
+			Title MSG_OPEN & "..."
+			Calling TABHandlerOpenTable
+
+	If Not CommandInfo(CMD_INFO_DLG_OK) Then
+		If mnItemPicked = 0 Then
+			'***
+		ElseIf mnItemPicked > Ubound(marrTabs) Then
+			'***
+		Else
+			GetTableNameExt2$ = marrTabs(mnItemPicked)		
+		End If
+	Else
+		If marrTabs(nTab) = "Selection" Then
+			GetTableNameExt2$ = SelectionInfo(SEL_INFO_SELNAME)  'use permanent name
+		Else
+			GetTableNameExt2$ = marrTabs(nTab)
+		End If
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+
+'**************************************************************
+'returnerer udvalgt kolonne i angivet tabel
+'**************************************************************
+Function TABGetColumnName$(	ByVal szDlgTitle As String,
+					ByVal szTab As String, ByVal szCol As String,
+					ByVal bUseChar As Logical,
+					ByVal bUseDate As Logical,
+					ByVal bUseLogic As Logical,
+					ByVal bUseInt As Logical,
+					ByVal bUseSmall As Logical,
+					ByVal bUseFloat As Logical,
+					ByVal bUseDec As Logical,
+					ByVal bOnlyIndex As Logical) As String
+
+Dim	arrTabs(1) As String
+	
+OnError GoTo ErrorOccured
+
+TABGetColumnName$ = ""
+
+	arrTabs(1)	= szTab
+
+	TABGetColumnName$ = TABGetColumnNameListOfTabs$(szDlgTitle, arrTabs, szCol, bUseChar, bUseDate, bUseLogic, bUseInt, bUseSmall, bUseFloat, bUseDec, bOnlyIndex)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'returnerer udvalgt kolonne i angivet tabel
+'**************************************************************
+Function TABGetColumnNameListOfTabs$(	ByVal szDlgTitle As String,
+							arrTabs() As String, ByVal szCol As String,
+							ByVal bUseChar As Logical,
+							ByVal bUseDate As Logical,
+							ByVal bUseLogic As Logical,
+							ByVal bUseInt As Logical,
+							ByVal bUseSmall As Logical,
+							ByVal bUseFloat As Logical,
+							ByVal bUseDec As Logical,
+							ByVal bOnlyIndex As Logical) As String
+
+Dim	nCol, i As Integer,
+	arrCols(0) As String
+	
+OnError GoTo ErrorOccured
+
+TABGetColumnNameListOfTabs$ = ""
+
+	nCol			= 0
+	mnItemPicked	= 0
+
+	If NOT TABCreateArrayColumnsListOfTabs(arrCols, arrTabs, bUseChar, bUseDate, bUseLogic, bUseInt, bUseSmall, bUseFloat, bUseDec, bOnlyIndex) Then
+		Note ERR_TAB_NONE
+		Exit Function
+	End If
+
+	Dialog
+		Title szDlgTitle				Width 185	Height 100
+		
+		Control StaticText	Position 10,5
+			Title MSG_COL_SELECT_FROM_TAB
+		Control ListBox		Position 10,15	Width 110	Height 75	ID 100
+			Calling TABHandlerPickedUsingDbl
+			Title From Variable arrCols
+			Value GetElementNoInStringArray(szCol, arrCols)
+			Into nCol
+			
+		Control OKButton		Position 130,15	Width 45
+		Control CancelButton	Position 130,34	Width 45
+
+	If Not CommandInfo(CMD_INFO_DLG_OK) Then
+		If mnItemPicked = 0 Then
+			TABGetColumnNameListOfTabs$ = ""
+		ElseIf mnItemPicked > Ubound(arrCols)  Then
+			TABGetColumnNameListOfTabs$ = ""
+		Else
+			TABGetColumnNameListOfTabs$ = arrCols(mnItemPicked)		
+		End If
+	Else
+		If nCol = 0 Then
+			TABGetColumnNameListOfTabs$ = ""
+		Else
+			TABGetColumnNameListOfTabs$ = arrCols(nCol)
+		End If
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function TABGetTableAndColumnName(	ByVal szDlgTitle As String,
+						szTab As String, szCol As String,
+						ByVal bUseTemp As Logical,
+						ByVal bOnlyMaps As Logical,
+						ByVal bUseBase As Logical,
+						ByVal bUseLinked As Logical,
+						ByVal bUseImage As Logical,
+						ByVal bUseNone As Logical,
+						ByVal bUseChar As Logical,
+						ByVal bUseDate As Logical,
+						ByVal bUseLogic As Logical,
+						ByVal bUseInt As Logical,
+						ByVal bUseSmall As Logical,
+						ByVal bUseFloat As Logical,
+						ByVal bUseDec As Logical,
+						ByVal bOnlyIndex As Logical,
+						ByVal nMinTabNum As Integer) As Logical
+
+Dim	nTab, nCol, i As Integer
+
+OnError GoTo ErrorOccured
+
+TABGetTableAndColumnName = FALSE
+
+	If not TABCreateArrayTablesExt(marrTabs, bUseTemp, bOnlyMaps, bUseBase, bUseLinked, bUseImage, bUseNone) Then
+		If nMinTabNum > 0 Then
+			Note ERR_TAB_NONE
+			Exit Function
+		End If	
+	ElseIf Ubound(marrTabs) < nMinTabNum Then
+		Note ERR_TAB_TO_FEW
+		Exit Function
+	End If
+
+	Dialog
+		Title szDlgTitle				Width 185	Height 100
+		
+		Control StaticText	Position 10,5
+			Title MSG_SELECT
+		Control PopUpMenu		Position 10,15	Width 110			ID 100
+			Calling TabHandlerTabPicked
+			Title From Variable marrTabs
+			Value GetElementNoInStringArray(szTab, marrTabs)
+			Into nTab
+
+		Control StaticText	Position 10,30
+			Title MSG_SELECT
+		Control EditText		Position 10,40					ID 210
+			Value szCol
+			Disable Hide
+		Control ListBox		Position 10,40	Width 110	Height 75	ID 200
+			Calling TABHandlerPickedUsingDbl
+			Into nCol
+
+		Control CheckBox		Position 10,10					ID 201
+			Value bUseChar
+			Hide
+		Control CheckBox		Position 10,10					ID 202
+			Value bUseDate
+			Hide
+		Control CheckBox		Position 10,10					ID 203
+			Value bUseLogic
+			Hide
+		Control CheckBox		Position 10,10					ID 204
+			Value bUseInt
+			Hide
+		Control CheckBox		Position 10,10					ID 205
+			Value bUseSmall
+			Hide
+		Control CheckBox		Position 10,10					ID 206
+			Value bUseFloat
+			Hide
+		Control CheckBox		Position 10,10					ID 207
+			Value bUseDec
+			Hide
+		Control CheckBox		Position 10,10					ID 208
+			Value bOnlyIndex
+			Hide
+			
+		Control OKButton		Position 130,15	Width 45
+		Control CancelButton	Position 130,34	Width 45
+		Control Button		Position 130,53	Width 45
+			Title MSG_OPEN & "..."
+			Calling TABHandlerOpenTableUpdateColumn
+
+	If Not CommandInfo(CMD_INFO_DLG_OK) Then
+		If mnItemPicked = 0 Then
+			'***
+		ElseIf mnItemPicked > Ubound(marrTabs) Then
+			'***
+		Else
+			szTab					= marrTabs(nTab)
+			szCol					= marrTabs(mnItemPicked)
+			TABGetTableAndColumnName	= TRUE		
+		End If
+	Else
+		If marrTabs(nTab) = "Selection" Then
+			szTab					= SelectionInfo(SEL_INFO_SELNAME)  'use permanent name
+			szCol					= marrCols(nCol)
+			TABGetTableAndColumnName	= TRUE
+		Else
+			szTab					= marrTabs(nTab)
+			szCol					= marrCols(nCol)
+			TABGetTableAndColumnName	= TRUE
+		End If
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+							
+'**********************************************************************************************''
+'Handler - aktiveres fra GetTableName / GetColumnName
+'**********************************************************************************************''
+Sub TABHandlerPickedUsingDbl
+
+Dim	nCtrl As Integer
+
+OnError GoTo ErrorOccured
+
+	If CommandInfo(CMD_INFO_DLG_DBL) Then
+		nCtrl 		= TriggerControl()
+		mnItemPicked	= ReadControlValue(nCtrl)
+		
+		Dialog Remove
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler : Giver brugeren mulighed for at åbne flere tabeller
+'**********************************************************************************************''
+Sub TABHandlerOpenTable
+
+Dim	nTabs As Integer,
+	szTab, szTabFile As String
+
+OnError GoTo ErrorOccured
+
+	nTabs	= NumTables()
+
+	szTabFile	= FileOpenDlg("", "", "TAB", "Åbn tabel...")
+	If szTabFile = "" Then
+		Exit Sub
+	End If
+
+	Open Table szTabFile Interactive
+	
+	If not CreateArrayTables(marrTabs, ReadControlValue(201), ReadControlValue(202), ReadControlValue(203), ReadControlValue(204), ReadControlValue(205)) Then
+		'**
+	End If
+
+	If Ubound(marrTabs) > nTabs Then
+		Alter Control 100 Title From Variable marrTabs Value Ubound(marrTabs)
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler : Giver brugeren mulighed for at åbne flere tabeller, efterfølgende opdateres listen over kolonner
+'**********************************************************************************************''
+Sub TABHandlerOpenTableUpdateColumn
+
+Dim	nTab As Integer
+
+OnError GoTo ErrorOccured
+
+	nTab = ReadControlValue(100)
+	
+	Call TABHandlerOpenTable
+	
+	If nTab <> ReadControlValue(100) Then
+		Call TabHandlerTabPicked
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub TabHandlerTabPicked
+
+Dim	szTab, szCol As String,
+	nTab As Integer
+	
+OnError GoTo ErrorOccured
+
+	nTab = ReadControlValue(100)
+	If nTab = 0 Then
+		Exit Sub
+	End If
+	szTab = marrTabs(nTab)
+	szCol	= ReadControlValue(210)
+
+	If NOT CreateArrayColumns(	szTab, marrCols, ReadControlValue(201), ReadControlValue(202),
+						ReadControlValue(203), ReadControlValue(204), ReadControlValue(205),
+						ReadControlValue(206), ReadControlValue(207), ReadControlValue(208)) Then
+							
+		Exit Sub
+	End If
+	
+	Alter Control 200 Title From Variable marrCols Value(GetElementNoInStringArray(szCol, marrCols))					
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**************************************************************
+'returnerer alle kolonne i tabel n der opfylder kravene
+'**************************************************************
+Function CreateArrayColumns(	szTab As String, arrCol() As String,
+					ByVal bUseChar As Logical,
+					ByVal bUseDate As Logical,
+					ByVal bUseLogic As Logical,
+					ByVal bUseInt As Logical,
+					ByVal bUseSmall As Logical,
+					ByVal bUseFloat As Logical,
+					ByVal bUseDec As Logical,
+					ByVal bOnlyIndex As Logical) As Logical
+
+Dim	i, nCount As Integer,
+	bAdd As Logical,
+	szCol As String
+	
+OnError GoTo ErrorOccured
+
+CreateArrayColumns = FALSE
+
+	If szTab = "[ALL]" Then
+		CreateArrayColumns = TABCreateArrayColumnsOpenTables(arrCol, bUseChar, bUseDate, bUseLogic, bUseInt,
+											bUseSmall, bUseFloat, bUseDec, bOnlyIndex)
+	Else
+		nCount = 1
+		
+		If NOT TABIsOpen(szTab) Then
+			Redim arrCol(nCount)
+			arrCol(nCount) = MSG_NONE
+			Exit Function
+		End If
+		
+		For i = 1 To TableInfo(szTab,TAB_INFO_NCOLS)
+			szCol	= ColumnInfo(szTab,"COL" + i,COL_INFO_NAME)
+			bAdd	= TRUE
+		
+			If (NOT bUseChar) And (ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_CHAR) Then
+				bAdd = FALSE
+			End If
+		
+			If (NOT bUseDate) And (ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_DATE) Then
+				bAdd = FALSE
+			End If
+		
+			If (NOT bUseLogic) And (ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_LOGICAL) Then
+				bAdd = FALSE
+			End If
+		
+			If (NOT bUseInt) And (ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_INTEGER) Then
+				bAdd = FALSE
+			End If
+		
+			If (NOT bUseSmall) And (ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_SMALLINT) Then
+				bAdd = FALSE
+			End If
+		
+			If (NOT bUseFloat) And (ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_FLOAT) Then
+				bAdd = FALSE
+			End If
+		
+			If (NOT bUseDec) And (ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_DECIMAL) Then
+				bAdd = FALSE
+			End If
+		
+			If bOnlyIndex And (NOT ColumnInfo(szTab, szCol, COL_INFO_INDEXED)) Then
+				bAdd = FALSE
+			End If
+		
+			If bAdd Then
+				Redim arrCol(nCount)
+				arrCol(nCount) = szCol
+				nCount = nCount + 1
+			End If
+		Next
+		
+		If nCount = 1 Then
+			Redim arrCol(nCount)
+			arrCol(nCount) = MSG_NONE
+			Exit Function
+		End If
+	End If
+	
+CreateArrayColumns = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'returnerer alle kolonne i tabel n der opfylder kravene
+'**************************************************************
+Function TABCreateArrayColumnsOpenTables(	arrCol() As String,
+							ByVal bUseChar As Logical, ByVal bUseDate As Logical,
+							ByVal bUseLogic As Logical, ByVal bUseInt As Logical,
+							ByVal bUseSmall As Logical, ByVal bUseFloat As Logical,
+							ByVal bUseDec As Logical, ByVal bOnlyIndex As Logical) As Logical
+
+Dim	nTab As Integer,
+	szTab, arrListOfTabs() As String
+	
+OnError GoTo ErrorOccured
+
+TABCreateArrayColumnsOpenTables = FALSE
+
+	ReDim arrListOfTabs(NumTables())
+	For nTab = 1 To NumTables()
+		szTab	= TableInfo(nTab, TAB_INFO_NAME)
+
+		arrListOfTabs(nTab)	= szTab
+	Next
+
+TABCreateArrayColumnsOpenTables = TABCreateArrayColumnsListOfTabs(arrCol, arrListOfTabs, bUseChar, bUseDate, bUseLogic, bUseInt, bUseSmall, bUseFloat, bUseDec, bOnlyIndex)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'returnerer alle kolonne i tabel n der opfylder kravene
+'**************************************************************
+Function TABCreateArrayColumnsListOfTabs(	arrCol() As String, arrTabs() As String,
+							ByVal bUseChar As Logical, ByVal bUseDate As Logical,
+							ByVal bUseLogic As Logical, ByVal bUseInt As Logical,
+							ByVal bUseSmall As Logical, ByVal bUseFloat As Logical,
+							ByVal bUseDec As Logical, ByVal bOnlyIndex As Logical) As Logical
+
+Dim	nTab, nCol As Integer,
+	bAdd As Logical,
+	szTab, szCol As String
+	
+OnError GoTo ErrorOccured
+
+TABCreateArrayColumnsListOfTabs = FALSE
+
+	For nTab = 1 To Ubound(arrTabs)
+		szTab	= arrTabs(nTab)
+
+		For nCol = 1 To TableInfo(szTab,TAB_INFO_NCOLS)
+			szCol	= ColumnInfo(szTab,"COL" + nCol,COL_INFO_NAME)
+			bAdd	= TRUE
+		
+			If (NOT bUseChar) And (ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_CHAR) Then
+				bAdd = FALSE
+			End If
+		
+			If (NOT bUseDate) And (ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_DATE) Then
+				bAdd = FALSE
+			End If
+		
+			If (NOT bUseLogic) And (ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_LOGICAL) Then
+				bAdd = FALSE
+			End If
+		
+			If (NOT bUseInt) And (ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_INTEGER) Then
+				bAdd = FALSE
+			End If
+		
+			If (NOT bUseSmall) And (ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_SMALLINT) Then
+				bAdd = FALSE
+			End If
+		
+			If (NOT bUseFloat) And (ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_FLOAT) Then
+				bAdd = FALSE
+			End If
+		
+			If (NOT bUseDec) And (ColumnInfo(szTab, szCol, COL_INFO_TYPE) = COL_TYPE_DECIMAL) Then
+				bAdd = FALSE
+			End If
+		
+			If bOnlyIndex And (NOT  ColumnInfo(szTab, szCol, COL_INFO_INDEXED)) Then
+				bAdd = FALSE
+			End If
+		
+			If bAdd Then
+				If NOT ARRAddItemStringUnique(arrCol, szCol) Then
+					'Wasn't added
+				End If
+			End If
+		Next	'nCol
+	Next	'nTab	
+	
+	If Ubound(arrCol) = 0 Then
+		Redim arrCol(1)
+		arrCol(1) = MSG_NONE
+		Exit Function
+	Else
+		Call ARRSortStringASC(arrCol)
+	End If
+
+TABCreateArrayColumnsListOfTabs = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'*	Returnerer array med værdier fra col n i tabel m
+'**************************************************************
+Function CreateArrayValuesThisCol(	ByVal szTab As String,
+						ByVal szCol As String,
+						arrValues() As String) As Logical
+
+Dim	nRow As Integer,
+	a As Alias,
+	szCondition, cmdstr1 As String
+	
+CreateArrayValuesThisCol = FALSE
+
+OnError GoTo NoSuchTableOrColumn
+
+	szCondition = " Where " + szCol + " <> "
+	
+	Do Case ColumnInfo(szTab, szCol, COL_INFO_TYPE)
+		Case COL_TYPE_CHAR
+			szCondition = szCondition + eye + eye
+		Case COL_TYPE_DECIMAL, COL_TYPE_INTEGER, COL_TYPE_FLOAT, COL_TYPE_SMALLINT
+			szCondition = szCondition + " 0 "
+		Case Else
+			Exit Function
+	End Case
+	
+	cmdstr1 = "Select " + szCol + " From " + szTab
+		  + szCondition
+		  + " Group By " + szCol
+		  + " Order By " + szCol
+		  + " Into ZZWWYYQQ NoSelect"
+	'Print cmdstr1
+	Run Command Cmdstr1
+	
+	If TableInfo(ZZWWYYQQ, TAB_INFO_NROWS) = 0 Then
+		GoTo NoSuchTableOrColumn
+	End If
+	
+	nRow = 1
+	Fetch First From ZZWWYYQQ
+	Do Until EOT(ZZWWYYQQ)
+		ReDim arrValues(nRow)
+		a			= "ZZWWYYQQ."+szCol
+		arrValues(nRow)	= a
+		nRow 			= nRow + 1
+		Fetch Next From ZZWWYYQQ
+	Loop
+	
+CreateArrayValuesThisCol = TRUE
+
+'---------------------
+NoSuchTableOrColumn:
+
+	If TABIsOpen("ZZWWYYQQ") Then
+		Close Table ZZWWYYQQ
+	End If
+	OnError GoTo 0
+
+End Function
+
+'**************************************************************
+'*	Returnerer array med værdier fra col n i tabel m som opfylder given betingelse
+'**************************************************************
+Function CreateArrayValuesThisColSelected(ByVal szTab As String,
+							ByVal szCol As String,
+							arrVal() As String) As Logical   '@METAGS CreateArrayValuesthisColSelected
+
+Dim	cmdstr1, szVal As String
+	
+OnError GoTo ErrorOccured
+
+CreateArrayValuesThisColSelected = FALSE
+
+	If not TABIsOpen(szTab) Then
+		Note ERR_TAB_NOT_OPEN + szTab
+		Exit Function
+	ElseIf not TABColExists(szTab, szCol) Then
+		Note ERR_TAB_NO_SUCH_COLUMN + szTab + " (" + szCol + ")"
+		Exit Function
+	End If
+	
+	Dialog
+		Title MSG_DLG_TITLE_INPUT_CONDITION
+		Control StaticText	Position 5,5
+			Title MSG_DLG_TXT_WILDCARD
+		Control EditText		Position 5,20	Width 80
+			Into szVal
+		Control OKButton
+		Control CancelButton
+	
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+	
+	Do Case ColumnInfo(szTab, szCol, COL_INFO_TYPE)
+		Case COL_TYPE_CHAR
+			cmdstr1 = "Select " + szCol + " From " + szTab + " Where " + szCol + " Like " + eye + szVal + eye + " Group By " + szCol + " Order By " + szCol + " Into XCDRFHDYTR NoSelect"
+		Case COL_TYPE_INTEGER, COL_TYPE_SMALLINT
+			cmdstr1 = "Select " + szCol + " From " + szTab + " Where " + Str$(szCol) + " Like " + eye + szVal + eye + " Group By " + szCol + " Order By " + szCol + " Into XCDRFHDYTR NoSelect"
+		Case Else
+			Note ERR_COL_ONLY_CHR_INT_SMALLINT
+			Exit Function
+	End Case
+
+	'Print cmdstr1
+	Run Command cmdstr1
+	
+	If not CreateArrayValuesThisCol("XCDRFHDYTR", szCol, arrVal) Then
+		Close Table XCDRFHDYTR
+		Exit Function
+	End If
+	
+	Close Table XCDRFHDYTR
+	
+	CreateArrayValuesThisColSelected = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner elementno i array for given værdi...
+'********************************************************
+Function GetElementNoInStringArray(ByVal szValue As String, arrValues() As String) As Integer
+
+Dim	i As Integer
+	
+OnError GoTo ErrorOccured
+
+	GetElementNoInStringArray = 1
+
+	For i = 1 To Ubound(arrValues)
+		If arrValues(i) = szValue Then
+			GetElementNoInStringArray = i
+			Exit Function
+		End If
+	Next
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner antal rækker i tabel szTab...
+'********************************************************
+Function GetNumRows(ByVal szTab As String) As Integer
+	
+OnError GoTo ErrorOccured
+
+	GetNumRows = TableInfo(szTab, TAB_INFO_NROWS)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'------- B A C K W A R D S   C O M P A T A B I L I T Y ----------------------------
+'**************************************************************
+'Er tabel n åben funktion
+'**************************************************************
+Function TableOpen(ByVal szTab As String) As Logical
+
+Dim i As Integer
+	
+OnError GoTo ErrorOccured
+
+	TableOpen = TABIsOpen(szTab)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'Eksisterer kolonne n funktion
+'**************************************************************
+Function ColExist(ByVal szTab As String, ByVal szCol As String) As Logical
+
+Dim	i As Integer
+	
+OnError GoTo ErrorOccured
+
+	ColExist = TABColExists(szTab, szCol)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'Er tabel med flg filnavn åben funktion, hvis ja returner navn på tabel
+'**************************************************************
+Function GetTableFromFilename$(ByVal szTabFile As String) As String
+
+OnError GoTo ErrorOccured
+
+	GetTableFromFilename$ = TABGetNameFromTabFile$(szTabFile)
+
+	Exit Function
+'--------------------
+ErrorOccured:
+
+End Function
+
+'**************************************************************
+'Er tabel med flg filnavn åben funktion
+'**************************************************************
+Function TableFileOpen(ByVal szTabFile As String) As Logical
+
+OnError GoTo ErrorOccured
+
+	TableFileOpen = TABIsTabFileOpen(szTabFile)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+'returnerer udvalgt tabel
+'**************************************************************
+Function GetColumnName$(ByVal szDlgTitle As String, szTab As String,
+				ByVal bUseChar As Logical,
+				ByVal bUseDate As Logical,
+				ByVal bUseLogic As Logical,
+				ByVal bUseInt As Logical,
+				ByVal bUseSmall As Logical,
+				ByVal bUseFloat As Logical,
+				ByVal bUseDec As Logical,
+				ByVal bOnlyIndex As Logical) As String
+				
+OnError GoTo ErrorOccured
+
+	GetColumnName$ = TABGetColumnName$(szDlgTitle, szTab, "", bUseChar, bUseDate, bUseLogic, bUseInt, bUseSmall, bUseFloat, bUseDec, bOnlyIndex)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Gemmer og lukker en given tabel hvis den er åben
+'**********************************************************************************************''
+Sub TABSaveAndClose(ByVal szTab As String)
+
+OnError GoTo ErrorOccured
+
+	Call TABCommitAndClose(szTab)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

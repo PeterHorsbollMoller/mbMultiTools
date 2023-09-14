@@ -1,0 +1,1603 @@
+'*******************************************************************************
+'** 	Program:	(KommunePakken)
+'** 	Modul:	MapCutter.mb
+'**	Funktion	Functions for cutting map layers
+'*******************************************************************************
+Include "MapBasic.def"
+Include "Menu.def"
+Include "Icons.def"
+
+Include "..\..\Time\Time.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\FileFunc\FileFunc.def"
+Include "..\..\WinFunc\WinFunc.def"
+
+Include "..\..\MTU\MTU.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\Kommune.lng"
+Include "..\..\Language\MapCutter.lng"
+
+Include "MapCutter.def"
+Include "MapCutterDlg.def"
+Include "Globals.def"
+
+Declare Function DoTheCuttingWork() As Logical
+Declare Function CuttingWithTheseObjects() As Logical
+
+Declare Function GetTabFileNameForCuttingResult() As String
+Declare Function GetStartPathForResultTable() As String
+
+Declare Function CreateTargetTable() As String
+
+Declare Sub CuttingWithTheseObjectsFrame_Single
+Declare Sub CuttingWithTheseObjectsLayer_Single 
+Declare Sub CuttingWithTheseObjectsMulti_Single 
+Declare Sub CuttingWithTheseObjectsSingle_Single 
+
+Declare Sub SelectAndInsertIntoTable_Single
+
+Declare Function CutWholeTableWithSingleEdge() As Logical
+Declare Function CutWholeTableWithMultiEdges() As Logical
+
+Declare Function GetColumnTypeArray$(ByVal szCol As String) As String
+Declare Function GetColumnList$() As String
+Declare Function GetColumnNameAndTypeList$() As String
+Declare Function GetColumnListEraseOutSide$() As String
+
+Declare Function GetLayerNo() As Integer
+Declare Function LayerAddOne() As Logical
+Declare Function ResetLayerNo() As Logical
+Declare Function GetFrameNo() As Integer
+Declare Function FrameAddOne() As Logical
+Declare Function ResetFrameNo() As Logical
+
+Dim	arrCuttingObjects(0) As Object,
+	nLayerNumber, nFrameNumber As Integer,
+	szCurrentTable, szCurrentTabFile As String
+
+'*********************************************************
+'MapCutter Hovedprogram - Kalder de underliggende dialoger mm.
+'*********************************************************
+Sub MapCutterStartUp
+
+If NumWindows() = 0 Then
+	Note ERR_WIN_NO_MAP_OPEN
+	Exit Sub
+End If
+
+gnCuttingTable = 0
+gnMapToCutFrom = 0
+
+'----------------------
+ShowDialogSelectMapAndLayers:
+gbMoveBackWards = FALSE
+
+If not DialogSelectMapAndLayers() Then
+	Exit Sub
+End If
+
+
+'----------------------
+ShowDialogSelectCuttingEdge:
+gbMoveBackWards = FALSE
+
+If not DialogSelectCuttingEdge() Then
+	If gbMoveBackWards Then
+		GoTo ShowDialogSelectMapAndLayers
+	Else
+		Exit Sub
+	End If
+End If
+
+
+'----------------------
+ShowDialogSelectMapParts:
+gbMoveBackWards = FALSE
+
+If gnTypeOfCuttingEdge = CUTTING_EDGE_TABLE Then
+
+	If not DialogSelectMapParts() Then
+		If gbMoveBackWards Then
+			GoTo ShowDialogSelectCuttingEdge
+		Else
+			Exit Sub
+		End If
+	End If
+
+End If
+
+
+'----------------------
+ShowDialogSelectSelectionMethod:
+gbMoveBackWards = FALSE
+
+If not DialogSelectSelectionMethod() Then
+	If gbMoveBackWards Then
+
+		If gnTypeOfCuttingEdge = CUTTING_EDGE_TABLE Then
+			GoTo ShowDialogSelectMapParts
+		Else
+			GoTo ShowDialogSelectCuttingEdge
+		End If
+
+	Else
+		Exit Sub
+	End If
+End If
+
+
+'----------------------
+ShowDialogSelectCuttingMethod:
+gbMoveBackWards = FALSE
+
+If gnSelectionType <> SELECTING_KIND_ALL_WITHIN Then
+	If not DialogSelectCuttingMethod() Then
+		If gbMoveBackWards Then
+
+			GoTo ShowDialogSelectSelectionMethod
+
+		Else
+			Exit Sub
+		End If
+	End If
+Else
+	gnCuttingType = 0
+End If
+
+'----------------------
+DialogSelectNumberOfResultTables:
+If gbMoveBackWards Then
+	If GetNumberOfFrames() = 1 And GetNumberOfLayers() = 1 Then
+		'***Only One way of saving the resulttable
+		If gnSelectionType <> SELECTING_KIND_ALL_WITHIN Then
+			GoTo ShowDialogSelectCuttingMethod
+		Else
+			GoTo ShowDialogSelectSelectionMethod
+		End If
+	End If
+End If
+
+gbMoveBackWards = FALSE
+
+If not DialogSelectNumberOfResultTables() Then
+	If gbMoveBackWards Then
+
+		If gnSelectionType <> SELECTING_KIND_ALL_WITHIN Then
+
+			GoTo ShowDialogSelectCuttingMethod
+
+		Else
+
+			GoTo ShowDialogSelectSelectionMethod
+
+		End If
+	Else
+		Exit Sub
+	End If
+End If
+
+
+'----------------------
+DialogSelectNameForResultTable:
+gbMoveBackWards = FALSE
+
+Do Case gnSaveTableMethod
+	Case RESULT_TABLE_ALL_IN_ONE
+		If not DialogSelectNameForResultTable1() Then
+			If gbMoveBackWards Then
+
+				GoTo DialogSelectNumberOfResultTables
+			Else
+				Exit Sub
+			End If
+		End If
+	Case RESULT_TABLE_ONE_PR_MAPPART
+		If not DialogSelectNameForResultTable2() Then
+			If gbMoveBackWards Then
+				GoTo DialogSelectNumberOfResultTables
+			Else
+				Exit Sub
+			End If
+		End If
+	Case RESULT_TABLE_ONE_PR_LAYER
+		If not DialogSelectNameForResultTable3() Then
+			If gbMoveBackWards Then
+				GoTo DialogSelectNumberOfResultTables
+			Else
+				Exit Sub
+			End If
+		End If
+	Case RESULT_TABLE_LAYER_MULTI_MAPPART
+		If not DialogSelectNameForResultTable4() Then
+			If gbMoveBackWards Then
+				GoTo DialogSelectNumberOfResultTables
+			Else
+				Exit Sub
+			End If
+		End If
+End Case
+
+
+'----------------------
+DialogSelectColumnsForResultTable:
+gbMoveBackWards = FALSE
+
+If not DialogSelectColumns() Then
+	If gbMoveBackWards Then
+		GoTo DialogSelectNameForResultTable
+	Else
+		Exit Sub
+	End If
+End If
+
+
+'----------------------
+DialogOverviewOfSettings:
+gbMoveBackWards = FALSE
+
+If not DialogOverviewOfSettings() Then
+	If gbMoveBackWards Then
+		GoTo DialogSelectColumnsForResultTable
+	Else
+		Exit Sub
+	End If
+End If
+
+'***If usig Selecion, let's give the selection a name...
+If garrTables(gnCuttingTable) = "Selection" Then
+	garrTables(gnCuttingTable) = SelectionInfo(SEL_INFO_SELNAME)
+End If
+
+If not DoTheCuttingWork() Then
+	Note MCUT_DLG_TXT_CUTTING_ABORTED
+End If
+
+End Sub
+
+'******************************************
+'Returnerer aktuelt lagnummer
+'******************************************
+Function GetLayerNo() As Integer
+
+GetLayerNo = nLayerNumber
+
+End Function
+
+'******************************************
+'Summerer aktuelt lag en op
+'******************************************
+Function LayerAddOne() As Logical
+
+'Print "Layer tælles én op!!!!!"
+
+nLayerNumber = nLayerNumber + 1
+
+End Function
+
+'******************************************
+'Sætter aktuelt lagnummer = 1
+'******************************************
+Function ResetLayerNo() As Logical
+
+'Print "Layer resættes!!!!!"
+
+nLayerNumber = 1
+
+End Function
+
+'******************************************
+'Returnerer aktuelt rammenummer
+'******************************************
+Function GetFrameNo() As Integer
+
+GetFrameNo = nFrameNumber
+
+End Function
+
+'******************************************
+'Summerer aktuelt rammenummer en op
+'******************************************
+Function FrameAddOne() As Logical
+
+'Print "Frame tælles én op!!!!!"
+
+nFrameNumber = nFrameNumber + 1
+
+End Function
+
+'******************************************
+'Sætter aktuelt rammenummer = 1
+'******************************************
+Function ResetFrameNo() As Logical
+
+'Print "Frame resættes!!!!!"
+
+nFrameNumber = 1
+
+End Function
+
+'******************************************
+'Returnerer antallet af kortblade/valgte regionerne/vinduer
+'******************************************
+Function GetNumberOfFrames() As Integer
+
+Do Case gnTypeOfCuttingEdge
+	Case CUTTING_EDGE_MAPFRAME, CUTTING_EDGE_SELECTED_OBJECT
+		GetNumberOfFrames = 1
+	Case CUTTING_EDGE_TABLE
+		GetNumberOfFrames = Ubound(garrCuttingObjects)
+	Case CUTTING_EDGE_NOT_DEFINED
+		GetNumberOfFrames = 0
+End Case
+
+End Function
+
+'******************************************
+'Returnerer antallet af lag
+'******************************************
+Function GetNumberOfLayers() As Integer
+
+	GetNumberOfLayers = Ubound(garrCuttingLayers)
+
+End Function
+
+'******************************************
+'Returnerer antallet af kolonner
+'******************************************
+Function GetNumberOfColumns() As Integer
+
+	GetNumberOfColumns = Ubound(garrIncludingColumns)
+
+End Function
+
+'******************************************
+'Returnerer antallet af kolonner - ialt
+'******************************************
+Function GetNumberOfAllColumns() As Integer
+
+	GetNumberOfAllColumns = Ubound(garrAllColumns)
+
+End Function
+
+'******************************************
+'Opretter array med alle eksisterende kolonner i de valgte lag
+'******************************************
+Function CreateArraySharedLayersColumns() As Logical
+
+Dim	i, j, count, nCol As Integer,
+	szTab, szCol, arrTemp(0) As String
+
+CreateArraySharedLayersColumns = FALSE
+
+	'If not CreateArrayAllLayersColumns() Then
+	'	Note "Ingen kolonner i tabellerne!"
+	'	Exit Function
+	'End If
+
+	count = GetNumberOfColumns()
+	ReDim garrSharedColumns(count)
+	For i = 1 To count
+		garrSharedColumns(i) = garrIncludingColumns(i)
+	Next
+
+	For i = 1 To GetNumberOfLayers()
+
+		szTab = garrCuttingLayers(i)
+
+		count = 0
+		nCol = Ubound(garrSharedColumns)
+		For j = 1 To nCol
+
+			szCol = garrSharedColumns(j)
+
+			If ColExist(szTab, szCol) Then
+
+				count = count + 1
+				'Print "Tabel: " + szTab + " : Kolonnen " + szCol + " findes"
+
+				ReDim arrTemp(count)
+				arrTemp(count) = szCol
+			Else
+
+				'Print "Tabel: " + szTab + " : Kolonnen " + szCol + " findes ikke"
+
+			End If
+		Next	'j
+
+		If count < nCol Then
+			ReDim garrSharedColumns(count)
+			For j = 1 To Count
+				garrSharedColumns(j) = arrTemp(j)
+			Next
+		End If
+		ReDim arrTemp(0)
+
+	Next	'i
+
+	If Ubound(garrSharedColumns) > 0 Then
+		CreateArraySharedLayersColumns = TRUE
+	End If
+
+End Function
+
+'******************************************
+'Opretter array med kolonner der skal medtages i de valgte lag
+'******************************************
+Function CreateArrayInclLayersColumns() As Logical
+
+Dim	nCol, i, j, k As Integer,
+	szLayer, szCol As String,
+	bAddCol As Logical
+
+CreateArrayInclLayersColumns = FALSE
+
+	ReDim garrIncludingColumns(0)
+	ReDim garrAllColumns(0)
+
+	For i = 1 To GetNumberOfLayers()
+
+		szlayer = garrCuttingLayers(i)
+		For j = 1 To NumCols(szlayer)
+
+			bAddCol = TRUE
+			szCol = ColumnInfo(szLayer, "COL" + j, COL_INFO_NAME)
+			For k = 1 To GetNumberOfColumns()
+
+				If szCol = garrIncludingColumns(k) Then
+					bAddCol = FALSE
+				End If
+
+			Next	'k
+
+			If bAddCol Then
+				nCol = GetNumberOfColumns() + 1
+				ReDim garrIncludingColumns(nCol)
+				ReDim garrColumnTypes(nCol)
+				garrIncludingColumns(nCol) = szCol
+				garrColumnTypes(nCol).Name = szCol
+				garrColumnTypes(nCol).Type = GetColumnType$(szLayer, szCol)
+			End If
+		Next	'j
+
+	Next	'i
+
+	If GetNumberOfColumns() > 0 Then
+		CreateArrayInclLayersColumns = TRUE
+	End If
+
+End Function
+
+'******************************************
+'Opretter array med alle eksisterende kolonner i de valgte lag
+'******************************************
+Function CreateArrayAllLayersColumns() As Logical
+
+Dim	nCol, i, j, k As Integer,
+	szLayer, szCol As String,
+	bAddCol As Logical
+
+CreateArrayAllLayersColumns = FALSE
+
+	ReDim garrIncludingColumns(0)
+	ReDim garrAllColumns(0)
+	ReDim garrColumnTypes(0)
+
+	For i = 1 To GetNumberOfLayers()
+
+		szlayer = garrCuttingLayers(i)
+		For j = 1 To NumCols(szlayer)
+
+			bAddCol = TRUE
+			szCol = ColumnInfo(szLayer, "COL" + j, COL_INFO_NAME)
+			For k = 1 To GetNumberOfColumns()
+
+				If szCol = garrIncludingColumns(k) Then
+					bAddCol = FALSE
+				End If
+
+			Next	'k
+
+			If bAddCol Then
+				nCol = GetNumberOfColumns() + 1
+				ReDim garrIncludingColumns(nCol)
+				ReDim garrColumnTypes(nCol)
+				'ReDim garrAllColumns(nCol)
+				garrIncludingColumns(nCol) 	= szCol
+				'garrAllColumns(nCol)		= szCol
+				garrColumnTypes(nCol).Name 	= szCol
+				garrColumnTypes(nCol).Type 	= GetColumnType$(szLayer, szCol)
+			End If
+		Next	'j
+
+	Next	'i
+
+	If GetNumberOfColumns() > 0 Then
+		CreateArrayAllLayersColumns = TRUE
+	End If
+
+End Function
+
+'******************************************
+'	returnerer type på alle eksisterende kolonner
+'******************************************
+Function GetColumnTypeArray$(ByVal szCol As String) As String
+
+Dim	i As Integer,
+	szType As String
+
+	'Print "Antal kolonner : " + GetNumberOfColumns()
+	For i = 1 To Ubound(garrColumnTypes)	'GetNumberOfColumns()
+
+		If garrColumnTypes(i).Name = szCol Then
+			szType = garrColumnTypes(i).Type
+			Print #1, szCol + " -> " + szType
+			Exit For
+		End If
+
+	Next
+
+	If szType = "" Then
+		Print #1, ERR_MCUT_COL_TYPE_NOT_DEFINED + 
+		szType = "Char(50)"
+	End If
+
+GetColumnTypeArray$ = szType
+
+End Function
+
+'******************************************
+'	Handler - vis forrige dialog
+'******************************************
+Function GetCuttingTableName() As String
+
+Do Case gnTypeOfCuttingEdge
+	Case CUTTING_EDGE_MAPFRAME
+		GetCuttingTableName = "KJDDKFHKDJSF"
+	Case CUTTING_EDGE_TABLE
+		GetCuttingTableName = garrTables(gnCuttingTable)
+	Case CUTTING_EDGE_SELECTED_OBJECT
+		GetCuttingTableName = "KJDDKFHKDJSF"
+	Case CUTTING_EDGE_NOT_DEFINED
+		GetCuttingTableName = ""
+End Case
+
+End Function
+
+'******************************************
+'	Handler - vis forrige dialog
+'******************************************
+Function GetCuttingColumnName() As String
+
+Do Case gnTypeOfCuttingEdge
+	Case CUTTING_EDGE_MAPFRAME
+		GetCuttingColumnName = ""
+	Case CUTTING_EDGE_TABLE
+		GetCuttingColumnName = garrColumns(gnNameColumn)
+	Case CUTTING_EDGE_SELECTED_OBJECT
+		GetCuttingColumnName = ""
+	Case CUTTING_EDGE_NOT_DEFINED
+		GetCuttingColumnName = ""
+End Case
+
+End Function
+
+'******************************************
+'	Handler - vis forrige dialog
+'******************************************
+Function GetCuttingMapName() As String
+
+Do Case gnTypeOfCuttingEdge
+	Case CUTTING_EDGE_MAPFRAME
+		GetCuttingMapName = garrMapWindows(gnMapToCutFrom)
+	Case CUTTING_EDGE_TABLE
+		GetCuttingMapName = garrMapWindows(gnMapToCutFrom)
+	Case CUTTING_EDGE_SELECTED_OBJECT
+		GetCuttingMapName = garrMapWindows(gnMapToCutFrom)
+	Case CUTTING_EDGE_NOT_DEFINED
+		GetCuttingMapName = ""
+End Case
+
+End Function
+
+'******************************************
+'	Handler - vis forrige dialog
+'******************************************
+Sub HandlerShowPreviousDialog
+
+Dialog Remove
+
+gbMoveBackWards = TRUE
+
+End Sub
+
+'******************************************
+'Printer alle variabler
+'******************************************
+Sub PrintVariables(ByVal szText As String)
+
+Dim	i As Integer
+
+Print "********  " + szText + "  ********"
+Print "CuttingEdge : " + gnTypeOfCuttingEdge
+
+Print "Map To Cut from: " + gnMapToCutFrom
+
+Print "CuttingTable : " + gnCuttingTable
+Print "Column : " + gnNameColumn
+
+Print "Selectiontype : " + gnSelectionType
+Print "Cuttingtype : " + gnCuttingType
+
+Print "SaveTableMetode : " + gnSaveTableMethod
+Print "Result Table : " + szResultTabFileName
+
+For i = 1 To Ubound(garrIncludingColumns)
+	Print i + ". Include Column " + garrIncludingColumns(i)
+Next
+
+For i = 1 To Ubound(garrCuttingLayers)
+	Print i + ". Cutting layer " + garrCuttingLayers(i)
+Next
+
+End Sub
+
+'******************************************
+'Styring af udskæring
+'******************************************
+Function DoTheCuttingWork() As Logical
+
+Dim	a As Alias,
+	fxcen, fYcen, fXmin, fYmin, fXmax, fYmax As Float,
+	i, nWID As Integer,
+	szFile, cmdstr, szCurrentOperation As String,
+	bSomeNoneSaved As Logical
+
+	OnError GoTo ErrorOccured
+
+	DoTheCuttingWork = FALSE
+
+	For i = 1 To GetNumberOfLayers()
+		If TableInfo(garrCuttingLayers(i), TAB_INFO_EDITED) Then
+			bSomeNoneSaved = TRUE
+			Exit For
+		End If
+	Next
+
+	If bSomeNoneSaved Then
+		If not Ask(MCUT_DLG_QEST_SAVE_TABLES, MSG_TEXT_SAVE, MSG_TEXT_STOP) Then
+			Exit Function
+		End If
+
+		szCurrentOperation = MCUT_DLG_LOG_SAVING_TABLES
+		For i = 1 To GetNumberOfLayers()
+			If TableInfo(garrCuttingLayers(i), TAB_INFO_EDITED) Then
+				Commit Table garrCuttingLayers(i)
+			End If
+		Next
+	End If
+
+	szCurrentOperation = MCUT_LOG_CLOSING_SYSTEM_TABLES
+	If TableOpen("KJDDKFHKDJSF") Then
+		Close Table KJDDKFHKDJSF
+	End If
+	If TableOpen("NEWTARGETTAB") Then
+		Close Table NEWTARGETTAB
+	End If
+
+	If FileExists(FILE_LOG) Then
+		Kill FILE_LOG
+	End If
+
+	Open File FILE_LOG
+		For Output
+		As #1
+		CharSet "Neutral"
+
+	Do Case gnTypeOfCuttingEdge
+		Case CUTTING_EDGE_MAPFRAME
+			szCurrentOperation = MCUT_LOG_START_CUT_MAPWINDOW
+			nWID = GetWindowID(garrMapWindows(gnMapToCutFrom))
+			Set CoordSys Window nWID
+
+			fXmin = MapperInfo(nWID, MAPPER_INFO_MINX)
+			fYmin = MapperInfo(nWID, MAPPER_INFO_MINY)
+			fXmax = MapperInfo(nWID, MAPPER_INFO_MAXX)
+			fYmax = MapperInfo(nWID, MAPPER_INFO_MAXY)
+			fXcen = MapperInfo(nWID, MAPPER_INFO_CENTERX)
+			fYcen = MapperInfo(nWID, MAPPER_INFO_CENTERY)
+
+			ReDim arrCuttingObjects(1)
+			Create Region
+				Into Variable arrCuttingObjects(1)
+				1
+				5
+				(fXmin, fYmin)
+				(fXmax, fYmin)
+				(fXmax, fYmax)
+				(fXmin, fYmax)
+				(fXmin, fYmin)
+				Center (fXcen, fYcen)
+
+			Create Table KJDDKFHKDJSF
+				(
+				ID Integer
+				)
+
+			Create Map For KJDDKFHKDJSF
+				CoordSys Window nWID
+
+			Insert Into KJDDKFHKDJSF
+				(ID, OBJ)
+				Values (1, arrCuttingObjects(1))
+
+			Commit Table KJDDKFHKDJSF
+
+		Case CUTTING_EDGE_SELECTED_OBJECT
+			szCurrentOperation = MCUT_LOG_START_CUT_SELECTED_OBJ
+
+			ReDim arrCuttingObjects(1)
+
+			a = SelectionInfo(SEL_INFO_SELNAME) + ".obj"
+			arrCuttingObjects(1) = a
+
+			Create Table KJDDKFHKDJSF
+				(
+				ID Integer
+				)
+
+			Create Map For KJDDKFHKDJSF
+				CoordSys Window GetWindowID(garrMapWindows(gnMapToCutFrom))
+
+			Insert Into KJDDKFHKDJSF
+				(ID, OBJ)
+				Values (1, arrCuttingObjects(1))
+
+			Commit Table KJDDKFHKDJSF
+
+		Case CUTTING_EDGE_TABLE
+			szCurrentOperation = MCUT_LOG_START_CUT_TABLE
+
+			ReDim arrCuttingObjects(GetNumberOfFrames())
+			For i = 1 To GetNumberOfFrames()
+				If ColumnInfo(GetCuttingTableName(), GetCuttingColumnName(), COL_INFO_TYPE) = COL_TYPE_CHAR Then
+					cmdstr = "Select * From " + GetCuttingTableName() 
+						 + " Where " + GetCuttingColumnName() + " = " + eye + garrCuttingObjects(i) + eye
+						 + " Into KJDFDSKJKSDJ NoSelect"
+				Else
+					cmdstr = "Select * From " + GetCuttingTableName() 
+						 + " Where " + GetCuttingColumnName() + " = " + garrCuttingObjects(i) 
+						 + " Into KJDFDSKJKSDJ NoSelect"
+				End If
+				Run Command cmdstr
+
+				Fetch First From KJDFDSKJKSDJ
+				arrCuttingObjects(i) = KJDFDSKJKSDJ.obj
+			Next
+
+			Close Table KJDFDSKJKSDJ
+	End Case
+
+	szCurrentOperation = MCUT_LOG_CALLING_FUNCTION + " CuttingWithTheseObjects"
+	If not CuttingWithTheseObjects() Then
+		Exit Function
+	End If
+
+	If TableOpen("NEWTARGETTAB") Then
+		Commit Table NEWTARGETTAB
+		If ColExist("NEWTARGETTAB", "OPRIND_LAGNAVN") Then
+			If MCUT_COLUMN_FOR_LAYERNAME <> "OPRIND_LAGNAVN" Then
+				Alter Table NEWTARGETTAB
+					(
+					Rename "OPRIND_LAGNAVN" MCUT_COLUMN_FOR_LAYERNAME
+					)
+			End If
+		End If
+		Close Table NEWTARGETTAB
+	End If
+
+	If TableOpen("KJDDKFHKDJSF") Then
+		If gnTypeOfCuttingEdge = CUTTING_EDGE_MAPFRAME Then
+			If not Ask(MCUT_DLG_QEST_SAVE_MAPFRAME, MSG_NO, MSG_YES) Then
+				szFile = FileSaveAsDlg("", MCUT_TAB_MAPFRAME, "TAB", MCUT_DLG_TITLE_SAVE_MAPFRAME_AS)
+				If szFile <> "" Then
+					Commit Table KJDDKFHKDJSF As szFile
+				End If
+			End If
+		End If
+		Drop  Table KJDDKFHKDJSF
+	End If
+
+	If TableOpen("KJDFDSKJKSDJ") Then
+		Close Table KJDFDSKJKSDJ
+	End If
+
+	Close File #1
+
+	DoTheCuttingWork = TRUE
+
+	Exit Function
+
+'-------------------
+ErrorOccured:
+	Print #1, ERR_MCUT_CUTTING_OBJECTS + lf 
+			+ Error$() + lf
+			+ MCUT_LOG_OPERATION
+			+ szCurrentOperation
+	Close File #1
+
+End Function
+
+'******************************************
+'Styring af udskæring med de aktuelle objekter
+'******************************************
+Function CuttingWithTheseObjects() As Logical
+
+Dim 	szCurrentOperation As String
+
+	OnError GoTo ErrorOccured
+
+	CuttingWithTheseObjects = FALSE
+
+	Set ProgressBars Off
+
+	szCurrentOperation = MCUT_LOG_RESETTING_COUNTERS
+	If ResetLayerNo() Then End If
+	If ResetFrameNo() Then End If
+
+	Do Case gnSaveTableMethod
+		Case RESULT_TABLE_ALL_IN_ONE
+
+			szCurrentOperation = MCUT_LOG_CUT_SINGLE_TAB
+
+			szCurrentTable = CreateTargetTable()
+			If szCurrentTable = "" Then
+				Print #1, ERR_MCUT_TAB_NOT_CREATED
+			Else
+				ProgressBar MCUT_DLG_TXT_CUTTING_WITH_OBJS
+					Calling CuttingWithTheseObjectsSingle_Single
+					Range GetNumberOfLayers()
+
+				'**Cutting the objects with the edges.....
+				If not CutWholeTableWithMultiEdges() Then End If
+			End If
+
+		Case RESULT_TABLE_ONE_PR_MAPPART
+
+			szCurrentOperation = MCUT_LOG_CUT_EACH_CUTREGION_TAB
+
+			ProgressBar MCUT_DLG_TXT_CUTTING_WITH_OBJS
+				Calling CuttingWithTheseObjectsFrame_Single
+				Range GetNumberOfFrames()
+
+		Case RESULT_TABLE_ONE_PR_LAYER
+
+			szCurrentOperation = MCUT_LOG_CUT_EACH_LAYER_TAB
+
+			ProgressBar MCUT_DLG_TXT_CUTTING_WITH_OBJS
+				Calling CuttingWithTheseObjectsLayer_Single
+				Range GetNumberOfLayers()
+
+		Case RESULT_TABLE_LAYER_MULTI_MAPPART
+
+			szCurrentOperation = MCUT_LOG_CUT_MULTI_TAB
+
+			ProgressBar MCUT_DLG_TXT_CUTTING_WITH_OBJS
+				Calling CuttingWithTheseObjectsMulti_Single
+				Range GetNumberOfLayers()
+
+	End Case
+
+	Set ProgressBars On
+
+	CLS
+
+	CuttingWithTheseObjects = TRUE
+
+	Exit Function
+'-------------------
+ErrorOccured:
+	Print #1, ERR_MCUT_CUTTING_OBJECTS + lf 
+			+ Error$() + lf
+			+ MCUT_LOG_OPERATION + szCurrentOperation
+
+End Function
+
+'******************************************
+'Styring af udskæring med de aktuelle objekter - én ad gangen - alt i en tabel
+'******************************************
+Sub CuttingWithTheseObjectsSingle_Single
+
+Dim	i As Integer
+
+	If ResetFrameNo() Then End If
+
+	For i = 1 To GetNumberOfFrames()
+		Print #1, "*********** " + GetFrameNo() + ". " + MCUT_LOG_RUN_THROUGH + " ***********"
+		Call SelectAndInsertIntoTable_Single
+		If FrameAddOne() Then End If
+	Next
+
+	Commit Table szCurrentTable
+
+	If LayerAddOne() Then End If
+
+	If  GetLayerNo() > GetNumberOfLayers() Then
+		ProgressBar = -1				'tell caller "All Done!" 
+	Else
+		ProgressBar = GetLayerNo() - 1	'tell caller "Partly done"
+	End If 
+
+End Sub
+
+'******************************************
+'Styring af udskæring med de aktuelle objekter - én ad gangen - en tabel pr. kortblad
+'******************************************
+Sub CuttingWithTheseObjectsFrame_Single 
+
+Dim	i As Integer
+
+	If ResetLayerNo() Then End If
+
+	szCurrentTable = CreateTargetTable()
+	If szCurrentTable = "" Then
+		Print #1, ERR_MCUT_TAB_NOT_CREATED
+		Exit Sub
+	End If
+
+	For i = 1 To GetNumberOfLayers()
+		Print #1, "*********** " + GetLayerNo() + ". " + MCUT_LOG_RUN_THROUGH + " ***********"
+		Call SelectAndInsertIntoTable_Single
+		If LayerAddOne() Then End If
+	Next
+
+	'**Cutting the objects with the edges.....
+	If not CutWholeTableWithSingleEdge() Then End If
+
+	Commit Table szCurrentTable
+	If ColExist(szCurrentTable, "OPRIND_LAGNAVN") Then
+		If MCUT_COLUMN_FOR_LAYERNAME <> "OPRIND_LAGNAVN" Then
+			Alter Table szCurrentTable
+				(
+				Rename "OPRIND_LAGNAVN" MCUT_COLUMN_FOR_LAYERNAME
+				)
+		End If
+	End If
+	Close Table szCurrentTable
+
+	If FrameAddOne() Then End If
+
+	If  GetFrameNo() > GetNumberOfFrames() Then
+		ProgressBar = -1				'tell caller "All Done!" 
+	Else
+		ProgressBar = GetFrameNo() - 1	'tell caller "Partly done"
+	End If 
+
+End Sub
+
+'******************************************
+'Styring af udskæring med de aktuelle objekter - én ad gangen - en tabel pr. lag
+'******************************************
+Sub CuttingWithTheseObjectsLayer_Single 
+
+Dim	i As Integer
+
+	If ResetFrameNo() Then End If
+
+	szCurrentTable = CreateTargetTable()
+	If szCurrentTable = "" Then
+		Print #1, ERR_MCUT_TAB_NOT_CREATED
+		Exit Sub
+	End If
+
+	For i = 1 To GetNumberOfFrames()
+		Print #1, "*********** " + GetFrameNo() + ". " + MCUT_LOG_RUN_THROUGH + " ***********"
+		Call SelectAndInsertIntoTable_Single
+
+		If FrameAddOne() Then End If
+	Next
+
+	'**Cutting the objects with the edges.....
+	If not CutWholeTableWithMultiEdges() Then End If
+
+	Commit Table szCurrentTable
+	If ColExist(szCurrentTable, "OPRIND_LAGNAVN") Then
+		If MCUT_COLUMN_FOR_LAYERNAME <> "OPRIND_LAGNAVN" Then
+			Alter Table szCurrentTable
+				(
+				Rename "OPRIND_LAGNAVN" MCUT_COLUMN_FOR_LAYERNAME
+				)
+		End If
+	End If
+	Close Table szCurrentTable
+
+	If LayerAddOne() Then End If
+
+	If  GetLayerNo() > GetNumberOfLayers() Then
+		ProgressBar = -1				'tell caller "All Done!" 
+	Else
+		ProgressBar = GetLayerNo() - 1	'tell caller "Partly done"
+	End If 
+
+End Sub
+
+'******************************************
+'Styring af udskæring med de aktuelle objekter - én ad gangen - en tabel pr. lag pr. kortblad
+'******************************************
+Sub CuttingWithTheseObjectsMulti_Single
+
+Dim	i As Integer
+
+	If ResetFrameNo() Then End If
+
+	For i = 1 To GetNumberOfFrames()
+		Print #1, "*********** " + GetFrameNo() + ". " + MCUT_LOG_RUN_THROUGH + " ***********"
+
+		szCurrentTable = CreateTargetTable()
+		If szCurrentTable = "" Then
+			Print #1, ERR_MCUT_TAB_NOT_CREATED
+			Exit Sub
+		End If
+
+		Call SelectAndInsertIntoTable_Single
+
+		'**Cutting the objects with the edges.....
+		If not CutWholeTableWithSingleEdge() Then End If
+
+		Commit Table szCurrentTable
+		If ColExist(szCurrentTable, "OPRIND_LAGNAVN") Then
+			If MCUT_COLUMN_FOR_LAYERNAME <> "OPRIND_LAGNAVN" Then
+				Alter Table szCurrentTable
+					(
+					Rename "OPRIND_LAGNAVN" MCUT_COLUMN_FOR_LAYERNAME
+					)
+			End If
+		End If
+		Close Table szCurrentTable
+
+		If FrameAddOne() Then End If
+	Next
+
+	If LayerAddOne() Then End If
+
+	If  GetLayerNo() > GetNumberOfLayers() Then
+		ProgressBar = -1				'tell caller "All Done!" 
+	Else
+		ProgressBar = GetLayerNo() - 1	'tell caller "Partly done"
+	End If 
+
+End Sub
+
+'******************************************
+'Vælg, Skær og indsæt i tabel - et lag ad gangen
+'******************************************
+Sub SelectAndInsertIntoTable_Single
+
+Dim	cmdstr, szLayer, szCurrentOperation As String,
+	oRegion As Object
+
+	OnError GoTo ErrorOccured
+
+	szLayer = garrCuttingLayers(GetLayerNo())
+	oRegion = arrCuttingObjects(GetFrameNo())
+
+	Print #1, MCUT_LOG_SELECT_FROM_LAYER + szLayer + MCUT_LOG_WITH_CUTTING_REGION + GetFrameNo()
+
+	szCurrentOperation = MCUT_LOG_SELECT_ROWS_WITH_OBJ
+	Select * From szlayer
+		Where obj
+		Into KJSDFKDDKJ NoSelect
+
+	szCurrentOperation = MCUT_LOG_SELECT_ROWS_WITHIN
+	Do Case gnSelectionType
+		Case SELECTING_KIND_PARTLY_WITHIN
+			Select * From KJSDFKDDKJ
+				Where obj Partly WithIn oRegion
+				Into KJSDFKDDKJ NoSelect
+		Case SELECTING_KIND_CENTROID_WITHIN
+			Select * From KJSDFKDDKJ
+				Where obj WithIn oRegion
+				Into KJSDFKDDKJ NoSelect
+		Case SELECTING_KIND_ALL_WITHIN
+			Select * From KJSDFKDDKJ
+				Where obj Entirely WithIn oRegion
+				Into KJSDFKDDKJ NoSelect
+	End Case
+
+	Print #1, TableInfo("KJSDFKDDKJ", TAB_INFO_NROWS) + MCUT_LOG_ROWS_WERE_SELECTED
+
+	cmdstr = "Insert Into " + szCurrentTable
+		+ " (" + GetColumnList$() + ")"
+		+ " Select " + GetColumnList$() + " From KJSDFKDDKJ"
+	'Print cmdstr
+	szCurrentOperation = MCUT_LOG_INSERTING_INTO_NEW_TAB + cmdstr
+	Run Command cmdstr
+
+	'**Opdaterer med navnet på det oprindelige lag....
+	If gbAddColumnLayerName Then
+		szCurrentOperation = MCUT_LOG_UPDATE_WITH_LAYERNAME
+
+		Select * From szCurrentTable
+			Where OPRIND_LAGNAVN = ""
+			Into KJSDFKJSDJK NoSelect
+
+		Update KJSDFKJSDJK
+			Set OPRIND_LAGNAVN = szLayer
+
+		Close Table KJSDFKJSDJK
+	End If
+
+	Close Table KJSDFKDDKJ
+
+	Exit Sub
+'-------------------
+ErrorOccured:
+	Print #1, ERR_MCUT_INSERTING_OBJECTS + lf 
+			+ Error$() + lf
+			+ MCUT_LOG_OPERATION + szCurrentOperation
+
+	If TableOpen("KJSDFKDDKJ") Then
+		Close Table KJSDFKDDKJ
+	End If
+
+End Sub
+
+'******************************************
+'Opret tabel for skæring - en tabel pr. kortblad
+'******************************************
+Function CreateTargetTable() As String
+
+Dim	szTab, szTabFile, cmdstr As String,
+	szOrigTabFile As String
+
+	CreateTargetTable = ""
+	OnError Goto ErrorOccured
+
+	szTabFile	= GetTabFileNameForCuttingResult()
+	szTab		= PathToTableName$(szTabFile)
+
+	cmdstr = "Create Table NEWTARGETTAB"	' + szTab
+		+ " ( "
+		+ GetColumnNameAndTypeList$()
+		+ " )"
+		+ " File " + eye + szTabFile + eye
+	'Print cmdstr
+
+	Run Command cmdstr
+
+	Create Map
+		For NEWTARGETTAB
+		CoordSys Table garrCuttingLayers(GetLayerNo())	
+
+	CreateTargetTable = "NEWTARGETTAB"
+
+	Exit Function 
+'--------------------------
+ErrorOccured:
+	Print #1, ERR_MCUT_CREATING_NEW_TABLE + lf
+			+ Error$() + lf
+			+ MCUT_LOG_TABLE_COMMAND_STRING + cmdstr
+
+End Function
+
+'******************************************
+'returnerer tabelnavn til denne skæring
+'******************************************
+Function GetTabFileNameForCuttingResult() As String
+
+Dim	szTab, szFrameName, szLayerName As String
+
+	If gnSaveTableMethod =  RESULT_TABLE_ALL_IN_ONE Then
+		szTab = gszResultTabFileName
+	Else
+
+		szLayerName = garrCuttingLayers(GetLayerNo())
+
+		Do Case gsnKindOfResultNameAppendix
+			Case RESULT_NAME_KIND_MAPPART_VALUE
+				szFrameName = garrCuttingObjects(GetFrameNo())
+				szTab = szFrameName + gszAppendix1 + ".tab"
+			Case RESULT_NAME_KIND_VALUE_MAPPART
+				szFrameName = garrCuttingObjects(GetFrameNo())
+				szTab = gszAppendix2 + szFrameName + ".tab"
+			Case RESULT_NAME_KIND_DIR_MAPPART_VALUE
+				szFrameName = garrCuttingObjects(GetFrameNo())
+				szTab = szFrameName + "\" + gszAppendix3 + ".tab"
+				If MTU_CreateDirectory(GetStartPathForResultTable() + szLayerName) Then
+					szTab = szFrameName + "\" + gszAppendix3 + ".tab"
+				Else
+					Print #1, ERR_MCUT_CREATING_DIRECTORY + GetStartPathForResultTable() + szLayerName
+					szTab = szFrameName + "_" + gszAppendix3 + ".tab"
+				End If
+			Case RESULT_NAME_KIND_LAYER_VALUE
+				szTab = szLayerName + gszAppendix1 + ".tab"
+			Case RESULT_NAME_KIND_VALUE_LAYER
+				szTab = gszAppendix2 + szLayerName + ".tab"
+			Case RESULT_NAME_KIND_DIR_LAYER_VALUE
+				If MTU_CreateDirectory(GetStartPathForResultTable() + szLayerName) Then
+					szTab = szLayerName + "\" + gszAppendix3 + ".tab"
+				Else
+					Print #1, ERR_MCUT_CREATING_DIRECTORY + GetStartPathForResultTable() + szLayerName
+					szTab = szLayerName + "_" + gszAppendix3 + ".tab"
+				End If
+			Case RESULT_NAME_KIND_MAPPART_VALUE_LAYER
+				szFrameName = garrCuttingObjects(GetFrameNo())
+				szTab = szFrameName + gszAppendix1 + szLayerName + ".tab"
+			Case RESULT_NAME_KIND_LAYER_VALUE_MAPPART
+				szFrameName = garrCuttingObjects(GetFrameNo())
+				szTab = szLayerName + gszAppendix1 + szFrameName + ".tab"
+			Case RESULT_NAME_KIND_DIR_MAPPART_LAYER
+				szFrameName = garrCuttingObjects(GetFrameNo())
+				If MTU_CreateDirectory(GetStartPathForResultTable() + szFrameName) Then
+					szTab = szFrameName + "\" + szLayerName + ".tab"
+				Else
+					Print #1, ERR_MCUT_CREATING_DIRECTORY + GetStartPathForResultTable() + szFrameName
+					szTab = szFrameName + "_" + szLayerName + ".tab"
+				End If
+			Case RESULT_NAME_KIND_DIR_LAYER_MAPPART
+				szFrameName = garrCuttingObjects(GetFrameNo())
+				If MTU_CreateDirectory(GetStartPathForResultTable() + szLayerName) Then
+					szTab = szLayerName + "\" + szFrameName + ".tab"
+				Else
+					Print #1, ERR_MCUT_CREATING_DIRECTORY + GetStartPathForResultTable() + szLayerName
+					szTab = szLayerName + "_" + szFrameName + ".tab"
+				End If
+		End Case
+
+		szTab = GetStartPathForResultTable() + szTab
+	End If
+
+	GetTabFileNameForCuttingResult = szTab
+
+End Function
+
+'******************************************
+'returnerer tabelnavn til denne skæring
+'******************************************
+Function GetStartPathForResultTable() As String
+
+	If not Mid$(gszResultStartDirectoryName, 2, 2) = ":\" Then
+		gszResultStartDirectoryName = ApplicationDirectory$() + gszResultStartDirectoryName
+	End If
+
+	If not Right$(gszResultStartDirectoryName, 1) = "\" Then
+		gszResultStartDirectoryName = gszResultStartDirectoryName + "\"
+	End If
+
+	GetStartPathForResultTable = gszResultStartDirectoryName
+
+End Function
+
+'******************************************
+'returnerer tekststreng indeholdende de kolonner der skal oprettes i resultattabellen
+'******************************************
+Function GetColumnNameAndTypeList$() As String
+
+Dim	i As Integer,
+	szColStr, szTab, szCol As String
+
+Do Case gsnColumnType
+	Case RESULT_COLUMN_ALL
+		'If CreateArrayAllLayersColumns() Then
+			For i = 1 To GetNumberOfColumns()
+				szCol = garrIncludingColumns(i)
+				If i = 1 Then
+					szColStr = szCol + " " + GetColumnTypeArray$(szCol)
+				Else
+					szColStr = szColStr + "," + szCol + " " + GetColumnTypeArray$(szCol)
+				End If
+			Next
+		'End If
+	Case RESULT_COLUMN_EXISTING
+		szTab = garrCuttingLayers(GetLayerNo())
+		For i = 1 To NumCols(szTab)
+			szCol = ColumnInfo(szTab, "COL" + i, COL_INFO_NAME)
+			If i = 1 Then
+				szColStr = szCol + " " + GetColumnType$(szTab, szCol)
+			Else
+				szColStr = szColStr + "," + szCol + " " + GetColumnType$(szTab, szCol)
+			End If
+		Next
+	Case RESULT_COLUMN_SHARED
+		If CreateArraySharedLayersColumns() Then
+			For i = 1 To Ubound(garrSharedColumns)
+				szCol = garrSharedColumns(i)
+				If i = 1 Then
+					szColStr = szCol + " " + GetColumnTypeArray$(szCol)
+				Else
+					szColStr = szColStr + "," + szCol + " " + GetColumnTypeArray$(szCol)
+				End If
+			Next
+		End If
+	Case RESULT_COLUMN_NONE
+		szColStr = MCUT_COLUMN_FOR_ID + " Integer"
+	Case RESULT_COLUMN_CHOSEN
+		For i = 1 To GetNumberOfColumns()
+			szCol = garrIncludingColumns(i)
+			If i = 1 Then
+				szColStr = szCol + " " + GetColumnTypeArray$(szCol)
+			Else
+				szColStr = szColStr + "," + szCol + " " + GetColumnTypeArray$(szCol)
+			End If
+		Next
+End Case
+
+If gbAddColumnLayerName Then
+	If szColStr = "" Then
+		szColStr = "OPRIND_LAGNAVN Char(20)"
+	Else
+		szColStr = szColStr + ", OPRIND_LAGNAVN Char(20)"
+	End If
+End If
+
+GetColumnNameAndTypeList$ = szColStr
+
+End Function
+
+'******************************************
+'returnerer tekststreng indeholdende de kolonner der findes i sourcetabellen
+'******************************************
+Function GetColumnList$() As String
+
+Dim	szColStr, szTab, szCol As String,
+	i, j As Integer
+
+	Do Case gsnColumnType
+		Case RESULT_COLUMN_ALL
+			'If CreateArrayAllLayersColumns() Then
+
+			szTab = garrCuttingLayers(GetLayerNo())
+
+			For i = 1 To NumCols(szTab)
+				szCol = ColumnInfo(szTab, "COL" + i, COL_INFO_NAME)
+				For j = 1 To GetNumberOfColumns()
+
+					If garrIncludingColumns(j) = szCol Then
+
+						If szColStr = "" Then
+							szColStr = szCol
+						Else
+							szColStr = szColStr + "," + szCol
+						End If
+
+					End If
+
+				Next
+			Next
+
+			'End If
+		Case RESULT_COLUMN_EXISTING
+			szTab = garrCuttingLayers(GetLayerNo())
+
+			For i = 1 To NumCols(szTab)
+				szCol = ColumnInfo(szTab, "COL" + i, COL_INFO_NAME)
+				If i = 1 Then
+					szColStr = szCol
+				Else
+					szColStr = szColStr + "," + szCol
+				End If
+			Next
+		Case RESULT_COLUMN_SHARED
+			If CreateArraySharedLayersColumns() Then
+				For i = 1 To Ubound(garrSharedColumns)
+					szCol = garrSharedColumns(i)
+					If i = 1 Then
+						szColStr = szCol
+					Else
+						szColStr = szColStr + "," + szCol
+					End If
+				Next
+			End If
+		Case RESULT_COLUMN_NONE
+			szColStr = ""	'**"IDKOLONNE"
+		Case RESULT_COLUMN_CHOSEN
+			szTab = garrCuttingLayers(GetLayerNo())
+
+			For i = 1 To NumCols(szTab)
+				szCol = ColumnInfo(szTab, "COL" + i, COL_INFO_NAME)
+
+				For j = 1 To GetNumberOfColumns()
+
+					If garrIncludingColumns(j) = szCol Then
+
+						If szColStr = "" Then
+							szColStr = szCol
+						Else
+							szColStr = szColStr + "," + szCol
+						End If
+
+					End If
+
+				Next
+
+			Next
+
+	End Case
+
+	If szColStr = "" Then
+		GetColumnList$ = "obj"
+	Else
+		GetColumnList$ = szColStr + ", obj"
+	End If
+
+End Function
+
+'******************************************
+'returnerer tekststreng indeholdende de kolonner der findes i sourcetabellen: ColNavn = ColNavn
+'******************************************
+Function GetColumnListEraseOutSide$() As String
+
+Dim	i As Integer,
+	szColStr, szCol As String
+
+	For i = 1 To NumCols(szCurrentTable)
+		szCol = ColumnInfo(szCurrentTable, "COL" + i, COL_INFO_NAME)
+
+		If i = 1 Then
+			szColStr = szCol + " = " + szCol
+		Else
+			szColStr = szColStr + "," + szCol + " = " + szCol
+		End If
+	Next
+
+	GetColumnListEraseOutSide$ = szColStr
+
+End Function
+
+'******************************************
+'Klipper hele tabellen med et enkelt skæreobjekt...
+'******************************************
+Function CutWholeTableWithSingleEdge() As Logical
+
+Dim	cmdstr As String,
+	numTab As Integer
+
+CutWholeTableWithSingleEdge = FALSE
+
+numTab = NumTables()
+
+OnError GoTo ErrorOccured
+
+Do Case gnCuttingType
+	Case CUTTING_KIND_HARD_LINES
+		Select * From szCurrentTable Where Str$(ObjectInfo(obj, OBJ_INFO_TYPE)) In ("1", "3", "4")
+		Set Target
+
+	Case CUTTING_KIND_HARD_ALL
+		Select * From szCurrentTable Where Str$(ObjectInfo(obj, OBJ_INFO_TYPE)) Not In ("5", "10")
+		Set Target
+
+	Case Else
+		CutWholeTableWithSingleEdge = TRUE
+		Exit Function
+
+End Case
+
+Do Case gnTypeOfCuttingEdge
+	Case CUTTING_EDGE_SELECTED_OBJECT, CUTTING_EDGE_MAPFRAME
+		
+		Select * From KJDDKFHKDJSF
+
+	Case CUTTING_EDGE_TABLE
+		If ColumnInfo(GetCuttingTableName(), GetCuttingColumnName(), COL_INFO_TYPE) = COL_TYPE_CHAR Then
+			cmdstr = "Select * From " + GetCuttingTableName() 
+				 + " Where " + GetCuttingColumnName() + " = " + eye + garrCuttingObjects(GetFrameNo()) + eye
+		Else
+			cmdstr = "Select * From " + GetCuttingTableName() 
+				 + " Where " + GetCuttingColumnName() + " = " + garrCuttingObjects(GetFrameNo()) 
+		End If
+
+		Run Command cmdstr
+End Case
+
+If SelectionInfo(SEL_INFO_NROWS) > 0 Then
+	cmdstr = "Objects Intersect Into Target Data " + GetColumnListEraseOutSide$()
+	Run Command cmdstr
+End If
+
+CutWholeTableWithSingleEdge = TRUE
+
+Run Menu Command M_ANALYZE_UNSELECT
+
+Do Until numTab <= NumTables()
+	Close Table TableInfo(NumTables(), TAB_INFO_NROWS)
+Loop
+
+Exit Function
+'-----------------------
+ErrorOccured:
+Print #1, ERR_MCUT_CUTTING_OBJECTS + Error$() 
+
+End Function
+
+'******************************************
+'Klipper hele tabellen med alle skæreobjekterne...
+'******************************************
+Function CutWholeTableWithMultiEdges() As Logical
+
+Dim	cmdstr, szAppend As String,
+	i, numTab As Integer
+
+CutWholeTableWithMultiEdges = FALSE
+
+numTab = NumTables()
+
+OnError GoTo ErrorOccured
+
+Do Case gnCuttingType
+	Case CUTTING_KIND_HARD_LINES
+		Select * From szCurrentTable Where Str$(ObjectInfo(obj, OBJ_INFO_TYPE)) In ("1", "3", "4")
+		If SelectionInfo(SEL_INFO_NROWS) = 0 Then
+			Print #1, ERR_OBJ_NO_USABLE_SELECTED
+			CutWholeTableWithMultiEdges = TRUE
+			Exit Function
+		Else
+			Set Target
+		End If
+
+	Case CUTTING_KIND_HARD_ALL
+		Select * From szCurrentTable Where Str$(ObjectInfo(obj, OBJ_INFO_TYPE)) Not In ("5", "10")
+		If SelectionInfo(SEL_INFO_NROWS) = 0 Then
+			Print #1, ERR_OBJ_NO_USABLE_SELECTED
+			CutWholeTableWithMultiEdges = TRUE
+			Exit Function
+		Else
+			Set Target
+		End If
+
+	Case Else
+		CutWholeTableWithMultiEdges = TRUE
+		Exit Function
+
+End Case
+
+Do Case gnTypeOfCuttingEdge
+	Case CUTTING_EDGE_SELECTED_OBJECT, CUTTING_EDGE_MAPFRAME
+		
+		Select * From KJDDKFHKDJSF
+
+	Case CUTTING_EDGE_TABLE
+		cmdstr = "Select * From " + GetCuttingTableName() 
+			 + " Where " + GetCuttingColumnName() + " In ("
+		
+		For i = 1 To GetNumberOfFrames()
+			If ColumnInfo(GetCuttingTableName(), GetCuttingColumnName(), COL_INFO_TYPE) = COL_TYPE_CHAR Then
+				szAppend = eye + garrCuttingObjects(i) + eye
+			Else
+				szAppend = garrCuttingObjects(i) 
+			End If
+
+			If i = 1 Then
+				cmdstr = cmdstr + szAppend
+			Else
+				cmdstr = cmdstr + ", " + szAppend
+			End If
+
+		Next
+
+		cmdstr = cmdstr + ")"
+
+		'Print cmdstr
+		Run Command cmdstr
+End Case
+
+If SelectionInfo(SEL_INFO_NROWS) > 0 Then
+	cmdstr = "Objects Intersect Into Target Data " + GetColumnListEraseOutSide$()
+	Run Command cmdstr
+End If
+
+CutWholeTableWithMultiEdges = TRUE
+
+Run Menu Command M_ANALYZE_UNSELECT
+
+Do Until numTab <= NumTables()
+	Close Table TableInfo(NumTables(), TAB_INFO_NROWS)
+Loop
+
+Exit Function
+'-----------------------
+ErrorOccured:
+Print #1, ERR_MCUT_CUTTING_OBJECTS + Error$() 
+
+End Function

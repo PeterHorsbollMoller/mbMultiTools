@@ -1,0 +1,849 @@
+'****************************************************
+'**       Program: MultiTools
+'**		Modul: ToolFunc
+'**		Diverse funktioner
+'****************************************************
+Include "MapBasic.def"
+Include "Menu.def"
+Include "Icons.def"
+
+'Define FILE_TOOL_BTN		"MTools.btp"
+'Define FILE_TOOL_TOOLS		"MTools.btn"
+
+''***Default icon-files...(16 & 32 bit)
+Define FILE_ICON_TOOLS_16	ApplicationDirectory$() + "MTools.dll"
+Define FILE_ICON_TOOLS_32	ApplicationDirectory$() + "MTools32.dll"
+
+'**Type-definition for tools...
+Type T_BUTTON
+	szDescription	As String
+	szButtonType	As String
+	nIconnumber		As Integer
+	szIconFile		As String
+	nCursorType		As Integer
+ 	nDrawMode		As Integer
+	szProcedure		As String
+	szHlpText		As String
+	szCommandStr	As String
+End Type
+
+Include "ToolFunc.def"
+
+Include "..\Time\Time.def"
+Include "..\TabFunc\TabFunc.def"
+Include "..\IniUtil\IniUtil.def"
+Include "..\PadFunc\PadFunc.def"
+Include "..\APIFunc\APIFunc.def"
+
+Include "ToolSplit.def"
+Include "Minis\ReplChar.def"
+Include "Minis\AutoFind.def"
+Include "Minis\MapHelp.def"
+Include "..\SelectFunc\SelectFunc.def"
+
+'**Topological snap function
+'Include "..\TopoSnap\TopoSnap.def"
+
+'**Rasterhandler
+Include "..\RastHand\RastHand.def"
+
+Include "..\Language\Message.lng"
+Include "..\Language\Errors.lng"
+Include "..\Language\Kommune.lng"
+Include "..\Language\MapInfo.lng"
+
+
+Declare Sub AddIconHandler(ByVal nMenuChosen As Integer)
+Declare Sub RemoveIconHandler(ByVal nMenuChosen As Integer)
+
+Declare Sub ToolAddRemoveDialogStartUp
+Declare Sub AddRemoveHandler
+
+
+Dim	marrAdd(0), marrRemove(0) As Integer,
+	marrButtons(0) As T_BUTTON,
+	mszToolBtpTitle, mszBtnFile As String,
+	marrActiveIcon(0) As Integer
+
+'*****************************************
+'Hoved: Laver menupaletten uden ikoner
+'*****************************************
+Sub ToolCreateButtonpad(ByVal szBtpTitle As String)
+
+	mszToolBtpTitle = szBtpTitle
+
+	'Create ButtonPad mszToolBtpTitle As
+	'	ToolButton
+	'		Icon MI_ICON_ARROW
+	'		Calling M_TOOLS_SELECTOR
+	'		HelpMsg KPAK_BTN_HLP_SELECT_TOOL
+
+	Call SetUpIconArray
+
+	Call AutoFind_Stop
+
+End Sub
+
+'*****************************************
+'Tilføj knap - menukald
+'*****************************************
+Sub AddIcon
+
+	Call AddIconHandler(CommandInfo(CMD_INFO_MENUITEM))
+
+End Sub
+
+'*****************************************
+'Tilføj knap - handler
+'*****************************************
+Sub AddIconHandler(ByVal nMenuChosen As Integer)
+
+Dim	szIconFile, szCmdStr As String,
+	i, nAntal, nToolID As Integer
+
+	For i = 1 To Ubound(marrActiveIcon)
+		If marrActiveIcon(i) = nMenuChosen Then
+			Exit Sub
+		End If
+	Next
+
+	Do Case SystemInfo(SYS_INFO_MIPLATFORM)
+		Case MIPLATFORM_WIN16
+			szIconFile = FILE_ICON_TOOLS_16
+		Case MIPLATFORM_WIN32
+			szIconFile = FILE_ICON_TOOLS_32
+		Case Else
+			Note ERR_SYS_WINDOWS_APPLICATION
+			Exit Sub
+	End Case
+
+	nToolID	= nMenuChosen - 1000
+
+	Do Case nMenuChosen
+		Case 1011
+			If ButtonPadExists(mszToolBtpTitle) Then
+				Alter ButtonPad mszToolBtpTitle
+					Add Separator
+			End If
+		Case 1021
+			If ButtonPadExists(mszToolBtpTitle) Then
+				Alter ButtonPad mszToolBtpTitle
+					Add Separator
+			End If
+	End Case
+
+
+	If ButtonPadExists(mszToolBtpTitle) Then
+		szCmdStr = "Alter ButtonPad " + eye + mszToolBtpTitle + eye + " Add "
+	Else
+		szCmdStr = "Create ButtonPad " + eye + mszToolBtpTitle + eye + " As "
+	End If
+
+	Do Case marrButtons(nToolID).szButtonType
+		Case "PushButton", "Togglebutton"
+			szCmdStr = szCmdStr + marrButtons(nToolID).szButtonType
+					+ " Calling " + marrButtons(nToolID).szProcedure + " ID " + nMenuChosen
+
+		Case "ToolButton"
+			szCmdStr = szCmdStr + marrButtons(nToolID).szButtonType
+					+ " Calling " + marrButtons(nToolID).szProcedure + " ID " + nMenuChosen
+					+ " Cursor " + marrButtons(nToolID).nCursorType
+					+ " DrawMode " + marrButtons(nToolID).nDrawMode
+	End Case
+
+	Do Case marrButtons(nToolID).szIconFile
+		Case "DEFAULT"
+			szCmdStr = szCmdStr + " Icon " + marrButtons(nToolID).nIconnumber
+					+ " File " + eye + szIconFile + eye
+		Case "MAPINFO", ""
+			szCmdStr = szCmdStr + " Icon " + marrButtons(nToolID).nIconnumber
+		Case Else
+			szCmdStr = szCmdStr + " Icon " + marrButtons(nToolID).nIconnumber
+					+ " File " + eye + marrButtons(nToolID).szIconFile + eye
+	End Case
+
+	szCmdStr = szCmdStr + " HelpMsg " + eye + marrButtons(nToolID).szHlpText + eye
+
+	'Print szCmdStr
+	Run Command szCmdStr
+
+	If marrButtons(nToolID).szCommandStr <> "" Then
+		'print marrButtons(nToolID).szCommandStr
+		Run Command marrButtons(nToolID).szCommandStr
+	End If
+
+	If nMenuChosen = 1012 Then
+		'**Don't add this to active array - it is referred to by 1011
+	ElseIf nMenuChosen = 1022 Then
+		'**Don't add this to active array - it is referred to by 1021
+	Else
+		nAntal = Ubound(marrActiveIcon) + 1
+		Redim marrActiveIcon(nAntal)
+		marrActiveIcon(nAntal) = nMenuChosen
+	End If
+
+	Do Case nMenuChosen
+		Case 1011
+			Call AddIconHandler(1012)
+			Alter ButtonPad mszToolBtpTitle
+				Add Separator
+		Case 1020
+			Alter ButtonPad mszToolBtpTitle
+				Add Separator
+		Case 1021
+			Call AddIconHandler(1022)
+			Alter ButtonPad mszToolBtpTitle
+				Add Separator
+	End Case
+
+End Sub
+
+'*****************************************
+'Fjern knap - menukald
+'*****************************************
+Sub IconRemove
+
+	Call RemoveIconHandler(CommandInfo(CMD_INFO_MENUITEM))
+
+End  Sub
+
+'*****************************************
+'Fjern knap - handler
+'*****************************************
+Sub RemoveIconHandler(ByVal nMenuChosen As Integer)
+
+Dim	i, nFound As Integer,
+	szCmdStr As String
+
+	Do Case nMenuChosen
+		Case 1011
+			Alter ButtonPad mszToolBtpTitle
+				Remove ID 1012
+		Case 1013
+			Set Handler SelChangedHandler Off
+		Case 1021
+			Alter ButtonPad mszToolBtpTitle
+				Remove ID 1022
+	End Case
+
+	Alter ButtonPad mszToolBtpTitle
+		Remove ID nMenuChosen
+
+	For i = 1 To Ubound(marrActiveIcon)
+		If marrActiveIcon(i) = nMenuChosen Then
+			nFound = i
+			For i = nFound To (Ubound(marrActiveIcon) - 1)
+				marrActiveIcon(i) = marrActiveIcon(i + 1)
+			Next
+			ReDim marrActiveIcon(Ubound(marrActiveIcon) - 1)
+      		Exit For
+		End If
+	Next
+
+End Sub
+
+'*****************************************
+'Opstarts - danner menupaletten med knapper
+'*****************************************
+Sub SetUpIconArray
+
+Dim	i As Integer,
+	szReadNumber As String
+
+	'**Remember to chenge if the is a change in number of supported tools
+	Redim marrButtons(25)
+
+	i = 1
+	marrButtons(1).szDescription	= KPAK_DLG_TXT_MAKE_EDITABLE
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 1
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= "MakeLayerEditable"
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_MAKE_EDITABLE
+
+	'**2
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_SPLITTER
+	marrButtons(i).szButtonType	= "ToolButton"
+	marrButtons(i).nIconnumber	= 3
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).nCursorType	= MI_CURSOR_CROSSHAIR
+	marrButtons(i).nDrawMode	= DM_CUSTOM_POINT
+	marrButtons(i).szProcedure	= "SplitPlineTool"
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_SPLIT_PLINE
+
+	'**3
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_FIND
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 15
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= M_ANALYZE_FIND_SELECTION
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_FIND_SELECTED_OBJ
+
+	'**4
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_ERASE_OBJ
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 11
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= M_OBJECTS_ERASE
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_ERASE_OBJ
+
+	'**5
+	i = i + 1
+	marrButtons(5).szDescription	= KPAK_DLG_TXT_SPLIT_OBJ
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 17
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= M_OBJECTS_SPLIT
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_SPLIT_OBJ
+
+	'**6
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_ERASE_OUTSIDE_OBJ
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 13
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= M_OBJECTS_ERASE_OUT
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_ERASE_OUTSIDE_OBJ
+
+	'**7
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_COMBINE_OBJ
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 5
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= M_OBJECTS_COMBINE
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_COMBINE_OBJ
+
+	'**8
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_CNVRT_2_REGION
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 7
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= M_OBJECTS_CVT_PGON
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_CNVRT_2_REGION
+
+	'**9
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_CNVRT_2_PLINE
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 9
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= M_OBJECTS_CVT_PLINE
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_CNVRT_2_PLINE
+
+	'**10
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_ADD_NODES
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 43
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= M_OBJECTS_OVERLAY
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_ADD_NODES
+
+	'**11
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_TARGET_OBJ
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 21
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= M_OBJECTS_SET_TARGET
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_SET_TARGET
+
+	'**12
+	i = i + 1
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 23
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= M_OBJECTS_CLEAR_TARGET
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_CLEAR_TARGET
+
+	'**13
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_AUTOFIND
+	marrButtons(i).szButtonType	= "ToggleButton"
+	marrButtons(i).nIconnumber	= 25
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= "AutoFind_StartStopToggle"
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_AUTOFIND_SELECTED
+	'marrButtons(i).szCommandStr	= "Set Handler SelChangedHandler Off"
+
+	'**14
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_REVERSE_LINES
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 27
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= "ReverseLines"
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_REVERSE_LINES
+
+	'**15
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_MAKE_INVISIBLE
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 29
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= "MakeLayerNonVisible"
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_MAKE_INVISIBLE
+
+	'**16
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_MAKE_UNSELECTABLE
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 39
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= "MakeLayerNonSelectable"
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_MAKE_UNSELECTABLE
+
+	'**17
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_TOPO_SNAP_NEW
+	marrButtons(i).szButtonType	= "ToggleButton"
+	marrButtons(i).nIconnumber	= 41
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= "TopoSnapActToggle"
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_TOPO_SNAP_ENDPOINT
+
+	'**18
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_TOPO_SNAP_EXIST
+	marrButtons(i).szButtonType	= "ToolButton"
+	marrButtons(i).nIconnumber	= 19
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).nCursorType	= MI_CURSOR_CROSSHAIR
+	marrButtons(i).nDrawMode	= DM_CUSTOM_POINT
+	marrButtons(i).szProcedure	= "TopoSnapExistObjects"
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_TOPO_SNAP_EXISTING
+
+	'**19
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_REGION_SPLITTER
+	marrButtons(i).szButtonType	= "ToolButton"
+	marrButtons(i).nIconnumber	= 49
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).nCursorType	= MI_CURSOR_CROSSHAIR
+	marrButtons(i).nDrawMode	= DM_CUSTOM_POLYLINE
+	marrButtons(i).szProcedure	= "ToolSplitRegionWithLine"
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_SPLIT_REGION
+
+	'**20
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_PREV_VIEW
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 61
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= M_MAP_PREVIOUS
+	marrButtons(i).szHlpText	= MI_BTN_HLP_PREVIOUS
+
+	'**21
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_RASTERHANDLER
+	marrButtons(i).szButtonType	= "ToggleButton"
+	marrButtons(i).nIconnumber	= 45
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= "StartStopRH"
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_RH_START_STOP
+
+	'**22
+	i = i + 1
+	marrButtons(i).szButtonType	= "ToggleButton"
+	marrButtons(i).nIconnumber	= 47
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= "ActivateRHSwitch"
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_RH_ACTIVATE
+	marrButtons(i).szCommandStr	= "Alter Button ActivateRHSwitch Disable"
+
+	'**23
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_STYLES_SELECT
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 89
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= "SelectObjUsingCurSelection"
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_STYLES_SELECT
+
+	'**24
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_STYLES_SELECT_ADV
+	marrButtons(i).szButtonType	= "PushButton"
+	marrButtons(i).nIconnumber	= 91
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).szProcedure	= "SelectObjUsingCurSelectionExt"
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_STYLES_SELECT_ADV
+
+	'**25
+	i = i + 1
+	marrButtons(i).szDescription	= KPAK_DLG_TXT_POLYGON_SELECT_ADV
+	marrButtons(i).szButtonType	= "ToolButton"
+	marrButtons(i).nIconnumber	= 93
+	marrButtons(i).szIconFile	= "DEFAULT"
+	marrButtons(i).nCursorType	= MI_CURSOR_CROSSHAIR
+	marrButtons(i).nDrawMode	= DM_CUSTOM_POLYGON
+	marrButtons(i).szProcedure	= "SelectInsideRegion_With_Tool"
+	marrButtons(i).szHlpText	= KPAK_BTN_HLP_POLYGON_SELECT_ADV
+
+	'***Checking existing ToolSetup-file...
+	If not FileExists(mszBtnFile) Then
+		Exit Sub
+	End If
+
+	Open File mszBtnFile
+		For Input
+		As #1
+
+	szReadNumber = ReadInitLine()
+	Do While szReadNumber <> ""
+		Call AddIconHandler(Val(szReadNumber))
+		szReadNumber = ReadInitLine()
+	Loop
+
+	Close File #1
+
+End Sub
+
+'*****************************************
+'Gemmer nuværende opsætning mht. knapper
+'*****************************************
+Sub SaveCurrentToolSetup
+
+Dim	i As Integer
+
+	'***Checking existing ToolSetup-file...
+	If FileExists(mszBtnFile) Then
+		Kill mszBtnFile
+	End If
+
+	Open File mszBtnFile
+		For Output
+		As #1
+
+	For i = 1 To Ubound(marrActiveIcon)
+
+		If marrActiveIcon(i) > 0 Then
+			Print #1, marrActiveIcon(i)
+		End If
+	Next
+
+	Close File #1
+
+End Sub
+
+'*****************************************
+'Dialog til styring af ikoner
+'*****************************************
+Sub ToolAddRemoveDialog
+
+Dim	i As Integer,
+	bSaveSetup As Logical,
+	btpTools As T_BUTTONPAD
+
+	ReDim marrAdd(0)
+	ReDim marrRemove(0)
+
+	Dialog
+		Title KPAK_DLG_TITLE_TOOL_BUTTONS
+		Calling ToolAddRemoveDialogStartUp
+		'----------
+		Control GroupBox	Position 5,5	Width 120	Height 41
+			Title KPAK_DLG_TXT_FIND
+		Control CheckBox	Position 15,18	ID 1003
+			Title marrButtons(3).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		Control CheckBox	Position 15,30	ID 1013
+			Title marrButtons(13).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		'----------
+		Control GroupBox	Position 5,50	Width 120	Height 53
+			Title KPAK_DLG_TXT_OBJECT_TOOLS
+		Control CheckBox	Position 15,63	ID 1002
+			Title marrButtons(2).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		Control CheckBox	Position 15,75	ID 1014
+			Title marrButtons(14).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		Control CheckBox	Position 15,87	ID 1019
+			Title marrButtons(19).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		'----------
+		Control GroupBox	Position 5,107	Width 120	Height 53
+			Title KPAK_DLG_TXT_SELECT_TOOLS
+		Control CheckBox	Position 15,120	ID 1025
+			Title marrButtons(25).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		Control CheckBox	Position 15,132	ID 1023
+			Title marrButtons(23).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		Control CheckBox	Position 15,144	ID 1024
+			Title marrButtons(24).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		'----------
+		Control GroupBox	Position 5,164	Width 120	Height 41
+			Title KPAK_DLG_TXT_OTHER_TOOLS
+		Control CheckBox	Position 15,177	ID 1020
+			Title marrButtons(20).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		Control CheckBox	Position 15,189	ID 1021
+			Title marrButtons(21).szDescription
+			Value FALSE	Calling AddRemoveHandler
+
+		'----------
+		Control GroupBox	Position 130,5	Width 120	Height 113
+			Title KPAK_DLG_TXT_MI_OBJ_TOOLS
+		Control CheckBox	Position 140,18	ID 1011
+			Title marrButtons(11).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		Control CheckBox	Position 140,30	ID 1007
+			Title marrButtons(7).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		Control CheckBox	Position 140,42	ID 1004
+			Title marrButtons(4).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		Control CheckBox	Position 140,54	ID 1006
+			Title marrButtons(6).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		Control CheckBox	Position 140,66	ID 1005
+			Title marrButtons(5).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		Control CheckBox	Position 140,78	ID 1010
+			Title marrButtons(10).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		Control CheckBox	Position 140,90	ID 1008
+			Title marrButtons(8).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		Control CheckBox	Position 140,102	ID 1009
+			Title marrButtons(9).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		'----------
+		Control GroupBox	Position 130,122	Width 120	Height 53
+			Title KPAK_DLG_TXT_LAYERCONTROL
+		Control CheckBox	Position 140,135	ID 1001
+			Title marrButtons(1).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		Control CheckBox	Position 140,147	ID 1015
+			Title marrButtons(15).szDescription
+			Value FALSE	Calling AddRemoveHandler
+		Control CheckBox	Position 140,159	ID 1016
+			Title marrButtons(16).szDescription
+			Value FALSE	Calling AddRemoveHandler
+
+		'----------
+		Control CheckBox	Position 155,200
+			Title KPAK_DLG_TXT_SAVE_AS_DEFAULT
+			Value FALSE
+			Into bSaveSetup
+
+		Control OKButton		Position 145,185	Width 40
+		Control CancelButton	Position 190,185	Width 40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	Call PADGetSettings(mszToolBtpTitle, btpTools)
+
+	For i = 1 To Ubound(marrRemove)
+		Call RemoveIconHandler(marrRemove(i))
+	Next
+
+	For i = 1 To Ubound(marrAdd)
+		Call AddIconHandler(marrAdd(i))
+	Next
+
+	Call PADSetSettings(mszToolBtpTitle, btpTools)
+
+	If bSaveSetup Then
+		Call SaveCurrentToolSetup
+	End if
+
+End Sub
+
+'*****************************************
+'Handler: Opstart
+'*****************************************
+Sub ToolAddRemoveDialogStartUp
+
+Dim	i, nID As Integer
+
+	For i = 1 To Ubound(marrActiveIcon)
+		nID = marrActiveIcon(i)
+		Alter Control nID Value TRUE
+	Next
+
+End Sub
+
+'*****************************************
+'Handler : Styring af arrays
+'*****************************************
+Sub AddRemoveHandler
+
+Dim	i, j, k, nChk, nCur As Integer
+
+	nChk = TriggerControl()
+
+	If ReadControlValue(nChk) Then
+
+		For i = 1 To Ubound(marrRemove)
+			If marrRemove(i) = nChk Then
+
+				For j = i To Ubound(marrRemove) - 1
+					marrRemove(j) = marrRemove(j + 1)
+				Next
+				ReDim marrRemove(Ubound(marrRemove) - 1)
+
+				Exit Sub
+			End If
+		Next
+
+		nCur = Ubound(marrAdd)
+		ReDim marrAdd(nCur + 1)
+		marrAdd(nCur + 1) = nChk
+	Else
+
+		For i = 1 To Ubound(marrAdd)
+			If marrAdd(i) = nChk Then
+				For j = i To Ubound(marrAdd) - 1
+					marrAdd(j) = marrAdd(j + 1)
+				Next
+				ReDim marrAdd(Ubound(marrAdd) - 1)
+				Exit Sub
+			End If
+		Next
+
+		nCur = Ubound(marrRemove)
+		ReDim marrRemove(nCur + 1)
+		marrRemove(nCur + 1) = nChk
+	End If
+
+End Sub
+
+'****************************************
+'Læser initieringsfil
+'****************************************
+Sub ToolsReadIniFile(ByVal szIniFile As String)
+
+Dim	szRead As String
+
+	gfSplitterTolerance		= 0.2		'*meters
+'	gfltLinSnpDist 			= 2.0		'*meters
+'	gfltIdPntDist 			= 1.0		'*meters
+'	gintSeaMode				= 2		'*Buffersearch is default
+
+	If not FileExists(szIniFile) Then
+		Exit Function
+	End If
+
+	gfSplitterTolerance 	= Val(KommaToPoint(GetIniKeyValue(szIniFile, "[TOOLS]", "SPLITTERTOLERANCE")))
+
+'	gfltLinSnpDist 		= Val(KommaToPoint(GetIniKeyValue(szIniFile, "[TOOLS]", "LINESNAPDISTANCE")))
+'	gfltIdPntDist 		= Val(KommaToPoint(GetIniKeyValue(szIniFile, "[TOOLS]", "IDENTICALPOINTDISTANCE")))
+'	gfltRefZoom 		= Val(KommaToPoint(GetIniKeyValue(szIniFile, "[TOOLS]", "TOPOREFERENCEZOOM")))
+'	gintSeaMode			= Val(GetIniKeyValue(szIniFile, "[TOOLS]", "TOPOSEARCHMETHOD"))
+
+'	Call UpdateColumnSetColumnName(GetIniKeyValue(szIniFile, "[TOOLS]", "UPDATECOLUMNNAME"))
+'	Call UpdateColumnSetValue(GetIniKeyValue(szIniFile, "[TOOLS]", "UPDATEVALUE"))
+
+End Sub
+
+'****************************************
+'Skriver til initieringsfil
+'****************************************
+Sub ToolsWriteIniFile(ByVal fileNum As Integer)
+
+	Print #fileNum, ""
+	Print #fileNum, "[TOOLS]"
+
+	Print #fileNum, "SPLITTERTOLERANCE="	+ gfSplitterTolerance
+
+'	Print #fileNum, "LINESNAPDISTANCE="		+ gfltLinSnpDist
+'	Print #fileNum, "IDENTICALPOINTDISTANCE="	+ gfltIdPntDist
+'	Print #fileNum, "TOPOREFERENCEZOOM="	+ gfltRefZoom
+'	Print #fileNum, "TOPOSEARCHMETHOD="		+ gintSeaMode
+
+'	Print #fileNum, "UPDATECOLUMNNAME="		+ UpdateColumnGetColumnName$()
+'	Print #fileNum, "UPDATEVALUE="		+ UpdateColumnGetValue$()
+
+End Sub
+
+'****************************************
+'Sætter navn på fil med aktive værktøjsknapper
+'****************************************
+Sub TOOLSetBTNFile(ByVal szFile As String)
+
+	mszBtnFile = szFile
+
+End Sub
+
+'****************************************
+'Generel opsætningsdialog
+'****************************************
+Function ToolSetupDialog() As Logical
+
+Dim	txtTol, szLineSnap, szIDPnts, szRefZoom As String
+
+ToolSetupDialog = FALSE
+
+'------------------------------
+ShowDialog:
+
+	Dialog
+		Title KPAK_DLG_TITLE_TOOL_SETTING
+		Control GroupBox	Position 5,5	Width 160	Height 30
+			Title KPAK_DLG_TXT_SPLITTER_TOOL
+		Control StaticText	Position 15,17
+			Title KPAK_DLG_TXT_SNAP_TOLERANCE
+		Control EditText		Position 130,15	Width 30
+			Value Str$(gfSplitterTolerance)
+			Into txtTol
+
+'		Control GroupBox		Position 5,40	Width 160	Height 100
+'			Title KPAK_DLG_TXT_TOPOLOGICAL_SNAP
+'		Control StaticText	Position 15,52
+'			Title KPAK_DLG_TXT_TOPO_LINE_SNAP_TOL
+'		Control EditText		Position 130,50	Width 30
+'			Value Str$(gfltLinSnpDist)
+'			Into szLineSnap
+'		Control StaticText	Position 15,67
+'			Title KPAK_DLG_TXT_TOPO_SNAP_MAP_ZOOM
+'		Control EditText		Position 130,65	Width 30
+'			Value Str$(gfltRefZoom)
+'			Into szRefZoom
+'
+'		Control StaticText	Position 15,82
+'			Title KPAK_DLG_TXT_TOPO_SAME_PNT_TOL
+'		Control EditText		Position 130,80	Width 30
+'			Value Str$(gfltIdPntDist)
+'			Into szIDPnts
+'
+'		Control GroupBox		Position 10,95	Width 150	Height 40
+'			Title KPAK_DLG_TXT_TOPO_SEARCH_METHOD
+'	   	Control RadioGroup	Position 20,105
+'			Title KPAK_DLG_TXT_TOPO_POSS_METHOD
+'			Value gintSeaMode
+'			Into gintSeaMode
+
+	   Control OKButton		Position 70,40
+	   Control CancelButton		Position 120,40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	gfSplitterTolerance	= Val(KommaToPoint(txtTol))
+
+'	gfltLinSnpDist		= Val(KommaToPoint(szLineSnap))
+'	gfltIdPntDist		= Val(KommaToPoint(szIDPnts))
+'	gfltRefZoom			= Val(KommaToPoint(szRefZoom))
+'
+'	If gfltRefZoom <= 0 Then
+'		Note KPAK_DLG_TXT_MAP_ZOOM_ERROR
+'		GoTo ShowDialog
+'	End If
+
+ToolSetupDialog = TRUE
+
+End Function
+
+

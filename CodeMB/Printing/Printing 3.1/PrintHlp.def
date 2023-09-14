@@ -1,0 +1,20 @@
+Declare Sub PrintHlpMenusReadIniFile(ByVal szIniFile As String, arrNames() As String, arrScales() As Integer)
+Declare Sub PrintHlpMenusWriteIniFile(ByVal FileNum As Integer, arrNames() As String, arrScales() As Integer)
+
+Declare Function PrintHlpDefinePlotMenuItems(arrMenuName() As String, arrScale() As Integer) As Logical
+
+Declare Function PrintHlpSetupSpecPlotDialog() As Logical
+Declare Function SpecPlotGetListOfSpecPlotNames(arrSpecPlot() As String, ByVal bOnlyExistingWor As Logical) As Logical
+Declare Function SpecPlotSetUpPlotUsingSpecPlot(ByVal szSpecPlotName As String) As Logical
+
+
+'----------North Arrow functionality--------------------------------------
+Declare Sub PrintHlpSetNorthArrowName(ByVal szName As String)
+Declare Function PrintHlpGetNorthArrowName() As String
+Declare Sub PrintHlpSetNorthArrowTabFile(ByVal szFile As String)
+Declare Function PrintHlpGetNorthArrowTabFile() As String
+
+Declare Function PrintHlpSelectNorthArrowName() As Logical
+
+Declare Sub PrintHlpInsertNorthArrowIntoLayout(	ByVal szArrow As String, ByVal nLID As Integer,
+								ByVal oFrame As Object, ByVal fRotation As Float)

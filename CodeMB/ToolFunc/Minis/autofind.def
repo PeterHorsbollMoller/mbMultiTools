@@ -1,0 +1,3 @@
+Declare Sub AutoFind_StartStopToggle
+Declare Sub AutoFind_Stop
+Declare Sub AutoFind_SelChangedHandler

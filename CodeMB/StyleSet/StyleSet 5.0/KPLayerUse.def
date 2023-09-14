@@ -1,0 +1,113 @@
+'*******************  A R R A Y S ***************************************************
+Declare Sub kplCreateListOfLayersNoOrder(arrLayers() As String)
+Declare Sub kplCreateListOfLayersOrder(arrLayers() As String)
+Declare Sub kplCreateListOfLayersByTable(ByVal nTableID As Integer, arrLayers() As String)
+Declare Sub kplCreateListOfLayersByGroup(ByVal nGroupID As Integer, ByVal nSubGroupID As Integer, arrLayers() As String)
+
+Declare Function kplGetLayerIDFromElementNoNoOrder(ByVal nElementNo As Integer) As Integer
+Declare Function kplGetTableIDFromElementNoNoOrder(ByVal nElementNo As Integer) As Integer
+Declare Function kplGetLayerIDFromElementNoOrder(ByVal nElementNo As Integer) As Integer
+Declare Function kplGetTableIDFromElementNoOrder(ByVal nElementNo As Integer) As Integer
+Declare Function kplGetLayerOrderFromElementNoOrder(ByVal nElementNo As Integer) As Integer
+Declare Function kplGetLayerIDFromElementNoByTable(ByVal nElementNo As Integer) As Integer
+Declare Function kplGetLayerIDFromElementNoByGroup(ByVal nElementNo As Integer) As Integer
+Declare Function kplGetTableIDFromElementNoByGroup(ByVal nElementNo As Integer) As Integer
+
+'****************** R E A D I N G  /  W R I T I N G    L A Y E R S E T T I N G S *********
+Declare Sub kplCreateLayerSettingsDefault(ByVal nTableID As Integer, ByVal nLayerID As Integer,
+							ByVal nOrder As Integer, ByVal szDescription As String)
+Declare Sub kplSetEntireLayerSettings(	ByVal nMID As Integer, ByVal szTableName As String, ByVal nLayer As Integer,
+							ByVal nTableID As Integer, ByVal nLayerID As Integer,
+							ByVal nOrder As Integer, ByVal szDescription As String)
+Declare Function kplGetEntireLayerSettings(	ByVal nMID As Integer, ByVal szTableName As String,
+								ByVal nLayer As Integer,
+								ByVal nTableID As Integer, ByVal nLayerID As Integer) As Logical
+
+Declare Function kplGetLabelSettings$(ByVal nTableID As Integer, ByVal nLayerID As Integer, ByVal szTable As String) As String
+Declare Sub kplSetLabelSettings(	ByVal nMID As Integer, ByVal szTableName As String, ByVal nLayer As Integer,
+						ByVal nTableID As Integer, ByVal nLayerID As Integer,
+						ByVal nOrder As Integer, ByVal szDescription As String)
+						
+Declare Function kplGetLayerSettings$(ByVal nTableID As Integer, ByVal nLayerID As Integer, ByVal szTable As String) As String
+Declare Sub kplSetLayerSettings(	ByVal nMID As Integer, ByVal szTableName As String, ByVal nLayer As Integer,
+						ByVal nTableID As Integer, ByVal nLayerID As Integer,
+						ByVal nOrder As Integer, ByVal szDescription As String)
+
+Declare Function kplRemoveLayerSetting(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Integer
+Declare Function kplRemoveLayerSettingRef(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Logical
+
+'*******************  L A Y E R   I N F O R M A T I O N ***************************************************
+Declare Function kplGetLayerIDFromLayerSetting(	ByVal nTableID As Integer,
+								ByVal nMID As Integer, ByVal nLayerNum As Integer) As Integer
+Declare Function kplGetDescription$(ByVal nTableID As Integer, ByVal nLayerID As Integer) As String
+Declare Function kplGetOrder(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Integer
+Declare Function kplGetNumLayers(ByVal nTableID As Integer) As Integer
+Declare Function kplGetMaxLayerID(ByVal nTableID As Integer) As Integer
+Declare Function kplGetNextLayerID(ByVal nTableID As Integer) As Integer
+Declare Function kplGetMinOrder() As Integer
+
+Declare Sub kplSetDescription(ByVal nTableID As Integer, ByVal nLayerID As Integer, ByVal szDescr As String)
+Declare Sub kplSetOrder(ByVal nTableID As Integer, ByVal nLayerID As Integer, ByVal nOrder As Integer)
+
+Declare Function kplLayerSettingExists(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Logical
+
+'*******************  L A Y E R   S E T T I N G ***************************************************
+'***Layer reading....
+Declare Function kplGetSelectable$(ByVal szTab As String) As String
+Declare Function kplGetZoom$(ByVal szTab As String) As String
+Declare Function kplGetArrows$(ByVal szTab As String) As String
+Declare Function kplGetCentroids$(ByVal szTab As String) As String
+Declare Function kplGetNodes$(ByVal szTab As String) As String
+Declare Function kplGetDisplay$(ByVal szTab As String) As String
+Declare Function kplGetGlobalPen(ByVal szTab As String) As Pen
+Declare Function kplGetGlobalPen$(ByVal szTab As String) As String
+Declare Function kplGetGlobalLine(ByVal szTab As String) As Pen
+Declare Function kplGetGlobalLine$(ByVal szTab As String) As String
+Declare Function kplGetGlobalBrush(ByVal szTab As String) As Brush
+Declare Function kplGetGlobalFont(ByVal szTab As String) As Font
+Declare Function kplGetGlobalSymbol(ByVal szTab As String) As Symbol
+
+'***Layer writing....
+Declare Sub kplSetSelectable(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetZoom(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetArrows(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetCentroids(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetNodes(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetDisplay(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetGlobalPen(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetGlobalLine(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetGlobalBrush(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetGlobalFont(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetGlobalSymbol(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+
+
+'*******************  L A B E L   S E T T I N G S ***************************************************
+'****Label reading....
+Declare Function kplGetLabelLine$(ByVal szTab As String) As String
+Declare Function kplGetLabelPosition$(ByVal szTab As String) As String
+Declare Function kplGetLabelFont(ByVal szTab As String) As Font
+Declare Function kplGetLabelPen(ByVal szTab As String) As Pen
+Declare Function kplGetLabelExpression$(ByVal szTab As String, ByVal szLayer As String) As String
+Declare Function kplGetLabelParallel$(ByVal szTab As String) As String
+Declare Function kplGetLabelVisibility$(ByVal szTab As String) As String
+Declare Function kplGetLabelAuto$(ByVal szTab As String) As String
+Declare Function kplGetLabelOverlap$(ByVal szTab As String) As String
+Declare Function kplGetLabelDuplicates$(ByVal szTab As String) As String
+Declare Function kplGetLabelPartSegments$(ByVal szTab As String) As String
+Declare Function kplGetLabelMax$(ByVal szTab As String) As String
+Declare Function kplGetLabelOffset(ByVal szTab As String) As Integer
+
+'***Label writing....
+Declare Sub kplSetLabelLine(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetLabelPosition(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetLabelFont(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetLabelPen(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetLabelExpression(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetLabelParallel(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetLabelVisibility(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetLabelAuto(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetLabelOverlap(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetLabelDuplicates(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetLabelPartSegements(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetLabelMax(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)
+Declare Sub kplSetLabelOffset(ByVal szTab As String, ByVal nMID As Integer, ByVal nLayer As Integer)

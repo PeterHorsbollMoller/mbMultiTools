@@ -1,0 +1,50 @@
+Attribute VB_Name = "APIGuide32"
+Option Explicit
+' ------------------------------------------------------------------------
+'
+'     APIGID32.BAS -- APIGID32.DLL API Declarations for Visual Basic
+'
+'                       Copyright (C) 1992-1996 Desaware
+'
+'  You have a royalty-free right to use, modify, reproduce and distribute
+'  this file (and/or any modified version) in any way you find useful,
+'  provided that you agree that Desaware and Ziff-Davis Press has no
+'  warranty, obligation or liability for its contents.
+'  Refer to the Ziff-Davis Visual Basic Programmer's Guide to the
+'  Win32 API for further information.
+'
+' ------------------------------------------------------------------------
+Type POINTS
+        x  As SmallInt
+        y  As SmallInt
+End Type
+
+Private Type FILETIME
+        dwLowDateTime As Integer
+        dwHighDateTime As Integer
+End Type
+
+Declare Function agGetInstance& Lib "apigid32.dll" ()
+Declare Function agPOINTStoLong& Lib "apigid32.dll" (pt As POINTS)
+Declare Sub agCopyData Lib "apigid32.dll" (source As String, dest As String, ByVal nCount As Integer)
+Declare Sub agCopyDataBynum Lib "apigid32.dll" Alias "agCopyData" (ByVal source&, ByVal dest&, ByVal nCount As Integer)
+Declare Function agGetAddressForObject& Lib "apigid32.dll" (object As String)
+Declare Function agGetAddressForInteger& Lib "apigid32.dll" Alias "agGetAddressForObject" (intnum As Integer)
+Declare Function agGetAddressForLong& Lib "apigid32.dll" Alias "agGetAddressForObject" (intnum As Integer)
+Declare Function agGetAddressForLPSTR& Lib "apigid32.dll" Alias "agGetAddressForObject" (ByVal lpstring$) ' See warning!
+Declare Function agGetAddressForVBString& Lib "apigid32.dll" (vbstring As String)
+Declare Function agGetStringFrom2NullBuffer$ Lib "apigid32.dll" (ByVal ptr&)
+Declare Function agGetStringFromLPSTR$ Lib "apigid32.dll" (ByVal src As String)
+Declare Function agGetStringFromPointer$ Lib "apigid32.dll" Alias "agGetStringFromLPSTR" (ByVal ptr As Integer)
+
+Declare Function agGetWndInstance& Lib "apigid32.dll" (ByVal hwnd As Integer)
+
+' Declared As Any to allow it to be used within classes, not to mention by other
+' double long structures
+Declare Sub agSubtractFileTimes Lib "apigid32.dll" (f1 As String, f2 As String, f3 As String)
+Declare Sub agAddFileTimes Lib "apigid32.dll" (f1 As String, f2 As String, f3 As String)
+Declare Sub agNegateFileTime Lib "apigid32.dll" (f1 As String)
+Declare Function agConvertFileTimeToDouble Lib "apigid32.dll" (f1 As String) As Double
+Declare Sub agConvertDoubleToFileTime Lib "apigid32.dll" (ByVal d As Double, f1 As String)
+
+

@@ -1,0 +1,7 @@
+Global gfSplitterTolerance As Float
+
+'---------------------------------------
+Declare Sub SplitPlineTool
+Declare Sub ToolSplitRegionWithLine
+
+Declare Sub ToleranceSetup

@@ -1,0 +1,71 @@
+'************** R E T U R N E R E R / S Æ T T E R    N A V N,  I D' E R  M M . *****************************
+Declare Function kpsGetStyleIDFromTableID(ByVal nTableID As Integer) As Integer
+Declare Function kpsGetStyleIDFromStyleName(ByVal szStyleName As String) As Integer
+
+Declare Function kpsGetTableID(ByVal nStyleID As Integer) As Integer
+Declare Function kpsGetStyleName$(ByVal nStyleID As Integer) As String
+
+Declare Sub kpsSetStyleName$(ByVal nStyleID As Integer, ByVal szName As String)
+
+Declare Function kpsRemoveStyleRef(ByVal nStyleID As Integer) As Logical
+Declare Function kpsRemoveStyleByTableRef(ByVal nTableID As Integer) As Logical
+
+'************** S Æ T T E R   C U R R E N T S T Y L E   T I L   D E T   L Æ S T E **********************
+Declare Sub kpsSetCurrentStyle(ByVal nStyleID As Integer)
+Declare Sub kpsSetCurrentLineStyle(ByVal nStyleID As Integer)
+Declare Sub kpsSetCurrentSymbolStyle(ByVal nStyleID As Integer)
+Declare Sub kpsSetCurrentFontStyle(ByVal nStyleID As Integer)
+Declare Sub kpsSetCurrentRegionStyle(ByVal nStyleID As Integer)
+
+'************** R E T U R N E R E R   S T I L A R T   F R A   K P S T Y L E S **********************************************
+Declare Function kpsGetBrush(ByVal nStyleID As Integer) As Brush
+Declare Function kpsGetPen(ByVal nStyleID As Integer) As Pen
+Declare Function kpsGetLine(ByVal nStyleID As Integer) As Pen
+Declare Function kpsGetSymbol(ByVal nStyleID As Integer) As Symbol
+Declare Function kpsGetFont(ByVal nStyleID As Integer) As Font
+
+'************** R E T U R N E R E R   S T I L A R T   F R A   S Z T A B L E **********************************************
+Declare Function kpsGetBrushFromTable(ByVal szTable As String) As Brush
+Declare Function kpsGetPenFromTable(ByVal szTable As String) As Pen
+Declare Function kpsGetLineFromTable(ByVal szTable As String) As Pen
+Declare Function kpsGetSymbolFromTable(ByVal szTable As String) As Symbol
+Declare Function kpsGetFontFromTable(ByVal szTable As String) As Font
+
+'************** S K R I V   S T I L A R T   T I L   K P S T Y L E S **********************************************
+Declare Sub kpsSetFont(ByVal nStyleID As Integer, ByVal fntStyle As Font)
+Declare Sub kpsSetSymbol(ByVal nStyleID As Integer, ByVal symStyle As Symbol)
+Declare Sub kpsSetLine(ByVal nStyleID As Integer, ByVal penStyle As Pen)
+Declare Sub kpsSetPen(ByVal nStyleID As Integer, ByVal penStyle As Pen)
+Declare Sub kpsSetBrush(ByVal nStyleID As Integer, ByVal brsStyle As Brush)
+
+'************** S K R I V   S T I L A R T   T I L   S Z T A B L E **********************************************
+Declare Sub kpsSetFontInTable(ByVal szTable As String, ByVal fntStyle As Font)
+Declare Sub kpsSetSymbolInTable(ByVal szTable As String, ByVal symStyle As Symbol)
+Declare Sub kpsSetLineInTable(ByVal szTable As String, ByVal penStyle As Pen)
+Declare Sub kpsSetPenInTable(ByVal szTable As String, ByVal penStyle As Pen)
+Declare Sub kpsSetBrushInTable(ByVal szTable As String, ByVal brsStyle As Brush)
+
+'************** C H E C K V Æ R K T Ø J E R **********************************************
+Declare Function kpsFontColumnsExists() As Logical
+Declare Function kpsBrushColumnsExists() As Logical
+Declare Function kpsPenColumnsExists() As Logical
+Declare Function kpsLineColumnsExists() As Logical
+Declare Function kpsSymbolColumnsExists() As Logical
+
+'************** A R R A Y V Æ R K T Ø J E R **********************************************
+Declare Sub kpsCreateListOfStyleNames(arrStyleNames() As String)
+Declare Sub kpsCreateListOfStyleNamesLocked(arrStyleNames() As String)
+Declare Function kpsGetMaxStyleID() As Integer
+Declare Function kpsGetNextStyleID() As Integer
+Declare Function kpsGetStyleElementNo(ByVal szStyleName As String, arrStyleNames() As String) As Integer
+Declare Function kpsGetStyleIDFromElementNo(ByVal nElementNo As Integer) As Integer
+Declare Function kpsGetStyleIDFromElementNoLocked(ByVal nElementNo As Integer) As Integer
+
+'************** R E T U R N E R E R   E N   O K   S T I L A R T **********************************************
+Declare Function kpsGetOKBrush(ByVal nPattern As Integer, ByVal nForeColor As Integer, ByVal nBackColor As Integer) As Brush
+Declare Function kpsGetOKPen(ByVal nWidth As Integer, ByVal nPattern As Integer, ByVal nColor As Integer) As Pen
+Declare Function kpsGetOKLine(ByVal nWidth As Integer, ByVal nPattern As Integer, ByVal nColor As Integer) As Pen
+Declare Function kpsGetOKFont(ByVal szName As String, ByVal nStyle As Integer, ByVal nSize As Integer, ByVal nForeColor As Integer, ByVal nBackColor As Integer) As Font
+Declare Function kpsGetOKSymbol(ByVal nShape As Integer, ByVal nColor As Integer, ByVal nSize As Integer) As Symbol
+Declare Function kpsGetOKCustomSymbol(ByVal szFilename As String, ByVal nColor As Integer, ByVal nSize As Integer, ByVal nCustomStyle As Integer) As Symbol
+Declare Function kpsGetOKFontSymbol(ByVal nShape As Integer, ByVal nColor As Integer, ByVal nSize As Integer, ByVal szFontname As String, ByVal nFontstyle As Integer, ByVal fRotation As Float) As Symbol

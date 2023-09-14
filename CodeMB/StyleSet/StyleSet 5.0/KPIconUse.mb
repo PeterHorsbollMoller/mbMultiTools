@@ -1,0 +1,370 @@
+'********************************************************
+'**	Modul:	KPIconUse.mb
+'**	Function:	Læs / skriv stilart fra ikontabel
+'**	Program	Shared Library...
+'********************************************************
+Include "MapBasic.def"
+
+Include "KPAdminUse.def"
+Include "KPStyleUse.def"
+Include "KPIconUse.def"
+
+Include "Globals.def"
+
+Include "..\..\TabFunc\TabFunc.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+'********************************************************
+'	Returnerer største IkonFileID...
+'********************************************************
+Function kpiGetMaxIconFileID() As Integer
+
+Dim	bCloseTab As Logical,
+	nMax As Integer
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPIconsTable()
+
+	Select Max(ICONFILEID) "MAX_ID"
+		From KPICONS
+		Into MAX_TAB NoSelect
+
+	If TableInfo("MAX_TAB", TAB_INFO_NROWS) = 0 Then
+		nMax = 0
+	Else
+		Fetch First From MAX_TAB
+		nMax = MAX_TAB.MAX_ID
+	End If
+
+	If bCloseTab Then
+		Close Table KPICONS
+	Else
+		Close Table MAX_TAB
+	End If
+	
+	kpiGetMaxIconFileID	= nMax
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer næste ledige IkonFileID...
+'********************************************************
+Function kpiGetNextIconFileID() As Integer
+
+OnError GoTo ErrorOccured
+
+	kpiGetNextIconFileID	= kpiGetMaxIconFileID() + 1
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Opretter liste med tabelnavne......
+'********************************************************
+Sub kpiCreateListOfIconFileNames(arrIconFiles() As String)
+
+Dim	nCount As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPICONS
+		Order By ICONFILESHORTNAME
+		Into CUR_LIST_OF_ICONFILES NoSelect
+
+	ReDim arrIconFiles(TableInfo("CUR_LIST_OF_ICONFILES", TAB_INFO_NROWS) + 3)
+	nCount = 1
+	arrIconFiles(nCount) = MSG_TEXT_PICK_NEW_POINTS
+	nCount = 2
+	arrIconFiles(nCount) = STYL_THEME_ICON_TEXT	'Standard Tema ikoner
+	nCount = 3
+	arrIconFiles(nCount) = STYL_MAPINFO_ICON_TEXT	'Standard MapInfo ikoner
+
+
+	If TableInfo("CUR_LIST_OF_ICONFILES", TAB_INFO_NROWS) > 0 Then
+
+		Fetch First From CUR_LIST_OF_ICONFILES
+		Do Until EOT(CUR_LIST_OF_ICONFILES)
+
+			nCount 			= nCount + 1
+			arrIconFiles(nCount)	= CUR_LIST_OF_ICONFILES.ICONFILESHORTNAME
+
+			Fetch Next From CUR_LIST_OF_ICONFILES
+		Loop
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	returner elementno i array for given værdi...
+'********************************************************
+Function kpiGetIconElementNo(ByVal szIconDesc As String, arrIcons() As String) As Integer
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	kpiGetIconElementNo = 1
+
+	For i = 1 To Ubound(arrIcons)
+		If arrIcons(i) = szIconDesc Then
+			kpiGetIconElementNo = i
+			Exit Function
+		End If
+	Next
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	ReturnererROWID ud fra Elenmentnr
+'**********************************************************************************************''
+Function kpiGetIconFileROWIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	kpiGetIconFileROWIDFromElementNo = (nElementNo - 3)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer IconID udfra ElementNr......
+'********************************************************
+Function kpiGetIconFileIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+Dim	nToPick As Integer
+
+	Do Case nElementNo
+		Case 1
+			kpiGetIconFileIDFromElementNo = ICONFILEID_DEFAULT_THEME	'Ny... udpeget, anvender Standard Tema Ikoner
+		Case 2
+			kpiGetIconFileIDFromElementNo = ICONFILEID_DEFAULT_THEME	'Standard Tema Ikoner
+		Case 3
+			kpiGetIconFileIDFromElementNo = ICONFILEID_DEFAULT_MI		'Standard MapInfo Ikoner
+		Case Else
+			OnError GoTo ErrorOccured
+			nToPick = kpiGetIconFileROWIDFromElementNo(nElementNo)
+			Fetch Rec nToPick From CUR_LIST_OF_ICONFILES
+
+			kpiGetIconFileIDFromElementNo = CUR_LIST_OF_ICONFILES.ICONFILEID
+	End Case
+
+	Exit Function
+'--------------------
+ErrorOccured:
+	kpiGetIconFileIDFromElementNo = ICONFILEID_DEFAULT_THEME
+
+End Function
+
+'********************************************************
+'	Undersøger om reference til IconFileID findes i tabel szTabToSearch......
+'********************************************************
+Function kpiIconFileReferenceInTable(ByVal szTabToSearch As String, ByVal nIconFileID As Integer) As Logical
+
+OnError GoTo ErrorOccured
+
+	Select * From szTabToSearch
+		Where ICONFILEID = nIconFileID
+		Into TAB_ICONFILEID_FOUND NoSelect
+
+	If TableInfo("TAB_ICONFILEID_FOUND", TAB_INFO_NROWS) = 0 Then
+		kpiIconFileReferenceInTable = FALSE
+	Else
+		kpiIconFileReferenceInTable = TRUE
+	End If
+
+	Close Table TAB_ICONFILEID_FOUND
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Undersøger om reference til IconFileID findes i tabel szTabToSearch......
+'********************************************************
+Function kpiGetIconShortName$(ByVal nIconID As Integer) As String
+
+OnError GoTo ErrorOccured
+
+	Do Case nIconID
+		Case ICONFILEID_DEFAULT_THEME		'Standard tema ikoner
+			kpiGetIconShortName$ = STYL_THEME_ICON_TEXT
+		Case ICONFILEID_DEFAULT_MI	'Standard Mapinfo ikoner
+			kpiGetIconShortName$ = STYL_MAPINFO_ICON_TEXT
+		Case Else
+
+			Select * From KPICONS
+				Where ICONFILEID = nIconID
+				Into CUR_ICONID_FOUND NoSelect
+
+			If TableInfo("CUR_ICONID_FOUND", TAB_INFO_NROWS) = 0 Then
+				kpiGetIconShortName$ = STYL_THEME_ICON_TEXT
+			Else
+				kpiGetIconShortName$ = CUR_ICONID_FOUND.ICONFILESHORTNAME
+			End If			
+
+			Close Table CUR_ICONID_FOUND
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Undersøger om reference til IconFileID findes i tabel szTabToSearch......
+'********************************************************
+Function kpiGetIconFileName$(ByVal nIconID As Integer) As String
+
+Dim	szFile As String
+
+OnError GoTo ErrorOccured
+
+	Do Case nIconID
+		Case ICONFILEID_DEFAULT_THEME		'Standard tema ikoner
+			kpiGetIconFileName$ = kpaGetKPDefaultDLLFile32$()
+		Case ICONFILEID_DEFAULT_MI		'Standard Mapinfo ikoner
+			kpiGetIconFileName$ = STYL_MAPINFO_ICON_TEXT
+		Case Else
+
+			Select * From KPICONS
+				Where ICONFILEID = nIconID
+				Into CUR_ICONID_FOUND NoSelect
+
+			If TableInfo("CUR_ICONID_FOUND", TAB_INFO_NROWS) = 0 Then
+				kpiGetIconFileName$ = ""
+			Else
+				szFile = CUR_ICONID_FOUND.ICONFILENAME
+				
+				If szFile <> "" Then
+					If FileExists(szFile) Then
+						szFile = szFile
+					Else
+						szFile = PathToFileName$(szFile)
+						If FileExists(ApplicationDirectory$() & szFile) Then
+							szFile = ApplicationDirectory$() & szFile
+						ElseIf FileExists(HomeDirectory$() & szFile) Then
+							szFile = HomeDirectory$() & szFile
+						Else
+							szFile = kpaGetKPPath$() & szFile
+						End If
+					End If
+				End If
+				
+				kpiGetIconFileName$ = szFile
+			End If			
+
+			Close Table CUR_ICONID_FOUND
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer IkonFIleID udfra relativt filenavn......
+'********************************************************
+Function kpiGetIconFileIDFromFilename(ByVal szRelativeFilename As String) As Integer
+
+OnError GoTo ErrorOccured
+
+	kpiGetIconFileIDFromFilename = 0
+
+	Do Case szRelativeFilename
+		Case STYL_MAPINFO_ICON_TEXT		'Standard MapInfo Ikoner...
+			kpiGetIconFileIDFromFilename = ICONFILEID_DEFAULT_MI
+		Case STYL_THEME_ICON_TEXT		'Standard Tema ikoner
+			kpiGetIconFileIDFromFilename = ICONFILEID_DEFAULT_THEME
+		Case kpaGetKPDefaultDLLFile32$()
+			kpiGetIconFileIDFromFilename = ICONFILEID_DEFAULT_THEME
+		Case Else
+
+			Select * From KPICONS
+				Where ICONFILEFILENAME = szRelativeFilename
+				Into CUR_ICONFILE_SELECTED NoSelect
+
+			If not TableInfo("CUR_ICONFILE_SELECTED", TAB_INFO_NROWS) = 0 Then
+				Fetch First From CUR_ICONFILE_SELECTED
+				kpiGetIconFileIDFromFilename = CUR_ICONFILE_SELECTED.ICONFILEID
+			End If
+
+			Close Table CUR_ICONFILE_SELECTED
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer IkonFIleID udfra beskrivelse......
+'********************************************************
+Function kpiGetIconFileIDFromShortName(ByVal szShortName As String) As Integer
+
+OnError GoTo ErrorOccured
+
+	kpiGetIconFileIDFromShortName = 0
+
+	Do Case szShortName
+		Case STYL_MAPINFO_ICON_TEXT		'Standard MapInfo Ikoner...
+			kpiGetIconFileIDFromShortName = ICONFILEID_DEFAULT_MI
+		Case STYL_THEME_ICON_TEXT		'Standard Tema ikoner
+			kpiGetIconFileIDFromShortName = ICONFILEID_DEFAULT_THEME
+		Case kpaGetKPDefaultDLLFile32$()
+			kpiGetIconFileIDFromShortName = ICONFILEID_DEFAULT_THEME
+		Case Else
+
+			Select * From KPICONS
+				Where ICONFILESHORTNAME = szShortName
+				Into CUR_ICONFILE_SELECTED NoSelect
+
+			If not TableInfo("CUR_ICONFILE_SELECTED", TAB_INFO_NROWS) = 0 Then
+				Fetch First From CUR_ICONFILE_SELECTED
+				kpiGetIconFileIDFromShortName = CUR_ICONFILE_SELECTED.ICONFILEID
+			End If
+
+			Close Table CUR_ICONFILE_SELECTED
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function

@@ -1,0 +1,43 @@
+Declare Function kpgGetMaxGroupID() As Integer
+Declare Function kpgGetMaxSubGroupID() As Integer
+Declare Function kpgGetNextGroupID() As Integer
+Declare Function kpgGetNextSubGroupID() As Integer
+
+Declare Function kpgTableGroupingExists(	ByVal nTableID As Integer, ByVal nLayerID As Integer,
+							ByVal nGroupID As Integer, ByVal nSubGroupID As Integer) As Logical
+
+Declare Sub kpgCreateListOfGroupNames(arrGroup() As String)
+Declare Sub kpgCreateListOfSubGroupNames(arrSubGroup() As String)
+Declare Sub kpgCreateListOfSubGroupNamesAll(arrSubGroup() As String)
+Declare Sub kpgCreateListOfFullGroupNames(ByVal nTableID As Integer, ByVal nLayerID As Integer, arrFullGroupNames() As String)
+Declare Sub kpgCreateListOfGroupNamesLocked(arrGroups() As String)
+Declare Sub kpgCreateListOfSubGroupNamesLocked(ByVal nGroupID As Integer, arrSubGroups() As String)
+Declare Sub kpgCreateListOfTableNamesByGroup(	ByVal nGroupID As Integer, ByVal nSubGroupID As Integer,
+								arrTableNames() As String)
+
+Declare Function kpgGetGroupElementNo(ByVal szGroupName As String, arrGroup() As String) As Integer
+Declare Function kpgGetSubGroupElementNo(ByVal szSubGroupName As String, arrSubGroup() As String) As Integer
+
+Declare Function kpgGetGroupIDFromElementNo(ByVal nElementNo As Integer) As Integer
+Declare Function kpgGetSubGroupIDFromElementNo(ByVal nElementNo As Integer) As Integer
+Declare Function kpgGetGroupIDFromElementNoLocked(ByVal nElementNo As Integer) As Integer
+Declare Function kpgGetSubGroupIDFromElementNoAll(ByVal nElementNo As Integer) As Integer
+Declare Function kpgGetSubGroupIDFromElementNoLocked(ByVal nElementNo As Integer) As Integer
+Declare Function kpgGetTableIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+
+'**Removes/creates setup with these values...
+Declare Function kpgRemoveGroupSetup(ByVal nTableID As Integer, ByVal nLayerID As Integer, 
+						ByVal nGroupID As Integer, ByVal nSubGroupID As Integer) As Integer
+Declare Function kpgRemoveGroupSetupByTable(	ByVal nTableID As Integer, ByVal nLayerID As Integer) As Integer
+Declare Function kpgCreateGroupSetup(	ByVal nTableID As Integer, ByVal nLayerID As Integer,
+							ByVal nGroupID As Integer, ByVal nSubGroupID As Integer) As Integer
+					
+'**Returnerer navne på gruppe/subgruppe
+Declare Function kpgGetGroupName$(ByVal nGroupID As Integer) As String
+Declare Function kpgGetSubGroupName$(ByVal nSubGroupID As Integer) As String
+Declare Function kpgGetGroupID(ByVal szGroupName As String) As Integer
+Declare Function kpgGetSubGroupID(ByVal szSubGroupName As String) As Integer
+
+'**Returnerer navne på gruppe og subgruppe : Teknisk kort(Bygning)
+Declare Function kpgGetFullGroupName$(ByVal nGroupID As Integer, ByVal nSubGroupID As Integer) As String

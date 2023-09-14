@@ -1,0 +1,24 @@
+Declare Sub TXTTSetColumnNames(ByVal szCol As String, ByVal szName As String)
+Declare Sub TXTTSetTableName(ByVal szName As String)
+
+Declare Function TXTTGetTable$() As String
+
+Declare Function TXTTGetColX$() As String
+Declare Function TXTTGetColY$() As String
+Declare Function TXTTGetColAngle$() As String
+Declare Function TXTTGetColNo$() As String
+Declare Function TXTTGetColLitra$() As String
+
+Declare Sub TXTTSetTextSize(ByVal fValue As Float)
+Declare Sub TXTTSetZoom(ByVal fValue As Float)
+Declare Sub TXTTSetPerpDistance(ByVal fValue As Float)
+Declare Sub TXTTSetTextFont(ByVal fntValue As Font)
+
+Declare Function TXTTGetTextSize() As Float
+Declare Function TXTTGetZoom() As Float
+Declare Function TXTTGetPerpDistance() As Float
+Declare Function TXTTGetTextFont() As Font
+
+'----------------------
+Declare Sub TXTToolReadIniFile(ByVal szFile As String)
+Declare Sub TXTToolWriteIniFile(ByVal nFile As String)

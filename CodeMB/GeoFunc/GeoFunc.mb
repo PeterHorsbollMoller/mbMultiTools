@@ -1,0 +1,1435 @@
+'*******************************************************************************
+'** 	Modul:	GeoFunc.mb
+'**	Funktion	Functions for geography
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Menu.def"
+Include "Icons.def"
+
+Include "GeoFunc.def"
+
+Include "..\Language\Errors.lng"
+
+'****************************************
+'Returnerer matematisk retningsvinklen
+'	i grader
+'	med øst som udgangsvinkel
+'	mod urets retning
+'****************************************
+Function GetAngle(aX As Float, aY As Float, bX As Float, bY As float) As Float
+
+	GetAngle = GetMathDegAngle(aX, aY, bX, bY)
+
+End Function
+
+'**************************************************************
+'returnerer retning angivet med tekst, såsom NV, N, NØ osv.
+'**************************************************************
+Function GetDirection(aX As Float, aY As Float, bx As Float, by As Float) As String
+
+Dim 	fAngle As Float
+
+	fAngle = GetNorthDegAngle(aX, aY, bX , bY )
+
+	If fAngle = 0 Then
+		GetDirection	= "N"
+	ElseIf fAngle = 90 Then
+		GetDirection	= "Ø"
+	ElseIf fAngle = 180 Then
+		GetDirection	= "S"
+	ElseIf fAngle = 270 Then
+		GetDirection	= "V"
+	ElseIf fAngle between 0 And 90 Then		'NorthEast
+		GetDirection	= "NØ"
+	ElseIf fAngle between 90 And 180 Then	'SouthEast
+		GetDirection	= "SØ"
+	ElseIf fAngle between 180 And 270 Then	'SouthWest
+		GetDirection	= "SV"
+	ElseIf fAngle between 270 And 360 Then	'SouthWest
+		GetDirection	= "NV"
+	End If
+
+End Function
+
+'******************************************
+'	Flyt objekt
+'  OBS -- OBS -- OBS -- OBS -- OBS -- OBS
+' Husk at sætte CoordSys før funktionen kaldes
+'******************************************
+Function GeoFuncMoveObject(ByVal dX As Float, ByVal dY as Float, ByVal oldObj As Object) As Object
+
+Dim	oNew As Object,
+	nPoly, nPnt As Integer
+
+	Do Case ObjectInfo(oldObj, OBJ_INFO_TYPE)
+		Case OBJ_TYPE_LINE
+			oNew = oldObj
+			Alter Object oNew
+				Geography OBJ_GEO_LINEBEGX, ObjectGeography(oldObj, OBJ_GEO_LINEBEGX) + dX
+			Alter Object oNew
+				Geography OBJ_GEO_LINEBEGY, ObjectGeography(oldObj, OBJ_GEO_LINEBEGY) + dY
+			Alter Object oNew
+				Geography OBJ_GEO_LINEENDX, ObjectGeography(oldObj, OBJ_GEO_LINEENDX) + dX
+			Alter Object oNew
+				Geography OBJ_GEO_LINEENDY, ObjectGeography(oldObj, OBJ_GEO_LINEENDY) + dY
+		Case OBJ_TYPE_PLINE
+			Create PLine
+				Into Variable oNew
+				1
+				(CentroidX(oldObj) + dX, CentroidY(oldObj) + dY)
+				Pen ObjectInfo(oldObj, OBJ_INFO_PEN)
+
+			For nPoly = 1 To ObjectInfo(oldObj, OBJ_INFO_NPOLYGONS)
+				For nPnt = 1 To ObjectInfo(oldObj, OBJ_INFO_NPOLYGONS+nPoly)
+					If nPoly = 1 then
+						Alter Object oNew
+							Node Add Position nPoly, nPnt + 1 (ObjectNodeX(oldObj, nPoly, nPnt) + dX, ObjectNodeY(oldObj, nPoly, nPnt) + dY)
+					Else
+						Alter Object oNew
+							Node Add Position nPoly, nPnt (ObjectNodeX(oldObj, nPoly, nPnt) + dX, ObjectNodeY(oldObj, nPoly, nPnt) + dY)
+					End If
+				Next
+			Next
+
+			'***Sletter det første punkt, som var centroid i det gamle objekt....
+			Alter Object oNew
+				Node Remove Position 1,1
+		Case OBJ_TYPE_POINT
+			oNew = oldObj
+			Alter Object oNew
+				Geography OBJ_GEO_POINTX, ObjectGeography(oldObj, OBJ_GEO_POINTX) + dX
+			Alter Object oNew
+				Geography OBJ_GEO_POINTY, ObjectGeography(oldObj, OBJ_GEO_POINTY) + dY
+		Case OBJ_TYPE_REGION
+
+			'Print "Move: Center: ( " + CentroidX(oldObj) + ", " + CentroidY(oldObj) + ") -> ( " + (CentroidX(oldObj) + dX) + ", " + (CentroidY(oldObj) + dY) + ")"
+
+			Create Region
+				Into Variable oNew
+				1
+				1 (CentroidX(oldObj) + dX, CentroidY(oldObj) + dY)
+				Pen ObjectInfo(oldObj, OBJ_INFO_PEN)
+				Brush ObjectInfo(oldObj, OBJ_INFO_BRUSH)
+
+			For nPoly = 1 To ObjectInfo(oldObj, OBJ_INFO_NPOLYGONS)
+				For nPnt = 1 To ObjectInfo(oldObj, OBJ_INFO_NPOLYGONS+nPoly)
+					If nPoly = 1 then
+						Alter Object oNew
+							Node Add Position nPoly, nPnt + 1 (ObjectNodeX(oldObj, nPoly, nPnt) + dX, ObjectNodeY(oldObj, nPoly, nPnt) + dY)
+					Else
+						Alter Object oNew
+							Node Add Position nPoly, nPnt (ObjectNodeX(oldObj, nPoly, nPnt) + dX, ObjectNodeY(oldObj, nPoly, nPnt) + dY)
+					End If
+				Next
+
+
+
+			Next
+
+			'***Sletter de 2 første punkter, så der ikke er overlappende punkter....
+			Alter Object oNew
+				Node Remove Position 1,1
+			Alter Object oNew
+				Node Remove Position 1,1
+		Case OBJ_TYPE_TEXT
+			oNew = oldObj
+			Alter Object oNew
+				Geography OBJ_GEO_MINX, (ObjectGeography(oldObj, OBJ_GEO_MINX) + dX)
+			Alter Object oNew
+				Geography OBJ_GEO_MINY, (ObjectGeography(oldObj, OBJ_GEO_MINY) + dY)
+			Alter Object oNew
+				Geography OBJ_GEO_MAXX, (ObjectGeography(oldObj, OBJ_GEO_MAXX) + dX)
+			Alter Object oNew
+				Geography OBJ_GEO_MAXY, (ObjectGeography(oldObj, OBJ_GEO_MAXY) + dY)
+		Case Else
+			Print ERR_OBJ_THIS_TYPE_CANT_MOVED
+			oNew = oldObj
+	End Case
+
+	GeoFuncMoveObject = oNew
+
+End Function
+
+'******************************************
+'	Flyt objekt
+'  OBS -- OBS -- OBS -- OBS -- OBS -- OBS
+' Husk at sætte CoordSys før funktionen kaldes
+'******************************************
+Function GeoFuncMoveObjectDiffCoordSys(	ByVal dX As Float, ByVal dY as Float, ByVal oOld As Object,
+							ByVal szFromCoordSys As String, ByVal szToCoordSys As String) As Object
+
+Dim	oNew As Object,
+	nPoly, nPnt As Integer,
+	pNew, pNew2 As T_POINT
+
+	Do Case ObjectInfo(oOld, OBJ_INFO_TYPE)
+		'----------------------------------------------------------------------------
+		Case OBJ_TYPE_LINE
+
+			Run Command "Set CoordSys " + szFromCoordSys
+			pNew.X	= ObjectGeography(oOld, OBJ_GEO_LINEBEGX)
+			pNew.Y	= ObjectGeography(oOld, OBJ_GEO_LINEBEGY)
+			pNew2.X	= ObjectGeography(oOld, OBJ_GEO_LINEENDX)
+			pNew2.Y	= ObjectGeography(oOld, OBJ_GEO_LINEENDY)
+
+			Run Command "Set CoordSys " + szToCoordSys
+
+			pNew.X	= pNew.X + dX
+			pNew.Y	= pNew.Y + dY
+			pNew2.X	= pNew2.X + dX
+			pNew2.Y	= pNew2.Y + dY
+
+			Create Line
+				Into Variable oNew
+				(pNew.X, pNew.Y)  (pNew2.X, pNew2.Y)
+				Pen ObjectInfo(oOld, OBJ_INFO_Pen)
+
+		'----------------------------------------------------------------------------
+		Case OBJ_TYPE_PLINE
+
+			Run Command "Set CoordSys " + szFromCoordSys
+			pNew.X = CentroidX(oOld)
+			pNew.Y = CentroidY(oOld)
+
+			Run Command "Set CoordSys " + szToCoordSys
+			Create PLine
+				Into Variable oNew
+				1
+				(pNew.X + dX, pNew.Y + dY)
+				Pen ObjectInfo(oOld, OBJ_INFO_PEN)
+
+			For nPoly = 1 To ObjectInfo(oOld, OBJ_INFO_NPOLYGONS)
+				For nPnt = 1 To ObjectInfo(oOld, OBJ_INFO_NPOLYGONS+nPoly)
+
+					Run Command "Set CoordSys " + szFromCoordSys
+					pNew.X = ObjectNodeX(oOld, nPoly, nPnt)
+					pNew.Y = ObjectNodeY(oOld, nPoly, nPnt)
+
+					Run Command "Set CoordSys " + szToCoordSys
+					If nPoly = 1 then
+						Alter Object oNew
+							Node Add Position nPoly, nPnt + 1 (pNew.X + dX, pNew.Y + dY)
+					Else
+						Alter Object oNew
+							Node Add Position nPoly, nPnt (pNew.X + dX, pNew.Y + dY)
+					End If
+				Next
+			Next
+
+			'***Sletter det første punkt, som var centroid i det gamle objekt....
+			Alter Object oNew
+				Node Remove Position 1,1
+
+		'----------------------------------------------------------------------------
+		Case OBJ_TYPE_POINT
+			oNew = oOld
+			Run Command "Set CoordSys " + szFromCoordSys
+			pNew.X = ObjectGeography(oOld, OBJ_GEO_POINTX)
+			pNew.Y = ObjectGeography(oOld, OBJ_GEO_POINTX)
+
+			Run Command "Set CoordSys " + szToCoordSys
+			Alter Object oNew
+				Geography OBJ_GEO_POINTX, pNew.X + dX
+			Alter Object oNew
+				Geography OBJ_GEO_POINTY, pNew.Y + dY
+
+		'----------------------------------------------------------------------------
+		Case OBJ_TYPE_REGION
+
+
+			Run Command "Set CoordSys " + szFromCoordSys
+			pNew.X = CentroidX(oOld)
+			pNew.Y = CentroidY(oOld)
+
+			'Print "Move: Center: ( " + pNew.X + ", " + pNew.Y + ") -> ( " + (pNew.X + dX) + ", " + (pNew.Y + dY) + ")"
+
+			Run Command "Set CoordSys " + szToCoordSys
+			Create Region
+				Into Variable oNew
+				0
+				Pen ObjectInfo(oOld, OBJ_INFO_PEN)
+				Brush ObjectInfo(oOld, OBJ_INFO_BRUSH)
+				Center (pNew.X + dX, pNew.Y + dY)
+
+			For nPoly = 1 To ObjectInfo(oOld, OBJ_INFO_NPOLYGONS)
+				For nPnt = 1 To (ObjectInfo(oOld, OBJ_INFO_NPOLYGONS+nPoly) - 1)
+
+					Run Command "Set CoordSys " + szFromCoordSys
+					pNew.X = ObjectNodeX(oOld, nPoly, nPnt)
+					pNew.Y = ObjectNodeY(oOld, nPoly, nPnt)
+
+					Run Command "Set CoordSys " + szToCoordSys
+					Alter Object oNew
+						Node Add Position nPoly, nPnt (pNew.X + dX, pNew.Y + dY)
+				Next
+			Next
+
+		'----------------------------------------------------------------------------
+		Case OBJ_TYPE_TEXT
+			oNew = oOld
+
+			Run Command "Set CoordSys " + szFromCoordSys
+			pNew.X = ObjectGeography(oOld, OBJ_GEO_MINX)
+			pNew.Y = ObjectGeography(oOld, OBJ_GEO_MINY)
+			Run Command "Set CoordSys " + szToCoordSys
+			Alter Object oNew
+				Geography OBJ_GEO_MINX, (ObjectGeography(oOld, OBJ_GEO_MINX) + dX)
+			Alter Object oNew
+				Geography OBJ_GEO_MINY, (ObjectGeography(oOld, OBJ_GEO_MINY) + dY)
+
+			Run Command "Set CoordSys " + szFromCoordSys
+			pNew.X = ObjectGeography(oOld, OBJ_GEO_MAXX)
+			pNew.Y = ObjectGeography(oOld, OBJ_GEO_MAXY)
+			Run Command "Set CoordSys " + szToCoordSys
+			Alter Object oNew
+				Geography OBJ_GEO_MAXX, (ObjectGeography(oOld, OBJ_GEO_MAXX) + dX)
+			Alter Object oNew
+				Geography OBJ_GEO_MAXY, (ObjectGeography(oOld, OBJ_GEO_MAXY) + dY)
+		'----------------------------------------------------------------------------
+		Case Else
+			Print ERR_OBJ_THIS_TYPE_CANT_MOVED
+			oNew = oOld
+	End Case
+
+	GeoFuncMoveObjectDiffCoordSys = oNew
+
+End Function
+
+'******************************************
+'	Roter objekt
+'  OBS -- OBS -- OBS -- OBS -- OBS -- OBS
+' Husk at sætte CoordSys før funktionen kaldes
+'******************************************
+Function GeoFuncRotateObject(	ByVal oOldObject As Object, pCenter As T_POINT, ByVal fRotation As Float) As Object
+
+Dim	oNew As Object,
+	nPoly, nPnt As Integer,
+	pNew, pOrig As T_POINT,
+	fDist, fAngle As Float
+
+	If not oOldObject Then
+		Exit Function
+	End If
+
+	Do Case ObjectInfo(oOldObject, OBJ_INFO_TYPE)
+		'----------------------------------------------------------------------------
+		Case OBJ_TYPE_LINE
+			oNew 		= oOldObject
+			pOrig.X	= ObjectGeography(oNew, OBJ_GEO_LINEBEGX)
+			pOrig.Y	= ObjectGeography(oNew, OBJ_GEO_LINEBEGY)
+			fDist		= GetPythDistance(pOrig, pCenter)
+			fAngle	= GetAngle(pCenter.X, pCenter.Y, pOrig.X, pOrig.Y) + fRotation
+			pNew.X	= GeoFuncCalcX(pCenter.X, fAngle, fDist)
+			pNew.Y	= GeoFuncCalcY(pCenter.Y, fAngle, fDist)
+
+			Alter Object oNew
+				Geography OBJ_GEO_LINEBEGX, pNew.X
+			Alter Object oNew
+				Geography OBJ_GEO_LINEBEGY, pNew.Y
+
+			pOrig.X	= ObjectGeography(oNew, OBJ_GEO_LINEENDX)
+			pOrig.Y	= ObjectGeography(oNew, OBJ_GEO_LINEENDY)
+			fDist		= GetPythDistance(pNew, pCenter)
+			fAngle	= GetAngle(pCenter.X, pCenter.Y, pNew.X, pNew.Y) + fRotation
+			pNew.X	= GeoFuncCalcX(pCenter.X, fAngle, fDist)
+			pNew.Y	= GeoFuncCalcY(pCenter.Y, fAngle, fDist)
+			Alter Object oNew
+				Geography OBJ_GEO_LINEENDX, pNew.X
+			Alter Object oNew
+				Geography OBJ_GEO_LINEENDY, pNew.Y
+
+		'----------------------------------------------------------------------------
+		Case OBJ_TYPE_PLINE
+			Create PLine
+				Into Variable oNew
+				0
+				Pen ObjectInfo(oOldObject, OBJ_INFO_PEN)
+
+			For nPoly = 1 To ObjectInfo(oOldObject, OBJ_INFO_NPOLYGONS)
+				For nPnt = 1 To ObjectInfo(oOldObject, OBJ_INFO_NPOLYGONS+nPoly)
+					pOrig.X	= ObjectNodeX(oOldObject, nPoly, nPnt)
+					pOrig.Y	= ObjectNodeY(oOldObject, nPoly, nPnt)
+					fDist		= GetPythDistance(pOrig, pCenter)
+					fAngle	= GetAngle(pCenter.X, pCenter.Y, pOrig.X, pOrig.Y) + fRotation
+					pNew.X	= GeoFuncCalcX(pCenter.X, fAngle, fDist)
+					pNew.Y	= GeoFuncCalcY(pCenter.Y, fAngle, fDist)
+
+					Alter Object oNew
+						Node Add Position nPoly, nPnt		(pNew.X, pNew.Y)
+				Next
+			Next
+
+		'----------------------------------------------------------------------------
+		Case OBJ_TYPE_POINT
+			pOrig.X	= CentroidX(oOldObject)
+			pOrig.Y	= CentroidY(oOldObject)
+			fDist		= GetPythDistance(pOrig, pCenter)
+			fAngle	= GetAngle(pCenter.X, pCenter.Y, pOrig.X, pOrig.Y) + fRotation
+			pNew.X	= GeoFuncCalcX(pCenter.X, fAngle, fDist)
+			pNew.Y	= GeoFuncCalcY(pCenter.Y, fAngle, fDist)
+
+			oNew = oOldObject
+			Alter Object oNew
+				Geography OBJ_GEO_POINTX, pNew.X
+			Alter Object oNew
+				Geography OBJ_GEO_POINTY, pNew.Y
+		'----------------------------------------------------------------------------
+		Case OBJ_TYPE_REGION
+			pOrig.X	= CentroidX(oOldObject)
+			pOrig.Y	= CentroidY(oOldObject)
+			fDist		= GetPythDistance(pOrig, pCenter)
+			fAngle	= GetAngle(pCenter.X, pCenter.Y, pOrig.X, pOrig.Y) + fRotation
+			pNew.X	= GeoFuncCalcX(pCenter.X, fAngle, fDist)
+			pNew.Y	= GeoFuncCalcY(pCenter.Y, fAngle, fDist)
+
+			Create Region
+				Into Variable oNew
+				0
+				Pen ObjectInfo(oOldObject, OBJ_INFO_PEN)
+				Brush ObjectInfo(oOldObject, OBJ_INFO_BRUSH)
+				Center (pNew.X, pNew.Y)
+
+			For nPoly = 1 To ObjectInfo(oOldObject, OBJ_INFO_NPOLYGONS)
+				For nPnt = 1 To ObjectInfo(oOldObject, OBJ_INFO_NPOLYGONS+nPoly) - 1
+
+					pOrig.X	= ObjectNodeX(oOldObject, nPoly, nPnt)
+					pOrig.Y	= ObjectNodeY(oOldObject, nPoly, nPnt)
+					fDist		= GetPythDistance(pOrig, pCenter)
+					fAngle	= GetAngle(pCenter.X, pCenter.Y, pOrig.X, pOrig.Y) + fRotation
+					pNew.X	= GeoFuncCalcX(pCenter.X, fAngle, fDist)
+					pNew.Y	= GeoFuncCalcY(pCenter.Y, fAngle, fDist)
+
+					Alter Object oNew
+						Node Add Position nPoly, nPnt		(pNew.X, pNew.Y)
+				Next
+			Next
+
+		'----------------------------------------------------------------------------
+		Case OBJ_TYPE_TEXT
+			oNew = oOldObject
+		'----------------------------------------------------------------------------
+		Case Else
+			Print ERR_OBJ_THIS_TYPE_CANT_MOVED
+			oNew = oOldObject
+	End Case
+
+	GeoFuncRotateObject = oNew
+
+End Function
+
+'******************************************
+'	Roter og scaler objekt
+'  OBS -- OBS -- OBS -- OBS -- OBS -- OBS
+' Husk at sætte CoordSys før funktionen kaldes
+'******************************************
+Function	GeoFuncRotateAndScaleObject(	ByVal oOldObject As Object, pCenter As T_POINT,
+							ByVal fRotation As Float, ByVal fScale As Float) As Object
+
+Dim	oNew As Object,
+	nPoly, nPnt As Integer,
+	pNew, pOrig As T_POINT,
+	fDist, fAngle As Float
+
+	If not oOldObject Then
+		Exit Function
+	End If
+
+	Do Case ObjectInfo(oOldObject, OBJ_INFO_TYPE)
+		'----------------------------------------------------------------------------
+		Case OBJ_TYPE_LINE
+			oNew 		= oOldObject
+			pOrig.X	= ObjectGeography(oNew, OBJ_GEO_LINEBEGX)
+			pOrig.Y	= ObjectGeography(oNew, OBJ_GEO_LINEBEGY)
+			fDist		= GetPythDistance(pOrig, pCenter) * fScale
+			fAngle	= GetAngle(pCenter.X, pCenter.Y, pOrig.X, pOrig.Y) + fRotation
+			pNew.X	= GeoFuncCalcX(pCenter.X, fAngle, fDist)
+			pNew.Y	= GeoFuncCalcY(pCenter.Y, fAngle, fDist)
+
+			Alter Object oNew
+				Geography OBJ_GEO_LINEBEGX, pNew.X
+			Alter Object oNew
+				Geography OBJ_GEO_LINEBEGY, pNew.Y
+
+			pOrig.X	= ObjectGeography(oNew, OBJ_GEO_LINEENDX)
+			pOrig.Y	= ObjectGeography(oNew, OBJ_GEO_LINEENDY)
+			fDist		= GetPythDistance(pOrig, pCenter) * fScale
+			fAngle	= GetAngle(pCenter.X, pCenter.Y, pOrig.X, pOrig.Y) + fRotation
+			pNew.X	= GeoFuncCalcX(pCenter.X, fAngle, fDist)
+			pNew.Y	= GeoFuncCalcY(pCenter.Y, fAngle, fDist)
+			Alter Object oNew
+				Geography OBJ_GEO_LINEENDX, pNew.X
+			Alter Object oNew
+				Geography OBJ_GEO_LINEENDY, pNew.Y
+
+		'----------------------------------------------------------------------------
+		Case OBJ_TYPE_PLINE
+			Create PLine
+				Into Variable oNew
+				0
+				Pen ObjectInfo(oOldObject, OBJ_INFO_PEN)
+
+			For nPoly = 1 To ObjectInfo(oOldObject, OBJ_INFO_NPOLYGONS)
+				For nPnt = 1 To ObjectInfo(oOldObject, OBJ_INFO_NPOLYGONS+nPoly)
+					pOrig.X	= ObjectNodeX(oOldObject, nPoly, nPnt)
+					pOrig.Y	= ObjectNodeY(oOldObject, nPoly, nPnt)
+					fDist		= GetPythDistance(pOrig, pCenter) * fScale
+					fAngle	= GetAngle(pCenter.X, pCenter.Y, pOrig.X, pOrig.Y) + fRotation
+					pNew.X	= GeoFuncCalcX(pCenter.X, fAngle, fDist)
+					pNew.Y	= GeoFuncCalcY(pCenter.Y, fAngle, fDist)
+
+					Alter Object oNew
+						Node Add Position nPoly, nPnt		(pNew.X, pNew.Y)
+				Next
+			Next
+
+		'----------------------------------------------------------------------------
+		Case OBJ_TYPE_POINT
+			pOrig.X	= CentroidX(oOldObject)
+			pOrig.Y	= CentroidY(oOldObject)
+			fDist		= GetPythDistance(pOrig, pCenter) * fScale
+			fAngle	= GetAngle(pCenter.X, pCenter.Y, pOrig.X, pOrig.Y) + fRotation
+			pNew.X	= GeoFuncCalcX(pCenter.X, fAngle, fDist)
+			pNew.Y	= GeoFuncCalcY(pCenter.Y, fAngle, fDist)
+
+			oNew = oOldObject
+			Alter Object oNew
+				Geography OBJ_GEO_POINTX, pNew.X
+			Alter Object oNew
+				Geography OBJ_GEO_POINTY, pNew.Y
+		'----------------------------------------------------------------------------
+		Case OBJ_TYPE_REGION
+			pOrig.X	= CentroidX(oOldObject)
+			pOrig.Y	= CentroidY(oOldObject)
+			fDist		= GetPythDistance(pOrig, pCenter) * fScale
+			fAngle	= GetAngle(pCenter.X, pCenter.Y, pOrig.X, pOrig.Y) + fRotation
+			pNew.X	= GeoFuncCalcX(pCenter.X, fAngle, fDist)
+			pNew.Y	= GeoFuncCalcY(pCenter.Y, fAngle, fDist)
+
+			'Print "Rotation: Center: ( " + pOrig.X + ", " + pOrig.Y + ") -> ( " + pNew.X + ", " + pNew.Y + ")"
+
+			Create Region
+				Into Variable oNew
+				0
+				Pen ObjectInfo(oOldObject, OBJ_INFO_PEN)
+				Brush ObjectInfo(oOldObject, OBJ_INFO_BRUSH)
+				Center (pNew.X, pNew.Y)
+
+			For nPoly = 1 To ObjectInfo(oOldObject, OBJ_INFO_NPOLYGONS)
+				For nPnt = 1 To ObjectInfo(oOldObject, OBJ_INFO_NPOLYGONS+nPoly) - 1
+
+					pOrig.X	= ObjectNodeX(oOldObject, nPoly, nPnt)
+					pOrig.Y	= ObjectNodeY(oOldObject, nPoly, nPnt)
+					fDist		= GetPythDistance(pOrig, pCenter) * fScale
+					fAngle	= GetAngle(pCenter.X, pCenter.Y, pOrig.X, pOrig.Y) + fRotation
+					pNew.X	= GeoFuncCalcX(pCenter.X, fAngle, fDist)
+					pNew.Y	= GeoFuncCalcY(pCenter.Y, fAngle, fDist)
+
+					'Print " --" + nPnt + ". punkt: ( " + pNew.X + ", " + pNew.Y + ")"
+
+					Alter Object oNew
+						Node Add Position nPoly, nPnt		(pNew.X, pNew.Y)
+				Next
+			Next
+
+		'----------------------------------------------------------------------------
+		Case OBJ_TYPE_TEXT
+			oNew = oOldObject
+		'----------------------------------------------------------------------------
+		Case Else
+			Print ERR_OBJ_THIS_TYPE_CANT_MOVED
+			oNew = oOldObject
+	End Case
+
+	GeoFuncRotateAndScaleObject = oNew
+
+End Function
+
+'**************************************
+'	Beregner xKoord ud fra vinkel og afstand
+'**************************************
+Function GeoFuncCalcX(byVal fX As Float, byVal fAngel As Float, byVal fLength As Float) As Float
+	'fX 		= udgangspunktets x-koordinat
+	'fAngel	= matematisk vinkel i grader
+	'fLength	= radius
+
+	GeoFuncCalcX = fX + ((Cos((DEG_2_RAD * fAngel))) * fLength)
+
+End function
+
+'**************************************
+'	Beregner yKoord ud fra vinkel og afstand
+'**************************************
+Function GeoFuncCalcY(byVal fY As Float, byVal fAngel As Float, byVal fLength As Float) As Float
+	'fY 		= udgangspunktets y-koordinat
+	'fAngel	= matematisk vinkel i grader
+	'fLength	= radius
+
+	GeoFuncCalcY = fY + ((Sin((DEG_2_RAD * fAngel))) * fLength)
+
+End function
+
+'--------------------------------------------------------------
+'Vender linieretning på udpegede linier
+'--------------------------------------------------------------
+Sub ReverseLines		'@METAGS ReverseLines
+
+	Dim i, j, npts As SmallInt,
+		x1, y1, x2, y2 As Float,
+		curobj, oNew As Object,
+		currow As Integer,
+		penStyle As Pen
+
+	If SelectionInfo (SEL_INFO_NROWS ) = 0 Then
+		Note ERR_TXT_PICK_LINES
+		Exit Sub
+	End If
+
+	Set CoordSys Table Selection
+	penStyle = CurrentPen()
+
+	Fetch First From Selection
+	Do Until EOT (Selection )
+		If Selection.OBJ Then
+			curobj = Selection.OBJ
+			currow = Selection.ROWID
+
+			Set Style Pen ObjectInfo(curobj, OBJ_INFO_PEN)
+
+			Do Case ObjectInfo (curobj,OBJ_INFO_TYPE )
+				Case OBJ_LINE
+					x1 = ObjectGeography (curobj,OBJ_GEO_LINEBEGX )
+					y1 = ObjectGeography (curobj,OBJ_GEO_LINEBEGY )
+					x2 = ObjectGeography (curobj,OBJ_GEO_LINEENDX )
+					y2 = ObjectGeography (curobj,OBJ_GEO_LINEENDY )
+
+					Create Line
+						Into Variable oNew
+						(x2, y2 ) (x1, y1 )
+
+				Case OBJ_PLINE
+					If ObjectInfo(curObj, OBJ_INFO_NPOLYGONS) > 1 Then
+						Note ERR_OBJ_MULTI_SEGM_NOT_TURNABLE
+						Goto NEXT_OBJ
+					End If
+
+					npts = ObjectInfo (curobj,OBJ_INFO_NPOLYGONS + 1 )
+					Create Pline
+						Into Variable oNew
+						1 (CentroidX (curobj ),CentroidY (curobj ))
+					j = 0
+					For i = npts To 1 Step -1
+						j = j + 1
+						Alter Object oNew
+							Node Add Position 1,j+1 (ObjectNodeX (curobj,1,i ),ObjectNodeY (curobj,1,i ))
+					Next
+					Alter Object oNew Node Remove Position 1,1  'centroid
+
+				Case Else
+					Goto NEXT_OBJ
+
+			End Case
+
+			Update Selection
+				Set OBJ = oNew
+				Where ROWID = currow
+
+NEXT_OBJ:
+		End If
+
+		Fetch Next From Selection
+	Loop
+
+End Sub
+
+'****************************************
+'Returnerer retningsvinklen
+'	i grader
+'	øst som udgangsvinkel
+'	modsat urets retning
+'****************************************
+Function GetMathDegAngle(aX As Float, aY As Float, bX As Float, bY As float) As Float
+
+Dim	fPointingAngle As Float
+
+	'*udgangsvinkel i grader
+	If (bX - aX) = 0 Then
+		'**not allowed to divide by zero..
+		If bY > aY Then
+			'**second point straight north of first point...
+			fPointingAngle	= 90	'degrees
+		Else
+			'**second point straight south of first point...
+			fPointingAngle	= 270	'degrees
+		End If
+	Else
+		fPointingAngle = Atn((bY - aY) / (bX - aX)) * RAD_2_DEG
+
+		'Print "Vinkel beregnet med ATan() : " + fPointingAngle
+
+		If (bX < aX) And (bY > aY) Then
+			'**second point northwest of first point...
+			fPointingAngle = fPointingAngle + 180	'degrees
+		ElseIf (bX < aX) And (bY < aY) Then
+			'**second point southwest of first point...
+			fPointingAngle = fPointingAngle + 180	'degrees
+		ElseIf (bX < aX) And (bY = aY) Then
+			'**second point straight west of first point....
+			fPointingAngle = 180	'degrees
+		ElseIf (bX > aX) And (bY = aY) Then
+			'**second point straight east of first point....
+			fPointingAngle = 0	'degrees
+		End If
+	End If
+
+	'Print "Udgangsvinkel : " + fPointingAngle
+
+	Do Until fPointingAngle >= 0
+		fPointingAngle = fPointingAngle + 360
+	Loop
+	Do Until fPointingAngle <= 360
+		fPointingAngle = fPointingAngle - 360
+	Loop
+
+	'Print "Udgangsvinkel : " + fPointingAngle
+
+	GetMathDegAngle = fPointingAngle
+
+End Function
+
+'****************************************
+'Returnerer vinklen
+'	i grader
+'	med nord som udgangsvinkel
+'	i urets retning
+'****************************************
+Function GetNorthDegAngle(aX As Float, aY As Float, bX As Float, bY As float) As Float
+
+Dim	fPointingAngle As Float
+
+fPointingAngle	= GetMathDegAngle(aX, aY, bX, bY)
+'Print "Vinkel i grader fra øst : " + fPointingAngle
+
+fPointingAngle 	= CalcMath2NorthAngle(fPointingAngle)
+'Print "Vinkel i grader fra nord : " + fPointingAngle
+
+GetNorthDegAngle 	= fPointingAngle
+
+Exit Function
+
+'*udgangsvinkel i grader
+If (bX - aX) = 0 Then
+	'**not allowed to divide by zero..
+	If bY > aY Then
+		'**second point straight north of first point...
+		fPointingAngle	= 0		'degrees
+	Else
+		'**second point straight south of first point...
+		fPointingAngle	= 180		'degrees
+	End If
+Else
+	fPointingAngle = Atn((bY - aY) / (bX - aX)) * RAD_2_DEG		'degrees
+
+	'Print "Vinkel beregnet med ATan() : " + fPointingAngle
+
+	fPointingAngle = CalcMath2NorthAngle(fPointingAngle)
+
+	'Print "Vinkel efter Math2North : " + fPointingAngle
+
+End If
+
+'Print "Udgangsvinkel, før reduktion: " + fPointingAngle
+
+Do Until fPointingAngle >= 0
+   fPointingAngle = fPointingAngle + 360
+Loop
+Do Until fPointingAngle < 360
+   fPointingAngle = fPointingAngle - 360
+Loop
+
+'Print "Udgangsvinkel, efter reduktion: " + fPointingAngle
+
+GetNorthDegAngle = fPointingAngle
+
+End Function
+
+'****************************************
+'Omregner vinklen
+'	i grader
+'	med nord som udgangsretning
+'	i urets retning
+Til
+'	i grader
+'	med øst som udgangsvinkel
+'	mod urets retning
+'****************************************
+Function CalcNorth2MathAngle(ByVal nNorthAngle As Float) As Float
+
+Dim	fNewAngle As Float
+
+If nNorthAngle = 0 Then
+	fNewAngle	= 90
+ElseIf nNorthAngle = 90 Then
+	fNewAngle	= 0
+ElseIf nNorthAngle = 180 Then
+	fNewAngle	= 270
+ElseIf nNorthAngle = 270 Then
+	fNewAngle	= 180
+ElseIf nNorthAngle = 360 Then
+	fNewAngle	= 90
+ElseIf nNorthAngle > 0 And nNorthAngle < 90 Then
+	fNewAngle	= 90 - nNorthAngle
+ElseIf nNorthAngle > 90 And nNorthAngle < 180 Then
+	fNewAngle	= (360 - nNorthAngle) + 90
+ElseIf nNorthAngle > 180 And nNorthAngle < 270 Then
+	fNewAngle	= (270 - nNorthAngle) + 180
+ElseIf nNorthAngle > 270 And nNorthAngle < 360 Then
+	fNewAngle	= (360 - nNorthAngle) + 90
+End If
+
+CalcNorth2MathAngle = fNewAngle
+
+End Function
+
+'****************************************
+'Omregner vinklen
+'	i grader
+'	med øst som udgangsretning
+'	mod urets retning
+'Til
+'	i grader
+'	med nord som udgangsvinkel
+'	i urets retning
+'****************************************
+Function CalcMath2NorthAngle(ByVal fMathAngle As Float) As Float
+
+Dim	fNewAngle As Float
+
+If fMathAngle = 0 Then
+	fNewAngle	= 90
+ElseIf fMathAngle = 90 Then
+	fNewAngle	= 0
+ElseIf fMathAngle = 180 Then
+	fNewAngle	= 270
+ElseIf fMathAngle = 270 Then
+	fNewAngle	= 180
+ElseIf fMathAngle = 360 Then
+	fNewAngle	= 90
+ElseIf fMathAngle > 0 And fMathAngle < 90 Then
+	fNewAngle	= 90 - fMathAngle
+ElseIf fMathAngle > 90 And fMathAngle < 180 Then
+	fNewAngle	= (360 - fMathAngle) + 90
+ElseIf fMathAngle > 180 And fMathAngle < 270 Then
+	fNewAngle	= (270 - fMathAngle) + 180
+ElseIf fMathAngle > 270 And fMathAngle < 360 Then
+	fNewAngle	= (360 - fMathAngle) + 90
+End If
+
+CalcMath2NorthAngle = fNewAngle
+
+End Function
+
+'****************************************
+'Omregner vinklen
+'	i grader
+'	med nord som udgangsretning
+'	i urets retning
+Til
+'	i grader
+'	med vest som udgangsvinkel
+'	i urets retning
+'****************************************
+Function CalcNorth2WestAngle(ByVal fNorthAngle As Float) As Float
+
+Dim	fAngle As Float
+
+	fAngle	= fNorthAngle + 90	'Degree
+
+	Do Until fAngle >= 0
+		fAngle = fAngle + 360
+	Loop
+	Do Until fAngle < 360
+		fAngle = fAngle - 360
+	Loop
+
+	CalcNorth2WestAngle	= fAngle
+
+End Function
+
+'****************************************
+'Omregner vinklen
+'	i grader
+'	med vest som udgangsretning
+'	i urets retning
+Til
+'	i grader
+'	med nord som udgangsvinkel
+'	i urets retning
+'****************************************
+Function CalcWest2NorthAngle(ByVal fWestAngle As Float) As Float
+
+Dim	fAngle As Float
+
+	fAngle = fWestAngle - 90		'Degree
+
+	Do Until fAngle >= 0
+		fAngle = fAngle + 360
+	Loop
+	Do Until fAngle < 360
+		fAngle = fAngle - 360
+	Loop
+
+	CalcWest2NorthAngle 	= fAngle
+
+End Function
+
+'****************************************
+'Omregner vinklen
+'	i grader
+'	med vest som udgangsretning
+'	i urets retning
+Til
+'	i grader
+'	med øst som udgangsvinkel
+'	i urets retning
+'****************************************
+Function CalcWest2MathAngle(ByVal fWestAngle As Float) As Float
+
+Dim	fAngle As Float
+
+	fAngle	= fWestAngle		'Degree
+
+	fAngle	= CalcWest2NorthAngle(fAngle)
+	fAngle	= CalcNorth2MathAngle(fAngle)
+
+	CalcWest2MathAngle 	= fAngle
+
+End Function
+
+'****************************************
+'Omregner vinklen
+'	i grader
+'	med vest som udgangsretning
+'	i urets retning
+Til
+'	i grader
+'	med øst som udgangsvinkel
+'	i urets retning
+'****************************************
+Function CalcMath2WestAngle(ByVal fMathAngle As Float) As Float
+
+Dim	fAngle As Float
+
+	fAngle	= fMathAngle		'Degree
+
+	fAngle	= CalcMath2NorthAngle(fAngle)
+	fAngle	= CalcNorth2WestAngle(fAngle)
+
+	CalcMath2WestAngle 	= fAngle
+
+End Function
+
+'****************************************
+'Omregner vinklen
+'	i grader
+Til
+'	i gon / nygrader
+'****************************************
+Function CalcDeg2Gon(ByVal fAngleDeg As Float) As Float
+
+Dim	fAngle As Float
+
+	fAngle	= fAngleDeg / 360 * 400
+
+	Do Until fAngle >= 0
+		fAngle = fAngle + 400
+	Loop
+	Do Until fAngle < 400
+		fAngle = fAngle - 400
+	Loop
+
+	CalcDeg2Gon = fAngle
+
+End function
+
+'****************************************
+'Omregner vinklen
+'	i gon / nygrader
+Til
+'	i grader
+'****************************************
+Function CalcGon2Deg(ByVal fAngleGon As Float) As Float
+
+Dim	fAngle AS Float
+
+	fAngle	= fAngleGon / 400 * 360
+
+	Do Until fAngle >= 0
+		fAngle = fAngle + 360
+	Loop
+	Do Until fAngle < 360
+		fAngle = fAngle - 360
+	Loop
+
+	CalcGon2Deg = fAngle
+
+End function
+
+'**************************************************************
+' Scalefaktor...
+'**************************************************************
+Function GetScaleFactor(ByVal fX As Float, ByVal fY As Float) as float
+
+Dim unitobj as object
+
+	unitobj = CreateLine(fX, fY, (fX + 1.0), fY)  'length of 1 in any unit
+	GetScaleFactor = ObjectLen(unitobj,"m")   'same length in meters
+
+End Function
+
+'**************************************************************
+' Afstandsberegning i meter
+'**************************************************************
+Function CalcDistanceMeters(aX As Float, aY As Float, bX As Float, bY As float) As Float
+
+Dim	fPyth, fScale, fDX, fDY As Float
+
+	fScale	= GetScaleFactor(aX, aY)
+	fDX		= Abs(aX - bX)
+	fDY		= Abs(aY - bY)
+	fPyth		= Sqr( (fDX ^ 2) + ( fDY ^ 2) )
+
+	CalcDistanceMeters = fPyth * fScale
+
+End Function
+
+'**************************************************************
+' Beregning af et punkts afstand til en givet linie
+'**************************************************************
+Function IsPointOnLine(	pStart As T_POINT, pEnd As T_POINT,
+				pSearch As T_POINT, pResult As T_POINT, ByVal fMaxDistance As Float) As Logical
+
+Dim	fRCos, fRSin, fDeltaX, fDeltaY As Float,
+	fDistance As Float
+
+IsPointOnLine	= FALSE
+
+	'***Beregning af enhedsvektor
+	fRCos = (pEnd.X - pStart.X) / ((pEnd.X - pStart.X) ^ 2 + (pEnd.Y - pStart.Y) ^ 2) ^ 0.5
+	fRSin = (pEnd.Y - pStart.Y) / ((pEnd.X - pStart.X) ^ 2 + (pEnd.Y - pStart.Y) ^ 2) ^ 0.5
+
+	'***Beregning af afstand fra (pStart.X,pStart.Y) til skæringspunkt
+	fDeltaX = (((pSearch.X - pStart.X) * fRCos) + ((pSearch.Y - pStart.Y) * fRSin)) * fRCos
+	fDeltaY = (((pSearch.X - pStart.X) * fRCos) + ((pSearch.Y - pStart.Y) * fRSin)) * fRSin
+
+	pResult.X	= pStart.X + fDeltaX
+	pResult.Y	= pStart.Y + fDeltaY
+
+	If not (pResult.X Between Minimum(pStart.X, pEnd.X) And Maximum(pStart.X, pEnd.X)) Then
+	'	Print "X : " + pSearch.X + " ikke mellem : " + Minimum(pStart.X, pEnd.X) + " og " + Maximum(pStart.X, pEnd.X)
+		Exit Function
+	ElseIf not (pResult.Y Between Minimum(pStart.Y, pEnd.Y) And Maximum(pStart.Y, pEnd.Y)) Then
+	'	Print "Y : " + pSearch.Y + " ikke mellem : " + Minimum(pStart.Y, pEnd.Y) + " og " + Maximum(pStart.Y, pEnd.Y)
+		Exit Function
+	End If
+
+	fDistance = GetPythDistance(pSearch, pResult)
+
+	If fDistance > fMaxDistance Then
+		Exit Function
+	End If
+
+IsPointOnLine = TRUE
+
+End Function
+
+'****************************************
+'	Beregner POINT på linien pBegin -> pEnd
+'****************************************
+Sub CreatePointOnLine(pBegin As T_POINT, pEnd As T_POINT, ByVal fDistance As Float, pResult As T_POINT)
+
+Dim	a, b, c, d, dx1, dy1 As Float
+
+	'Print "Fodpunkt  = " + fDistance
+
+	'*Beregner linien AB
+	dx1 = pEnd.X - pBegin.X  'AB
+	dy1 = pEnd.Y - pBegin.Y
+	'Print "dx1 : " + dx1
+	'Print "dy1 : " + dy1
+
+	If dx1 = 0 And dy1 = 0 Then
+		Note "Fejl: Afstand mellem punkter er 0!"
+		Exit Sub
+	End if
+
+	d = Sqr(dx1*dx1 + dy1*dy1)  'line AB
+	a = -dy1 / d
+	b =  dx1 / d
+	c = -a * pBegin.X - b * pBegin.Y
+	'Print "a : " + a
+	'Print "b : " + b
+	'Print "c : " + c
+	'Print "d : " + d
+
+	pResult.X	= pBegin.X + dx1 * (fDistance / d)  'Q
+	pResult.Y	= pBegin.Y + dy1 * (fDistance / d)
+	'Print "px : " + px
+	'Print "py : " + py
+
+End Sub
+
+'****************************************
+'	Returnerer afstanden vha Pythagoras
+'****************************************
+Function GetPythDistance(pBegin As T_POINT, pEnd As T_POINT) As Float
+
+	GetPythDistance = Sqr( (pEnd.X - pBegin.X) ^ 2 + (pEnd.Y - pBegin.Y) ^ 2 )
+
+End Function
+
+'****************************************
+'	Returnerer koord til først node i objektet(Line el. PLine)
+'****************************************
+Function GetCoordEndLine(ByVal oLine As Object, pCoord As T_POINT) As Logical
+
+Dim	nSegments, nPnts As Integer
+
+GetCoordEndLine	= TRUE
+
+	Do Case ObjectInfo(oLine, OBJ_INFO_TYPE)
+		Case OBJ_TYPE_PLINE
+			nSegments	= ObjectInfo(oLine, OBJ_INFO_NPOLYGONS)
+			nPnts 	= ObjectInfo(oLine, OBJ_INFO_NPOLYGONS + nSegments)
+			pCoord.X	= ObjectNodeX(oLine, nSegments, nPnts)
+			pCoord.Y	= ObjectNodeY(oLine, nSegments, nPnts)
+		Case OBJ_TYPE_LINE
+			pCoord.X	= ObjectGeography(oLine, OBJ_GEO_LINEENDX)
+			pCoord.Y	= ObjectGeography(oLine, OBJ_GEO_LINEENDY)
+		Case Else
+			GetCoordEndLine = FALSE
+	End Case
+
+End Function
+
+'****************************************
+'	Returnerer koord til først node i objektet(Line el. PLine)
+'****************************************
+Function GetCoordBeginLine(ByVal oLine As Object, pCoord As T_POINT) As Logical
+
+GetCoordBeginLine	= TRUE
+
+	Do Case ObjectInfo(oLine, OBJ_INFO_TYPE)
+		Case OBJ_TYPE_PLINE
+			pCoord.X	= ObjectNodeX(oLine, 1, 1)
+			pCoord.Y	= ObjectNodeY(oLine, 1, 1)
+		Case OBJ_TYPE_LINE
+			pCoord.X	= ObjectGeography(oLine, OBJ_GEO_LINEBEGX)
+			pCoord.Y	= ObjectGeography(oLine, OBJ_GEO_LINEBEGY)
+		Case Else
+			GetCoordBeginLine = FALSE
+	End Case
+
+End Function
+
+'****************************************
+'	Returnerer koord til først node i objektet(Line el. PLine)
+'****************************************
+Function GetCoordCenter(ByVal oObject As Object, pCoord As T_POINT) As Logical
+
+GetCoordCenter	= TRUE
+
+	OnError GoTo ErrorOccured
+
+	pCoord.X	= CentroidX(oObject)
+	pCoord.Y	= CentroidY(oObject)
+
+	Exit Function
+'-------------------
+ErrorOccured:
+	GetCoordCenter	= FALSE
+
+End Function
+
+'********************************************************
+'	Orthogonal afsætning - beregning
+'********************************************************
+'	Line is named AB, Point is named P, P's foot point is called Q
+'
+'	:---dfp---:
+'	A---------Q--------------->B
+'	  \       |
+'	    \     |=dpp
+'	      \   |
+'	        \ |
+'	          P
+
+Function CreateOrthoPoint(	pA As T_POINT, pB As T_POINT,
+					ByVal fDFP As Float, ByVal fDDP As Float,
+					pResult As T_POINT) As Logical
+
+
+Dim	a, b, c, d, dx1,dy1, dx2,dy2 as Float,
+	px, py as Float,
+	scale2m as Float,
+ 	i as Smallint,
+	d1, d2 as Float
+
+	CreateOrthoPoint	= FALSE
+
+	OnError GoTo ErrorOccured
+
+	Call CalcLeftMarkerPoint(pA, pB, 1, pResult)
+
+	scale2m = GetScaleFactor(pA.X, pA.Y)
+	If scale2m = 0 Then
+		Note "Fejl ved division med 0!"
+		Exit Function
+	End If
+
+	d1	= fDFP / scale2m  'map units
+	d2	= fDDP / scale2m
+
+	'*Beregner linien AB
+	dx1	= pB.X - pA.X  'AB
+	dy1	= pB.Y - pA.Y
+
+	d	= Sqr(dx1 * dx1  +  dy1 * dy1)  'line AB
+	a	= -dy1 / d
+	b	=  dx1 / d
+	c	= -a * pA.X - b * pA.Y
+
+	'*Bergner linien AP
+	dx2	= pResult.X - pA.X  'AP
+	dy2	= pResult.Y - pA.Y
+
+	px	= pA.X + dx1 * (d1 / d)  'Q
+	py	= pA.Y + dy1 * (d1 / d)
+
+	'*Beregner afsætningspunkt
+	d		= a * dx2 + b * dy2  'vector produkt (AP.n), >0: same side, <0: opposite sides
+	pResult.X	= px + a * d2 * Sign(d)
+	pResult.Y	= py + b * d2 * Sign(d)
+
+	CreateOrthoPoint = TRUE
+	Exit Function
+
+'---------------------
+ErrorOccured:
+	Note "Fejl ved ortogonal beregning:" + lf + Error$()
+
+End Function
+
+'****************************************
+'Konstruktion: Beregn punkt til venstre for linien
+'****************************************
+Sub CalcLeftMarkerPoint(	p1 As T_POINT, p2 As T_POINT,
+					ByVal fDist As Float, pLeft As T_POINT)
+
+Dim	nx, ny, nd As Float
+
+	nx		= (p1.Y - p2.Y)
+	ny		= (p2.X - p1.X)
+	nd		= Sqr(nx*nx + ny*ny)
+	nx		= nx / nd
+	ny		= ny / nd
+
+	pLeft.X	= p1.X + 0.5 * (p2.X - p1.X) + fDist * nx
+	pLeft.Y	= p1.Y + 0.5 * (p2.Y - p1.Y) + fDist * ny
+
+End Sub
+
+'********************************************************
+' Definering af positiv / negativ side
+'********************************************************
+Function Sign (Byval fv as float) As Float
+
+	If fv > 0.0 Then
+		Sign = +1.0
+	ElseIf fv < 0.0 Then
+		Sign = -1.0
+	Else
+		Sign = 0.0
+	End If
+
+End Function
+
+'********************************************************
+' Forskyder et objekt en given afstand
+'********************************************************
+Function GeoFuncOffSetPLine2(ByVal oOffsetPLine As Object, ByVal fOffsetDistance As Float) As Object
+
+Dim	pFirst, pLast, pNew As T_POINT,
+	fDx, fDy As Float
+
+	If GetCoordBeginLine(oOffsetPLine, pFirst) Then End If
+	If GetCoordEndLine(oOffsetPLine, pLast) Then End If
+
+	If CreateOrthoPoint(pFirst, pLast, 0, fOffsetDistance, pNew)Then
+		fDx	= pFirst.X - pNew.X
+		fDy	= pFirst.Y - pNew.Y
+
+		GeoFuncOffSetPLine2 = GeoFuncMoveObject(fDx, fDy, oOffsetPLine)
+	Else
+		GeoFuncOffSetPLine2 = oOffsetPLine
+	End If
+
+End Function
+
+'********************************************************
+' Forskyder et objekt en given afstand
+'********************************************************
+Function GeoFuncOffSetPLine(ByVal oOffsetPLine As Object, ByVal fOffsetDistance As Float) As Object
+
+Dim	pFirst, pMid, pLast, pFirst2, pMid2, pMid3, pLast2, pIntersect As T_POINT,
+	nPnts, nPolygons, i, k As Integer,
+	oTempPLine, oTempObject, oEndObject As Object
+
+	Do Case ObjectInfo(oOffsetPLine, OBJ_INFO_TYPE)
+		Case OBJ_TYPE_PLINE
+			oTempPLine = oOffsetPLine
+		Case OBJ_TYPE_LINE
+			oTempPLine = ConvertToPLine(oOffsetPLine)
+		Case Else
+			Note "Dette objekt kan ikke forskydes!"
+			Exit Function
+	End Case
+
+	nPolygons	= ObjectInfo(oTempPLine, OBJ_INFO_NPOLYGONS)
+
+	For i = 1 To nPolygons
+		nPnts	= ObjectInfo(oTempPLine, OBJ_INFO_NPOLYGONS + i)
+		If nPnts = 2 Then
+			pFirst.X	= ObjectNodeX(oTempPLine, i, 1)
+			pFirst.Y	= ObjectNodeY(oTempPLine, i, 1)
+			pLast.X	= ObjectNodeX(oTempPLine, i, 2)
+			pLast.Y	= ObjectNodeY(oTempPLine, i, 2)
+			Call GeoFuncOffSetTwoPoints(pFirst, pLast, fOffsetDistance, pFirst2, pLast2)
+			Create PLine
+				Into Variable oTempObject
+				2
+				(pFirst2.X, pFirst2.Y) (pLast2.X, pLast2.Y)
+		Else
+			pFirst.X	= ObjectNodeX(oTempPLine, i, 1)
+			pFirst.Y	= ObjectNodeY(oTempPLine, i, 1)
+			pMid.X	= ObjectNodeX(oTempPLine, i, 2)
+			pMid.Y	= ObjectNodeY(oTempPLine, i, 2)
+			Call GeoFuncOffSetTwoPoints(pFirst, pMid, fOffsetDistance, pFirst2, pMid2)
+
+			Create PLine
+				Into Variable oTempObject
+				1
+				(pFirst2.X, pFirst2.Y)
+
+			For k = 2 To (nPnts - 1)
+				pLast.X	= ObjectNodeX(oTempPLine, i, k + 1)
+				pLast.Y	= ObjectNodeY(oTempPLine, i, k + 1)
+
+				Call GeoFuncOffSetTwoPoints(pMid, pLast, fOffsetDistance, pMid3, pLast2)
+
+				If GeoFuncCalcIntersectionPoint(pFirst2, pMid2, pMid3, pLast2, pIntersect) Then
+					Alter Object oTempObject
+						Node Add (pIntersect.X, pIntersect.Y)
+				Else
+					Alter Object oTempObject
+						Node Add (pMid2.X, pMid2.Y)
+					Alter Object oTempObject
+						Node Add (pMid3.X, pMid3.Y)
+				End If
+
+				pFirst.X	= pMid.X
+				pFirst.Y	= pMid.Y
+				pFirst2.X	= pMid3.X
+				pFirst2.Y	= pMid3.Y
+				pMid.X	= pLast.X
+				pMid.Y	= pLast.Y
+				pMid2.X	= pLast2.X
+				pMid2.Y	= pLast2.Y
+			Next	'k
+			'**Adding the last node...
+			Alter Object oTempObject
+				Node Add (pLast2.X, pLast2.Y)
+		End If
+
+		If i > 1 Then
+			oEndObject = Combine(oEndObject, oTempObject)
+		Else
+			oEndObject = oTempObject
+		End If
+	Next	'i
+
+	GeoFuncOffSetPLine = oEndObject
+
+End Function
+
+'********************************************************
+' Forskyder 2 punkter en given afstand
+'********************************************************
+Sub GeoFuncOffSetTwoPoints(	pBegin As T_POINT, pEnd As T_POINT,
+					ByVal fOffsetDistance As Float,
+					pNewBegin As T_POINT, pNewEnd As T_POINT)
+
+	Print "Offsetdistance: " + fOffsetDistance
+
+	'**Forskyder første punkt...
+	If not CreateOrthoPoint(pBegin, pEnd, 0.0, (fOffsetDistance * (-1)), pNewBegin) Then
+		Exit Function
+	End If
+	Insert Into WindowInfo(FrontWindow(), WIN_INFO_TABLE) (OBJ) Values (CreatePoint(pNewBegin.X, pNewBegin.Y))
+
+	'**Forskyder andet punkt...
+	If not CreateOrthoPoint(pEnd, pBegin, 0.0, fOffsetDistance, pNewEnd) Then
+		Exit Function
+	End If
+	Insert Into WindowInfo(FrontWindow(), WIN_INFO_TABLE) (OBJ) Values (CreatePoint(pNewEnd.X, pNewEnd.Y))
+
+
+End Sub
+
+'********************************************************
+' Beregner skæring mellem 2 linier
+'********************************************************
+Function GeoFuncCalcIntersectionPoint(	pABegin As T_POINT, pAEnd As T_POINT,
+							pBBegin As T_POINT, pBEnd As T_POINT,
+							pIntersect As T_POINT) As Logical
+
+Dim	oLine1, oLine2, oIntersect As Object,
+	pNew1, pNew2 As T_POINT,
+	fDistance As Float
+
+OnError GoTo ErrorOccured
+
+GeoFuncCalcIntersectionPoint = FALSE
+
+	oLine1 = CreateLine(pABegin.X, pABegin.Y, pAEnd.X, pAEnd.Y)
+	oLine2 = CreateLine(pBBegin.X, pBBegin.Y, pBEnd.X, pBEnd.Y)
+
+	fDistance = 0
+	Do Until (oLine1 Intersects oLine2)
+		fDistance = 50	'meters
+		Call CreatePointOnLine(pABegin, pAEnd, fDistance, pNew1)
+		Call CreatePointOnLine(pAEnd, pABegin, fDistance, pNew2)
+		oLine1 = CreateLine(pNew1.X, pNew1.Y, pNew2.X, pNew2.Y)
+
+		Call CreatePointOnLine(pBBegin, pBEnd, fDistance, pNew1)
+		Call CreatePointOnLine(pBEnd, pBBegin, fDistance, pNew2)
+		oLine2 = CreateLine(pNew1.X, pNew1.Y, pNew2.X, pNew2.Y)
+
+		If fDistance > 2000 Then
+			Exit Function
+		End If
+	Loop
+
+	oIntersect = IntersectNodes(oLine1, oLine2, INCL_CROSSINGS)
+
+	pIntersect.X	= ObjectNodeX(oIntersect, 1, 1)
+	pIntersect.Y	= ObjectNodeY(oIntersect, 1, 1)
+
+GeoFuncCalcIntersectionPoint = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function

@@ -1,0 +1,93 @@
+'*****************************************************************************************
+' H I S T O R I K
+' 18.04.2005/PEM	- Nu slettes tabellen KPLAYERSOPEN hvis der ikke er nogle åbne vinduer
+'			- Nu opdateres knapper når man tænder/slukker for automatisk opdatering
+'			- kpdUnRegisterLayersAll kalder nu automatisk kpdUnToggleAllButtons
+'*****************************************************************************************
+
+'************** A R R A Y V Æ R K T Ø J E R **********************************************
+Declare Sub kpdCreateListOfDisplayNames(arrDisplayNames() As String)
+Declare Sub kpdCreateListOfDisplayTables(ByVal nDisplayID As Integer, arrTables() As String)
+Declare Sub kpdCreateListOfDisplayGroups(ByVal nDisplayID As Integer, arrGroups() As String)
+
+Declare Function kpdGetMaxDisplayID() As Integer
+Declare Function kpdGetNextDisplayID() As Integer
+Declare Function kpdGetNextSeparatorID() As Integer
+Declare Function kpdGetDisplayElementNo(ByVal szDisplayName As String, arrDisplayNames() As String) As Integer
+Declare Function kpdGetDisplayIDFromElementNo(ByVal nElementNo As Integer) As Integer
+Declare Function kpdGetDisplayTableIDFromElementNo(ByVal nElementNo As Integer) As Integer
+Declare Function kpdGetDisplayGroupIDFromElementNo(ByVal nElementNo As Integer) As Integer
+Declare Function kpdGetDisplaySubGroupIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+Declare Function kpdChangeOrderByElementNo(ByVal nElementNo As Integer, ByVal nOrderChange As Integer) As Logical
+
+Declare Function kpdGetIconFileID(ByVal nDisplayID As Integer) As Integer
+Declare Function kpdGetIconNo(ByVal nDisplayID As Integer) As Integer
+Declare Function kpdGetWorkspaceFile$(ByVal nDisplayID As Integer) As String
+Declare Function kpdCloseAllBeforeOpening(ByVal nDisplayID As Integer) As Logical
+Declare Function kpdActive(ByVal nDisplayID As Integer) As Logical
+
+Declare Function kpdGetDisplayName$(ByVal nDisplayID As Integer) As String
+Declare Function kpdGetDisplayID(ByVal szDisplayName As String) As Integer
+'-----------------
+Declare Function kpdRemoveDisplay(ByVal nDislayID As Integer) As Integer
+Declare Function kpdRemoveDisplayByTable(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Logical
+'Declare Function kpdRemoveDisplayByGroup(ByVal nGroupID As Integer, ByVal nSubGroupID As Integer) As Logical
+
+'-----------------
+Declare Function kpdCheckActiveLayers(ByVal nWID As Integer) As Integer
+
+Declare Function kpdRegisterActiveLayers(ByVal nWID As Integer) As Integer		'returns number of layers in map
+Declare Function kpdRegisterActiveLayer(ByVal nWID As Integer, ByVal nLayerNum As Integer) As Logical
+Declare Function kpdIsTableLayerOpen(ByVal nMID As Integer, ByVal nTableID As Integer, ByVal nLayerID As Integer) As Logical
+
+Declare Sub kpdUnRegisterLayersByWindows
+Declare Sub kpdUnRegisterLayersAll
+Declare Sub kpdUnRegisterLayersByWID(ByVal nWID As Integer)
+Declare Sub kpdUnRegisterLayersByTabFile(ByVal szTabFile As String)
+Declare Sub kpdUnRegisterLayersByTableID(ByVal nTableID As Integer)
+Declare Sub kpdUnRegisterLayersByLayerNum(ByVal nWID As Integer, ByVal nLayerNum As Integer)
+
+Declare Function kpdRegisterLayersToAddToMap(ByVal nDisplayID As Integer) As Integer	'returns number of tables to open
+Declare Function kpdRegisterLayersToAddByGroup(ByVal nGroupID As Integer, ByVal nSubGroupID As Integer) As Integer
+Declare Function kpdRegisterLayerToAdd(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Integer
+Declare Function kpdIsTableLayerRegistered(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Logical
+
+Declare Function kpdAddRegisteredLayersToMap(nMID As Integer) As Integer
+
+'-----------------
+Declare Function kpdOpenDisplayWorkspace(ByVal nDisplayID As Integer) As Logical
+
+Declare Function kpdOpenDisplayTables(ByVal nDisplayID As Integer, nMID As Integer) As Logical
+Declare Sub kpdCloseDisplayTables(ByVal nDisplayID As Integer, nMID As Integer)
+
+Declare Sub kpdDisplayButtonAction
+
+Declare Sub kpdSetDisplayButtonPadTitle(ByVal szBtpTitle As String)
+Declare Function kpdGetDisplayButtonPadTitle$() As String
+
+Declare Sub kpdCreateDisplayButtonPad
+Declare Sub kpdCreateDisplayButtonPadPush
+Declare Sub kpdAddButtonToDisplayPadPush(	ByVal nDisplayID As Integer, ByVal szMsg As String,
+							ByVal szIconFile As String, ByVal nIcon As Integer,
+							ByVal szPadTitle As String, ByVal bFirst As Logical)
+
+Declare Sub kpdDisplayButtonActionToggle
+Declare Sub kpdToggleUnToggleAutoUpdate
+
+Declare Sub kpdStartUpToggleUnToggleButton
+
+Declare Sub kpdKP_WinClosedHandler(ByVal nWID As Integer)
+Declare Sub kpdKP_WinFocusChangedHandler(ByVal nWID As Integer)
+Declare Sub kpdKP_WinChangedhandler(ByVal nWID As Integer)
+
+Declare Sub kpdToggleUnToggleButton(ByVal nWID As Integer)
+Declare Sub kpdUnToggleAllButtons
+
+Declare Sub kpdCreateDisplayButtonPadToggle
+Declare Sub kpdAddToggleButtonToDisplayPad(	ByVal nDisplayID As Integer, ByVal szMsg As String,
+								ByVal szIconFile As String, ByVal nIcon As Integer,
+								ByVal szPadTitle As String, ByVal nCount As Integer)
+'-----------------
+Declare Function kpdRegisterTablesByDisplay() As Integer
+Declare Sub kpdRegisterTablesByDisplaySingle(ByVal nDisplayID As Integer)

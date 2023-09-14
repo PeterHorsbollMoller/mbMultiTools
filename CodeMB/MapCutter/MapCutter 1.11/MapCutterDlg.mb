@@ -1,0 +1,2225 @@
+'*******************************************************************************
+'** 	Program:	(KommunePakken)
+'** 	Modul:	MapCutter.mb
+'**	Funktion	Functions for cutting map layers
+'*******************************************************************************
+Include "MapBasic.def"
+Include "Menu.def"
+Include "Icons.def"
+
+Include "..\..\Time\Time.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\FileFunc\FileFunc.def"
+Include "..\..\WinFunc\WinFunc.def"
+Include "..\..\MapFunc\MapFunc.def"
+
+Include "MapCutter.def"
+Include "MapCutterDlg.def"
+Include "Globals.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\Kommune.lng"
+Include "..\..\Language\MapCutter.lng"
+
+Declare Sub HandlerRefreshLayerNames
+Declare Sub HandlerAddOneLayer
+Declare Sub HandlerAddAllLayers
+Declare Sub HandlerRemoveOneLayer
+Declare Sub HandlerRemoveAllLayers
+Declare Sub HandlerAddOneCuttingObject
+Declare Sub HandlerAddAllCuttingObjects
+Declare Sub HandlerRemoveOneCuttingObject
+Declare Sub HandlerRemoveAllCuttingObjects
+Declare Sub HandlerAddOneColumn
+Declare Sub HandlerAddAllColumns
+Declare Sub HandlerRemoveOneColumn
+Declare Sub HandlerRemoveAllColumns
+
+Declare Sub HandlerDialog1StartUp
+Declare Sub HandlerDialog2StartUp
+Declare Sub HandlerDialog6StartUp
+Declare Sub HandlerDialog7StartUp
+Declare Sub HandlerDialog8StartUp
+Declare Sub HandlerDialog9StartUp
+
+Declare Sub HandlerMapperNamePicked
+Declare Sub HandlerCuttingEdgeTypePicked
+Declare Sub HandlerCuttingEdgeTypePickedAction(ByVal nPicked As Integer)
+Declare Sub HandlerCuttingTablePicked
+
+Declare Sub HandlerSelectionTypePicked
+
+Declare Sub HandlerCuttingTypePicked
+
+Declare Sub HandlerSaveTableMethodPicked
+Declare Sub HandlerShowSaveTableDescription(ByVal nPicked As Integer)
+
+Declare Sub HandlerPickResultTable
+Declare Sub HandlerPickResultStartDirectory
+
+Declare Sub HandlerKindOfResultNameMapPicked
+Declare Sub HandlerKindOfResultNameMapAction(ByVal nPicked As Integer)
+Declare Sub HandlerKindOfResultNameLayerPicked
+Declare Sub HandlerKindOfResultNameLayerAction(ByVal nPicked As Integer)
+Declare Sub HandlerKindOfResultNameBothPicked
+Declare Sub HandlerKindOfResultNameBothAction(ByVal nPicked As Integer)
+
+Declare Sub HandlerColumnMethodPicked
+Declare Sub HandlerColumnMethodPickedAction(ByVal nPicked AS Integer)
+
+'*********************************************************
+'Dialog 1 - Vælg kortvindue og lag
+'*********************************************************
+Function DialogSelectMapAndLayers() As Logical
+
+DialogSelectMapAndLayers = FALSE
+
+Dim	i, nMap As Integer
+
+If not CreateArrayMapWindows(garrMapWindows, FALSE, FALSE, FALSE) Then
+	Note ERR_WIN_NO_MAP_OPEN
+	Exit Function
+End If
+
+If gnMapToCutFrom = 0 Then
+	If WindowInfo(FrontWindow(), WIN_INFO_TYPE) = WIN_MAPPER Then
+
+		For i = 1 To Ubound(garrMapWindows)
+			If WindowInfo(FrontWindow(), WIN_INFO_NAME) = garrMapWindows(i) Then
+				nMap = i
+				Exit For
+			End If
+		Next
+
+	Else
+		nMap	= 1
+	End If
+Else
+	nMap = gnMapToCutFrom
+End If
+
+nPrevPicked = nMap
+
+Dialog	Width 260
+   Title MCUT_DLG_TITLE_CHOOSE_MAP_LAYER
+	Calling HandlerDialog1StartUp
+
+   Control GroupBox	Position 20,10	Width 220	Height 30
+	Title MCUT_DLG_TXT_MAP_WINDOWS
+   Control PopUpMenu	Position 30,20	Width 200	ID 100
+	Title From Variable garrMapWindows
+	Value nMap
+	Into nMap
+	Calling HandlerMapperNamePicked
+
+   Control GroupBox	Position 20,45	Width 220	Height 110
+	Title MCUT_DLG_TXT_CHOOSE_LAYERS
+
+   Control StaticText	Position 30,55
+	Title MCUT_DLG_TXT_LAYERS_IN_MAP
+   Control ListBox	Position 30,65	Width 75    Height 80	ID 201
+	Title From Variable garrAllLayers
+
+   Control StaticText	Position 155,55
+	Title MCUT_DLG_TXT_LAYERS_TO_CUT
+   Control ListBox	Position 155,65	Width 75    Height 80	ID 202
+	Title From Variable garrCuttingLayers
+
+   Control Button		Position 115,65	Width 30	ID 101
+	Title ">"
+	Calling HandlerAddOneLayer
+   Control Button		Position 115,80	Width 30	ID 102
+	Title ">>"
+	Calling HandlerAddAllLayers
+   Control Button		Position 115,100	Width 30	ID 103
+	Title "<"
+	Calling HandlerRemoveOneLayer
+   Control Button		Position 115,115	Width 30	ID 104
+	Title "<<"
+	Calling HandlerRemoveAllLayers
+
+   Control Button		Position 30,160	Width 50
+	Title MSG_TEXT_RELOAD
+	Calling HandlerRefreshLayerNames
+
+   Control OKButton	Position 90,160	Width 50	ID 500
+	Title MSG_TEXT_NEXT + " >>"
+   Control CancelButton	Position 180,160	Width 50
+
+If not CommandInfo(CMD_INFO_DLG_OK) Then
+	Exit Function
+End If
+
+DialogSelectMapAndLayers = TRUE
+
+End Function
+
+'******************************************
+'	Handler - opstart af dialog 1
+'******************************************
+Sub HandlerDialog1StartUp
+
+'Print "Kortnr : " + gnMapToCutFrom
+If gnMapToCutFrom = 0 Then
+	Call HandlerMapperNamePicked
+End If
+
+If Ubound(garrMapWindows) = 1 Then
+	Alter Control 100 Disable
+Else
+	Alter Control 100 Enable
+End If
+
+If Ubound(garrCuttingLayers) = 0 Then
+	Alter Control 500 Disable
+Else
+	Alter Control 202 Value 1 Active
+End If
+
+End Sub
+
+'******************************************
+'	Handler - genindlæs lagnavne fra valgt kortvindue
+'******************************************
+Sub HandlerRefreshLayerNames
+
+gnMapToCutFrom = 0
+
+Call HandlerDialog1StartUp
+
+End Sub
+
+'******************************************
+'	Handler - kortvindue udpeget
+'******************************************
+Sub HandlerMapperNamePicked
+
+Dim	nWID, nPicked As Integer
+
+nPicked = ReadControlValue(100)
+
+If nPicked = gnMapToCutFrom Then
+	Exit Sub
+End If
+
+ReDim garrCuttingLayers(0)
+ReDim garrAllLayers(0)
+
+nWID = GetWindowID(garrMapWindows(nPicked))
+
+If CreateArrayMapLayers(nWID, garrCuttingLayers, FALSE, FALSE, FALSE, FALSE, FALSE) = 0 Then
+	Note ERR_MAP_NO_LAYER_TO_USE
+	Alter Control 500 Disable
+	gbOtherLayersSelected = FALSE
+Else
+	Alter Control 500 Enable
+	gbOtherLayersSelected = TRUE
+End If
+
+gnMapToCutFrom = nPicked
+Alter Control 201	Title From Variable garrAllLayers
+Alter Control 202 Title From Variable garrCuttingLayers
+
+End Sub
+
+'******************************************
+'	Afvælg alle valgte lag
+'******************************************
+Sub HandlerRemoveAllLayers
+
+Dim	nNow, i As Integer
+
+nNow = Ubound(garrAllLayers)
+
+For i = 1 To Ubound(garrCuttingLayers)
+	Redim garrAllLayers(nNow + i)
+	garrAllLayers(nNow + i) = garrCuttingLayers(i)
+Next
+
+gbOtherLayersSelected = FALSE
+
+Redim garrCuttingLayers(0)
+
+Alter Control 201	Title From Variable garrAllLayers
+Alter Control 202	Title From Variable garrCuttingLayers
+
+Alter Control 500 Disable
+
+End Sub
+
+'******************************************
+'	Afvælg udpeget lag
+'******************************************
+Sub HandlerRemoveOneLayer
+
+Dim	nPick, nUse, nPos, nLag As SmallInt
+
+nLag = ReadControlValue(202)
+
+nPick = nLag
+nUse = Ubound(garrCuttingLayers)
+nPos = Ubound(garrAllLayers)
+
+If nLag = 0 Then
+	If nUse > 0 Then
+		Alter Control 202 Value 1 Active
+	End If
+	Exit Sub
+End If
+
+Redim garrAllLayers(nPos + 1)
+garrAllLayers(nPos + 1) = garrCuttingLayers(nLag)
+
+If nUse = nLag Then
+	Redim garrCuttingLayers(nUse - 1)
+Else
+	Do Until nLag = nUse
+		garrCuttingLayers(nLag) = garrCuttingLayers(nLag + 1)
+		nLag = nLag + 1
+	Loop
+	Redim garrCuttingLayers(nUse - 1)
+End If
+
+If (nUse - 1) = 0 Then
+	nPick = 0
+	Alter Control 500 Disable
+ElseIf nPick > (nUse - 1) Then
+	nPick = nUse - 1
+End If
+
+If Ubound(garrCuttingLayers) = 0 Then
+	gbOtherLayersSelected = FALSE
+End If
+
+Alter Control 201	Title From Variable garrAllLayers
+Alter Control 202	Title From Variable garrCuttingLayers
+			Value nPick	Active
+
+End Sub
+
+'******************************************
+'	Tilføj udpeget lag
+'******************************************
+Sub HandlerAddOneLayer
+
+Dim	nPick, nUse, nPos, nLag As SmallInt
+
+nLag = ReadControlValue(201)
+nPick = nLag
+
+nUse = Ubound(garrCuttingLayers)
+nPos = Ubound(garrAllLayers)
+
+If nLag = 0 Then
+	If nPos > 0 Then
+		Alter Control 201 Value 1 Active
+	End If
+	Exit Sub
+End If
+
+gbOtherLayersSelected = TRUE
+
+Redim garrCuttingLayers(nUse + 1)
+garrCuttingLayers(nUse + 1) = garrAllLayers(nLag)
+
+If nPos = nLag Then
+	Redim garrAllLayers(nLag - 1)
+Else
+	Do Until nLag = nPos
+		garrAllLayers(nLag) = garrAllLayers(nLag + 1)
+		nLag = nLag + 1
+	Loop
+	Redim garrAllLayers(nPos - 1)
+End If
+
+If (nPos - 1) = 0 Then
+	nPick = 0
+ElseIf nPick > (nPos - 1) Then
+	nPick = nPos - 1
+End If
+
+Alter Control 201	Title From Variable garrAllLayers
+
+			Value nPick
+			Active
+
+Alter Control 202	Title From Variable garrCuttingLayers
+
+Alter Control 500 Enable
+
+End Sub
+
+'******************************************
+'	Tilføj alle lagene
+'******************************************
+Sub HandlerAddAllLayers
+
+Dim	nNow, i As Integer
+
+nNow = Ubound(garrCuttingLayers)
+
+For i = 1 To Ubound(garrAllLayers)
+	Redim garrCuttingLayers(nNow + i)
+	garrCuttingLayers(nNow + i) = garrAllLayers(i)
+Next
+
+gbOtherLayersSelected = TRUE
+
+Redim garrAllLayers(0)
+
+Alter Control 201	Title From Variable garrAllLayers
+Alter Control 202	Title From Variable garrCuttingLayers
+
+Alter Control 500 Enable
+
+End Sub
+
+'******************************************
+'	Vælg "CuttingEdge" - Dialog 2
+'******************************************
+Function DialogSelectCuttingEdge() As Logical
+
+Dim	nTab, nEdge As Integer,
+	arrTab(0), szCuttingEdgeChoises As String
+
+DialogSelectCuttingEdge = FALSE
+
+If not CreateArrayTables(arrTab, TRUE, TRUE, FALSE, FALSE, FALSE) Then 
+	ReDim garrTables(1)
+	garrTables(1) = MSG_TAB_OPEN_POINTS
+	nTab = 1
+Else
+	nTab = Ubound(arrTab) + 1
+	ReDim garrTables(nTab)
+	garrTables(1) = MSG_TAB_OPEN_POINTS
+
+	For nTab = 1 To Ubound(arrTab)
+		garrtables(nTab + 1) = arrTab(nTab)
+	Next
+	nTab = 2
+End If
+
+If gnCuttingTable = 0 Then
+	gnCuttingTable = nTab
+	gnNameColumn = 1
+end If
+
+'Print "Type skæring : " + gnTypeOfCuttingEdge
+
+'Call PrintVariables("Cutting Edge Dialog Primo")
+
+Dialog	Width 220
+   Title MCUT_DLG_TITLE_CUTTING_AREA
+   Calling HandlerDialog2StartUp
+
+   Control GroupBox	Position 20,10	Width 180	Height 60
+	Title MCUT_DLG_TXT_CUTTING_AREA
+   Control CheckBox	Position 30,20	ID 101
+	Title MSG_WIN_MAP_WINDOW
+	Calling HandlerCuttingEdgeTypePicked
+   Control CheckBox	Position 30,35	ID 102
+	Title MSG_TAB_TABLE
+	Calling HandlerCuttingEdgeTypePicked
+   Control CheckBox	Position 30,50	ID 103
+	Title MCUT_DLG_TXT_CHOSEN_OBJ
+	Calling HandlerCuttingEdgeTypePicked
+
+   Control GroupBox	Position 20,75	Width 180	Height 60
+	Title MSG_TEXT_SELECT_TABLE
+
+   Control PopUpMenu	Position 30,85	Width 160	ID 201
+	Title From Variable garrTables
+	Value gnCuttingTable
+	Into gnCuttingTable
+	Calling HandlerCuttingTablePicked
+
+   Control StaticText	Position 30,100
+	Title MCUT_DLG_TXT_ID_COL
+   Control PopUpMenu	Position 30,110	Width 160	ID 202
+	Title From Variable garrColumns
+	Value gnNameColumn
+	Into gnNameColumn
+
+   Control Button		Position 30,145	Width 50
+	Title "<< " + MSG_TEXT_PREV
+	Calling HandlerShowPreviousDialog
+   Control OKButton	Position 90,145	Width 50
+	Title MSG_TEXT_NEXT + " >>"
+   Control CancelButton	Position 150,145	Width 40
+
+If not CommandInfo(CMD_INFO_DLG_OK) Then
+	Exit Function
+End If
+
+'Call PrintVariables("Cutting Edge Dialog Ultimo")
+
+DialogSelectCuttingEdge = TRUE
+
+End Function
+
+'******************************************
+'	Handler - Start op af dialog 2
+'******************************************
+Sub HandlerDialog2StartUp
+
+Dim	bUseSelectedRegion As Logical,
+	oRegion As Object
+
+If SelectionInfo(SEL_INFO_NROWS) = 1 Then
+	If TableInfo("Selection", TAB_INFO_MAPPABLE) Then
+		oRegion = Selection.obj
+		If Area(oRegion, "sq m") > 0 Then
+			bUseSelectedRegion = TRUE
+		Else
+			bUseSelectedRegion = FALSE
+		End If
+	Else
+		bUseSelectedRegion = FALSE
+	End If
+Else
+	bUseSelectedRegion = FALSE
+End If
+
+If gnTypeOfCuttingEdge = CUTTING_EDGE_NOT_DEFINED Then
+	If bUseSelectedRegion Then
+		gnTypeOfCuttingEdge = CUTTING_EDGE_SELECTED_OBJECT
+	Else
+		gnTypeOfCuttingEdge = CUTTING_EDGE_MAPFRAME
+	End If
+End If
+
+If bUseSelectedRegion Then
+	Alter Control 103 Enable
+Else
+	Alter Control 103 Disable
+End If
+
+Call HandlerCuttingEdgeTypePickedAction(100 + gnTypeOfCuttingEdge)
+
+End Sub
+
+'******************************************
+'	Handler - Der blev valgt en skæretype
+'******************************************
+Sub HandlerCuttingEdgeTypePicked
+
+Call HandlerCuttingEdgeTypePickedAction(TriggerControl())
+
+End Sub 
+
+'******************************************
+'	Handler - Der blev valgt en skæretype, reager på dette
+'******************************************
+Sub HandlerCuttingEdgeTypePickedAction(ByVal nPicked As Integer)
+
+Alter Control 101 Value FALSE
+Alter Control 102 Value FALSE
+Alter Control 103 Value FALSE
+
+Alter Control nPicked Value TRUE
+
+Do Case nPicked
+	Case 101
+		gnTypeOfCuttingEdge = CUTTING_EDGE_MAPFRAME
+		Alter Control 201	Disable
+		Alter Control 202	Disable
+
+	Case 102
+		gnTypeOfCuttingEdge = CUTTING_EDGE_TABLE
+		Alter Control 201	Enable
+		Alter Control 202	Enable
+
+		Call HandlerCuttingTablePicked
+	Case 103
+		gnTypeOfCuttingEdge = CUTTING_EDGE_SELECTED_OBJECT
+		Alter Control 201	Disable
+		Alter Control 202	Disable
+End Case
+
+End Sub
+
+'******************************************
+'	Handler - Der blev valgt en skæretabel
+'******************************************
+Sub HandlerCuttingTablePicked
+
+Dim	nPicked As Integer,
+	szTabPath, szTab As String,
+	bUseMapWindow As Logical
+
+nPicked = ReadControlValue(201)
+
+If nPicked = gnCuttingTable Then
+	If Ubound(garrColumns) > 0 Then
+		Exit Sub
+	End If
+End If
+
+If nPrevPicked = 1 And Ubound(garrTables) = 1 Then
+	bUseMapWindow = TRUE
+End If
+
+gbAnotherCuttingTableSelected = TRUE	'Now a different cutting tabel has been chosen
+
+If nPicked = 1 Then	' Open Table dialog
+
+	szTabPath = FileOpenDlg("", "", "TAB", MCUT_DLG_TITLE_SELECT_CUT_TABLE)
+	If szTabPath = "" Then
+		If bUseMapWindow Then
+			Alter Control 100 Value 1
+		ElseIf nPrevPicked = 1 Then
+			Alter Control 201 Value 2
+		Else
+			Alter Control 201 Value nPrevPicked
+		End If
+		Exit Sub
+	End If
+
+	szTab = PathToTableName$(szTabPath)
+
+	If not TableOpen(szTab) Then
+		If FileExists(szTabPath) Then
+			Open Table szTabPath Interactive
+			szTab = TableInfo(0, TAB_INFO_NAME)
+		Else
+			Note ERR_TAB_NOT_FOUND + szTabPath
+			If bUseMapWindow Then
+				Alter Control 100 Value 1
+			ElseIf nPrevPicked = 1 Then
+				Alter Control 201 Value 2
+			Else
+				Alter Control 201 Value nPrevPicked
+			End If
+			Exit Sub
+		End If
+	End If
+
+	nPicked = Ubound(garrTables) + 1
+	ReDim garrTables(nPicked)
+	garrTables(nPicked) 	= szTab
+	Alter Control 201 Title From Variable garrTables
+
+End If
+
+If not CreateArrayColumns(garrTables(nPicked), garrColumns, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE, FALSE) Then
+	Note ERR_TAB_NO_USABLE_COLUMNS + garrTables(nPicked)
+
+	If not CreateArrayColumns(garrTables(nPrevPicked), garrColumns, TRUE, FALSE, FALSE, TRUE, TRUE, TRUE, TRUE, FALSE) Then
+	End If
+
+	Alter Control 201 Value nPrevPicked
+	Alter Control 202 Title From Variable garrColumns
+	Exit Sub
+End If	
+
+gnCuttingTable = nPicked
+Alter Control 201 Value gnCuttingTable		'Title From Variable garrTables Value gnCuttingTable
+Alter Control 202 Title From Variable garrColumns
+
+End Sub
+
+'*********************************************************
+'Dialog 3 - Vælg kortvindue og lag
+'*********************************************************
+Function DialogSelectMapParts() As Logical
+
+Dim	cmdstr, szCol, szTab As String
+
+DialogSelectMapParts = FALSE
+
+If gbAnotherCuttingTableSelected or Ubound(garrCuttingObjects) = 0 Then
+	ReDim garrAllObjects(0)
+	ReDim garrCuttingObjects(0)
+
+	szTab = garrTables(gnCuttingTable)
+	szCol = garrColumns(gnNameColumn) 
+
+	cmdstr= "Select " + szCol + " From " + szTab
+		+ " Where OBJ"
+		+ " And Area(obj, " + Chr$(34) + "sq km"  + Chr$(34) + ") > 0"
+		+ " Group By " + szCol
+		+ " Order By " + szCol
+		+ " Into KJDSFIUKJ NoSelect"
+	'Print cmdstr
+	Run Command cmdstr
+
+	If not CreateArrayValuesThisCol("KJDSFIUKJ", szCol, garrCuttingObjects) Then
+		Note ERR_TAB_NO_USABLE_OBJECTS
+		Close Table KJDSFIUKJ
+
+		gbMoveBackWards = TRUE
+		Exit Function
+	End If
+
+	Close Table KJDSFIUKJ
+
+End If
+
+gbAnotherCuttingTableSelected = FALSE
+
+'Call PrintVariables("Cutting Objects Dialog Primo")
+
+Dialog	Width 260
+   Title MCUT_DLG_TITLE_CUTTING_OBJECTS
+
+
+   Control GroupBox	Position 20,10	Width 220	Height 110
+	Title MCUT_DLG_TXT_CHOOSE_CUT_OBJECTS
+
+   Control StaticText	Position 30,20
+	Title MCUT_DLG_TXT_OBJS_IN_TABLE
+   Control ListBox	Position 30,30	Width 75    Height 80	ID 201
+	Title From Variable garrAllObjects
+
+   Control StaticText	Position 155,20
+	Title MCUT_DLG_TXT_CUT_OBJS
+   Control ListBox	Position 155,30	Width 75    Height 80	ID 202
+	Title From Variable garrCuttingObjects
+
+   Control Button		Position 115,30	Width 30	ID 101
+	Title ">"
+	Calling HandlerAddOneCuttingObject
+   Control Button		Position 115,45	Width 30	ID 102
+	Title ">>"
+	Calling HandlerAddAllCuttingObjects
+   Control Button		Position 115,65	Width 30	ID 103
+	Title "<"
+	Calling HandlerRemoveOneCuttingObject
+   Control Button		Position 115,80	Width 30	ID 104
+	Title "<<"
+	Calling HandlerRemoveAllCuttingObjects
+
+   Control Button		Position 30,130	Width 50
+	Title "<< " + MSG_TEXT_PREV
+	Calling HandlerShowPreviousDialog
+   Control OKButton	Position 90,130	Width 50	ID 500
+	Title MSG_TEXT_NEXT + " >>"	'	Disable
+   Control CancelButton	Position 190,130	Width 40
+
+If not CommandInfo(CMD_INFO_DLG_OK) Then
+	Exit Function
+End If
+
+gbAnotherCuttingTableSelected = FALSE
+
+DialogSelectMapParts = TRUE
+
+'Call PrintVariables("Cutting Objects Dialog Ultimo")
+
+End Function
+
+'******************************************
+'	Afvælg alle valgte skæreobjekter
+'******************************************
+Sub HandlerRemoveAllCuttingObjects
+
+Dim	nNow, i As Integer
+
+nNow = Ubound(garrAllObjects)
+
+For i = 1 To Ubound(garrCuttingObjects)
+	Redim garrAllObjects(nNow + i)
+	garrAllObjects(nNow + i) = garrCuttingObjects(i)
+Next
+
+Redim garrCuttingObjects(0)
+
+Alter Control 201	Title From Variable garrAllObjects
+Alter Control 202	Title From Variable garrCuttingObjects
+
+Alter Control 500 Disable
+
+End Sub
+
+'******************************************
+'	Afvælg udpeget skæreobjekt
+'******************************************
+Sub HandlerRemoveOneCuttingObject
+
+Dim	nPick, nUse, nPos, nLag As SmallInt
+
+nLag = ReadControlValue(202)
+
+nPick = nLag
+nUse = Ubound(garrCuttingObjects)
+nPos = Ubound(garrAllObjects)
+
+If nLag = 0 Then
+	If nUse > 1 Then
+		Alter Control 202 Value 1
+	End If
+	Exit Sub
+End If
+
+Redim garrAllObjects(nPos + 1)
+garrAllObjects(nPos + 1) = garrCuttingObjects(nLag)
+
+If nUse = nLag Then
+	Redim garrCuttingObjects(nUse - 1)
+Else
+	Do Until nLag = nUse
+		garrCuttingObjects(nLag) = garrCuttingObjects(nLag + 1)
+		nLag = nLag + 1
+	Loop
+	Redim garrCuttingObjects(nUse - 1)
+End If
+
+If (nUse - 1) = 0 Then
+	Alter Control 500 Disable
+	nPick = 0
+ElseIf nPick > (nUse - 1) Then
+	nPick = nUse - 1
+End If
+
+Alter Control 201	Title From Variable garrAllObjects
+Alter Control 202	Title From Variable garrCuttingObjects
+			Value nPick	Active
+
+End Sub
+
+'******************************************
+'	Tilføj udpeget skæreobjekt
+'******************************************
+Sub HandlerAddOneCuttingObject
+
+Dim	nPick, nUse, nPos, nLag As SmallInt
+
+nLag = ReadControlValue(201)
+
+nPick = nLag
+nUse = Ubound(garrCuttingObjects)
+nPos = Ubound(garrAllObjects)
+
+If nLag = 0 Then
+	If nPos > 0 Then
+		Alter Control 201 Value 1
+	End If
+	Exit Sub
+End If
+
+Redim garrCuttingObjects(nUse + 1)
+garrCuttingObjects(nUse + 1) = garrAllObjects(nLag)
+
+If nPos = nLag Then
+	Redim garrAllObjects(nLag - 1)
+Else
+	Do Until nLag = nPos
+		garrAllObjects(nLag) = garrAllObjects(nLag + 1)
+		nLag = nLag + 1
+	Loop
+	Redim garrAllObjects(nPos - 1)
+End If
+
+If (nPos - 1) = 0 Then
+	nPick = 0
+ElseIf nPick > (nPos - 1) Then
+	nPick = nPos - 1
+End If
+
+Alter Control 201	Title From Variable garrAllObjects
+			Value nPick
+			Active
+Alter Control 202	Title From Variable garrCuttingObjects
+Alter Control 500 Enable
+
+End Sub
+
+'******************************************
+'	Tilføj alle skæreobjekter
+'******************************************
+Sub HandlerAddAllCuttingObjects
+
+Dim	nNow, i As Integer
+
+nNow = Ubound(garrCuttingObjects)
+
+For i = 1 To Ubound(garrAllObjects)
+	Redim garrCuttingObjects(nNow + i)
+	garrCuttingObjects(nNow + i) = garrAllObjects(i)
+Next
+
+Redim garrAllObjects(0)
+
+Alter Control 201	Title From Variable garrAllObjects
+Alter Control 202	Title From Variable garrCuttingObjects
+Alter Control 500 Enable
+
+End Sub
+
+'******************************************
+'Dialog 4: Vælg udvælgelsesmetode
+'******************************************
+Function DialogSelectSelectionMethod() As Logical
+
+DialogSelectSelectionMethod = FALSE
+
+If gnSelectionType = SELECTING_KIND_NOT_DEFINED Then
+	gnSelectionType = SELECTING_KIND_PARTLY_WITHIN
+End If
+
+Dialog	Width 240
+   Title MCUT_DLG_TITLE_SELECT_METHOD
+   Calling HandlerSelectionTypePicked
+
+   Control GroupBox	Position 20,10	Width 200	Height 55
+	Title MCUT_DLG_TXT_SELECT_METHOD
+
+   Control RadioGroup	Position 30,20	ID 400
+	Title MCUT_DLG_POSS_SELECT_METHOD
+	Value gnSelectionType
+	Into gnSelectionType
+	Calling HandlerSelectionTypePicked
+
+   Control GroupBox	Position 20,70	Width 200	Height 65
+	Title MSG_TXT_DESCRITION
+
+   Control StaticText	Position 30,80	Width 180	ID 100
+   Control StaticText	Position 30,90	Width 180	ID 101
+   Control StaticText	Position 30,100	Width 180	ID 102
+   Control StaticText	Position 30,110	Width 180	ID 103
+   Control StaticText	Position 30,120	Width 180	ID 104
+
+
+   Control Button		Position 30,140	Width 50
+	Title "<< " + MSG_TEXT_PREV
+	Calling HandlerShowPreviousDialog
+   Control OKButton	Position 90,140	Width 50
+	Title MSG_TEXT_NEXT + " >>"
+   Control CancelButton	Position 170,140	Width 40
+
+If not CommandInfo(CMD_INFO_DLG_OK) Then
+	Exit Function
+End If
+
+DialogSelectSelectionMethod = TRUE
+
+End Function
+
+'******************************************
+'Handler - udvælgelsesmetode blev valgt
+'******************************************
+Sub HandlerSelectionTypePicked
+
+Do Case ReadControlValue(400)
+	Case 1
+		gnSelectionType = SELECTING_KIND_PARTLY_WITHIN
+		Alter Control 100 Title MCUT_DLG_TXT_SELECT_PARTLY_HLP1
+		Alter Control 101 Title MCUT_DLG_TXT_SELECT_PARTLY_HLP2
+		Alter Control 102 Title MCUT_DLG_TXT_SELECT_PARTLY_HLP3
+		Alter Control 103 Title MCUT_DLG_TXT_SELECT_PARTLY_HLP4
+		Alter Control 104 Title MCUT_DLG_TXT_SELECT_PARTLY_HLP5
+
+	Case 2
+		gnSelectionType = SELECTING_KIND_CENTROID_WITHIN
+		Alter Control 100 Title MCUT_DLG_TXT_SELECT_CENTR_HLP1
+		Alter Control 101 Title MCUT_DLG_TXT_SELECT_CENTR_HLP2
+		Alter Control 102 Title MCUT_DLG_TXT_SELECT_CENTR_HLP3
+		Alter Control 103 Title MCUT_DLG_TXT_SELECT_CENTR_HLP4
+		Alter Control 104 Title MCUT_DLG_TXT_SELECT_CENTR_HLP5
+
+	Case 3
+		gnSelectionType = SELECTING_KIND_ALL_WITHIN
+		Alter Control 100 Title MCUT_DLG_TXT_SELECT_ENTIRE_HLP1
+		Alter Control 101 Title MCUT_DLG_TXT_SELECT_ENTIRE_HLP2
+		Alter Control 102 Title MCUT_DLG_TXT_SELECT_ENTIRE_HLP3
+		Alter Control 103 Title MCUT_DLG_TXT_SELECT_ENTIRE_HLP4
+		Alter Control 104 Title MCUT_DLG_TXT_SELECT_ENTIRE_HLP5
+
+End Case
+
+End Sub
+
+'******************************************
+'Vælg udvælgelsesmetode
+'******************************************
+Function DialogSelectCuttingMethod() As Logical
+
+DialogSelectCuttingMethod = FALSE
+
+
+If gnCuttingType = CUTTING_KIND_NOT_DEFINED Then
+	gnCuttingType = CUTTING_KIND_SOFT
+End If
+
+Dialog	Width 240
+   Title MCUT_DLG_TITLE_CUTTING_METHOD
+   Calling HandlerCuttingTypePicked
+
+   Control GroupBox	Position 20,10	Width 200	Height 55
+	Title MCUT_DLG_TXT_CUTTING_METHOD
+
+   Control RadioGroup	Position 30,20	ID 400
+	Title MCUT_DLG_POSS_CUTTING_METHOD
+	Value gnCuttingType 
+	Into gnCuttingType 
+	Calling HandlerCuttingTypePicked
+
+   Control GroupBox	Position 20,70	Width 200	Height 65
+	Title MSG_TXT_DESCRITION
+
+   Control StaticText	Position 30,80	Width 180	ID 100
+   Control StaticText	Position 30,90	Width 180	ID 101
+   Control StaticText	Position 30,100	Width 180	ID 102
+   Control StaticText	Position 30,110	Width 180	ID 103
+
+   Control StaticText	Position 30,120	Width 180	ID 104
+
+
+   Control Button		Position 30,140	Width 50
+	Title "<< " + MSG_TEXT_PREV
+	Calling HandlerShowPreviousDialog
+   Control OKButton	Position 90,140	Width 50
+	Title MSG_TEXT_NEXT + " >>"
+   Control CancelButton	Position 170,140	Width 40
+
+If not CommandInfo(CMD_INFO_DLG_OK) Then
+	Exit Function
+End If
+
+DialogSelectCuttingMethod  = TRUE
+
+End Function
+
+'******************************************
+'Handler - udvælgelsesmetode blev valgt
+'******************************************
+Sub HandlerCuttingTypePicked
+
+Do Case ReadControlValue(400)
+	Case 1
+		gnCuttingType = CUTTING_KIND_SOFT
+		Alter Control 100 Title MCUT_DLG_TXT_CUT_SOFT_HLP1
+		Alter Control 101 Title MCUT_DLG_TXT_CUT_SOFT_HLP2
+		Alter Control 102 Title MCUT_DLG_TXT_CUT_SOFT_HLP3
+		Alter Control 103 Title MCUT_DLG_TXT_CUT_SOFT_HLP4
+		Alter Control 104 Title MCUT_DLG_TXT_CUT_SOFT_HLP5
+	Case 2
+		gnCuttingType = CUTTING_KIND_HARD_LINES
+		Alter Control 100 Title MCUT_DLG_TXT_CUT_HARD_LINE_HLP1
+		Alter Control 101 Title MCUT_DLG_TXT_CUT_HARD_LINE_HLP2
+		Alter Control 102 Title MCUT_DLG_TXT_CUT_HARD_LINE_HLP3
+		Alter Control 103 Title MCUT_DLG_TXT_CUT_HARD_LINE_HLP4
+		Alter Control 104 Title MCUT_DLG_TXT_CUT_HARD_LINE_HLP5
+	Case 3
+		gnCuttingType = CUTTING_KIND_HARD_ALL
+		Alter Control 100	Title MCUT_DLG_TXT_CUT_HARD_ALL_HLP1
+		Alter Control 101	Title MCUT_DLG_TXT_CUT_HARD_ALL_HLP2
+		Alter Control 102 Title MCUT_DLG_TXT_CUT_HARD_ALL_HLP3
+		Alter Control 103 Title MCUT_DLG_TXT_CUT_HARD_ALL_HLP4
+		Alter Control 104 Title MCUT_DLG_TXT_CUT_HARD_ALL_HLP5
+End Case
+
+End Sub
+
+'******************************************
+'Vælg antal resultatfiler - Dialog 6
+'******************************************
+Function DialogSelectNumberOfResultTables() As Logical
+
+DialogSelectNumberOfResultTables = FALSE
+
+If GetNumberOfFrames() = 1 And GetNumberOfLayers() = 1 Then
+	'***Only One way of saving the resulttable
+	gnSaveTableMethod = RESULT_TABLE_ALL_IN_ONE
+	DialogSelectNumberOfResultTables = TRUE
+	Exit Function
+End If
+
+'Call PrintVariables("Result Tables Dialog Primo")
+
+Dialog	Width 240
+   Title MCUT_DLG_TITLE_NUM_RESULT_TABS
+   Calling HandlerDialog6StartUp
+
+   Control GroupBox	Position 20,10	Width 200	Height 75
+	Title MCUT_DLG_TXT_NUM_OF_RESULT_TABS
+
+   Control CheckBox	Position 30,20	ID 11
+	Title MCUT_DLG_TXT_TAB_ALL_IN_ONE
+	Calling HandlerSaveTableMethodPicked
+	Value FALSE
+   Control CheckBox	Position 30,35	ID 12
+	Title MCUT_DLG_TXT_TAB_1_PR_MAPPART
+	Calling HandlerSaveTableMethodPicked
+	Value FALSE
+	Disable
+   Control CheckBox	Position 30,50	ID 13
+	Title MCUT_DLG_TXT_TAB_1_PR_LAYER
+	Calling HandlerSaveTableMethodPicked
+	Value FALSE
+	Disable
+   Control CheckBox	Position 30,65	ID 14
+	Title MCUT_DLG_TXT_TAB_MULTI_MAPPART
+	Calling HandlerSaveTableMethodPicked
+	Value FALSE
+	Disable
+
+   Control GroupBox	Position 20,90	Width 200	Height 65
+	Title MSG_TXT_DESCRITION
+
+   Control StaticText	Position 30,100	Width 180	ID 100
+   Control StaticText	Position 30,110	Width 180	ID 101
+   Control StaticText	Position 30,120	Width 180	ID 102
+   Control StaticText	Position 30,130	Width 180	ID 103
+
+
+   Control Button		Position 30,160	Width 50
+	Title "<< " + MSG_TEXT_PREV
+	Calling HandlerShowPreviousDialog
+   Control OKButton	Position 90,160	Width 50
+	Title MSG_TEXT_NEXT + " >>"
+   Control CancelButton	Position 170,160	Width 40
+
+If not CommandInfo(CMD_INFO_DLG_OK) Then
+	Exit Function
+End If
+
+DialogSelectNumberOfResultTables = TRUE
+
+'Call PrintVariables("Result Tables Dialog Ultimo")
+
+End Function
+
+'******************************************
+'Handler - StartUp af dialog 6
+'******************************************
+Sub HandlerDialog6StartUp
+
+Dim	nLayers, nFrames As Integer
+
+If gnSaveTableMethod = RESULT_TABLE_NOT_DEFINED Then
+	gnSaveTableMethod = RESULT_TABLE_ALL_IN_ONE
+End If
+
+nLayers = GetNumberOfLayers()
+nFrames = GetNumberOfFrames()
+
+'Print "Antal lag : " + nLayers
+'Print "Antal kortblade : " + nFrames
+
+If nFrames > 1 And nLayers > 1 Then
+	Alter Control 14 Enable		'****Gem hvert lag i én tabel pr. kortblad
+	'Print "Tillad 14"
+End If
+
+If nFrames > 1 Then
+	Alter Control 12 Enable		'****Gem alle lag i én tabel pr. kortblad
+	'Print "Tillad 12"
+End If
+
+If nLayers > 1 Then
+	Alter Control 13 Enable		'****Gem alt i 1 tabel pr. lag
+	'Print "Tillad 13"
+End If
+
+Do Case gnSaveTableMethod
+	Case RESULT_TABLE_ALL_IN_ONE
+		Alter Control 11 Value TRUE
+	Case RESULT_TABLE_ONE_PR_MAPPART
+		Alter Control 12 Value TRUE
+	Case RESULT_TABLE_ONE_PR_LAYER
+		Alter Control 13 Value TRUE
+	Case RESULT_TABLE_LAYER_MULTI_MAPPART
+		Alter Control 14 Value TRUE
+End Case
+
+Call HandlerShowSaveTableDescription(10 + gnSaveTableMethod)
+
+End Sub
+
+'******************************************
+'Handler - Metode til at gemme resultat filer
+'******************************************
+Sub HandlerSaveTableMethodPicked
+
+Call HandlerShowSaveTableDescription(TriggerControl())
+
+End Sub
+
+'******************************************
+'Handler - Vis de rigtige beskrivelse for gem tabeller
+'******************************************
+Sub HandlerShowSaveTableDescription(ByVal nPicked As Integer)
+
+Alter Control 11 Value FALSE
+Alter Control 12 Value FALSE
+Alter Control 13 Value FALSE
+Alter Control 14 Value FALSE
+
+Alter Control nPicked Value TRUE
+
+Do Case nPicked
+	Case 11
+		gnSaveTableMethod = RESULT_TABLE_ALL_IN_ONE
+		Alter Control 100 Title MCUT_DLG_TXT_ALL_IN_ONE_HLP1
+		Alter Control 101 Title MCUT_DLG_TXT_ALL_IN_ONE_HLP2
+		Alter Control 102 Title MCUT_DLG_TXT_ALL_IN_ONE_HLP3
+		Alter Control 103 Title MCUT_DLG_TXT_ALL_IN_ONE_HLP4
+	Case 12
+		gnSaveTableMethod = RESULT_TABLE_ONE_PR_MAPPART
+		Alter Control 100	Title MCUT_DLG_TXT_1_PR_MAPPART_HLP1
+		Alter Control 101 Title MCUT_DLG_TXT_1_PR_MAPPART_HLP2
+		Alter Control 102 Title MCUT_DLG_TXT_1_PR_MAPPART_HLP3
+		Alter Control 103 Title MCUT_DLG_TXT_1_PR_MAPPART_HLP4
+	Case 13
+		gnSaveTableMethod = RESULT_TABLE_ONE_PR_LAYER
+		Alter Control 100	Title MCUT_DLG_TXT_1_PR_LAYER_HLP1
+		Alter Control 101 Title MCUT_DLG_TXT_1_PR_LAYER_HLP2
+		Alter Control 102 Title MCUT_DLG_TXT_1_PR_LAYER_HLP3
+		Alter Control 103 Title MCUT_DLG_TXT_1_PR_LAYER_HLP4
+	Case 14
+		gnSaveTableMethod = RESULT_TABLE_LAYER_MULTI_MAPPART
+		Alter Control 100 Title MCUT_DLG_TXT_MULTI_MAPPART_HLP1
+		Alter Control 101 Title MCUT_DLG_TXT_MULTI_MAPPART_HLP2
+		Alter Control 102 Title MCUT_DLG_TXT_MULTI_MAPPART_HLP3
+		Alter Control 103 Title MCUT_DLG_TXT_MULTI_MAPPART_HLP4
+End Case
+
+End Sub
+
+'******************************************
+'Navngiv resutattabel - Kun én resultattabel
+'******************************************
+Function DialogSelectNameForResultTable1() As Logical
+
+DialogSelectNameForResultTable1 = FALSE
+
+If gszResultTabFileName = "" Then
+	gszResultTabFileName = ApplicationDirectory$() + MCUT_TAB_RESULT + ".tab"
+End If
+
+'---------------
+ShowDialogAgain:
+
+Dialog	Width 260
+   Title MCUT_DLG_TITLE_NAME_RESULT_TAB
+
+   Control GroupBox	Position 20,10	Width 220	Height 45
+	Title MCUT_DLG_TXT_SELECT_RESULT_TAB
+   Control EditText	Position 30,20	Width 200	ID 100
+	Value gszResultTabFileName
+	Into gszResultTabFileName
+   Control Button		Position 30,35	Width 50
+	Title MSG_TEXT_PICK + "..."
+	Calling HandlerPickResultTable
+
+   Control Button		Position 30,60	Width 50
+	Title "<< " + MSG_TEXT_PREV
+	Calling HandlerShowPreviousDialog
+   Control OKButton	Position 90,60	Width 50	ID 500
+	Title MSG_TEXT_NEXT + " >>"
+   Control CancelButton	Position 170,60	Width 40
+
+If not CommandInfo(CMD_INFO_DLG_OK) Then
+	Exit Function
+End If
+
+If gszResultTabFileName = "" Then
+	Note ERR_TAB_NO_NAME_ENTERED
+	GoTo ShowDialogAgain
+End If
+
+DialogSelectNameForResultTable1 = TRUE
+
+End Function
+
+'******************************************
+'Handler - opstart af dialog 7 - resultattabel
+'******************************************
+Sub HandlerDialog7StartUp
+
+Dim	nVal As Integer
+
+Do Case gnSaveTableMethod
+	Case RESULT_TABLE_ONE_PR_MAPPART
+		Do Case gsnKindOfResultNameAppendix
+			Case RESULT_NAME_KIND_MAPPART_VALUE
+				nVal = 201 
+			Case RESULT_NAME_KIND_VALUE_MAPPART
+				nVal = 202
+			Case RESULT_NAME_KIND_DIR_MAPPART_VALUE
+				nVal = 203
+			Case RESULT_NAME_KIND_NOT_DEFINED
+				nVal = 201 
+			Case Else
+				nVal = 201
+		End Case
+		Call HandlerKindOfResultNameMapAction(nVal)
+	Case RESULT_TABLE_ONE_PR_LAYER
+		Do Case gsnKindOfResultNameAppendix
+			Case RESULT_NAME_KIND_LAYER_VALUE
+				nVal = 201
+			Case RESULT_NAME_KIND_VALUE_LAYER
+				nVal = 202
+			Case RESULT_NAME_KIND_DIR_LAYER_VALUE
+				nVal = 203
+			Case RESULT_NAME_KIND_NOT_DEFINED
+				nVal = 201 
+			Case Else
+				nVal = 201
+		End Case
+		Call HandlerKindOfResultNameLayerAction(nVal)
+	Case RESULT_TABLE_LAYER_MULTI_MAPPART
+		Do Case gsnKindOfResultNameAppendix
+			Case RESULT_NAME_KIND_MAPPART_VALUE_LAYER
+				nVal = 201
+			Case RESULT_NAME_KIND_LAYER_VALUE_MAPPART
+				nVal = 202
+			Case RESULT_NAME_KIND_DIR_MAPPART_LAYER
+				nVal = 203
+			Case RESULT_NAME_KIND_DIR_LAYER_MAPPART
+				nVal = 204
+			Case RESULT_NAME_KIND_NOT_DEFINED
+				nVal = 201 
+			Case Else
+				nVal = 201
+		End Case
+		Call HandlerKindOfResultNameBothAction(nVal)
+	Case Else
+		Exit Sub
+End Case
+
+End Sub
+
+'******************************************
+'Navngiv resutattabel - èn resultattabel pr. kortblad
+'******************************************
+Function DialogSelectNameForResultTable2() As Logical
+
+DialogSelectNameForResultTable2 = FALSE
+
+'----------------
+ShowDialogAgain:
+
+If gszResultStartDirectoryName = "" Then
+	gszResultStartDirectoryName = ApplicationDirectory$()
+End If
+
+Dialog	Width 260
+   Title MCUT_DLG_TITLE_NAME_RESULT_TABS
+   Calling HandlerDialog7StartUp
+
+   Control GroupBox	Position 20,10	Width 220	Height 45
+	Title MCUT_DLG_TXT_STARTING_DIRECTORY
+   Control EditText	Position 30,20	Width 200	ID 100
+	Value gszResultStartDirectoryName
+	Into gszResultStartDirectoryName
+	Disable
+   Control Button		Position 30,35	Width 50
+	Title MSG_TEXT_PICK + "..."
+	Calling HandlerPickResultStartDirectory
+
+   Control GroupBox	Position 20,65	Width 220	Height 60
+	Title MCUT_DLG_TXT_NAMING_RESULT_TABS
+   Control CheckBox	Position 30,77			ID 201
+	Title MCUT_DLG_TXT_MAPPART_NAME + " + "
+	Value FALSE
+	Calling HandlerKindOfResultNameMapPicked
+   Control EditText	Position 130,75	Width 80	ID 301
+	Value gszAppendix1
+	Into gszAppendix1
+
+   Control CheckBox	Position 30,92			ID 202
+	Title ""
+	Value FALSE
+	Calling HandlerKindOfResultNameMapPicked
+   Control EditText	Position 45,90	Width 80	ID 302
+	Value gszAppendix2
+	Into gszAppendix2
+   Control StaticText	Position 130,92
+	Title " + " + MCUT_DLG_TXT_MAPPART_NAME
+
+   Control CheckBox	Position 30,107			ID 203
+	Title MSG_TXT_DIRECTORY + MCUT_DLG_TXT_MAPPART_NAME + "\"
+	Value FALSE
+	Calling HandlerKindOfResultNameMapPicked
+   Control EditText	Position 130,105	Width 80	ID 303
+	Value gszAppendix3
+	Into gszAppendix3
+
+   Control GroupBox	Position 20,140	Width 220	Height 60
+	Title MSG_DESCRIPTION
+   Control StaticText	Position 30,150	Width 200	ID 401
+   Control StaticText	Position 30,160	Width 200	ID 402
+   Control StaticText	Position 30,170	Width 200	ID 403
+   Control StaticText	Position 30,180	Width 200	ID 404
+  
+
+   Control Button		Position 30,210	Width 50
+	Title "<< " + MSG_TEXT_PREV
+	Calling HandlerShowPreviousDialog
+   Control OKButton	Position 90,210	Width 50	ID 500
+	Title MSG_TEXT_NEXT + " >>"
+   Control CancelButton	Position 170,210	Width 40
+
+If not CommandInfo(CMD_INFO_DLG_OK) Then
+	Exit Function
+End If
+
+If gsnKindOfResultNameAppendix = RESULT_NAME_KIND_DIR_MAPPART_VALUE Then
+	If gszAppendix3 = "" Then
+		Note ERR_TAB_NO_NAME_ENTERED
+		Goto ShowDialogAgain
+	End If
+End If
+
+DialogSelectNameForResultTable2 = TRUE
+
+End Function
+
+'******************************************
+'Navngiv resutattabel - én resultattabel pr lag
+'******************************************
+Sub HandlerKindOfResultNameMapPicked
+
+Call HandlerKindOfResultNameMapAction(TriggerControl())
+
+End Sub
+
+'******************************************
+'Navngiv resutattabel - én resultattabel pr lag
+'******************************************
+Sub HandlerKindOfResultNameMapAction(ByVal nPicked As Integer)
+
+Alter Control 301 Disable
+Alter Control 302 Disable
+Alter Control 303 Disable
+
+Alter Control 201 Value FALSE
+Alter Control 202 Value FALSE
+Alter Control 203 Value FALSE
+
+gszAppendix1 = ReadControlValue(301)
+gszAppendix2 = ReadControlValue(302)
+gszAppendix3 = ReadControlValue(303)
+
+Do Case nPicked
+	Case 201
+		gsnKindOfResultNameAppendix = RESULT_NAME_KIND_MAPPART_VALUE
+		Alter Control 301 Enable	Active
+		Alter Control 201 Value TRUE
+
+		Alter Control 401 Title MCUT_DLG_TXT_MAPPART_NAME1_HLP1
+		Alter Control 402 Title MCUT_DLG_TXT_MAPPART_NAME1_HLP2
+		Alter Control 403 Title MCUT_DLG_TXT_MAPPART_NAME1_HLP3
+		Alter Control 404 Title MCUT_DLG_TXT_MAPPART_NAME1_HLP4
+	Case 202
+		gsnKindOfResultNameAppendix = RESULT_NAME_KIND_VALUE_MAPPART
+		Alter Control 302 Enable	Active
+		Alter Control 202 Value TRUE
+
+		Alter Control 401 Title MCUT_DLG_TXT_MAPPART_NAME2_HLP1
+		Alter Control 402 Title MCUT_DLG_TXT_MAPPART_NAME2_HLP2
+		Alter Control 403 Title MCUT_DLG_TXT_MAPPART_NAME2_HLP3
+		Alter Control 404 Title MCUT_DLG_TXT_MAPPART_NAME2_HLP4
+	Case 203
+		gsnKindOfResultNameAppendix = RESULT_NAME_KIND_DIR_MAPPART_VALUE
+		Alter Control 303 Enable	Active
+		Alter Control 203 Value TRUE
+
+		Alter Control 401 Title MCUT_DLG_TXT_MAPPART_NAME3_HLP1
+		Alter Control 402 Title MCUT_DLG_TXT_MAPPART_NAME3_HLP2
+		Alter Control 403 Title MCUT_DLG_TXT_MAPPART_NAME3_HLP3
+		Alter Control 404 Title MCUT_DLG_TXT_MAPPART_NAME3_HLP4
+End Case
+
+End Sub
+
+'******************************************
+'Navngiv resutattabel - én resultattabel pr lag
+'******************************************
+Function DialogSelectNameForResultTable3() As Logical
+
+DialogSelectNameForResultTable3 = FALSE
+
+'----------------
+ShowDialogAgain:
+
+If gszResultStartDirectoryName = "" Then
+	gszResultStartDirectoryName = ApplicationDirectory$()
+End If
+
+Dialog	Width 260
+   Title MCUT_DLG_TITLE_NAME_RESULT_TABS
+   Calling HandlerDialog7StartUp
+
+   Control GroupBox	Position 20,10	Width 220	Height 45
+	Title MCUT_DLG_TXT_STARTING_DIRECTORY
+   Control EditText	Position 30,20	Width 200	ID 100
+	Value gszResultStartDirectoryName
+	Into gszResultStartDirectoryName
+	Disable
+   Control Button		Position 30,35	Width 50
+	Title MSG_TEXT_PICK + "..."
+	Calling HandlerPickResultStartDirectory
+
+   Control GroupBox	Position 20,65	Width 220	Height 60
+	Title MCUT_DLG_TXT_NAMING_RESULT_TABS
+   Control CheckBox	Position 30,77			ID 201
+	Title MCUT_DLG_TXT_LAYER_NAME + " +"
+	Value FALSE
+	Calling HandlerKindOfResultNameLayerPicked
+   Control EditText	Position 130,75	Width 80	ID 301
+	Value gszAppendix1
+	Into gszAppendix1
+
+   Control CheckBox	Position 30,92			ID 202
+	Title ""
+	Value FALSE
+	Calling HandlerKindOfResultNameLayerPicked
+   Control EditText	Position 45,90	Width 80	ID 302
+	Value gszAppendix2
+	Into gszAppendix2
+   Control StaticText	Position 130,92
+	Title "+ " + MCUT_DLG_TXT_LAYER_NAME
+
+   Control CheckBox	Position 30,107			ID 203
+	Title MSG_TXT_DIRECTORY + " " + MCUT_DLG_TXT_LAYER_NAME + "\"
+	Value FALSE
+	Calling HandlerKindOfResultNameLayerPicked
+   Control EditText	Position 130,105	Width 80	ID 303
+	Value gszAppendix3
+	Into gszAppendix3
+
+   Control GroupBox	Position 20,140	Width 220	Height 60
+	Title MSG_TXT_DESCRITION
+   Control StaticText	Position 30,150	Width 200	ID 401
+   Control StaticText	Position 30,160	Width 200	ID 402
+   Control StaticText	Position 30,170	Width 200	ID 403
+   Control StaticText	Position 30,180	Width 200	ID 404
+  
+   Control Button		Position 30,210	Width 50
+	Title "<< " + MSG_TEXT_PREV
+	Calling HandlerShowPreviousDialog
+   Control OKButton	Position 90,210	Width 50	ID 500
+	Title MSG_TEXT_NEXT + " >>"
+   Control CancelButton	Position 170,210	Width 40
+
+If not CommandInfo(CMD_INFO_DLG_OK) Then
+	Exit Function
+End If
+
+If gsnKindOfResultNameAppendix = RESULT_NAME_KIND_DIR_LAYER_VALUE Then
+	If gszAppendix3 = "" Then
+		Note ERR_TAB_NO_NAME_ENTERED
+		Goto ShowDialogAgain
+	End If
+End If
+
+DialogSelectNameForResultTable3 = TRUE
+
+End Function
+
+'******************************************
+'Navngiv resutattabel - én resultattabel pr lag
+'******************************************
+Sub HandlerKindOfResultNameLayerPicked
+
+Call HandlerKindOfResultNameLayerAction(TriggerControl())
+
+End Sub
+
+'******************************************
+'Navngiv resutattabel - én resultattabel pr lag
+'******************************************
+Sub HandlerKindOfResultNameLayerAction(ByVal nPicked As Integer)
+
+Alter Control 301 Disable
+Alter Control 302 Disable
+Alter Control 303 Disable
+
+Alter Control 201 Value FALSE
+Alter Control 202 Value FALSE
+Alter Control 203 Value FALSE
+
+gszAppendix1 = ReadControlValue(301)
+gszAppendix2 = ReadControlValue(302)
+gszAppendix3 = ReadControlValue(303)
+
+Do Case nPicked
+	Case 201
+		gsnKindOfResultNameAppendix = RESULT_NAME_KIND_LAYER_VALUE
+		Alter Control 301 Enable	Active
+		Alter Control 201 Value TRUE
+
+		Alter Control 401 Title MCUT_DLG_TXT_LAYER_NAME1_HLP1
+		Alter Control 402 Title MCUT_DLG_TXT_LAYER_NAME1_HLP2
+		Alter Control 403 Title MCUT_DLG_TXT_LAYER_NAME1_HLP3
+		Alter Control 404 Title MCUT_DLG_TXT_LAYER_NAME1_HLP4
+	Case 202
+		gsnKindOfResultNameAppendix = RESULT_NAME_KIND_VALUE_LAYER
+		Alter Control 302 Enable	Active
+		Alter Control 202 Value TRUE
+
+		Alter Control 401 Title MCUT_DLG_TXT_LAYER_NAME2_HLP1
+		Alter Control 402 Title MCUT_DLG_TXT_LAYER_NAME2_HLP2
+		Alter Control 403 Title MCUT_DLG_TXT_LAYER_NAME2_HLP3
+		Alter Control 404 Title MCUT_DLG_TXT_LAYER_NAME2_HLP4
+	Case 203
+		gsnKindOfResultNameAppendix = RESULT_NAME_KIND_DIR_LAYER_VALUE
+		Alter Control 303 Enable	Active
+		Alter Control 203 Value TRUE
+
+		Alter Control 401 Title MCUT_DLG_TXT_LAYER_NAME3_HLP1
+		Alter Control 402 Title MCUT_DLG_TXT_LAYER_NAME3_HLP2
+		Alter Control 403 Title MCUT_DLG_TXT_LAYER_NAME3_HLP3
+		Alter Control 404 Title MCUT_DLG_TXT_LAYER_NAME3_HLP4
+End Case
+
+End Sub
+
+'******************************************
+'Navngiv resutattabel - antal lag x antal kortblade resultattabeller
+'******************************************
+Function DialogSelectNameForResultTable4() As Logical
+
+DialogSelectNameForResultTable4 = FALSE
+
+'----------------
+ShowDialogAgain:
+
+If gszResultStartDirectoryName = "" Then
+	gszResultStartDirectoryName = ApplicationDirectory$()
+End If
+
+Dialog	Width 260
+   Title MCUT_DLG_TITLE_NAME_RESULT_TABS
+   Calling HandlerDialog7StartUp
+
+   Control GroupBox	Position 20,10	Width 220	Height 45
+	Title MCUT_DLG_TXT_STARTING_DIRECTORY
+   Control EditText	Position 30,20	Width 200	ID 100
+	Value gszResultStartDirectoryName
+	Into gszResultStartDirectoryName
+	Disable
+   Control Button		Position 30,35	Width 50
+	Title MSG_TEXT_PICK + "..."
+	Calling HandlerPickResultStartDirectory
+
+   Control GroupBox	Position 20,65	Width 220	Height 70
+	Title MCUT_DLG_TXT_NAMING_RESULT_TABS
+   Control CheckBox	Position 30,77			ID 201
+	Title MCUT_DLG_TXT_LAYER_NAME + " +"
+	Value FALSE
+	Calling HandlerKindOfResultNameBothPicked
+   Control EditText	Position 100,75	Width 80	ID 301
+	Value gszAppendix1
+	Into gszAppendix1
+   Control StaticText	Position 185,77
+	Title "+ " + MCUT_DLG_TXT_MAPPART_NAME
+
+   Control CheckBox	Position 30,92			ID 202
+	Title MCUT_DLG_TXT_MAPPART_NAME + " +"
+	Value FALSE
+	Calling HandlerKindOfResultNameBothPicked
+   Control EditText	Position 100,90	Width 80	ID 302
+	Value gszAppendix2
+	Into gszAppendix2
+   Control StaticText	Position 185,92
+	Title "+ " + MCUT_DLG_TXT_LAYER_NAME
+
+   Control CheckBox	Position 30,105			ID 203
+	Title MSG_TXT_DIRECTORY + " " + MCUT_DLG_TXT_LAYER_NAME + "\" + MCUT_DLG_TXT_MAPPART_NAME + ".tab"
+	Value FALSE
+	Calling HandlerKindOfResultNameBothPicked
+
+   Control CheckBox	Position 30,120			ID 204
+	Title MSG_TXT_DIRECTORY + " " + MCUT_DLG_TXT_MAPPART_NAME + "\" + MCUT_DLG_TXT_LAYER_NAME + ".tab"
+	Value FALSE
+	Calling HandlerKindOfResultNameBothPicked
+
+   Control GroupBox	Position 20,140	Width 220	Height 60
+	Title MSG_TXT_DESCRITION
+   Control StaticText	Position 30,150	Width 200	ID 401
+   Control StaticText	Position 30,160	Width 200	ID 402
+   Control StaticText	Position 30,170	Width 200	ID 403
+   Control StaticText	Position 30,180	Width 200	ID 404
+  
+   Control Button		Position 30,210	Width 50
+	Title "<< " + MSG_TEXT_PREV
+	Calling HandlerShowPreviousDialog
+   Control OKButton	Position 90,210	Width 50	ID 500
+	Title MSG_TEXT_NEXT + " >>"
+   Control CancelButton	Position 170,210	Width 40
+
+If not CommandInfo(CMD_INFO_DLG_OK) Then
+	Exit Function
+End If
+
+DialogSelectNameForResultTable4 = TRUE
+
+End Function
+
+'******************************************
+'Navngiv resutattabel - én resultattabel pr lag
+'******************************************
+Sub HandlerKindOfResultNameBothPicked
+
+Call HandlerKindOfResultNameBothAction(TriggerControl())
+
+End Sub
+
+'******************************************
+'Navngiv resutattabel - én resultattabel pr lag
+'******************************************
+Sub HandlerKindOfResultNameBothAction(ByVal nPicked As Integer)
+
+If nPicked = 0 Then
+	nPicked = 201
+End If
+
+Alter Control 301 Disable
+Alter Control 302 Disable
+'Alter Control 303 Disable
+'Alter Control 304 Disable
+
+Alter Control 201 Value FALSE
+Alter Control 202 Value FALSE
+Alter Control 203 Value FALSE
+Alter Control 204 Value FALSE
+
+gszAppendix1 = ReadControlValue(301)
+gszAppendix2 = ReadControlValue(302)
+
+Do Case nPicked
+	Case 201
+		gsnKindOfResultNameAppendix = RESULT_NAME_KIND_MAPPART_VALUE_LAYER
+		Alter Control 301 Enable	Active
+		Alter Control 201 Value TRUE
+
+		Alter Control 401 Title MCUT_DLG_TXT_MULTI_NAME1_HLP1
+		Alter Control 402 Title MCUT_DLG_TXT_MULTI_NAME1_HLP2
+		Alter Control 403 Title MCUT_DLG_TXT_MULTI_NAME1_HLP3
+		Alter Control 404 Title MCUT_DLG_TXT_MULTI_NAME1_HLP4
+	Case 202
+		gsnKindOfResultNameAppendix = RESULT_NAME_KIND_LAYER_VALUE_MAPPART
+		Alter Control 302 Enable	Active
+		Alter Control 202 Value TRUE
+
+		Alter Control 401 Title MCUT_DLG_TXT_MULTI_NAME2_HLP1
+		Alter Control 402 Title MCUT_DLG_TXT_MULTI_NAME2_HLP2
+		Alter Control 403 Title MCUT_DLG_TXT_MULTI_NAME2_HLP3
+		Alter Control 404 Title MCUT_DLG_TXT_MULTI_NAME2_HLP4
+	Case 203
+		gsnKindOfResultNameAppendix = RESULT_NAME_KIND_DIR_LAYER_MAPPART
+		Alter Control 203 Value TRUE
+
+		Alter Control 401 Title MCUT_DLG_TXT_MULTI_NAME3_HLP1
+		Alter Control 402 Title MCUT_DLG_TXT_MULTI_NAME3_HLP2
+		Alter Control 403 Title MCUT_DLG_TXT_MULTI_NAME3_HLP3
+		Alter Control 404 Title MCUT_DLG_TXT_MULTI_NAME3_HLP4
+	Case 204
+		gsnKindOfResultNameAppendix = RESULT_NAME_KIND_DIR_MAPPART_LAYER
+		Alter Control 204 Value TRUE
+
+		Alter Control 401 Title MCUT_DLG_TXT_MULTI_NAME4_HLP1
+		Alter Control 402 Title MCUT_DLG_TXT_MULTI_NAME4_HLP2
+		Alter Control 403 Title MCUT_DLG_TXT_MULTI_NAME4_HLP3
+		Alter Control 404 Title MCUT_DLG_TXT_MULTI_NAME4_HLP4
+End Case
+
+End Sub
+
+'******************************************
+'	Handler - Vælg resultattabel
+'******************************************
+Sub HandlerPickResultTable
+
+Dim	szTabPath As String
+
+szTabPath = FileSaveAsDlg("","","TAB",MSG_TAB_NAME_RESULT_TAB_POINTS)
+
+If szTabPath = "" Then
+
+	Alter Control 100 Active
+	Exit Sub
+
+End If
+
+gszResultTabFileName = szTabpath
+Alter Control 100 Value szTabpath
+
+End Sub
+
+'******************************************
+'	Handler - Vælg udgangsbibliotek
+'******************************************
+Sub HandlerPickResultStartDirectory
+
+Dim	szPath As String
+
+szPath = PathToDirectory$(FileSaveAsDlg(ReadControlValue(100),"X","WOR", MCUT_DLG_TITLE_SELECT_START_DIR))
+
+If szPath = "" Then
+
+	Alter Control 100 Active
+	Exit Sub
+
+End If
+
+gszResultStartDirectoryName = szPath
+Alter Control 100 Value szPath
+
+End Sub
+
+'*********************************************************
+'Dialog 8 - Vælg kolonner
+'*********************************************************
+Function DialogSelectColumns() As Logical
+
+Dim	i, nCol As Integer
+DialogSelectColumns = FALSE
+
+If gbOtherLayersSelected Then
+	If not CreateArrayAllLayersColumns() Then
+		Note ERR_TAB_NO_USABLE_COLUMNS
+	End If
+End If
+gbOtherLayersSelected = FALSE
+
+Dialog	Width 260
+   Title MCUT_DLG_TITLE_CHOOSE_COLUMNS
+	Calling HandlerDialog8StartUp
+
+   Control GroupBox	Position 20,10	Width 220	Height 200
+	Title MCUT_DLG_TXT_COL_IN_RESULT_TABS
+   Control CheckBox	Position 30,20			ID 301
+	Title MCUT_DLG_TXT_COL_ALL
+	Value FALSE
+	Calling HandlerColumnMethodPicked
+   Control CheckBox	Position 30,35			ID 302
+	Title MCUT_DLG_TXT_COL_EXISTING
+	Value FALSE
+	Calling HandlerColumnMethodPicked
+   Control CheckBox	Position 30,50			ID 303
+	Title MCUT_DLG_TXT_COL_COMMON
+	Value FALSE
+	Calling HandlerColumnMethodPicked
+   Control CheckBox	Position 30,65			ID 304
+	Title MCUT_DLG_TXT_COL_NONE_ONLY_ID
+	Value FALSE
+	Calling HandlerColumnMethodPicked
+   Control CheckBox	Position 30,80			ID 305
+	Title MCUT_DLG_TXT_COL_CHOSEN
+	Value FALSE
+	Calling HandlerColumnMethodPicked
+
+   Control GroupBox	Position 30,95	Width 200	Height 110
+	Title MCUT_DLG_TXT_CHOOSE_COL_TO_USE
+
+   Control StaticText	Position 40,105
+	Title MCUT_DLG_TXT_COLUMNS_AVAILABLE
+   Control ListBox	Position 40,115	Width 65    Height 80	ID 201
+	Title From Variable garrAllColumns
+
+   Control StaticText	Position 150,105
+	Title MCUT_DLG_TXT_COLUMNS_2_INCLUDE
+   Control ListBox	Position 150,115	Width 65    Height 80	ID 202
+	Title From Variable garrIncludingColumns
+
+   Control Button		Position 115,115	Width 25	ID 101
+	Title ">"
+	Calling HandlerAddOneColumn
+   Control Button		Position 115,130	Width 25	ID 102
+	Title ">>"
+	Calling HandlerAddAllColumns
+   Control Button		Position 115,155	Width 25	ID 103
+	Title "<"
+	Calling HandlerRemoveOneColumn
+   Control Button		Position 115,170	Width 25	ID 104
+	Title "<<"
+	Calling HandlerRemoveAllColumns
+
+   Control CheckBox	Position 20,220			ID 401
+	Title MCUT_DLG_TXT_USE_COL_LAYERNAME
+	Value gbAddColumnLayerName
+	Into gbAddColumnLayerName
+	Calling HandlerColumnMethodPicked
+
+   Control Button		Position 30,235	Width 50
+	Title "<< " + MSG_TEXT_PREV
+	Calling HandlerShowPreviousDialog
+   Control OKButton	Position 90,235	Width 50	ID 500
+	Title MSG_TEXT_NEXT + " >>"
+   Control CancelButton	Position 170,235	Width 40
+
+If not CommandInfo(CMD_INFO_DLG_OK) Then
+	Exit Function
+End If
+
+Do Case gsnColumnType
+	Case RESULT_COLUMN_ALL
+		If not CreateArrayAllLayersColumns() Then
+			Note ERR_TAB_NO_COLUMNS
+			ReDim garrUseColumns(1)
+			garrUseColumns(1) = MCUT_COLUMN_FOR_ID			
+		Else
+			ReDim garrUseColumns(GetNumberOfColumns())
+			For i = 1 To GetNumberOfColumns()
+				garrUseColumns(i) = garrIncludingColumns(i)
+			Next
+		End If
+	Case RESULT_COLUMN_EXISTING
+		ReDim garrUseColumns(1)
+		garrUseColumns(1) = MCUT_DLG_TXT_COL_LAYERDEPENDENT
+	Case RESULT_COLUMN_SHARED
+		If not CreateArraySharedLayersColumns() Then
+			Note ERR_TABS_NO_COMMON_COLUMNS
+			ReDim garrUseColumns(1)
+			garrUseColumns(1) = MCUT_COLUMN_FOR_ID			
+		Else
+			nCol = Ubound(garrSharedColumns)
+			ReDim garrUseColumns(nCol)
+			For i = 1 To nCol
+				garrUseColumns(i) = garrSharedColumns(i)
+			Next
+		End If
+	Case RESULT_COLUMN_NONE
+		ReDim garrUseColumns(1)
+		garrUseColumns(1) = MCUT_COLUMN_FOR_ID
+	Case RESULT_COLUMN_CHOSEN
+		nCol = Ubound(garrIncludingColumns)
+		ReDim garrUseColumns(nCol)
+		For i = 1 To nCol
+			garrUseColumns(i) = garrIncludingColumns(i)
+		Next
+End Case
+
+If gbAddColumnLayerName Then
+	nCol = Ubound(garrUseColumns) + 1
+	ReDim garrUseColumns(nCol)
+	garrUseColumns(nCol) = MCUT_COLUMN_FOR_LAYERNAME
+End If
+
+DialogSelectColumns = TRUE
+
+End Function
+
+'******************************************
+'	Dialog 8 - opstart
+'******************************************
+Sub HandlerDialog8StartUp
+
+Dim	nPredefinedValue As Integer
+
+''*Diable nogle muligheder, afhængig af typen af resultattabel
+Do Case gnSaveTableMethod
+	Case RESULT_TABLE_ALL_IN_ONE, RESULT_TABLE_ONE_PR_MAPPART
+		Alter Control 302 Disable
+		nPredefinedValue = RESULT_COLUMN_SHARED
+	Case RESULT_TABLE_ONE_PR_LAYER, RESULT_TABLE_LAYER_MULTI_MAPPART
+		Alter Control 303 Disable
+		nPredefinedValue = RESULT_COLUMN_EXISTING
+End Case
+
+''**Hvis intet defineret, så brug predefineret...
+If gsnColumnType = RESULT_COLUMN_NOT_DEFINED Then
+	gsnColumnType = nPredefinedValue
+End If
+
+Call HandlerColumnMethodPickedAction(300 + gsnColumnType)
+
+End Sub
+
+'******************************************
+'	Handler - Kolonne medtages udpeget
+'******************************************
+Sub HandlerColumnMethodPicked
+
+Dim	nPicked As Integer
+
+nPicked = TriggerControl()
+
+If nPicked = 401 Then
+	gbAddColumnLayerName = ReadControlValue (401)
+Else
+	Call HandlerColumnMethodPickedAction(nPicked)
+End If
+
+End Sub
+
+'******************************************
+
+'	Handler - Kolonne medtages udpeget - reaktion
+'******************************************
+Sub HandlerColumnMethodPickedAction(ByVal nPicked As Integer)
+
+Alter Control 201 Disable
+Alter Control 202 Disable
+Alter Control 101 Disable
+Alter Control 102 Disable
+Alter Control 103 Disable
+Alter Control 104 Disable
+
+Alter Control 301 Value FALSE
+Alter Control 302 Value FALSE
+Alter Control 303 Value FALSE
+Alter Control 304 Value FALSE
+Alter Control 305 Value FALSE
+
+Alter Control nPicked Value TRUE
+
+Do Case nPicked
+	Case 301
+		gsnColumnType = RESULT_COLUMN_ALL
+	Case 302
+		gsnColumnType = RESULT_COLUMN_EXISTING
+	Case 303
+		gsnColumnType = RESULT_COLUMN_SHARED
+	Case 304
+		gsnColumnType = RESULT_COLUMN_NONE
+	Case 305	
+		gsnColumnType = RESULT_COLUMN_CHOSEN
+		Alter Control 201 Enable
+		Alter Control 202 Enable
+		Alter Control 101 Enable
+		Alter Control 102 Enable
+		Alter Control 103 Enable
+		Alter Control 104 Enable
+End Case
+
+End Sub
+
+'******************************************
+'	Afvælg alle valgte kolonner
+'******************************************
+Sub HandlerRemoveAllColumns
+
+Dim	nNow, i As Integer
+
+nNow = Ubound(garrAllColumns)
+
+For i = 1 To Ubound(garrIncludingColumns)
+	Redim garrAllColumns(nNow + i)
+	garrAllColumns(nNow + i) = garrIncludingColumns(i)
+Next
+
+Redim garrIncludingColumns(0)
+
+Alter Control 201	Title From Variable garrAllColumns
+Alter Control 202	Title From Variable garrIncludingColumns
+
+Alter Control 500 Disable
+
+End Sub
+
+'******************************************
+'	Afvælg udpeget lag
+'******************************************
+Sub HandlerRemoveOneColumn
+
+Dim	nPick, nUse, nPos, nLag As SmallInt
+
+	nLag = ReadControlValue(202)
+
+	nPick = nLag
+	nUse = Ubound(garrIncludingColumns)
+	nPos = Ubound(garrAllColumns)
+
+	If nLag = 0 Then
+		If nUse > 0 Then
+			Alter Control 202 Value 1 Active
+		End If
+		Exit Sub
+	End If
+
+	Redim garrAllColumns(nPos + 1)
+	garrAllColumns(nPos + 1) = garrIncludingColumns(nLag)
+
+	If nUse = nLag Then
+		Redim garrIncludingColumns(nUse - 1)
+	Else
+		Do Until nLag = nUse
+			garrIncludingColumns(nLag) = garrIncludingColumns(nLag + 1)
+			nLag = nLag + 1
+		Loop
+		Redim garrIncludingColumns(nUse - 1)
+	End If
+
+	If (nUse - 1) = 0 Then
+		nPick = 0
+		Alter Control 500 Disable
+	ElseIf nPick > (nUse - 1) Then
+		nPick = nUse - 1
+	End If
+
+	Alter Control 201	Title From Variable garrAllColumns
+	Alter Control 202	Title From Variable garrIncludingColumns
+			Value nPick	Active
+
+End Sub
+
+'******************************************
+'	Tilføj udpeget kolonne
+'******************************************
+Sub HandlerAddOneColumn
+
+Dim	nPick, nUse, nPos, nLag As SmallInt
+
+nLag = ReadControlValue(201)
+nPick = nLag
+
+nUse = Ubound(garrIncludingColumns)
+nPos = Ubound(garrAllColumns)
+
+If nLag = 0 Then
+	If nPos > 0 Then
+		Alter Control 201 Value 1 Active
+	End If
+	Exit Sub
+End If
+
+
+Redim garrIncludingColumns(nUse + 1)
+garrIncludingColumns(nUse + 1) = garrAllColumns(nLag)
+
+If nPos = nLag Then
+	Redim garrAllColumns(nLag - 1)
+Else
+	Do Until nLag = nPos
+		garrAllColumns(nLag) = garrAllColumns(nLag + 1)
+		nLag = nLag + 1
+	Loop
+	Redim garrAllColumns(nPos - 1)
+End If
+
+If (nPos - 1) = 0 Then
+	nPick = 0
+ElseIf nPick > (nPos - 1) Then
+	nPick = nPos - 1
+End If
+
+Alter Control 201	Title From Variable garrAllColumns
+			Value nPick
+			Active
+
+Alter Control 202	Title From Variable garrIncludingColumns
+
+Alter Control 500 Enable
+
+End Sub
+
+'******************************************
+'	Tilføj alle kolonnerne
+'******************************************
+Sub HandlerAddAllColumns
+
+Dim	nNow, i As Integer
+
+nNow = Ubound(garrIncludingColumns)
+
+For i = 1 To Ubound(garrAllColumns)
+	Redim garrIncludingColumns(nNow + i)
+	garrIncludingColumns(nNow + i) = garrAllColumns(i)
+Next
+
+Redim garrAllColumns(0)
+
+Alter Control 201	Title From Variable garrAllColumns
+Alter Control 202	Title From Variable garrIncludingColumns
+
+Alter Control 500 Enable
+
+End Sub
+
+'******************************************
+'	Tilføj alle kolonnerne
+'******************************************
+Function DialogOverviewOfSettings() As Logical		'9. Dialog
+
+DialogOverviewOfSettings = FALSE
+
+Dialog	Width 260
+   Title MCUT_DLG_TITLE_CHOSEN_SETTINGS
+	Calling HandlerDialog9StartUp
+
+   Control GroupBox	Position 20,10	Width 220	Height 45
+	Title MCUT_DLG_TXT_MAP_AND_LAYERS
+   Control StaticText	Position 30,20
+	Title MSG_WIN_MAP + ": " + GetCuttingMapName()
+   Control StaticText	Position 30,37
+	Title MCUT_DLG_TXT_CUT_LAYERS
+   Control PopUpMenu	Position 130,35	Width 100
+	Title From Variable garrCuttingLayers
+
+   Control GroupBox	Position 20,65	Width 220	Height 30
+	Title MCUT_DLG_TXT_CUTTING_SUBJECT
+   Control StaticText	Position 30,75			ID 201
+	Title MCUT_DLG_TXT_CUT_WITH_MAP_FRAME
+	Hide
+   Control StaticText	Position 30,75			ID 202
+	Title MCUT_DLG_TXT_CUT_WITH_TABLE + GetCuttingTableName()
+	Hide
+   Control StaticText	Position 30,75			ID 203
+	Title MCUT_DLG_TXT_CUT_WITH_OBJECT
+	Hide
+
+   Control GroupBox	Position 20,105	Width 220	Height 30
+	Title MSG_TXT_COLUMNS
+   Control StaticText	Position 30,117
+	Title MCUT_DLG_TXT_COLUMNS_2_INCLUDE
+   Control PopUpMenu	Position 130,115	Width 100	ID 401
+	Title From Variable garrUseColumns
+
+   Control GroupBox	Position 20,145	Width 220	Height 60
+	Title MCUT_DLG_TXT_SELECT_AND_CUTTING
+   Control StaticText	Position 30,155
+	Title MCUT_DLG_TXT_SELECT_METHOD
+   Control StaticText	Position 35,165	Width 200	ID 301
+   Control StaticText	Position 30,180
+	Title MCUT_DLG_TXT_CUTTING_METHOD
+   Control StaticText	Position 35,190	Width 200	ID 302
+
+   Control Button		Position 30,210	Width 50
+	Title "<< " + MSG_TEXT_PREV
+	Calling HandlerShowPreviousDialog
+   Control OKButton	Position 90,210	Width 50	ID 500
+	Title MSG_TEXT_EXECUTE
+   Control CancelButton	Position 170,210	Width 40
+
+If not CommandInfo(CMD_INFO_DLG_OK) Then
+	Exit Function
+End If
+
+DialogOverviewOfSettings = TRUE
+
+End Function
+
+'******************************************
+'	Dialog 9 - opstart
+'******************************************
+Sub HandlerDialog9StartUp
+
+Dim	szColTitle As String,
+	i As Integer
+
+Do Case gnTypeOfCuttingEdge
+	Case CUTTING_EDGE_MAPFRAME
+		Alter Control 201 Show
+	Case CUTTING_EDGE_TABLE
+		Alter Control 202 Show
+	Case CUTTING_EDGE_SELECTED_OBJECT
+		Alter Control 203 Show
+End Case
+
+Do Case gnCuttingType
+	Case CUTTING_KIND_SOFT
+		Alter Control 302 Title MCUT_DLG_TXT_CUT_TYPE_SOFT
+	Case CUTTING_KIND_HARD_LINES
+		Alter Control 302 Title MCUT_DLG_TXT_CUT_TYPE_HARD_LINE
+	Case CUTTING_KIND_HARD_ALL
+		Alter Control 302 Title MCUT_DLG_TXT_CUT_TYPE_HARD_ALL
+End Case
+
+Do Case gnSelectionType
+	Case SELECTING_KIND_PARTLY_WITHIN
+		Alter Control 301 Title MCUT_DLG_TXT_SEL_TYPE_PARTLY
+	Case SELECTING_KIND_CENTROID_WITHIN
+		Alter Control 301 Title MCUT_DLG_TXT_SEL_TYPE_CENTROID
+	Case SELECTING_KIND_ALL_WITHIN
+		Alter Control 301 Title MCUT_DLG_TXT_SEL_TYPE_ENTIRELY
+		Alter Control 302 Title MCUT_DLG_TXT_CUT_TYPE_NONE
+End Case
+
+End Sub

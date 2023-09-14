@@ -1,0 +1,19 @@
+'***************************************************************************
+'**
+'**       Program: SNAPTAB - subroutine declarations
+'**
+'**       Viser koordinater i objekter udvalgt via "snap" indenfor rektangel,
+'**       eller koordinater til alle punkter i et objekt.
+'**
+'**       D. 16.11.1997 søf   Udvikling indledt.
+'**       D. 26.11.1997 søf   Sen. ændr. ifm. udvikl.
+'**	  D. 10.04.2000 søf   Version for testing Topo-snap
+'**
+'***************************************************************************
+
+
+Declare Sub Snap
+Declare Sub List
+Declare Sub Prt_koord (str as String, xp as Float, yp as Float, dp as Float)
+
+

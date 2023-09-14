@@ -1,0 +1,174 @@
+'********************************************************
+'**	Program:	KommunePakken
+'**	Modul:	AdminDlg.mb
+'**			Administrationsdialoger til temastyring
+'********************************************************
+Include "MapBasic.def"
+
+Include "Globals.def"
+
+Include "KPAdminDlg.def"
+Include "KPAdminUse.def"
+Include "KPGroupDlg.def"
+Include "KPTableDlg.def"
+Include "KPPadDlg.def"
+Include "KPValuesDlg.def"
+Include "KPLayerDlg.def"
+Include "KPIconDlg.def"
+Include "KPStyleDlg.def"
+
+Include "..\..\TabFunc\TabFunc.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+'********************************************************
+'	Dialog - MultiDisplay oversigt
+'********************************************************
+Sub kpaShowDialogOptionMultiDisplay
+
+	Dialog
+		Title STYL_DLG_TITLE_SETTINGS
+
+		Control Button	Position 5,5	Width 90
+			Title STYL_DLG_BTN_MULTIDISPLAY
+'			Calling 
+		Control Button	Position 5,20	Width 90
+			Title STYL_DLG_BTN_TABLES
+			Calling kptShowDialogTableInformation
+		Control Button	Position 5,35	Width 90
+			Title STYL_DLG_BTN_GROUPS
+			Calling kpgShowGroupSettingDialog
+		Control Button	Position 5,50	Width 90
+			Title STYL_DLG_BTN_LAYERS
+			Calling kplShowDialogWriteLayerSettings
+		Control Button	Position 5,65	Width 90
+			Title STYL_DLG_BTN_ICONS
+			Calling kpiShowDialogIconFileInfo
+
+		Control OKButton
+
+End Sub
+
+'********************************************************
+'	Dialog - EditPads oversigt
+'********************************************************
+Sub kpaShowDialogOptionEditPads
+
+	Dialog
+		Title STYL_DLG_TITLE_SETTINGS
+
+		Control Button	Position 5,5	Width 90
+			Title STYL_DLG_BTN_DRAWBUTTONS
+			Calling kppShowDialogSelectEditPadGroup
+		Control Button	Position 5,20	Width 90
+			Title STYL_DLG_BTN_THEMES
+			Calling kpsShowStylesDialogAllObject
+		Control Button	Position 5,35	Width 90
+			Title STYL_DLG_BTN_TABLES
+			Calling kptShowDialogTableInformation
+		Control Button	Position 5,50	Width 90
+			Title STYL_DLG_BTN_ICONS
+			Calling kpiShowDialogIconFileInfo
+		Control Button	Position 5,65	Width 90
+			Title STYL_DLG_BTN_GROUPS
+			Calling kpgShowGroupSettingDialog
+
+		Control OKButton
+
+End Sub
+
+'********************************************************
+'	Dialog - Tables oversigt
+'********************************************************
+Sub kpaShowDialogOptionTables
+
+	Dialog
+		Title STYL_DLG_TITLE_SETTINGS
+
+		Control Button	Position 5,5	Width 90
+			Title STYL_DLG_BTN_TABLES
+			Calling kptShowDialogTableInformation
+		Control Button	Position 5,20	Width 90
+			Title STYL_DLG_BTN_GROUPS
+			Calling kpgShowGroupSettingDialog
+
+		Control OKButton
+
+End Sub
+
+'********************************************************
+'	Dialog - Styles oversigt
+'********************************************************
+Sub kpaShowDialogOptionStyles
+
+	Dialog
+		Title STYL_DLG_TITLE_SETTINGS
+
+		Control Button	Position 5,5	Width 90
+			Title STYL_DLG_BTN_THEMES
+			Calling kpsShowStylesDialogAllObject
+		Control Button	Position 5,20	Width 90
+			Title STYL_DLG_BTN_TABLES
+			Calling kptShowDialogTableInformation
+		Control Button	Position 5,35	Width 90
+			Title STYL_DLG_BTN_ICONS
+			Calling kpiShowDialogIconFileInfo
+		Control Button	Position 5,50	Width 90
+			Title STYL_DLG_BTN_GROUPS
+			Calling kpgShowGroupSettingDialog
+
+		Control OKButton
+
+End Sub
+
+'********************************************************
+'	Dialog - Layers oversigt
+'********************************************************
+Sub kpaShowDialogOptionLayers
+
+	Dialog
+		Title STYL_DLG_TITLE_SETTINGS
+
+		Control Button	Position 5,5	Width 90
+			Title STYL_DLG_BTN_LAYERS
+			Calling kplShowDialogWriteLayerSettings
+		Control Button	Position 5,20	Width 90
+			Title STYL_DLG_BTN_TABLES
+			Calling kptShowDialogTableInformation
+		Control Button	Position 5,35	Width 90
+			Title STYL_DLG_BTN_GROUPS
+			Calling kpgShowGroupSettingDialog
+
+		Control OKButton
+
+End Sub
+
+'********************************************************
+'	Dialog - Values oversigt
+'********************************************************
+Sub kpaShowDialogOptionValues
+
+	Dialog
+		Title STYL_DLG_TITLE_SETTINGS
+
+		Control Button	Position 5,5	Width 90
+			Title STYL_DLG_BTN_VALUES
+			Calling kpvShowDialogValuesControl
+		Control Button	Position 5,20	Width 90
+			Title STYL_DLG_BTN_THEMES
+			Calling kpsShowStylesDialogAllObject
+		Control Button	Position 5,35	Width 90
+			Title STYL_DLG_BTN_TABLES
+			Calling kptShowDialogTableInformation
+		Control Button	Position 5,50	Width 90
+			Title STYL_DLG_BTN_ICONS
+			Calling kpiShowDialogIconFileInfo
+		Control Button	Position 5,65	Width 90
+			Title STYL_DLG_BTN_GROUPS
+			Calling kpgShowGroupSettingDialog
+
+		Control OKButton
+
+End Sub

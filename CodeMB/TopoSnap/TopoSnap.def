@@ -1,0 +1,42 @@
+'***************************************************************************
+'**
+'** Name:	TopoSnap - definitions
+'**
+'** Purpose:	Topological snap in objects in multiple Mapinfo tables,
+'** 		with inserting of common/shared points
+'**
+'** Developed:	07.04.2000 SØF
+'** Last modi:	03.05.2000 SØF
+'**
+'***************************************************************************
+
+
+Define gcSearchCode 1		'** Code for using Mapinfo SearchPoint/SearchInfo.
+Define gcSelectCode 2		'** Code for using Select inside SnapBuf rect.
+
+Global gintSeaMode	as Integer	'* Mode for search/select type:
+					'*	1 : Use Mapinfo SearchPoint/SearchInfo
+					'*	2 : Use Select inside snapBuf rect.
+
+Global gfltLinSnpDist	as Float	'* Tolerance for line snap.
+Global gfltIdPntDist	as Float	'* Tolerance for identical points.
+Global gfltRefZoom	as Float	'* Reference zoom niveau for snap tol.
+
+Global gfltTolIdCoor	as Float	'* Small tolerance for identical coordinate values.
+
+
+Declare Sub TopoSnapSetup (
+		ByVal strButtonPadName as String,	'* Name of ButtonPad to insert act. button.
+		ByVal intButtonId as Integer		'* Number of (first) button Id
+		)
+
+Declare Sub TopoSnapActToggle
+
+Declare Sub TopoSnapExistObjects
+
+Declare Sub TopoSnapDigiObjExec (
+		ByVal strTabName as String,	'* Name of current editable table.
+		ByVal intRowId as Integer	'* Row Id of newly created object.
+		)
+
+

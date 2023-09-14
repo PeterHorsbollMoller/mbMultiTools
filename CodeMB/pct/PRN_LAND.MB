@@ -1,0 +1,10 @@
+'Copyright (c) 1996 Software Factory International, Ltd.
+
+Include "MapBasic.Def"
+Include "exec_lib.Def"
+
+Declare Sub Main
+
+Sub Main
+  Call SetPageOrient(ORIENT_LANDSCAPE)
+End Sub

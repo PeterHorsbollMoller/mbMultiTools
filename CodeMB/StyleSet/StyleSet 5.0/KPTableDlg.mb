@@ -1,0 +1,1220 @@
+'********************************************************
+'**	Modul:		KPTableSetup.mb
+'**	Funktioner:		Læs fra / skriv til KPTable tabellen
+'**				Opsætning af værdier i dialoger
+'********************************************************
+Include "MapBasic.def"
+Include "Menu.def"
+
+Include "KPAdminUse.def"
+Include "KPTableUse.def"
+Include "KPTableDlg.def"
+Include "KPGroupUse.def"
+Include "KPGroupDlg.def"
+Include "KPLayerUse.def"
+Include "KPDisplayUse.def"
+'Include "KPLayerDlg.def"
+
+Include "Globals.def"
+
+Include "..\..\TabFunc\TabFunc.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+'--------------------
+Define	KPT_CTRL_TABLENAMES_LIST		100
+Define	KPT_CTRL_DESCRIPTION_EDIT		110
+Define	KPT_CTRL_TABLEPATH_EDIT			120
+Define	KPT_CTRL_GROUPS_LIST			200
+Define	KPT_CTRL_ALLOW_VARIOUSLAYER_CHK	400
+Define	KPT_CTRL_LAYERS_LIST			410
+Define	KPT_CTRL_REMOVE_LAYER_BTN		420
+
+Define	KPT_CTRL_OPEN_WOR_BTN			100
+Define	KPT_CTRL_OPEN_TAB_BTN			200
+
+'--------------------
+Declare Sub kptHandlerDialogTableStartup
+Declare Sub kptHandlerMultiLayerCheckClicked
+Declare Sub kptHandlerPickTabFilePath
+Declare Sub kptHandlerTableNameChanged
+
+Declare Sub kptHandlerSaveTableSettting
+Declare Sub kptHandlerEraseTableSettting
+
+Declare Sub kptHandlerLoadGroupSettings
+Declare Sub kptHandlerAddNewGroupSetting
+Declare Sub kptHandlerRemoveGroupSetting
+
+Declare Sub kptHandlerLayerSetting_Click
+Declare Sub kptHandlerRemoveLayerSetting
+
+Declare Function kptShowTableOpenDialog() As Integer
+Declare Sub kptHandlerSelectFilesToOpen
+Declare Sub kptHandlerStandardCloseTableDialog
+
+Declare Sub kptShowGroupIDInList(ByVal nGroupID As Integer, ByVal nSubGroupID As Integer)
+Declare Sub kptShowSubGroupIDInList(ByVal nGroupID As Integer, ByVal nSubGroupID As Integer)
+
+Declare Sub kptHandlerOpenSelectedTables
+
+Dim	marrTableNames(0), marrFullGroupNames(0), marrLayerSetupNames() As String,
+	mnFrontMID, mnPrevTable As Integer,
+	mbSaveSettings As Logical
+'********************************************************
+'	Dialog med alle værdierne listet op...
+'********************************************************
+Sub kptShowDialogTableInformation
+
+OnError GoTo ErrorOccured
+
+	If kptDialogTableInformations() Then
+		'User pushed the OKButton...
+	Else
+		'User pushed the CancelButton...
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Dialog med alle værdierne listet op...
+'********************************************************
+Function kptDialogTableInformations() As Logical
+
+Dim	bCloseKPTables, bCloseKPLayers, bCloseKPTGroup, bCloseKPGroup, bCloseKPSGroup As Logical,
+	nHeight, nBtnY, nTabDisplay As Integer
+
+OnError GoTo ErrorOccured
+
+	bCloseKPTables 	= kpaOpenKPTablesTable()
+	bCloseKPGroup	= kpaOpenKPGroupTable()
+	bCloseKPSGroup	= kpaOpenKPSGroupTable()
+	bCloseKPTGroup	= kpaOpenKPTGroupTable()
+	bCloseKPLayers	= kpaOpenKPLayersTable()
+
+	If kpaGetAllowVariousLayerSettings() Then
+		nHeight	= 210
+		nBtnY		= 190
+	Else
+		nHeight	= 165
+		nBtnY		= 145
+	End If
+
+	Dialog									Height nHeight
+		Title STYL_DLG_TITLE_TABLES
+		Calling kptHandlerDialogTableStartup
+		'----
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_TABNAMES
+		Control PopUpMenu		Position 5,15	Width 160			ID KPT_CTRL_TABLENAMES_LIST
+			Calling kptHandlerTableNameChanged
+
+		Control StaticText	Position 5,30
+			Title MSG_TXT_DESCRITION
+		Control EditText		Position 5,40	Width 200			ID KPT_CTRL_DESCRIPTION_EDIT
+
+		Control StaticText	Position 5,55
+			Title STYL_DLG_TXT_PATH
+		Control EditText		Position 5,65	Width 185			ID KPT_CTRL_TABLEPATH_EDIT
+			Disable
+		Control Button		Position 190,65	Width 15	Height 12
+			Title "..."
+			Calling kptHandlerPickTabFilePath
+		'----
+		Control StaticText	Position 5,80
+			Title STYL_DLG_TXT_GROUPS
+		Control ListBox		Position 5,90	Width 160	Height 50	ID KPT_CTRL_GROUPS_LIST
+
+		Control Button		Position 170,90	Width 30
+			Title MSG_ADD & "..."
+			Calling kptHandlerAddNewGroupSetting
+		Control Button		Position 170,110	Width 30
+			Title MSG_REMOVE
+			Calling kptHandlerRemoveGroupSetting
+		'----
+		Control Button		Position 165,15	Width 40	Height 13
+			Title MSG_TEXT_REMOVE
+			Calling kptHandlerEraseTableSettting
+			'Disable
+		'--------------
+		Control CheckBox		Position 5,145					ID KPT_CTRL_ALLOW_VARIOUSLAYER_CHK
+			Title "Tillad flere visninger"
+			Calling kptHandlerMultiLayerCheckClicked
+			Hide
+		Control ListBox		Position 5,155	Width 160	Height 30	ID KPT_CTRL_LAYERS_LIST
+			Calling kptHandlerLayerSetting_Click
+			Hide
+		Control Button		Position 170,155	Width 30			ID KPT_CTRL_REMOVE_LAYER_BTN
+			Title MSG_REMOVE
+			Calling kptHandlerRemoveLayerSetting
+			Hide
+		'--------------
+		Control OKButton		Position 120,nBtnY	Width 40
+			Calling kptHandlerSaveTableSettting
+		Control CancelButton	Position 165,nBtnY	Width 40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Rollback Table KPTABLES
+		Rollback Table KPGROUP
+		Rollback Table KPSGROUP
+		Rollback Table KPTGROUP
+		Rollback Table KPLAYERS
+		kptDialogTableInformations = FALSE
+	Else
+		Commit Table KPTABLES
+		Commit Table KPGROUP
+		Commit Table KPSGROUP
+		Commit Table KPTGROUP
+		Commit Table KPLAYERS
+
+		nTabDisplay	= kpdRegisterTablesByDisplay()
+		'Print nTabDisplay & " tabeller registreret"
+
+		kptDialogTableInformations = TRUE
+	End If
+
+	If not bCloseKPTables Then
+		Call TABClose("CUR_LIST_OF_TABLES")
+	Else
+		Call TABClose("KPTABLES")
+	End If
+
+	If not bCloseKPLayers Then
+
+	Else
+		Call TABClose("KPLAYERS")
+	End If
+
+	If not bCloseKPGroup Then
+		Call TABClose("CUR_LIST_OF_GROUPS")
+	Else
+		Call TABClose("KPGROUP")
+	End If
+
+	If not bCloseKPSGroup Then
+		Call TABClose("CUR_LIST_OF_SUBGROUPS")
+	Else
+		Call TABClose("KPSGROUP")
+	End If
+
+	If not bCloseKPTGroup Then
+		Call TABClose("CUR_LIST_OF_FULLGROUPNAMES")
+	Else
+		Call TABClose("KPTGROUP")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Dialog med alle værdierne listet op...
+'********************************************************
+Function kptDialogSelectTableInformation(nTableID As Integer, nLayerID As Integer) As Logical
+
+Dim	bCloseKPTables, bCloseKPTGroup, bCloseKPGroup, bCloseKPSGroup As Logical,
+	nTab, nLayer, nHeight, nBtnY As Integer
+
+OnError GoTo ErrorOccured
+
+	bCloseKPTables 	= kpaOpenKPTablesTable()
+	bCloseKPGroup	= kpaOpenKPGroupTable()
+	bCloseKPSGroup	= kpaOpenKPSGroupTable()
+	bCloseKPTGroup	= kpaOpenKPTGroupTable()
+
+	If kpaGetAllowVariousLayerSettings() Then
+		nHeight	= 210
+		nBtnY		= 190
+	Else
+		nHeight	= 165
+		nBtnY		= 145
+	End If
+
+	Dialog									Height nHeight
+		Title STYL_DLG_TITLE_TABLES
+		Calling kptHandlerDialogTableStartup
+		'--------------
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_TABNAMES
+		Control PopUpMenu		Position 5,15	Width 160			ID KPT_CTRL_TABLENAMES_LIST
+			Calling kptHandlerTableNameChanged
+			Into nTab
+		'--------------
+		Control StaticText	Position 5,30
+			Title MSG_TXT_DESCRITION
+		Control EditText		Position 5,40	Width 200			ID KPT_CTRL_DESCRIPTION_EDIT
+
+		Control StaticText	Position 5,55
+			Title STYL_DLG_TXT_PATH
+		Control EditText		Position 5,65	Width 185			ID KPT_CTRL_TABLEPATH_EDIT
+			Disable
+		Control Button		Position 190,65	Width 15	Height 12
+			Title "..."
+			Calling kptHandlerPickTabFilePath
+		'--------------
+		Control StaticText	Position 5,80
+			Title STYL_DLG_TXT_GROUPS
+		Control ListBox		Position 5,90	Width 160	Height 50	ID KPT_CTRL_GROUPS_LIST
+
+		Control Button		Position 170,90	Width 30	Height 15
+			Title MSG_TEXT_ADD
+			Calling kptHandlerAddNewGroupSetting
+		Control Button		Position 170,110	Width 30	Height 15
+			Title MSG_TEXT_REMOVE
+			Calling kptHandlerRemoveGroupSetting
+		'--------------
+		Control Button		Position 165,15	Width 40	Height 12
+			Title MSG_TEXT_REMOVE
+			Calling kptHandlerEraseTableSettting
+			Hide	Disable
+		'--------------
+		Control CheckBox		Position 5,145					ID KPT_CTRL_ALLOW_VARIOUSLAYER_CHK
+			Title "Tillad flere visninger"
+			Calling kptHandlerMultiLayerCheckClicked
+			Hide
+		Control ListBox		Position 5,155	Width 160	Height 30	ID KPT_CTRL_LAYERS_LIST
+			Into nLayer
+			Hide
+		Control Button		Position 170,155	Width 30			ID KPT_CTRL_REMOVE_LAYER_BTN
+			Title MSG_REMOVE
+			Calling kptHandlerRemoveLayerSetting
+			Hide
+		'--------------
+		Control OKButton		Position 120,nBtnY	Width 40
+			Calling kptHandlerSaveTableSettting
+		Control CancelButton	Position 165,nBtnY	Width 40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Rollback Table KPTABLES
+		Rollback Table KPGROUP
+		Rollback Table KPSGROUP
+		Rollback Table KPTGROUP
+		kptDialogSelectTableInformation = FALSE
+	Else
+		Commit Table KPTABLES
+		Commit Table KPGROUP
+		Commit Table KPSGROUP
+		Commit Table KPTGROUP
+		nTableID = kptGetTableIDFromElementNo(nTab)
+		nLayerID = kplGetLayerIDFromElementNoByTable(nLayer)
+	End If
+
+	If not bCloseKPTables Then
+	'	If TableOpen("CUR_LIST_OF_TABLES") Then
+	'		Close Table CUR_LIST_OF_TABLES
+	'	End If
+	Else
+		Close Table KPTABLES
+	End If
+
+	If not bCloseKPGroup Then
+		If TableOpen("CUR_LIST_OF_GROUPS") Then
+			Close Table CUR_LIST_OF_GROUPS
+		End If
+	Else
+		Close Table KPGROUP
+	End If
+
+	If not bCloseKPSGroup Then
+		If TableOpen("CUR_LIST_OF_SUBGROUPS") Then
+			Close Table CUR_LIST_OF_SUBGROUPS
+		End If
+	Else
+		Close Table KPSGROUP
+	End If
+
+	If not bCloseKPTGroup Then
+		If TableOpen("CUR_LIST_OF_FULLGROUPNAMES") Then
+			Close Table CUR_LIST_OF_FULLGROUPNAMES
+		End If
+	Else
+		Close Table KPTGROUP
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Handler - Dialogn startes op...
+'********************************************************
+Sub kptHandlerDialogTableStartup
+
+OnError GoTo ErrorOccured
+
+	Call kptCreateListOfTableNames(marrTableNames)
+	If Ubound(marrTableNames) = 1 Then
+		mnPrevTable = 1
+	Else
+		mnPrevTable = 2
+	End If
+
+	Alter Control KPT_CTRL_TABLENAMES_LIST	Title From Variable marrTableNames Value mnPrevTable
+
+	If kpaGetAllowVariousLayerSettings() Then
+		Alter Control KPT_CTRL_ALLOW_VARIOUSLAYER_CHK 	Show
+		Alter Control KPT_CTRL_LAYERS_LIST			Show
+		Alter Control KPT_CTRL_REMOVE_LAYER_BTN		Show
+	End If
+
+	mbSaveSettings = FALSE
+	Call kptHandlerTableNameChanged
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - der blev klikket på checkbox for tilladelse til flere lagvisninger pr. tabel
+'**********************************************************************************************''
+Sub kptHandlerMultiLayerCheckClicked
+
+OnError GoTo ErrorOccured
+
+	If NOT kpaGetAllowVariousLayerSettings() Then
+		Exit Sub
+	End If
+
+	If ReadControlValue(KPT_CTRL_ALLOW_VARIOUSLAYER_CHK) Then
+		Alter Control KPT_CTRL_LAYERS_LIST		Enable Show
+		Alter Control KPT_CTRL_REMOVE_LAYER_BTN	Enable Show
+
+		Do Case Ubound(marrLayerSetupNames)
+			Case 0
+				Note "Denne tabel har ingen lagvisninger!"
+			Case 1
+				Alter Control KPT_CTRL_ALLOW_VARIOUSLAYER_CHK	Enable
+				Alter Control KPT_CTRL_REMOVE_LAYER_BTN		Disable
+			Case Else
+				Alter Control KPT_CTRL_ALLOW_VARIOUSLAYER_CHK	Disable
+				Alter Control KPT_CTRL_REMOVE_LAYER_BTN		Enable
+		End Case
+	Else
+		Alter Control KPT_CTRL_LAYERS_LIST		Disable Hide
+		Alter Control KPT_CTRL_REMOVE_LAYER_BTN	Disable Hide
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'********************************************************
+'	Handler - Udpeg placering af tabel......
+'********************************************************
+Sub kptHandlerPickTabFilePath
+
+Dim	szTabFile, szPath, szTab, szNewPath, szNewTab, szQuest As String,
+	nTable As Integer
+
+OnError GoTo ErrorOccured
+
+	nTable = ReadControlValue(KPT_CTRL_TABLENAMES_LIST) - 1
+	If nTable = 0 Then
+		Exit Sub
+	End If
+
+	szPath	= ReadControlValue(KPT_CTRL_TABLEPATH_EDIT)
+	szTab		= marrTableNames(ReadControlValue(KPT_CTRL_TABLENAMES_LIST))
+
+	szTabFile = FileOpenDlg(szPath, szTab, "TAB", MSG_TAB_PICK_POINTS)
+	If szTabFile = "" Then
+		Exit Sub
+	End If
+	szNewPath	= PathToDirectory$(szTabFile)
+	szNewTab	= PathToFileName$(szTabFile)
+
+	szQuest	= STYL_ASK_REPLACE_TAB_WITH_OTHER
+				& lf & MSG_CURRENT & ": " & szTab
+				& lf & "(" & szPath & ")"
+				& lf & MSG_NEW & ": " & szNewTab
+				& lf & "(" & szNewPath & ")"
+
+	If not Ask(szQuest, MSG_YES, MSG_NO) Then
+		Exit Sub
+	End If
+
+	Alter Control KPT_CTRL_TABLEPATH_EDIT Value szNewPath
+	Call kptHandlerSaveTableSettting
+
+	Update CUR_LIST_OF_TABLES
+		Set	TABLENAME	= szNewTab
+		Where RowID		= nTable
+
+	Call kptCreateListOfTableNames(marrTableNames)
+
+	nTable = kptGetTableElementNo(szNewTab, marrTableNames)
+	Alter Control KPT_CTRL_TABLENAMES_LIST Title From Variable marrTableNames Value nTable
+
+	mbSaveSettings = FALSE
+	Call kptHandlerTableNameChanged
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Anden tabel blev udpeget...
+'********************************************************
+Sub kptHandlerTableNameChanged
+
+Dim	nPicked, nNewID As Integer
+
+OnError GoTo ErrorOccured
+
+	nPicked = ReadControlValue(KPT_CTRL_TABLENAMES_LIST)
+
+	If mbSaveSettings Then
+		Call kptHandlerSaveTableSettting
+	End If
+	mbSaveSettings = TRUE
+
+	'***Select a new tabelfile...
+	If nPicked = 1 Then
+		nNewID = kptShowTableOpenDialog()
+		If nNewID > 0 Then
+			Call kptCreateListOfTableNames(marrTableNames)
+
+			nPicked = kptGetTableElementNo(kptGetTableName$(nNewId), marrTableNames)
+
+			Alter Control KPT_CTRL_TABLENAMES_LIST Title From Variable marrTableNames Value nPicked
+			mnPrevTable = nPicked
+		Else
+			Alter Control KPT_CTRL_TABLENAMES_LIST Value mnPrevTable
+			Exit Sub
+		End If
+	Else
+		mnPrevTable = nPicked
+	End If
+
+	nPicked = kptGetROWIDFromElementNo(nPicked)
+	Fetch Rec nPicked From CUR_LIST_OF_TABLES
+
+	Alter Control KPT_CTRL_DESCRIPTION_EDIT		Value CUR_LIST_OF_TABLES.DESCRIPTION
+	Alter Control KPT_CTRL_TABLEPATH_EDIT		Value CUR_LIST_OF_TABLES.PATH
+	Alter Control KPT_CTRL_ALLOW_VARIOUSLAYER_CHK	Value CUR_LIST_OF_TABLES.ALLOWVARIOUSLAYER
+
+	'**Creating list of layers
+	Call kplCreateListOfLayersByTable(CUR_LIST_OF_TABLES.TABLEID, marrLayerSetupNames)
+	If UBound(marrLayerSetupNames) > 0 Then
+		Alter Control KPT_CTRL_LAYERS_LIST Title From Variable marrLayerSetupNames Value 1
+	Else
+		Alter Control KPT_CTRL_LAYERS_LIST Title From Variable marrLayerSetupNames Value 0
+	End If
+
+	'**Creating list of group
+	Call kptHandlerLoadGroupSettings
+'	Call kpgCreateListOfFullGroupNames(CUR_LIST_OF_TABLES.TABLEID, marrFullGroupNames)
+'	Alter Control KPT_CTRL_GROUPS_LIST Title From Variable marrFullGroupNames
+
+	Call kptHandlerMultiLayerCheckClicked
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Tillad brugeren at udpege en ny tabel via "stifinder"...
+'********************************************************
+Function kptShowTableOpenDialog() As Integer
+
+Dim	szTabFile As String,
+	nNewTableID As Integer
+
+OnError GoTo ErrorOccured
+
+	kptShowTableOpenDialog = 0
+
+	szTabFile = FileOpenDlg("", "", "TAB", MSG_TAB_PICK_POINTS)
+	If szTabFile = "" Then
+		Exit Sub
+	End If
+
+	nNewTableID	= kptGetNextTableID()
+	Insert Into KPTABLES
+		(TABLEID, TABLENAME, DESCRIPTION, PATH)
+		Values(nNewTableID, PathToFileName$(szTabFile), PathToTableName$(szTabFile), PathToDirectory$(szTabFile))
+
+	kptShowTableOpenDialog = nNewTableID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Handler - Gem aktuel tabelindstilling...
+'********************************************************
+Sub kptHandlerSaveTableSettting
+
+Dim	nTable As Integer,
+	szDescr, szPath, szTab As String,
+	bAllowMulti As Logical
+
+OnError GoTo ErrorOccured
+
+	szDescr	= ReadControlValue(KPT_CTRL_DESCRIPTION_EDIT)
+	nTable	= mnPrevTable
+	szPath	= ReadControlValue(KPT_CTRL_TABLEPATH_EDIT)
+	bAllowMulti	= ReadControlValue(KPT_CTRL_ALLOW_VARIOUSLAYER_CHK)
+
+	If nTable < 1 Then
+		Exit Sub
+	End If
+
+	Update CUR_LIST_OF_TABLES
+		Set	DESCRIPTION		= szDescr,
+			PATH			= szPath,
+			TABLENAME		= marrTableNames(nTable),
+			ALLOWVARIOUSLAYER	= bAllowMulti
+		Where	RowID		= (nTable - 1)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Slet aktuel tabelindstilling...
+'********************************************************
+Sub kptHandlerEraseTableSettting
+
+Dim	nTable, nTableID As Integer,
+	szTab, szPath, szDescr, szQuest As String
+
+OnError GoTo ErrorOccured
+
+	nTable	= mnPrevTable
+	If nTable < 1 Then
+		Exit Sub
+	End If
+
+	szTab		= marrTableNames(nTable)
+	szPath	= ReadControlValue(KPT_CTRL_TABLEPATH_EDIT)
+	szDescr	= ReadControlValue(KPT_CTRL_DESCRIPTION_EDIT)
+	nTableID	= kptGetTableIDFromElementNo(nTable)
+
+	szQuest 	= "Ønsker du virkelig at fjerne denne tabel ? Handlingen kan ikke fortrydes !"
+				& lf & lf & szTab
+				& lf & "   (" & szPath & ")"
+	If Ask(szQuest, MSG_NO, MSG_YES) Then
+		Exit Sub
+	End If
+	szQuest 	= "Hvis du fjerner denne tabel, fjernes også alle relationer til denne:"
+				& lf & " - Temaer og værdier"
+				& lf & " - Tilknytning til MultiLag mm."
+				& lf & "Ønsker du at fortsætte ?"
+	If Ask(szQuest, MSG_ABORT, MSG_CONTINUE) Then
+		Exit Sub
+	End If
+
+	If NOT kptRemoveTableRef(nTableID) Then
+		Exit Sub
+	End If
+
+	Call kptCreateListOfTableNames(marrTableNames)
+
+	If nTable > Ubound(marrTableNames) Then
+		nTable = Ubound(marrTableNames)
+	End If
+	Alter Control KPT_CTRL_TABLENAMES_LIST Title From Variable marrTableNames Value nTable
+
+	mbSaveSettings = FALSE
+	Call kptHandlerTableNameChanged
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Indlæser og viser GroupSetting
+'**********************************************************************************************''
+Sub kptHandlerLoadGroupSettings
+
+Dim	nTableID, nLayerID, nTab, nLayer As Integer
+
+OnError GoTo ErrorOccured
+
+	nTab = ReadControlValue(KPT_CTRL_TABLENAMES_LIST)
+	If nTab = 0 Then
+		ReDim marrFullGroupNames(0)
+	Else
+		nLayer	= ReadControlValue(KPT_CTRL_LAYERS_LIST)
+		If nLayer = 0 Then
+			ReDim marrFullGroupNames(0)
+		Else
+			nTableID 	= kptGetTableIDFromElementNo(nTab)
+			nLayerID	= kplGetLayerIDFromElementNoByTable(nLayer)
+
+			Call kpgCreateListOfFullGroupNames(nTableID, nLayerID, marrFullGroupNames)
+		End If
+	End If
+
+	Alter Control KPT_CTRL_GROUPS_LIST Title From Variable marrFullGroupNames
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Tilføj ny gruppe-setup...
+'********************************************************
+Sub kptHandlerAddNewGroupSetting
+
+Dim	nTab, nLayer, nTableID, nLayerID As Integer
+
+OnError GoTo ErrorOccured
+
+	nTab = ReadControlValue(KPT_CTRL_TABLENAMES_LIST)
+	If nTab = 0 Then
+		Note "Vælg først en tabel i listen!"
+		Exit Sub
+	End If
+	nLayer	= ReadControlValue(KPT_CTRL_LAYERS_LIST)
+	If nLayer = 0 Then
+		Note "Vælg først en lagvisning!"
+		Exit Sub
+	End If
+
+	nTableID 	= kptGetTableIDFromElementNo(nTab)
+	nLayerID	= kplGetLayerIDFromElementNoByTable(nLayer)
+
+	If kpgCreateNewGroupSettingDialog(nTableID, nLayerID) Then
+		Call kptHandlerLoadGroupSettings
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Fjern udvalgt groupsetting...
+'********************************************************
+Sub kptHandlerRemoveGroupSetting
+
+Dim	nTableID, nLayerID, nGroupID, nSubGroupID, nTab, nLayer, nGroup As Integer
+
+OnError GoTo ErrorOccured
+
+	nTab = ReadControlValue(KPT_CTRL_TABLENAMES_LIST)
+	If nTab = 1 Then
+		Exit Sub
+	End If
+	nLayer	= ReadControlValue(KPT_CTRL_LAYERS_LIST)
+	If nLayer = 0 Then
+		Note "Vælg først en lagvisning!"
+		Exit Sub
+	End If
+
+	nTableID 	= kptGetTableIDFromElementNo(nTab)
+	nLayerID	= kplGetLayerIDFromElementNoByTable(nLayer)
+
+	nLayerID	= 0
+	'Print "TableId : " + nTableID
+
+	nGroup = ReadControlValue(KPT_CTRL_GROUPS_LIST)
+	If nGroup = 0 Then
+		Exit Sub
+	End If
+
+	Fetch Rec nGroup From CUR_LIST_OF_FULLGROUPNAMES
+	nGroupID = CUR_LIST_OF_FULLGROUPNAMES.GROUPID
+	'Print "GroupId : " + nGroupID
+	nSubGroupID = CUR_LIST_OF_FULLGROUPNAMES.SUBGROUPID
+	'Print "SubGroupId : " + nSubGroupID
+
+	If kpgRemoveGroupSetting(nTableID, nLayerID, nGroupID, nSubGroupID) Then
+		Call kptHandlerLoadGroupSettings
+		'Call kpgCreateListOfFullGroupNames(nTableID, marrFullGroupNames)
+		'Alter Control KPT_CTRL_GROUPS_LIST Title From Variable marrFullGroupNames
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+' Der blev klikket i listen med lagvisninger
+'**********************************************************************************************''
+Sub kptHandlerLayerSetting_Click
+
+Dim	nPicked, nLayerID, nTableID As Integer
+
+OnError GoTo ErrorOccured
+
+	nPicked = ReadControlValue(KPT_CTRL_TABLENAMES_LIST)
+	If nPicked = 1 Then
+		Exit Sub
+	End If
+	nTableID	= kptGetTableIDFromElementNo(nPicked)
+
+	nPicked = ReadControlValue(KPT_CTRL_LAYERS_LIST)
+	If nPicked = 0 Then
+		Exit Sub
+	End If
+	nLayerID	= kplGetLayerIDFromElementNoByTable(nPicked)
+
+	Call kptHandlerLoadGroupSettings
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'**********************************************************************************************''
+'Handler - Fjern udvalgt Layersetting...
+'**********************************************************************************************''
+Sub kptHandlerRemoveLayerSetting
+
+Dim	nTableID, nLayerID, nGroupID, nSubGroupID, nPicked As Integer
+
+OnError GoTo ErrorOccured
+
+	nPicked = ReadControlValue(KPT_CTRL_TABLENAMES_LIST)
+	If nPicked = 1 Then
+		Exit Sub
+	End If
+	nTableID	= kptGetTableIDFromElementNo(nPicked)
+
+	nPicked = ReadControlValue(KPT_CTRL_LAYERS_LIST)
+	If nPicked = 0 Then
+		Exit Sub
+	End If
+	nLayerID	= kplGetLayerIDFromElementNoByTable(nPicked)
+
+	If kplRemoveLayerSettingRef(nTableID, nLayerID) Then
+		'**Creating list of layers
+		Call kplCreateListOfLayersByTable(CUR_LIST_OF_TABLES.TABLEID, marrLayerSetupNames)
+		If nPicked > Ubound(marrLayerSetupNames) Then
+			nPicked = Ubound(marrLayerSetupNames)
+		End If
+		Alter Control KPT_CTRL_LAYERS_LIST Title From Variable marrLayerSetupNames Value nPicked
+		Call kptHandlerMultiLayerCheckClicked
+		Call kptHandlerLoadGroupSettings
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'********************************************************
+'	Automatisk registrering af åbne tabeller...
+'********************************************************
+Sub kptAutoRegisterTablesDialog
+
+OnError GoTo ErrorOccured
+
+	Dialog
+		Title STYL_DLG_TITLE_AUTO_TABLEREGIST
+		Width 130
+
+		Control Button	Position 15,15	Width 100	ID KPT_CTRL_OPEN_WOR_BTN
+			Title STYL_DLG_BTN_OPEN_WOR
+			Calling kptHandlerSelectFilesToOpen
+
+		Control Button	Position 15,35	Width 100	ID KPT_CTRL_OPEN_TAB_BTN
+			Title STYL_DLG_BTN_OPEN_TAB
+			Calling kptHandlerSelectFilesToOpen
+
+		Control Button	Position 15,55	Width 100
+			Title STYL_DLG_BTN_CLOSE_TAB
+			Calling kptHandlerStandardCloseTableDialog
+
+		Control Button	Position 15,75	Width 100
+			Title STYL_DLG_BTN_REGISTER_TABS
+			Calling kptAutoRegisterTables
+
+		Control Button	Position 15,95	Width 100
+			Title STYL_DLG_BTN_SHOW_TABLEDLG
+			Calling kptShowDialogTableInformation
+
+		Control OKButton	Position 25,120	Width 80
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Åbning af et arbejdsområde...
+'********************************************************
+Sub kptHandlerSelectFilesToOpen
+
+Dim	szWorFile As String
+
+OnError GoTo ErrorOccured
+
+	If TriggerControl() = KPT_CTRL_OPEN_WOR_BTN Then
+		Run Menu Command M_FILE_ADD_WORKSPACE
+	ElseIf TriggerControl() = KPT_CTRL_OPEN_TAB_BTN Then
+		Run Menu Command M_FILE_OPEN
+	End If
+
+	Exit Sub
+'---------------------
+ErrorOccured:
+	Note ERR_TXT_ERRORMSG
+		+ lf + Error$()
+
+End Sub
+
+'********************************************************
+'	Standard MapInfo Luk tabel dialog...
+'********************************************************
+Sub kptHandlerStandardCloseTableDialog
+
+OnError GoTo ErrorOccured
+
+	Run Menu Command M_FILE_CLOSE
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Automatisk registrering af de åbne tabeller...
+'********************************************************
+Sub kptAutoRegisterTables
+
+Dim	i, nTableID As Integer,
+	szTab As String,
+	bAllwaysOverwrite, bOverwriteNow As Logical,
+	bCloseKPTables, bCloseKPTGroup, bCloseKPGroup, bCloseKPSGroup As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseKPTables 	= kpaOpenKPTablesTable()
+	bCloseKPGroup	= kpaOpenKPGroupTable()
+	bCloseKPSGroup	= kpaOpenKPSGroupTable()
+	bCloseKPTGroup	= kpaOpenKPTGroupTable()
+
+	bAllwaysOverwrite = FALSE
+	For i = 1 To NumTables()
+
+		szTab = TableInfo(i, TAB_INFO_NAME)
+		bOverwriteNow = FALSE
+
+'		If TableInfo(szTab, TAB_INFO_TYPE) = TAB_TYPE_BASE Then
+		If NOT TableInfo(szTab, TAB_INFO_TEMP) Then
+			If not kpaTableIsKPSystemTable(szTab) Then
+				'nTableID = kptGetTableIDFromTabFile(TableInfo(szTab, TAB_INFO_TABFILE))
+
+				Print i & ". Checker tabel " & szTab
+
+				nTableID = kptGetTableID(szTab)
+				If nTableID > 0 Then
+
+					If not bAllwaysOverwrite Then
+						Do Case kptAskOverwriteTableSetupDialog(szTab)
+							Case -9
+								Exit Sub
+							Case -2
+								bAllwaysOverwrite = TRUE
+								bOverwriteNow = TRUE
+							Case -1
+								bOverwriteNow = TRUE
+							Case 1
+								bOverwriteNow = FALSE
+						End Case
+					End If
+
+					'If NOT kptRegisterSingleOpenTable(szTab, bOverwriteNow) Then
+					If bOverwriteNow Then
+						If NOT kptUpdateSingleOpenTable(nTableID, szTab) Then
+							Print ERR_STYL_TABLE_REGISTER_ERROR + szTab
+						End If
+					End If
+				End If
+			End If
+		End If
+	Next
+
+	Commit Table KPTABLES
+	Commit Table KPGROUP
+	Commit Table KPSGROUP
+	Commit Table KPTGROUP
+
+	If not bCloseKPTables Then
+		If TableOpen("CUR_LIST_OF_TABLES") Then
+			Close Table CUR_LIST_OF_TABLES
+		End If
+	Else
+		Close Table KPTABLES
+	End If
+
+
+	If not bCloseKPGroup Then
+		If TableOpen("CUR_LIST_OF_GROUPS") Then
+			Close Table CUR_LIST_OF_GROUPS
+		End If
+	Else
+		Close Table KPGROUP
+	End If
+
+	If not bCloseKPSGroup Then
+		If TableOpen("CUR_LIST_OF_SUBGROUPS") Then
+			Close Table CUR_LIST_OF_SUBGROUPS
+		End If
+	Else
+		Close Table KPSGROUP
+	End If
+
+	If not bCloseKPTGroup Then
+		If TableOpen("CUR_LIST_OF_FULLGROUPNAMES") Then
+			Close Table CUR_LIST_OF_FULLGROUPNAMES
+		End If
+	Else
+		Close Table KPTGROUP
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Spørger om overskrivning eller ej...
+'********************************************************
+Function kptAskOverwriteTableSetupDialog(ByVal szTable As String) As Integer
+
+Dim	nResult As Integer
+
+OnError GoTo ErrorOccured
+
+	Dialog
+		Title STYL_DLG_TITLE_OVERWRITE
+
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_ASK_OVERWRITE_TAB + szTable + " ?"
+
+		Control RadioGroup	Position 5,20
+			Title STYLE_DLG_LST_OVERWRITE_POSS
+			Value 1
+			Into nResult
+
+		Control OKButton
+		Control CancelButton
+			Title MSG_TEXT_STOP
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		kptAskOverwriteTableSetupDialog = -9
+		Exit Function
+	End If
+
+	Do Case nResult
+		Case 1
+			kptAskOverwriteTableSetupDialog = 1
+		Case 2
+			kptAskOverwriteTableSetupDialog = -1
+		Case 3
+			kptAskOverwriteTableSetupDialog = -2
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Kalder : Dialog med mulighed for åbning af tabeller...
+'********************************************************
+Sub kptShowDialogOpenTable
+
+OnError GoTo ErrorOccured
+
+	If kptDialogOpenTable() Then
+		'**User pushed OKButton
+	Else
+		'**User pushed CancelButton
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Dialog med mulighed for åbning af tabeller...
+'********************************************************
+Function kptDialogOpenTable() As Logical
+
+Dim	bCloseKPTables, bCloseKPLayers As Logical
+
+OnError GoTo ErrorOccured
+
+kptDialogOpenTable = FALSE
+
+	If NumWindows() = 0 Then
+		Exit Function
+	End If
+	mnFrontMID = FrontWindow()
+	If not WindowInfo(mnFrontMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Exit Function
+	End If
+
+	bCloseKPTables 	= kpaOpenKPTablesTable()
+	bCloseKPLayers	= kpaOpenKPLayersTable()
+
+	Call kptCreateListOfTableNamesLocked(marrTableNames)
+	If Ubound(marrTableNames) = 0 Then
+		Exit Function
+	End If
+
+	Dialog
+		Title MSG_TAB_OPEN_POINTS
+
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TITLE_TABLES
+		Control MultiListBox		Position 5,15	Width 100	Height 120	ID KPT_CTRL_TABLENAMES_LIST
+			Title From Variable marrTableNames
+
+		Control OKButton		Position 10,150	Width 40
+			Title MSG_TAB_OPEN_POINTS
+			Calling kptHandlerOpenSelectedTables
+
+		Control Cancelbutton	Position 60,150	Width 40
+
+
+	If not bCloseKPTables Then
+		If TableOpen("CUR_LIST_OF_TABLES") Then
+			Close Table CUR_LIST_OF_TABLES
+		End If
+	Else
+		Close Table KPTABLES
+	End If
+
+	If bCloseKPLayers Then
+		Close Table KPLAYERS
+	End If
+
+kptDialogOpenTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Dialog med mulighed for åbning af tabeller...
+'********************************************************
+Sub kptHandlerOpenSelectedTables
+
+Dim	nRead, nTabID, nLayerID As Integer
+
+OnError GoTo ErrorOccured
+
+	nRead = ReadControlValue(KPT_CTRL_TABLENAMES_LIST)
+	Do Until nRead = 0
+
+		nTabID	= kptGetTableIDFromElementNoLocked(nRead)
+		nLayerID	= 0
+
+		If kptOpenTableInMapAuto$(nTabID, nLayerID, mnFrontMID, TRUE) = "" Then
+			Note ERR_TAB_OPENING + kptGetMapInfoTableName$(nTabID)
+		End If
+
+		nRead = ReadControlValue(KPT_CTRL_TABLENAMES_LIST)
+	Loop
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Dialog - Udvælgelse af registreret tabel
+'********************************************************
+Function kptDialogSelectTable() As Integer
+
+Dim	nTableID, nElement As Integer,
+	arrListOfTables(0) As String
+
+OnError GoTo ErrorOccured
+
+kptDialogSelectTable = 0
+
+	Call kptCreateListOfTableNamesLocked(arrListOfTables)
+
+	Dialog
+		Title STYL_DLG_TITLE_SELECT_TABLE
+
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_DESCRIPTION
+		Control PopUpMenu		Position 5,15	Width 120
+
+			Title From Variable arrListOfTables
+			Into nElement
+
+		Control OKButton
+		Control CancelButton
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	nTableID = kptGetTableIDFromElementNoLocked(nElement)
+
+kptDialogSelectTable = nTableID
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function

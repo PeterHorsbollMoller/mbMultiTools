@@ -1,0 +1,27 @@
+'***************************************************************************
+'**
+'** Name:	TopoSnapTest
+'**
+'** Purpose:	Test of Topological snap in objects in multiple Mapinfo tables,
+'** 		with inserting of common/shared points
+'**
+'** Developed:	07.04.2000 SØF
+'** Last modi:	02.05.2000 SØF
+'**
+'***************************************************************************
+
+'** Native TopoSnap global definitions.
+
+Global strPrgName   as String	'* Program name.
+Global strPrgIden   as String	'* Program identification.
+
+Global lf           as String	'* Line feed character.
+
+Global gintDebugLev as Integer	'* Debug level.
+
+Global gbooTopoSnapActive as Logical	'* Flag for active Topological Snap (T).
+Global gintTopoSnapButtonId as Integer	'* Id of (first) TopoSnap toggle buttonpad.
+
+Global gbooSnapCosmetic	as Logical	'* Flag for snap in Cosmetic layer.
+
+

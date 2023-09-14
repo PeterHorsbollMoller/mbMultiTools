@@ -1,0 +1,18 @@
+Define GMAR_BTP_WORKSPACES                               "Arbejdsområder"
+
+Define GMAR_BTN_HLP_ADD_BUTTON                           "Tilføj ny knap med henvisning til et arbejdsområde.\nTilføj knap"
+Define GMAR_BTN_HLP_REMOVE_BUTTON                        "Fjern eksisterende knap ved at trykke på den.\nFjern knap"
+
+Define GMAR_DLG_TITLE_SYSTEM_SETUP                       "System opsætning"
+Define GMAR_DLG_TITLE_PICK_STARTUP_WOR                   "Udpeg opstartsarbejdsområde..."
+Define GMAR_DLG_TITLE_ADD_WOR_BUTTON                     "Tilføj arbejdsområde-knap"
+Define GMAR_DLG_TITLE_PICK_WOR_FOR_BTN                   "Udpeg arbejdsområde til denne knap..."
+
+
+
+Define GMAR_DLG_TXT_STARTUP_WOR                          "Opstartsarbejdsområde"
+
+Define GMAR_QUEST_REMOVE_PUSHED_BTN1                     "Ønsker du virkelig at fjerne knappen "
+Define GMAR_QUEST_REMOVE_PUSHED_BTN2                     "som åbner arbejdsområdet "
+
+

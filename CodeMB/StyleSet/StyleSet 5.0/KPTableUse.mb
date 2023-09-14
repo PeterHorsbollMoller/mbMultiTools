@@ -1,0 +1,1148 @@
+'********************************************************
+'**	Modul:	Læs skriv stilart fra stilarttabel
+'**			Opsætning af stilarter i dialog
+'********************************************************
+Include "MapBasic.def"
+
+Include "KPAdminUse.def"
+Include "KPStyleUse.def"
+Include "KPTableUse.def"
+Include "KPLayerUse.def"
+Include "KPGroupUse.def"
+Include "KPDisplayUse.def"
+
+Include "Globals.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\WinFunc\WinFunc.def"
+Include "..\..\MapFunc\MapFunc.def"
+
+'********************************************************
+'	Returner navnet på tabellen med ID nTableID
+'********************************************************
+Function kptGetTableName$(ByVal nTableID As Integer) As String
+
+Dim	bCloseTab As Logical,
+	szTab As String
+
+OnError GoTo ErrorOccured
+
+	kptGetTableName$ = ""	
+
+	If nTableId = 0 Then
+		Exit Function
+	End If
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	Select * From KPTABLES
+		Where TABLEID = nTableID
+		Into CURR_TABLENAME NoSelect
+
+	If TableInfo("CURR_TABLENAME", TAB_INFO_NROWS) = 1 Then
+		Fetch First From CURR_TABLENAME
+		szTab	= CURR_TABLENAME.TABLENAME
+
+		'If Right$(szTab,4) = ".TAB" Then
+		'	szTab = Left$(szTab, Len(szTab) -4)
+		'End If
+		kptGetTableName$ = szTab
+	End If
+
+	Call TABClose("CURR_TABLENAME")
+
+	If bCloseTab Then
+		Call TABClose("KPTABLES")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner navnet - som MapInfo ser den - på tabellen med ID nTableID
+'********************************************************
+Function kptGetMapInfoTableName$(ByVal nTableID As Integer) As String
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+	kptGetMapInfoTableName$ = ""	
+	If nTableId = 0 Then
+		Exit Function
+	End If
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	Select * From KPTABLES
+		Where TABLEID = nTableID
+		Into CURR_TABLENAME NoSelect
+
+	If TableInfo("CURR_TABLENAME", TAB_INFO_NROWS) = 1 Then
+		Fetch First From CURR_TABLENAME
+		kptGetMapInfoTableName$ = PathToTableName$(CURR_TABLENAME.TABLENAME)
+	End If
+
+	Call TABClose("CURR_TABLENAME")
+
+	If bCloseTab Then
+		Call TABClose("KPTABLES")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner filnavnet på tabellen med ID nTableID
+'********************************************************
+Function kptGetTabFileName$(ByVal nTableID As Integer) As String
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+	kptGetTabFileName$ = ""	
+	If nTableId = 0 Then
+		Exit Function
+	End If
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	Select * From KPTABLES
+		Where TABLEID = nTableID
+		Into CURR_TABLENAME NoSelect
+
+	If TableInfo("CURR_TABLENAME", TAB_INFO_NROWS) = 1 Then
+		Fetch First From CURR_TABLENAME
+		kptGetTabFileName$ = CURR_TABLENAME.PATH + CURR_TABLENAME.TABLENAME
+	End If
+
+	Call TABClose("CURR_TABLENAME")
+
+	If bCloseTab Then
+		Call TABClose("KPTABLES")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner stien til tabellen med ID nTableID
+'********************************************************
+Function kptGetTabFilePath$(ByVal nTableID As Integer) As String
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+	kptGetTabFilePath$ = ""	
+	If nTableID = 0 Then
+		Exit Function
+	End If
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	Select * From KPTABLES
+		Where TABLEID = nTableID
+		Into CURR_TABLENAME NoSelect
+
+	If GetNumRows("CURR_TABLENAME") = 1 Then
+		Fetch First From CURR_TABLENAME
+		kptGetTabFilePath$ = CURR_TABLENAME.PATH
+	End If
+
+	Call TABClose("CURR_TABLENAME")
+
+	If bCloseTab Then
+		Call TABClose("KPTABLES")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner Tabellens beskrivende tekst
+'********************************************************
+Function kptGetTableDescription$(ByVal nTableID As Integer) As String
+
+Dim	bCloseTab As Logical,
+	szDesc As String
+
+OnError GoTo ErrorOccured
+
+	kptGetTableDescription$	= ""
+	If nTableID <= 0 Then
+		Exit Function
+	End If
+	
+	bCloseTab = kpaOpenKPTablesTable()
+
+	Select * From KPTABLES
+		Where TABLEID = nTableID
+		Into CURR_TABLENAME NoSelect
+
+	If TableInfo("CURR_TABLENAME", TAB_INFO_NROWS) = 1 Then
+
+		Fetch First From CURR_TABLENAME
+		szDesc	= CURR_TABLENAME.DESCRIPTION
+
+		If szDesc = "" Then
+			kptGetTableDescription$ = CURR_TABLENAME.TABLENAME
+		Else
+			kptGetTableDescription$ = szDesc
+		End If
+	End If
+
+	Call TABClose("CURR_TABLENAME")
+
+	If bCloseTab Then
+		Call TABClose("KPTABLES")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Returner om Tabellens tillader flere visninger
+'**********************************************************************************************''
+Function kptGetTableAllowVariousLayerSetting(ByVal nTableID As Integer) As Logical
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+kptGetTableAllowVariousLayerSetting	= FALSE
+
+	If nTableID <= 0 Then
+		Exit Function
+	ElseIf NOT kpaGetAllowVariousLayerSettings() Then
+		Exit Function
+	End If
+	
+	bCloseTab = kpaOpenKPTablesTable()
+
+	Select ALLOWVARIOUSLAYER From KPTABLES
+		Where TABLEID = nTableID
+		Into CURR_TABLENAME NoSelect
+
+	If TableInfo("CURR_TABLENAME", TAB_INFO_NROWS) = 1 Then
+		Fetch First From CURR_TABLENAME
+		kptGetTableAllowVariousLayerSetting = CURR_TABLENAME.ALLOWVARIOUSLAYER
+	End If
+
+	Call TABClose("CURR_TABLENAME")
+
+	If bCloseTab Then
+		Call TABClose("KPTABLES")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'********************************************************
+'	Returner ID på tabellen med navnet szTabName
+'********************************************************
+Function kptGetTableID(ByVal szTabName As String) As Integer
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+kptGetTableID = 0
+
+	If szTabName = "" Then
+		Exit Function
+	End If
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	Select * From KPTABLES
+		Where PathToTableName$(PATH + TABLENAME) = szTabName
+		Into CURR_TABLE_FOUND NoSelect
+
+	If GetNumRows("CURR_TABLE_FOUND") = 1 Then
+		Fetch First From CURR_TABLE_FOUND
+		kptGetTableID = CURR_TABLE_FOUND.TABLEID
+	End If
+
+	Call TABClose("CURR_TABLE_FOUND")
+
+	If bCloseTab Then
+		Call TABClose("KPTABLES")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner ID på tabellen med navnet szTabFileName
+'********************************************************
+Function kptGetTableIDFromTabFile(ByVal szTabFileName As String) As Integer
+
+Dim	bCloseTab As Logical,
+	szFile, szPath As String
+
+OnError GoTo ErrorOccured
+
+	kptGetTableIDFromTabFile = 0
+	If szTabFileName = "" Then
+		Exit Function
+	End If
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	szFile	= PathToFileName$(szTabFileName)
+	szPath	= PathToDirectory$(szTabFileName)
+
+	Select * From KPTABLES
+		Where TABLENAME 	= szFile
+		And	PATH		= szPath
+		Into CURR_TABLE_FOUND NoSelect
+
+	Do Case GetNumRows("CURR_TABLE_FOUND")
+		Case 1
+			Fetch First From CURR_TABLE_FOUND
+			kptGetTableIDFromTabFile = CURR_TABLE_FOUND.TABLEID
+		Case 0
+			kptGetTableIDFromTabFile = kptGetTableID(PathToFileName$(szTabFileName))
+	End Case
+
+	Call TABClose("CURR_TABLE_FOUND")
+
+	If bCloseTab Then
+		Call TABClose("KPTABLES")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returner ID på tabellen med navnet szTabFileName
+'********************************************************
+Function kptGetTableIDFromDescription(ByVal szDesciption As String) As Integer
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+kptGetTableIDFromDescription = 0
+
+	If szDesciption = "" Then
+		Exit Function
+	End If
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	Select * From KPTABLES
+		Where DESCRIPTION 	= szDesciption
+		Into CURR_TABLE_FOUND NoSelect
+
+	If GetNumRows("CURR_TABLE_FOUND") = 1 Then
+		Fetch First From CURR_TABLE_FOUND
+		kptGetTableIDFromDescription = CURR_TABLE_FOUND.TABLEID
+	End If
+
+	Call TABClose("CURR_TABLE_FOUND")
+
+	If bCloseTab Then
+		Call TABClose("KPTABLES")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Sætter tabelnavnet for tabel med ID nTableID
+'********************************************************
+Sub kptSetTableName(ByVal nTableID As Integer, ByVal szTabName As String)
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	If bCloseTab Then
+		Close Table KPTABLES
+	Else
+		Close Table CURR_TABLENAME
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter filnavnet for tabel med ID nTableID
+'********************************************************
+Sub kptSetTabFileName(ByVal nTableID As Integer, ByVal szTabFile As String)
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	If bCloseTab Then
+		Close Table KPTABLES
+	Else
+		Close Table CURR_TABLENAME
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Sætter stien for tabel med ID nTableID
+'********************************************************
+Sub kptSetTabFilePath(ByVal nTableID As Integer, ByVal szPath As String)
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	If bCloseTab Then
+		Close Table KPTABLES
+	Else
+		Close Table CURR_TABLENAME
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Åbner tabel med ID nTableID i kortet nMID, automatisk
+'********************************************************
+Function kptOpenTableInMapAuto$(	ByVal nTableID As Integer, ByVal nLayerID As Integer,
+						nMID as Integer, ByVal bReadLayerSetting As Logical) As String
+'nMID = -999/MAP_CREATE_NEW: Opret nyt kort
+
+Dim	szTab, szTabFile As String,
+	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+kptOpenTableInMapAuto$ = ""
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	If nMID <> MAP_CREATE_NEW Then
+		If not WindowExists(nMID) Then
+			Exit Function
+		End If
+	End If
+
+	szTab = kptOpenTable$(nTableID)
+	If szTab = "" Then
+		Exit Function
+	End If
+
+	If nMID = MAP_CREATE_NEW Then
+		Map From szTab
+		nMID = FrontWindow()
+		Call kpaSetNewMapCenterAndZoom(nMID)
+	Else
+		If not MAPLayerExists(nMID, szTab) Then
+			Add Map
+				Window nMID
+				Auto
+				Layer szTab
+		End If
+	End If
+
+	If bReadLayerSetting Then
+		If not kplGetEntireLayerSettings(nMID, szTab, 0, nTableID, nLayerID) Then
+			Note ERR_STYL_LAYER_SETUP_ERROR + szTab
+		End If
+	End If
+
+	If bCloseTab Then
+		Close Table KPTABLES
+	End If
+
+kptOpenTableInMapAuto$ = szTab
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Åbner tabel med ID nTableID i kortet nMID, som øverste lag
+'********************************************************
+Function kptOpenTableInMapTop$(	ByVal nTableID As Integer, ByVal nLayerID As Integer,
+						nMID As Integer, ByVal bReadLayerSetting As Logical) As String
+'nMID = -999/MAP_CREATE_NEW: Opret nyt kort
+
+Dim	szTab, szTabFile As String,
+	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+kptOpenTableInMapTop$ = ""
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	If nMID <> MAP_CREATE_NEW Then
+		If not WindowExists(nMID) Then
+			Exit Function
+		End If
+	End If
+
+	szTab = kptOpenTable$(nTableID)
+	If szTab = "" Then
+		Exit Function
+	End If
+
+	If nMID = MAP_CREATE_NEW Then
+		Map From szTab
+		nMID = FrontWindow()
+		Call kpaSetNewMapCenterAndZoom(nMID)
+	Else	
+		Add Map
+			Window nMID
+			Layer szTab
+	End If
+
+	If bReadLayerSetting Then
+		If not kplGetEntireLayerSettings(nMID, szTab, 0, nTableID, nLayerID) Then
+			Note ERR_STYL_LAYER_SETUP_ERROR + szTab
+		End If
+	End If
+
+	If bCloseTab Then
+		Close Table KPTABLES
+	End If
+
+kptOpenTableInMapTop$ = szTab
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Åbner tabel med ID nTableID
+'********************************************************
+Function kptOpenTable$(ByVal nTableID As Integer) As String
+
+Dim	bCloseTab As Logical,
+	szTab, szTabFile, szTabAlias As String
+
+OnError GoTo ErrorOccured
+
+	kptOpenTable$ = ""
+	If nTableID = 0 Then
+		Exit Function
+	End If
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	szTabFile	= kptGetTabFileName$(nTableID)
+
+	If szTabFile = "" Then
+		Exit Function
+	End If
+
+	If kpaGetOpenTablesWithAlias() Then
+		szTabAlias	= kptGetTableDescription$(nTableID)
+	End If
+
+	szTab 		= kptOpenTableAs$(szTabFile, szTabAlias)
+	kptOpenTable$	= szTab
+
+	If bCloseTab Then
+		Call TABClose("KPTABLES")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Åbner angivet tabel som ......
+'********************************************************
+Function kptOpenTableAs$(ByVal szTabFile As String, ByVal szAlias As String) As String
+
+'***NB If szAlias = "", then open without alias
+
+Dim	szTab, szAliasForTable As String,
+	nCount As Integer
+
+OnError GoTo ErrorOccured
+
+	kptOpenTableAs$ = ""
+
+	If not FileExists(szTabFile) Then
+		Print ERR_FILE_DOES_NOT_EXIST + szTabFile
+		Exit Function
+	ElseIf szTabFile = "" Then
+		Print ERR_FILENAME_NOT_GIVEN
+		Exit Function
+	End If
+
+	szTab = TABGetNameFromTabFile$(szTabFile)
+	If szTab <> "" Then
+		kptOpenTableAs$ = szTab
+		Exit Function
+	End If
+
+	If szAlias = "" Then
+		szTab = PathToTablename$(szTabFile)
+	Else
+		szTab = PathToTablename$(szAlias)
+	End If
+
+	szAliasForTable = szTab
+	nCount = 0
+	If TABIsOpen(szTab) Then
+		Do Until NOT TABIsOpen(szAliasForTable)
+			nCount = nCount + 1
+			szAliasForTable = szTab + "_" + nCount
+		Loop
+	End If
+
+	Open Table szTabFile As szAliasForTable
+	kptOpenTableAs$ = TableInfo(0, TAB_INFO_NAME)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Lukker angivet tabel......
+'********************************************************
+Function kptCloseTable(ByVal nTableID As Integer, ByVal bInteractive As Logical) As Logical
+
+Dim	szTab, szTabFile As String,
+	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	kptCloseTable = TRUE
+
+	szTabFile = kptGetTabFileName$(nTableID)
+
+	szTab = GetTableFromFilename$(szTabFile)
+	If szTab <> "" Then
+		If bInteractive Then
+			Close Table szTab Interactive
+		Else
+			Close Table szTab
+		End If
+
+		If TABIsOpen(szTab) Then
+			kptCloseTable = FALSE
+		End If
+	End If
+
+	If bCloseTab Then
+		Close Table KPTABLES
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Opretter liste med tabelnavne......
+'********************************************************
+Sub kptCreateListOfTableNames(arrTables() As String)
+
+Dim	nCount As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPTABLES
+		Order By TABLENAME
+		Into CUR_LIST_OF_TABLES NoSelect
+
+	ReDim arrTables(TableInfo("CUR_LIST_OF_TABLES", TAB_INFO_NROWS) + 1)
+	nCount = 1
+	arrTables(nCount) = MSG_TAB_PICK_NEW_POINTS
+	'Print "Tables " + nCount + " = " + arrTables(nCount)
+
+	If TableInfo("CUR_LIST_OF_TABLES", TAB_INFO_NROWS) > 0 Then
+
+		Fetch First From CUR_LIST_OF_TABLES
+		Do Until EOT(CUR_LIST_OF_TABLES)
+
+			nCount 		= nCount + 1
+			arrTables(nCount)	= CUR_LIST_OF_TABLES.TABLENAME
+			'Print "Tables " + nCount + " = " + arrTables(nCount)
+
+			Fetch Next From CUR_LIST_OF_TABLES
+		Loop
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Opretter liste med tabelnavne unden "Åbn tabel..." ...
+'********************************************************
+Sub kptCreateListOfTableNamesLocked(arrTables() As String)
+
+Dim	nCount As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPTABLES
+		Order By TABLENAME
+		Into CUR_LIST_OF_TABLES NoSelect
+
+	ReDim arrTables(TableInfo("CUR_LIST_OF_TABLES", TAB_INFO_NROWS))
+	nCount = 0
+
+	If TableInfo("CUR_LIST_OF_TABLES", TAB_INFO_NROWS) > 0 Then
+
+		Fetch First From CUR_LIST_OF_TABLES
+		Do Until EOT(CUR_LIST_OF_TABLES)
+
+			nCount 		= nCount + 1
+			arrTables(nCount)	= CUR_LIST_OF_TABLES.TABLENAME
+
+			Fetch Next From CUR_LIST_OF_TABLES
+		Loop
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Returnerer største TableID...
+'********************************************************
+Function kptMaxTableID() As Integer
+
+Dim	bCloseTab As Logical,
+	nMax As Integer
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	Select Max(TABLEID) "MAXTABLEID"
+		From KPTABLES
+		Into MAX_TABLEID NoSelect
+
+	If TableInfo("MAX_TABLEID", TAB_INFO_NROWS) = 0 Then
+		nMax = 0
+	Else
+		Fetch First From MAX_TABLEID
+		nMax = MAX_TABLEID.MAXTABLEID
+	End If
+
+	If bCloseTab Then
+		Close Table KPTABLES
+	Else
+		Close Table MAX_TABLEID
+	End If
+	
+	kptMaxTableID	= nMax
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer næste ledige TableID...
+'********************************************************
+Function kptGetNextTableID() As Integer
+
+OnError GoTo ErrorOccured
+
+	kptGetNextTableID = kptMaxTableID() + 1
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	returner elementno i array for given værdi...
+'********************************************************
+Function kptGetTableElementNo(ByVal szTabName As String, arrTables() As String) As Integer
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	kptGetTableElementNo = 1
+
+	For i = 1 To Ubound(arrTables)
+		If arrTables(i) = szTabName Then
+			kptGetTableElementNo = i
+			Exit Function
+		End If
+	Next
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer ROWID udfra angivet elementnr
+'**********************************************************************************************''
+Function kptGetROWIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	kptGetROWIDFromElementNo	= nElementNo - 1
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer ROWID udfra angivet elementnr
+'**********************************************************************************************''
+Function kptGetROWIDFromElementNoLocked(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	kptGetROWIDFromElementNoLocked	= nElementNo
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer TableID udfra ElementNr......
+'********************************************************
+Function kptGetTableIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Fetch Rec kptGetROWIDFromElementNo(nElementNo) From CUR_LIST_OF_TABLES
+	kptGetTableIDFromElementNo = CUR_LIST_OF_TABLES.TABLEID
+
+	Exit Function
+'--------------------
+ErrorOccured:
+	kptGetTableIDFromElementNo = 0
+
+End Function
+
+'********************************************************
+'	Returnerer TableID udfra ElementNr......
+'********************************************************
+Function kptGetTableIDFromElementNoLocked(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Fetch Rec kptGetROWIDFromElementNoLocked(nElementNo) From CUR_LIST_OF_TABLES
+	kptGetTableIDFromElementNoLocked = CUR_LIST_OF_TABLES.TABLEID
+
+	Exit Function
+'--------------------
+ErrorOccured:
+	kptGetTableIDFromElementNoLocked = 0
+
+End Function
+
+'********************************************************
+'	Registrerer en åben tabel......
+'********************************************************
+Function kptRegisterSingleOpenTable(ByVal szTab As String, ByVal bOverwrite As Logical) As Logical
+
+Dim	nTabID As Integer
+
+OnError GoTo ErrorOccured
+
+	kptRegisterSingleOpenTable = FALSE
+
+	nTabID 	= kptGetTableIDFromTabFile(TableInfo(szTab, TAB_INFO_TABFILE))
+	If nTabID = 0 Then
+		nTabID = kptGetNextTableID()
+
+		Insert Into KPTABLES
+			(TABLEID, TABLENAME,
+			 DESCRIPTION, PATH)
+			Values(nTabID, PathToFilename$(TableInfo(szTab, TAB_INFO_TABFILE)),
+				 szTab, PathToDirectory$(TableInfo(szTab, TAB_INFO_TABFILE)))
+
+	Else
+		If bOverWrite Then
+			If kptUpdateSingleOpenTable(nTabID, szTab) Then
+				'**was updated
+			End If
+		Else
+			Exit Function
+		End If
+	End If
+
+	kptRegisterSingleOpenTable = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Registrerer en åben tabel......
+'********************************************************
+Function kptRegisterSingleOpenTableAs(ByVal szTab As String, ByVal szAsTable As String, ByVal bOverwrite As Logical) As Logical
+
+Dim	szPath, szDescr As String,
+	nTabID As Integer
+
+OnError GoTo ErrorOccured
+
+	kptRegisterSingleOpenTableAs = FALSE
+
+	nTabID = kptGetTableID(szAsTable)
+	If nTabID = 0 Then
+		nTabID = kptGetNextTableID()
+
+		Insert Into KPTABLES
+			(TABLEID, TABLENAME, DESCRIPTION)
+			Values(nTabID, szAsTable, szAsTable)
+	Else
+		If bOverWrite Then
+			Select * From KPTABLES
+				Where TABLEID = nTabID
+				Into TAB_TO_UPDATE noSelect
+
+			If TAB_TO_UPDATE.DESCRIPTION = "" Then
+				Update TAB_TO_UPDATE
+					Set 	TABLENAME	= szAsTable,
+						DESCRIPTION	= szAsTable
+			Else
+				Update TAB_TO_UPDATE
+					Set 	TABLENAME	= szAsTable
+			End If
+
+			Close Table TAB_TO_UPDATE
+
+		Else
+			Exit Function
+		End If
+	End If
+
+	kptRegisterSingleOpenTableAs = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Opdaterer navn og placering af tabel
+'Hvis nTableID er 0 findes dette først
+'**********************************************************************************************''
+Function kptUpdateSingleOpenTable(ByVal nTableID As Integer, ByVal szTab As String) As Logical
+
+OnError GoTo ErrorOccured
+
+kptUpdateSingleOpenTable = FALSE
+
+	If nTableID = 0 Then
+		nTableID = kptGetTableID(szAsTable)
+
+		If nTableID = 0 Then
+			Exit Function
+		End If
+	End If
+
+	Select * From KPTABLES
+		Where TABLEID = nTableID
+		Into TAB_TO_UPDATE noSelect
+
+	If GetNumRows("TAB_TO_UPDATE") = 1 Then
+		If TAB_TO_UPDATE.DESCRIPTION = "" Then
+			Update TAB_TO_UPDATE
+				Set 	TABLENAME	= PathToFilename$(TableInfo(szTab, TAB_INFO_TABFILE)),
+					DESCRIPTION	= szTab,
+					PATH		= PathToDirectory$(TableInfo(szTab, TAB_INFO_TABFILE))
+		Else
+			Update TAB_TO_UPDATE
+				Set 	TABLENAME	= PathToFilename$(TableInfo(szTab, TAB_INFO_TABFILE)),
+					PATH		= PathToDirectory$(TableInfo(szTab, TAB_INFO_TABFILE))
+		End If
+	End If
+	
+	Close Table TAB_TO_UPDATE
+		
+kptUpdateSingleOpenTable = TRUE
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Fjernes alle referencer til angiven tabel
+'**********************************************************************************************''
+Function kptRemoveTableRef(ByVal nTableID As Integer) As Logical
+
+Dim	bCloseKPTGroup, bCloseKPTDisplay, bCloseKPValues, bCloseKPStyles, bCloseKPTables As Logical
+
+OnError GoTo ErrorOccured
+
+kptRemoveTableRef = FALSE
+
+	'--------- Group/SubGroup <-> Tables
+	If kpgRemoveGroupSetupByTable(nTableID, VAL_LAYERID_ALL_BY_TAB) <> RESULT_GROUP_SETUP_NOT_ERASED Then
+		'**Relations to KPTGROUP removed
+	End If
+
+	'--------- Display (MultiLayer) <-> Tables
+	If kpdRemoveDisplayByTable(nTableID, VAL_LAYERID_ALL_BY_TAB) = RESULT_DISPLAY_SETUP_ERASED Then
+		'**Relations to KPTDISPLAY removed
+	End If
+
+	'--------- Styles/Values  <-> Tables
+	If kpsRemoveStyleByTableRef(nTableID) Then
+		'**Relations to KPSTYLES and KPVALUES removed
+	End If
+	
+	'--------- Layers
+	If kplRemoveLayerSetting(nTableID, VAL_LAYERID_ALL_BY_TAB) = RESULT_LAYER_SETUP_ERASED Then
+		'**The existing Layers were removed
+	End If
+	
+	'--------- Tables
+	If kptRemoveTable(nTableID) Then
+		'**The table was removed
+	End If
+	
+kptRemoveTableRef = TRUE	
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Fjerner en angiven tabel
+'**********************************************************************************************''
+Function kptRemoveTable(ByVal nTableID As Integer) As Logical
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+kptRemoveTable = FALSE
+
+	bCloseTab = kpaOpenKPTablesTable()
+
+	Select * From KPTABLES
+		Where TABLEID = nTableID
+		Into TO__REMOVE__TABLES NoSelect
+		
+	If GetNumRows("TO__REMOVE__TABLES") > 0 Then
+		Delete From TO__REMOVE__TABLES
+	End If
+
+	If bCloseTab Then
+		Commit Table KPTABLES
+		Call TABClose("KPTABLES")
+	Else
+		Call TABClose("TO__REMOVE__TABLES")
+	End If
+	
+kptRemoveTable = TRUE	
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function

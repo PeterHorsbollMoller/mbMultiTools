@@ -1,0 +1,116 @@
+Define INFO_SYS_WINDOWS_APPLICATION		"This application only runs on Windows!"
+Define INFO_SYS_PROGRAM_END			"Program is terminated!"
+
+Define INFO_WIN_NOT_MAP				"Active window isn't a map!"
+Define INFO_WIN_NOT_LAYOUT			"Active window isn't a layout!"
+
+Define INFO_WIN_NO_OPEN				"No open windows!"
+Define INFO_WIN_LAYOUT_NOT_FOUND		"Layoutwindow not found!"
+Define INFO_WIN_MAP_NOT_FOUND			"Mapwindow not found!"
+Define INFO_WIN_NO_EDIT_LAYER			"No editable layer in the map!"
+Define INFO_WIN_NO_MAP_OPEN			"No open maps!"
+Define INFO_WIN_CREATE_NEW_MAP			"Create new map..."
+Define INFO_WIN_MAP_CLON_ERROR			"Error cloning mapwindow!"
+Define INFO_WIN_MAP_SIZE_ERROR			"Error changing the size of the mapwindow!"
+Define INFO_WIN_MAP_WIDTH_ERROR			"Error changing the width og the mapwindow!"
+Define INFO_WIN_MAP_XY_OR_ZOOM_ERROR		"Error changing the zoom or centerpoint of the mapwindow!"
+Define INFO_WIN_MAP_XY_OR_SCALE_ERROR		"Error changing the scale of centerpoint of the mapwindow!"
+Define INFO_WIN_LAYOUT_INSERT_MAP_ERROR		"Error inserting map into layout!"
+
+Define INFO_MAP_COSMETIC_REMOVES		"Cosmetic layer will be deleted!"
+
+Define INFO_TAB_NO_OPEN				"No open tables!"
+Define INFO_TAB_NOT_OPEN			"Table is not open : "
+Define INFO_TAB_NO_COLUMNS			"No columns!"
+Define INFO_TAB_NONE				"No tables."
+Define INFO_TAB_TO_FEW				"To few tables."
+Define INFO_TAB_TABLE 				"Table"
+Define INFO_TAB_PICK_NEW_POINTS			"Pick new table..."
+Define INFO_TAB_OPEN_POINTS			"Open table..."
+Define INFO_TAB_NOT_FOUND			"Table not found on HD : "
+Define INFO_TAB_NO_REC				"No records in table!"
+
+Define INFO_FILE_PICK_NEW_POINTS		"Pick new file..."
+Define INFO_FILE_PICK_POINTS			"Pick file..."
+
+Define INFO_WOR_PICK_NEW_POINTS			"Pick new workspace..."
+Define INFO_WOR_PICK_POINTS			"Pick workspace..."
+Define INFO_WOR_NO_PICKED			"No workspace picked!"
+
+Define INFO_ICON_FILE				"Iconfile"
+Define INFO_ICON_ICONNO				"IconNo"
+
+Define INFO_STYLE_SYMBOL			"Symbolstyle"
+Define INFO_STYLE_LINE				"Linestyle"
+Define INFO_STYLE_FONT				"Font"
+Define INFO_STYLE_REGION			"Brush"
+Define INFO_STYLE_FILL				"Pattern"
+Define INFO_STYLE_BORDER			"Border"
+
+Define INFO_OBJ_SYMBOL				"Symbol"
+Define INFO_OBJ_LINE				"Line"
+Define INFO_OBJ_FONT				"Font"
+Define INFO_OBJ_REGION				"Region"
+Define INFO_OBJ_FILL				"Pattern"
+Define INFO_OBJ_BORDER				"Border"
+Define INFO_OBJ_KIND				"Objekt types"
+
+Define INFO_STYLE_SAVE				"Save style"
+Define INFO_STYLE_ADD				"Add style"
+Define INFO_STYLE_ALTER				"Alter style"
+Define INFO_STYLE_KIND				"Style"
+
+Define INFO_LAYER_ADD				"Add layer"
+Define INFO_LAYER_COSMETIC			"Cosmetic layer"
+Define INFO_LAYER_EDITABLE			"Editable layer"
+
+Define INFO_NONE				"none"
+Define INFO_YES					"Yes"
+Define INFO_NO					"No"
+
+Define INFO_TEXT_NONE				"None"
+
+Define INFO_TEXT_NEW				"New"
+Define INFO_TEXT_ALTER				"Alter"
+Define INFO_TEXT_REMOVE				"Remove"
+Define INFO_TEXT_NAME				"Name"
+Define INFO_TEXT_PICK				"Pick"
+Define INFO_TEXT_SAVE				"Save"
+Define INFO_TEXT_ADD				"Add"
+Define INFO_TEXT_CREATE				"Create"
+Define INFO_TEXT_UP				"Up"
+Define INFO_TEXT_DOWN				"Down"
+Define INFO_TEXT_CONTINUE			"Continue"
+Define INFO_TEXT_STOP				"Abort"
+Define INFO_TEXT_PRINTSETUP			"Printsetup"
+
+Define INFO_TEXT_NEW_POINTS			INFO_TEXT_NEW + "..."
+Define INFO_TEXT_ALTER_POINTS			INFO_TEXT_ALTER + "..."
+Define INFO_TEXT_REMOVE_POINTS			INFO_TEXT_REMOVE + "..."
+Define INFO_TEXT_PICK_POINTS			INFO_TEXT_PICK + "..."
+Define INFO_TEXT_SAVE_POINTS			INFO_TEXT_SAVE + "..."
+Define INFO_TEXT_ADD_POINTS			INFO_TEXT_ADD + "..."
+Define INFO_TEXT_CREATE_POINTS			INFO_TEXT_CREATE + "..."
+Define INFO_TEXT_PRINTSETUP_POINTS		INFO_TEXT_PRINTSETUP + "..."	
+
+Define INFO_THEME_NAME				"Themename"
+Define INFO_THEME_THEMES			"Themes"
+Define INFO_THEME_ADD_POINTS			INFO_TEXT_ADD + " theme..."
+
+Define INFO_PRINT_LAYOUT_NOT_FOUND		"Printlayout not found on HD : "
+Define INFO_PRINT_LAYOUT_ERROR			"Error in workspace!"
+Define INFO_PRINT_LAYOUT_NO_FRAMES		"No empty frames found in layout!"
+Define INFO_PRINT_LAYOUT_NOT_NAMED		"No printlayout setup!"
+Define INFO_PRINT_LAYOUT_READY_TO_PRINT		"Printlayout now ready for print!"
+
+Define INFO_PRINT_PAPERORIENTATION		"Paperdirection"
+Define INFO_PRINT_ORIENT_LANDSCAPE		"Landscape"
+Define INFO_PRINT_ORIENT_PORTRAIT		"Portrait"
+Define INFO_PRINT_ORIENT_BOTH			"Portrait;Landscape"
+
+Define INFO_MNU_EXIT_PROGRAM			"E&xit"
+Define INFO_MNU_ABOUT_PROGRAM			"A&bout "
+
+'**Predefined values
+Define eye					 	Chr$(34)
+Define lf 						Chr$(10)

@@ -1,0 +1,143 @@
+!Workspace
+!Version 650
+!Charset WindowsLatin1
+Open Table "Logo.TAB" As Logo Interactive
+Map From Logo 
+  Position (0.0520833,0.0520833) Units "in"
+  Width 3.6875 Units "in" Height 3.38542 Units "in" Min
+Set Window FrontWindow() ScrollBars Off Autoscroll On
+Set Map
+  CoordSys NonEarth Units "ft"
+  Center (133.5479499,-119.6565571)
+  Zoom 275.0425822 Units "ft"
+  Preserve Zoom Display Zoom
+  Distance Units "ft" Area Units "sq ft" XY Units "ft"
+  Distance Type Cartesian
+Set Map
+  Layer 1
+    Display Graphic
+    Selectable Off
+    Zoom (25, 10000) Units "ft" 
+  contrast 50 
+  brightness 50 
+  alpha 255 
+    transparency off 
+  color 0 
+    grayscale off 
+Set Window FrontWindow() Printer
+ Name "\\SAPPORO\PAGEPRO20" Orientation Portrait Copies 1
+ Papersize 9
+Layout
+  Position (0.0625,0.0625) Units "in"
+  Width 5.90625 Units "in" Height 4.8125 Units "in" 
+  Set CoordSys Layout Units "in"
+  Create Frame (0.2611,0.3049) (11.2847,7.7854)
+    Pen (2,2,0) 
+    Brush (2,16777215,16777215)
+    Title ""
+    FillFrame On
+  Create Rect (8.1354,0.3049) (11.2847,7.7854)
+    Pen (2,2,0) 
+    Brush (2,16777215,16777215)
+  Create Text
+    "[FIRMA]\n[AFDELING]"
+    (8.1743,6.5062) (9.1312,6.8993)
+    Font ("Arial",1,12,0)
+
+  Create Text
+    "[ADRESSE], [POSTNR] [POSTDISTRIKT]\nTlf. [TLF] Fax. [FAX]"
+    (8.1743,6.9583) (9.7326,7.1549)
+    Font ("Arial",0,6,0)
+
+  Create Line (8.1354,7.3917) (11.2847,7.3917)
+    Pen (1,2,0) 
+  Create Text
+    "Målforhold: 1:[MÅLFORHOLD]"
+    (8.1743,7.4111) (10.0493,7.5694)
+    Font ("Arial",0,10,0)
+
+  Create Text
+    "J.Nr. [JNR] / Init.: [INITIALER]"
+    (8.1743,7.6076) (10.0042,7.766)
+    Font ("Arial",0,10,0)
+
+  Create Line (8.1354,7.1944) (11.2847,7.1944)
+    Pen (1,2,0) 
+  Create Text
+    "Dato: [DATO]"
+    (8.1743,7.2146) (9.0062,7.3729)
+    Font ("Arial",0,10,0)
+
+  Create Frame (10.5757,6.4861) (11.2847,7.1951)
+    Pen (1,1,0) 
+    Brush (1,16777215,16777215)
+    Title "Logo Kort"
+    FillFrame On
+  Create Line (8.1354,7.5882) (11.2847,7.5882)
+    Pen (1,2,0) 
+  Create Line (8.1354,6.4861) (11.2847,6.4861)
+    Pen (1,2,0) 
+  Create Line (8.1354,0.8951) (11.2847,0.8951)
+    Pen (2,2,0) 
+  Create Text
+    "Matrikeloversigt"
+    (8.4139,0.4076) (10.9722,0.7993)
+    Font ("Arial",1,24,0)
+
+  Create Text
+    "[C=MAS_MATRNR(1)]\n[C=ELAVSKODE(1)]\n[C=ELAVNAVN(1)]\n[C=KOMNR(1)] [C=KOMNAVN(1)]"
+    (9.0014,0.9347) (11.5382,1.7014)
+    Font ("Arial",0,12,0)
+
+  Create Text
+    "Matr.nr.:\nEjerlav:\n\nKommune:"
+    (8.1743,0.9347) (8.9861,1.7014)
+    Font ("Arial",0,12,0)
+
+  Create Text
+    "Matr.nr.:\nEjerlav:\n\nKommune:"
+    (8.1743,1.9188) (8.9861,2.6854)
+    Font ("Arial",0,12,0)
+
+  Create Text
+    "Matr.nr.:\nEjerlav:\n\nKommune:"
+    (8.1743,2.9035) (8.9861,3.6701)
+    Font ("Arial",0,12,0)
+
+  Create Text
+    "Matr.nr.:\nEjerlav:\n\nKommune:"
+    (8.1743,3.8875) (8.9861,4.6542)
+    Font ("Arial",0,12,0)
+
+  Create Text
+    "Matr.nr.:\nEjerlav:\n\nKommune:"
+    (8.1743,4.8715) (8.9861,5.6382)
+    Font ("Arial",0,12,0)
+
+  Create Text
+    "[C=MAS_MATRNR(2)]\n[C=ELAVSKODE(2)]\n[C=ELAVNAVN(2)]\n[C=KOMNR(2)] [C=KOMNAVN(2)]"
+    (9.0014,1.9188) (11.5382,2.6854)
+    Font ("Arial",0,12,0)
+
+  Create Text
+    "[C=MAS_MATRNR(3)]\n[C=ELAVSKODE(3)]\n[C=ELAVNAVN(3)]\n[C=KOMNR(3)] [C=KOMNAVN(3)]"
+    (9.0014,2.9035) (11.5382,3.6701)
+    Font ("Arial",0,12,0)
+
+  Create Text
+    "[C=MAS_MATRNR(4)]\n[C=ELAVSKODE(4)]\n[C=ELAVNAVN(4)]\n[C=KOMNR(4)] [C=KOMNAVN(4)]"
+    (9.0014,3.8875) (11.5382,4.6542)
+    Font ("Arial",0,12,0)
+
+  Create Text
+    "[C=MAS_MATRNR(5)]\n[C=ELAVSKODE(5)]\n[C=ELAVNAVN(5)]\n[C=KOMNR(5)] [C=KOMNAVN(5)]"
+    (9.0014,4.8715) (11.5382,5.6382)
+    Font ("Arial",0,12,0)
+
+  Set Layout Ruler On Pagebreaks On Frame Contents Active
+  Zoom 47.0421 Center (5.84583,4.68692) Extents To Fit
+  Set Window FrontWindow() Autoscroll On Snap Mode On
+  Set CoordSys Earth
+Set Window FrontWindow() Printer
+ Name "\\SAPPORO\PAGEPRO20" Orientation Landscape Copies 1
+ Papersize 9

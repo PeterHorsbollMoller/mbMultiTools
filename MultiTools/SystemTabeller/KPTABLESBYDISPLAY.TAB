@@ -1,0 +1,11 @@
+!table
+!version 300
+!charset WindowsLatin1
+
+Definition Table
+  Type NATIVE Charset "Neutral"
+  Fields 4
+    DISPLAYID Integer ;
+    TABLEID Integer ;
+    LAYERID Integer ;
+    TABLELAYERID Char (10) Index 1 ;

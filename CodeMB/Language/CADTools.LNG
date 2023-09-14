@@ -1,0 +1,286 @@
+Define CAD_DLG_TXT_COPYRIGHT                             "Copyright" + Chr$(169) + " år"
+
+Define CAD_DLG_TXT_ADDRESS                               "DK-5000 Odense C"
+
+
+Define CAD_DLG_TXT_PHONE                                 "Tlf.: (+45) 6313 5013"
+
+Define CAD_MNU_FIT_LINE_TO_LENGTH_&                      "&Tilpas linie til angivet længde"
+
+Define CAD_MNU_FIT_LINE_TO_LENGTH                        "Tilpas linie til angivet længde"
+
+Define CAD_MNU_HP_FIT_LINE_TO_LENGTH                     "Udpeg først de objekter der skal tilpasses (Linie, Polylinie)"
+
+Define CAD_MNU_FIT_LINE_TO_CROSS                         "Tilpas linie til skæring"
+
+Define CAD_MNU_HP_FIT_LINE_TO_CROSS                      "Udpeg først de linier der skal tilpasses, tryk icon ned, udpeg hvortil der skal tilpasses, tryk icon op"
+
+Define CAD_MNU_FIT_2_LINES_TO_CROSS                      "Tilpas 2 linier til skæring"
+
+Define CAD_MNU_HP_FIT_2_LINES_TO_CROSS                   "Udpeg den 1. linie der skal tilpasses, tryk icon ned, udpeg den 2. linie der skal tilpasses, tryk icon op"
+
+Define CAD_MNU_PARALLEL_MOVE                             "Parallelforskyd Objekt"
+
+Define CAD_MNU_HP_PARALLEL_MOVE                          "Udpeg først det objekt der skal parallelforskydes (Linie, Polylinie, Region)"
+
+Define CAD_MNU_MOVE                                      "Flyt objekt"
+
+Define CAD_MNU_HP_MOVE                                   "Udpeg først de objekter er skal flyttes (Punkt, Linie, Polylinie, Region, Tekst, rektangel, Ellipse)"
+
+Define CAD_MNU_ROTATE                                    "Roter objekt"
+
+Define CAD_MNU_HP_ROTATE                                 "Udpeg først de objekter er skal roteres (Punkt, Linie, Polylinie og Region)"
+
+Define CAD_MNU_SCALE                                     "Skaler objekt"
+
+Define CAD_MNU_HP_SCALE                                  "Udpeg først de objekter er skal skaleres (Punkt, Linie, Polylinie, Region, Tekst, rektangel, Ellipse)"
+
+Define CAD_MNU_MIRROR                                    "Spejl objekt"
+
+Define CAD_MNU_HP_MIRROR                                 "Udpeg først de objekter er skal spejles (Punkt, Linie, Polylinie og Region)"
+
+Define CAD_MNU_SPLIT_INTO_LINES_&                        "&Opdel til linier"
+
+Define CAD_MNU_SPLIT_INTO_LINES                          "Opdel til linier"
+
+Define CAD_MNU_HP_SPLIT_INTO_LINES                       "Udpeg først de objekter der skal opdeles (Polylinie, Region)"
+
+Define CAD_MNU_CREATE_NODES_&                            "Generer &knudepunkter"
+
+Define CAD_MNU_CREATE_NODES                              "Generer knudepunkter"
+
+Define CAD_MNU_HP_CREATE_NODES                           "Udpeg først de objekter der skal anvendes til generering af knudepunkter (Linie, Polylinie, Regioner)"
+
+Define CAD_MNU_CREATE_SYMBOLS_EQUAL_&                    "Generer &punkter med samme afstand"
+
+Define CAD_MNU_CREATE_SYMBOLS_EQUAL                      "Generer punkter med samme afstand"
+
+Define CAD_MNU_HP_CREATE_SYMBOLS_EQU                     "Udpeg først de objekter der skal anvendes til generering af punkter (Linie, Polylinie)"
+
+Define CAD_MNU_SHADING_WITH_LINES_&                      "Skravering med &linier"
+
+Define CAD_MNU_SHADING_WITH_LINES                        "Skravering med linier"
+
+Define CAD_MNU_HP_PATTERN                                "Udpeg først de regioner der skal skraveres"
+
+Define CAD_MNU_SHADING_WITH_REGIONS_&                    "Skravering med &regioner"
+
+Define CAD_MNU_SHADING_WITH_REGIONS                      "Skravering med regioner"
+
+Define CAD_MNU_PATTERN_WITH_SYMBOLS_&                    "&Udfyld flader med symboler"
+
+Define CAD_MNU_PATTERN_WITH_SYMBOLS                      "Udfyld flader med symboler"
+
+Define CAD_MNU_POLYLINE_AS_ARC                           "Opret polylinie som cirkelbue"
+
+Define CAD_MNU_HP_POLYLINE_AS_ARC                        "Tegn polylinie med 2 liniestykker der afgrænser cirkelbuen"
+
+Define CAD_MNU_POLYLINE                                  "Opret polylinie"
+
+Define CAD_MNU_HP_POLYLINE                               "Tegn liniestykke, der starter i polyliniens start, og har retning som evt. roteret koordinatsystem"
+
+Define CAD_ERROR_TXT                                     "Der er sket en fejl under udførelse af denne funktion"
+
+Define CAD_DLG_TXT_OBJECTLENGTH                          "Angiv ønsket objektetlængde:"
+
+Define CAD_DLG_TXT_SAVE_LINES                            "Hvor skal linierne gemmes:"
+
+Define CAD_DLG_TXT_SAVE_POINTS                           "Hvor skal punkterne gemmes:"
+
+Define CAD_DLG_TXT_SAVE_SYMBOLS                          "Hvor skal symbolerne gemmes"
+
+Define CAD_DLG_TXT_SAVE_SHADING                          "Hvor skal skraveringen gemmes:"
+
+Define CAD_DLG_TXT_SAVE_OBJECT                           "Hvor skal objekterne gemmes:"
+
+Define CAD_DLG_TXT_SAVE_ORG_OBJ                          "Gem Original objekt"
+
+Define CAD_DLG_TXT_NUM_OF_POINTS                         "Angiv antal punkter incl. endepunkter:"
+
+Define CAD_DLG_TXT_DISTANCE_POINTS                       "Angiv afstand mellem punkter (kartesisk):"
+
+Define CAD_DLG_TXT_ENDPOINTS_INCL                        "Endepunktet skal altid medtages som punkt."
+
+Define CAD_DLG_TXT_DISTANCE_TO_MOVE                      "Angiv ønsket afstand at forskyde:"
+
+Define CAD_DLG_TXT_TIME_TO_MOVE                          "Antal gange der skal forskydes:"
+
+Define CAD_DLG_TXT_ROTATE                                "Roter"
+
+Define CAD_DLG_TXT_DEGREES                               "Grader"
+
+Define CAD_DLG_TXT_AROUND_X                              "Omkring punktet   X:"
+
+Define CAD_DLG_TXT_OR                                    "Eller"
+
+Define CAD_DLG_TXT_AROUND_CENTROID                       "Omkring Objektets Centroidpunkt"
+
+Define CAD_DLG_TXT_IN_X_DIRECTION                        "I X-retningen:"
+
+Define CAD_DLG_TXT_IN_Y_DIRECTION                        "I Y-retningen:"
+
+Define CAD_DLG_TXT_DISTANCE                              "Afstanden"
+
+Define CAD_DLG_TXT_WITH_ANGEL                            "med vinklen"
+
+Define CAD_DLG_TXT_TIME_TO_SCALE                         "Skaler antal gange:"
+
+Define CAD_DLG_TXT_RADIUS_OF_CIRCLE                      "Cirklens radius"
+
+Define CAD_DLG_TXT_RESOLUTION_OF_ARC                     "Angiv cirklens jævnhed:"
+
+Define CAD_DLG_TXT_NUM_LINE_CIRCLE                       "Antal liniestykker for hele cirklen"
+
+Define CAD_DLG_TXT_NUM_LINE_ARC                          "Antal liniestykker for denne cirkelbue"
+
+Define CAD_DLG_TXT_LENGTH_LINE                           "Længden på eet liniestykker"
+
+Define CAD_DLG_TXT_COSMETIC_LAYER                        "Kosmetisk lag"
+
+Define CAD_DLG_TXT_ENDPOINT_LINE_BY                      "Angiv slutpunkt på liniestykke v.h.a."
+
+Define CAD_DLG_TXT_ADD_LINE                              "Tilføj liniestykke"
+
+Define CAD_DLG_TXT_DELETE_LAST_LINE                      "Slet sidste liniestykke"
+
+Define CAD_DLG_TXT_ROTATE_COORD_SYSTEM                   "Roter koordinatsystem"
+
+Define CAD_DLG_TXT_COORD_SYSTEM_ROTATE                   "Koordinatsystemet roteres"
+
+Define CAD_DLG_TXT_CLOSE                                 "Luk"
+
+Define CAD_DLG_TXT_REVERSE_CLOCK                         "(Mod uret.)"
+
+Define CAD_DLG_TXT_ROTATE_LIKE_LINE                      "Roter efter angivet linie"
+
+Define CAD_DLG_TXT_RESET_COORDSYS                        "Nulstil koordinat sys."
+
+Define CAD_DLG_TXT_ANGLE_OF_SHADING                      "Angiv skraverings vinkel i grader:"
+
+Define CAD_DLG_TXT_HORIZ_REVERSE_CLOCK                   "(fra vandret)"
+
+Define CAD_DLG_TXT_DIST_BETWEEN_LINES                    "Angiv afstand mellem linierne:"
+
+Define CAD_DLG_TXT_DIST_BETWEEN_REGION                   "Angiv afstand mellem fladerne:"
+
+Define CAD_DLG_TXT_DIST_BETWEEN_SYMBOL                   "Angiv afstand mellem symbolerne:"
+
+Define CAD_DLG_TXT_WIDTH_OF_REGIONS                      "Angiv bredde af fladerne:"
+
+Define CAD_DLG_TXT_NEW_LINE_STYLE                        "Evt. angiv ny liniestil:"
+
+Define CAD_DLG_TXT_NEW_SYMBOL_STYLE                      "Evt. angiv ny symbolstil:"
+
+Define CAD_DLG_TXT_NEW_PATTERN                           "Evt. angiv nyt regionmønster:"
+
+Define CAD_DLG_TXT_SHADING_LINESTYLE                     "Angiv skraveringsfladens streg:"
+
+Define CAD_DLG_TXT_SHADING_PATTERN                       "Angiv skraveringsfladens udfyldning:"
+
+Define CAD_DLG_TXT_CHOISE_SYMBOL                         "Angiv symbol:"
+
+Define CAD_DLG_TXT_ROWS_DISPLACE                         "Symbolrækkerne ønskes forskudt."
+
+Define CAD_NOTE_TXT_NOT_A_MAPWINDOW                      "Det aktive vindue er ikke et kortvindue."
+
+Define CAD_NOTE_TXT_SELECT_A_OBJ                         "Du skal først vælge et eller flere objekter."
+
+Define CAD_NOTE_TXT_OBJ_BE_LI_PLI                        "Objektet skal være en linie eller polylinie."
+
+Define CAD_NOTE_TXT_OBJ_BE_LI_PLI_REG                    "Objectet skal være en linie, polylinie eller region."
+
+Define CAD_NOTE_TXT_OBJ_BE_PLI_REG                       "Objectet skal være en polylinie eller region."
+
+Define CAD_NOTE_TXT_OBJ_NOT_LI_PLI                       "Det valgte objekt er IKKE af typen linie eller polylinie."
+
+Define CAD_NOTE_TXT_OBJ_NOT_REG                          "Det valgte objekt er IKKE af typen region."
+
+Define CAD_NOTE_TXT_OBJ_NOT_LI_PLI_REG                   "Det valgte objekt er IKKE af typen linie, polylinie eller region."
+
+Define CAD_NOTE_TXT_OBJ_NOT_PLI_REG                      "Det valgte objekt er IKKE af typen polylinie eller region."
+
+Define CAD_NOTE_TXT_SEL_OBJ                              "Der skal udpeges eet eller flere objekter."
+
+Define CAD_NOTE_TXT_SEL_LI_PLI                           "Der skal udpeges eet eller flere linier/polylinie objekter."
+
+Define CAD_NOTE_TXT_SEL_REG                              "Der skal udpeges eet eller flere regioner."
+
+Define CAD_NOTE_TXT_SEL_PLI_REG                          "Der skal udpeges eet eller flere polylinie/region."
+
+Define CAD_NOTE_TXT_SEL_ONE_LI_PLI                       "Der skal udpeges netop 1 linie/polylinie."
+
+Define CAD_NOTE_TXT_SEL_ONE_LI_PLI_REG                   "Der skal udpeges netop 1 linie/polylinie/Region."
+
+Define CAD_NOTE_TXT_OBJ_NOT_REDESIGN                     "Objektet vil derfor IKKE blive redigeret."
+
+Define CAD_NOTE_TXT_OBJ_NOT_USE                          "Objektet kan ikke anvendes til denne funktion."
+
+Define CAD_NOTE_TXT_OBJ_MULTISEG                         "Objektet har flere afsnit."
+
+Define CAD_NOTE_TXT_NOT_VALUE_NEG                        "Du kan ikke vælge værdi <= 0."
+
+Define CAD_NOTE_TXT_NOT_1_OBJ                            "Der er ikke udpeget det 1. objekt."
+
+Define CAD_NOTE_TXT_2_IDENTICAL_OBJ                      "Der er valgt 2 ens objekter."
+
+Define CAD_NOTE_TXT_FILL_NUM_POINTS                      "Der mangler angivet antal punkter."
+
+Define CAD_NOTE_TXT_FILL_DIST_POINTS                     "Der mangler angivet afstand mellem punkterne."
+
+Define CAD_NOTE_TXT_NOT_POINTS_ON_MULT                   "Kan ikke generere punkter på objekt med flere afsnit."
+
+Define CAD_NOTE_TXT_MOVESIDE_OUTSIDE                     "Der er valgt en forskydningsretning undenfor objektets område"
+
+Define CAD_NOTE_TXT_CHANGE_VALUES_XY                     "Der er ændret i værdierne for x og y-retning."
+
+Define CAD_NOTE_TXT_CHANGE_VALUES_LA                     "Der er ændret i værdierne for længde og vinkel."
+
+Define CAD_NOTE_TXT_CAL_NEW_VALUES_LA                    "Der skal først beregnes nye værdier for længde og vinkel."
+
+Define CAD_NOTE_TXT_CAL_NEW_VALUES_XY                    "Der skal først beregnes nye værdier for x og y-retning."
+
+Define CAD_NOTE_TXT_NO_EDITABLE_LAYERS                   "Der er ingen redigerbare tabeller"
+
+Define CAD_NOTE_TXT_LESS_THAN_3_NODES                    "objektet har mindre en 3 knudepunkter."
+
+Define CAD_NOTE_TXT_FILL_IN_RADIUS                       "Der er ikke angivet radius"
+
+Define CAD_NOTE_TXT_FILL_IN_RADIUS_POS                   "Angiv radius > 0."
+
+Define CAD_NOTE_TXT_FILL_IN_NUM_LINES                    "Angiv antal liniestykker mellem 3 og 100."
+
+Define CAD_NOTE_TXT_FILL_IN_LENGTH_LI                    "Angiv længde af liniestykke"
+
+Define CAD_NOTE_TXT_FILL_IN_LENGTH_MR                    "Angiv længde < radius."
+
+Define CAD_NOTE_TXT_MISSINGS_IN_DIALOG                   "Der mangler angivelser i dialogboxen"
+
+Define CAD_NOTE_TXT_NO_OBJ_TO_DELETE                     "Der er ikke noget objekt at slette"
+
+Define CAD_NOTE_TXT_NO_OBJ_TO_SAVE                       "Der er intet Objekt at gemme"
+
+Define CAD_NOTE_TXT_NO_ANGLE                             "Du mangler at angive vinkel"
+
+Define CAD_NOTE_TXT_DIST_POS                             "Angiv afstand > 0"
+
+Define CAD_NOTE_TXT_WIDTH_POS                            "Angiv bredde > 0"
+
+Define CAD_TXT_X_COORDINATE                              "X-Koordinat"
+
+Define CAD_TXT_Y_COORDINATE                              "Y-Koordinat"
+
+Define CAD_TXT_INCREASE_IN_X                             "Tilvækst i X"
+
+Define CAD_TXT_INCREASE_IN_Y                             "Tilvækst i Y"
+
+Define CAD_TXT_INCREASE_IN_X_AND_Y                       "Tilvækst i X og Y"
+
+Define CAD_TXT_LENGTH                                    "Længde"
+
+Define CAD_TXT_ANGEL                                     "Vinkel"
+
+Define CAD_TXT_COORDINATES                               "Koordinater"
+
+Define CAD_TXT_DEGREES                                   "Grader"
+
+

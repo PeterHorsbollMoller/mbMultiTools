@@ -1,0 +1,633 @@
+'*******************************************************************************
+'** 	Program:		MultiTools
+'** 	Modul:		ToolSplit
+'**	Function		Funktioner til Vandløb Splitter
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+Include "..\TabFunc\TabFunc.def"
+Include "..\MapFunc\MapFunc.def"
+Include "..\GeoFunc\GeoFunc.def"
+Include "..\IniUtil\IniUtil.def"
+
+Include "..\Language\Message.lng"
+Include "..\Language\Errors.lng"
+Include "..\Language\Kommune.lng"
+
+Include "ToolSplit.def"
+
+Declare Function SplitPolyLineInPoint(pSearch As T_POINT) As Logical
+Declare Function SplitRegionWithPLine(	ByVal oSplitPLine As Object, ByVal oSplitRegion As Object,
+							oLeftResult As Object, oRightResult As Object) As Logical
+Declare Function SplitRegionWithRegion(	ByVal oCuttingRegion As Object, ByVal oRegionToSplit As Object,
+							oLeftResult As Object, oRightResult As Object) As Logical
+
+'****************************************
+'	Udvælger polylinier med flere segmenter
+'****************************************
+Sub SplitPlineTool
+
+Dim	pCoord As T_POINT,
+	i, nFound, nFoundRowID, nWID, nEditLayer As Integer,
+	szSelTab, szFoundTab, szEditLayer As String
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Sub
+	ElseIf not WindowInfo(FrontWindow(), WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Sub
+	End If
+
+	nWID		= FrontWindow()
+	Set CoordSys Window nWID
+
+	pCoord.X	= CommandInfo(CMD_INFO_X)
+	pCoord.Y	= CommandInfo(CMD_INFO_Y)
+
+	nEditLayer	= MapperInfo(nWID, MAPPER_INFO_EDIT_LAYER)
+	If nEditLayer = -1 Then
+		Note ERR_WIN_NO_EDIT_LAYER
+		Exit Sub
+	End If
+	szEditLayer	= LayerInfo(nWID, nEditLayer, LAYER_INFO_NAME)
+
+	If (SelectionInfo(SEL_INFO_NROWS) = 1) And (SelectionInfo(SEL_INFO_TABLENAME) = szEditLayer) Then
+		If not SplitPolyLineInPoint(pCoord) Then
+			Beep
+		End If
+	Else
+		nFound	= SearchPoint(nWID, pCoord.X, pCoord.Y)
+
+		If nFound = 0 Then
+'			Print "nFound"
+			Beep
+			Exit Sub
+		End If
+
+		For i = 1 To nFound
+			szFoundTab	= SearchInfo(i, SEARCH_INFO_TABLE)
+			If szFoundTab = szEditLayer Then
+				nFoundRowID	= SearchInfo(i, SEARCH_INFO_ROW)
+				
+				Select * From szFoundTab
+					Where ROWID	= nFoundRowID
+
+				szSelTab = SelectionInfo(SEL_INFO_SELNAME)
+
+				If SplitPolyLineInPoint(pCoord) Then
+					Run Menu Command M_QUERY_UNSELECT
+					If tableOpen(szSelTab) Then
+						Close Table szSelTab
+					End If					
+					Exit Sub
+				Else
+					Run Menu Command M_QUERY_UNSELECT
+					If TableOpen(szSelTab) Then
+						Close Table szSelTab
+					End If					
+				End If
+			End If
+		Next
+		Beep
+	End If
+
+End Sub
+
+'****************************************
+'	Udvælger polylinier med flere segmenter
+'****************************************
+Function SplitPolyLineInPoint(pSearch As T_POINT) As Logical
+
+Dim	pFirstNode, pPrevNode, pCurNode, pFoundNode As T_POINT,
+	objNew, objOrig As Object,
+	szSelName, szOrigTable As String,
+	i As Integer,
+	penCurrent As Pen,
+	bPointFound As Logical,
+	a As Alias
+
+SplitPolyLineInPoint	= FALSE
+
+	If SelectionInfo(SEL_INFO_NROWS) <> 1 Then
+		Note ERR_OBJ_MULTI_OBJ_SELECTED
+		Exit Function
+	End If
+
+	objOrig	= Selection.obj
+	szOrigTable	= Selectioninfo(SEL_INFO_TABLENAME)
+	szSelName	= Selectioninfo(SEL_INFO_SELNAME)
+
+	If not ObjectInfo(objOrig, OBJ_INFO_TYPE) = OBJ_TYPE_PLINE Then
+		Note ERR_OBJ_NOT_POLYLINE
+		Exit Sub
+	ElseIf not ObjectInfo(objOrig, OBJ_INFO_NPOLYGONS) = 1 Then
+		Note ERR_OBJ_MULTI_SEGMENT_NOT_ALLOW
+	   	Exit Sub
+	End If
+
+	'**Read linestyle...
+	penCurrent 	= ObjectInfo(objOrig,OBJ_INFO_PEN)
+
+   	pFirstNode.X	= ObjectNodeX(objOrig,1, ObjectInfo(objOrig, OBJ_INFO_NPNTS))
+	pFirstNode.Y	= ObjectNodeY(objOrig,1, ObjectInfo(objOrig, OBJ_INFO_NPNTS))
+	If GetPythDistance(pFirstNode, pSearch) <= gfSplitterTolerance Then
+'		Print "'**Snapping to the last node in object..."
+		Exit Function
+	End If
+   	pFirstNode.X	= ObjectNodeX(objOrig,1,1)
+	pFirstNode.Y	= ObjectNodeY(objOrig,1,1)
+	If GetPythDistance(pFirstNode, pSearch) <= gfSplitterTolerance Then
+'		Print "'**Snapping to the first node in object..."
+		Exit Function
+	End If
+
+	Create Pline
+		Into Variable objNew
+		1
+		(pFirstNode.X, pFirstNode.Y)
+		Pen penCurrent
+
+   	pPrevNode.X	= pFirstNode.X
+	pPrevNode.Y	= pFirstNode.Y
+
+'	Print "Søger : (" + pSearch.X + ", " + pSearch.Y + ")"
+
+	bPointFound	= FALSE
+	'***Running through the nodes of the object...
+	For i = 2 To ObjectInfo(objOrig, OBJ_INFO_NPOLYGONS + 1)
+
+'		Print "Node " + i + " af " + ObjectInfo(objOrig, OBJ_INFO_NPOLYGONS + 1)
+
+	   	pCurNode.X	= ObjectNodeX(objOrig, 1, 2)
+		pCurNode.Y	= ObjectNodeY(objOrig, 1, 2)
+
+'		Print "GetPythDistance: " & GetPythDistance(pCurNode, pSearch) & " <= " & gfSplitterTolerance
+
+		If GetPythDistance(pCurNode, pSearch) <= gfSplitterTolerance Then
+			Alter Object objNew
+				Node Add Position 1, i (pCurNode.X, pCurNode.Y)
+			Alter Object objOrig
+				Node Remove Position 1, 1
+
+			bPointFound	= TRUE
+			Exit For
+		ElseIf IsPointOnLine(pPrevNode, pCurNode, pSearch, pFoundNode, gfSplitterTolerance) Then
+'			Print "Søger : (" + pSearch.X + ", " + pSearch.Y + ")"
+'			Print "Aktuel node : (" + pCurNode.X + ", " + pCurNode.Y + ")"
+'			Print "Fundet : (" + pFoundNode.X + ", " + pFoundNode.Y + ")"
+
+			'Print "Opretter nyt knudepunkt"
+			Alter Object objNew
+				Node Add Position 1, i (pFoundNode.X, pFoundNode.Y)
+			Alter Object objOrig
+				Node Set Position 1, 1 (pFoundNode.X, pFoundNode.Y)
+
+			bPointFound	= TRUE
+			Exit For
+		Else
+			Alter Object objNew
+				Node Add Position 1, i (pCurNode.X, pCurNode.Y)
+			Alter Object objOrig
+				Node Remove Position 1, 1
+		End If
+
+		pPrevNode.X	= pCurNode.X
+		pPrevNode.Y	= pCurNode.Y
+	Next		'i
+
+	If bPointFound Then
+		'**Inserting the first part of the pline...
+		Insert Into szOrigTable
+			Select * from Selection 
+
+		'**Updating the first part of the pline...
+		Update szOrigTable
+			Set	obj		= objNew
+				Where RowID	= TableInfo(szOrigTable,TAB_INFO_NROWS)
+
+		'**Updating the last part of the pline...
+		Update Selection
+			Set 	obj 		= objOrig
+
+		SplitPolyLineInPoint	= TRUE
+	End If
+
+	OnError GoTo ErrorOccuredClosingQuery
+	If TableOpen(szSelName) Then
+		Close Table szSelName
+	End If
+	OnError GoTo 0
+
+'-----------------------
+BeforeExitingTheFunction:
+
+	Exit Function
+
+'-----------------------
+ErrorOccuredClosingQuery:
+	Resume BeforeExitingTheFunction
+
+End Function
+
+'******************************************
+'Værktøj - Opdeling af region med linie
+'******************************************
+Sub ToolSplitRegionWithLine
+
+Dim	nWID, i, nCount As Integer,
+	szSelTab, szSourceTab, szTempFile, szOffSet As String,
+	a As Alias,
+	pFirst, pLast As T_POINT,
+	oCuttingLine, oOrigRegion, OLeftObj, ORightObj As Object,
+	bRelativOffset As Logical
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Sub
+	End If
+	nWID = FrontWindow()
+	If not WindowInfo(nWID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Sub
+	End If
+
+	If SelectionInfo(SEL_INFO_NROWS) = 0 Then
+		Note ERR_TXT_PICK_A_REGION
+		Exit Sub
+	ElseIf SelectionInfo(SEL_INFO_NROWS) > 1 Then
+		Note ERR_OBJ_MULTI_OBJ_SELECTED
+		Exit Sub
+	End If
+
+	szSelTab	= SelectionInfo(SEL_INFO_SELNAME)
+	szSourceTab	= SelectionInfo(SEL_INFO_TABLENAME)
+
+	If TableInfo(szSourceTab, TAB_INFO_READONLY) Then
+		Note ERR_TAB_READONLY + szSourceTab
+		GoTo BeforeExitTheSub
+	ElseIf not LayerExists(szSourceTab, nWID) Then
+		Note ERR_MAP_LAYER_NOT_IN_FRONTMAP + szSourceTab
+		GoTo BeforeExitTheSub
+	ElseIf not LayerInfo(nWID, LayerID(szSourceTab, nWID), LAYER_INFO_EDITABLE) Then
+		Note ERR_MAP_LAYER_NOT_EDITABLE
+		GoTo BeforeExitTheSub
+	End If
+
+	Set CoordSys Table szSourceTab
+	Set Distance Units "m"
+	oCuttingLine = CommandInfo(CMD_INFO_CUSTOM_OBJ)
+
+	If not GetCoordBeginLine(oCuttingLine, pFirst) Then
+		Note ERR_OBJ_READING_COORD
+		Exit Sub
+	ElseIf not GetCoordEndLine(oCuttingLine, pLast) Then
+		Note ERR_OBJ_READING_COORD
+		Exit Sub
+	End If
+
+	If ObjectLen(oCuttingLine, "m") < 1 Then
+		Note ERR_DRAW_HOLD_MOUSE_BTN_DOWN
+		Exit Sub
+	'ElseIf GetPythDistance(pFirst, pLast) < 1 Then
+	'	Note ERR_PNT_FIRST_AND_LAST_TO_CLOSE
+	'	Exit Sub
+	End If
+
+	a = szSelTab + ".OBJ"
+	If not a Then
+		Note ERR_OBJ_NOT_ATTACHED_TO_RECORD
+		GoTo BeforeExitTheSub
+	End If	
+	oOrigRegion = a
+	If not ObjectInfo(oOrigRegion, OBJ_INFO_TYPE) = OBJ_TYPE_REGION Then
+		Note ERR_OBJ_NOT_REGION
+		GoTo BeforeExitTheSub
+	End If	
+
+	If GetPythDistance(pFirst, pLast) < 1 Then
+		If not SplitRegionWithRegion(ConvertToRegion(oCuttingLine), oOrigRegion, OLeftObj, ORightObj) Then
+			Note ERR_KPAK_SPLIT_REGION_NOT_POSS
+			GoTo BeforeExitTheSub
+		End If
+	Else
+		Dialog
+			Title KPAK_DLG_TITLE_OFFSET  + ", m"
+
+			Control EditText	Position 5,5	Width 90
+				Value "0"
+				Into szOffSet
+			Control CheckBox	Position 5,20
+				Title KPAK_DLG_TXT_RELATIVE_OFFSET
+				Value FALSE
+				Into bRelativOffset
+			Control OKButton
+			Control CancelButton
+		If not CommandInfo(CMD_INFO_DLG_OK) Then
+			GoTo BeforeExitTheSub
+		End If
+
+		If Val(KommaToPoint(szOffSet)) <> 0 Then
+			If bRelativOffset Then
+				oCuttingLine = GeoFuncOffSetPLine(oCuttingLine, Val(KommaToPoint(szOffSet)))
+			Else
+				oCuttingLine = GeoFuncOffSetPLine2(oCuttingLine, Val(KommaToPoint(szOffSet)))
+			End If
+		End If
+
+		If not oOrigRegion Intersects oCuttingLine Then
+			Note ERR_DRAW_LINE_WITHIN_CHOSEN_OBJ
+			GoTo BeforeExitTheSub
+		End If	
+
+		If not SplitRegionWithPLine(oCuttingLine, oOrigRegion, OLeftObj, ORightObj) Then
+			Note ERR_KPAK_SPLIT_REGION_NOT_POSS
+			GoTo BeforeExitTheSub
+		End If
+	End If
+
+	Insert Into szSourceTab
+		Select * From szSelTab
+	Update szSelTab
+		Set	OBJ	= OLeftObj
+	Update szSourceTab
+		Set	OBJ	= ORightObj
+		Where	RowID	= GetNumRows(szSourceTab)
+
+'----------------------------
+BeforeExitTheSub:
+	If TableOpen(szSelTab) Then
+		Close Table szSelTab
+	End If
+
+End Sub
+
+'******************************************
+'Function - Opdeler en region med en Polylinie
+'******************************************
+Function SplitRegionWithPLine(ByVal oSplitPLine As Object, ByVal oSplitRegion As Object,
+					oLeftResult As Object, oRightResult As Object) As Logical
+
+Dim	i, k, nNumPnt As Integer,
+	oOrigMBR, oCuttingLine, oCuttingPLine, oRegionToSplit, oCuttingRegion As Object,
+	pArrMBR(5), pBegin, pEnd, pNew, pFirstNew, pLastNew, pMax, pMin, pTemp As T_POINT,
+	fX, fY As Float,
+	bFirstISOnLine, bLastIsOnLine, bUsingFirst As Logical
+
+SplitRegionWithPLine = FALSE
+
+	'**Retriving coordinates and other information...
+	If GetCoordBeginLine(oSplitPLine, pBegin) Then End If
+	If GetCoordEndLine(oSplitPLine, pEnd) Then End If
+	oOrigMBR		= MBR(oSplitRegion)
+	oCuttingPLine	= oSplitPLine
+	nNumPnt		= ObjectInfo(oCuttingPLine, OBJ_INFO_NPNTS)
+
+	'**Extending the cutting line outside the MBR of the region to cut
+	pBegin.X	= ObjectNodeX(oCuttingPLine, 1, 1)
+	pBegin.Y	= ObjectNodeY(oCuttingPLine, 1, 1)
+	pEnd.X	= ObjectNodeX(oCuttingPLine, 1, 2)
+	pEnd.Y	= ObjectNodeY(oCuttingPLine, 1, 2)
+	Do Until not (CreatePoint(pBegin.X, pBegin.Y) Entirely Within oOrigMBR)
+		Call CreatePointOnLine(pBegin, pEnd, -100, pNew)
+		pBegin.X	= pNew.X	
+		pBegin.Y	= pNew.Y
+	Loop
+	Alter Object oCuttingPLine
+		Node Set Position 1, 1 (pBegin.X, pBegin.Y) 
+
+	pBegin.X	= ObjectNodeX(oCuttingPLine, 1, nNumPnt - 1)
+	pBegin.Y	= ObjectNodeY(oCuttingPLine, 1, nNumPnt - 1)
+	pEnd.X	= ObjectNodeX(oCuttingPLine, 1, nNumPnt)
+	pEnd.Y	= ObjectNodeY(oCuttingPLine, 1, nNumPnt)
+	Do Until not (CreatePoint(pEnd.X, pEnd.Y) Entirely Within oOrigMBR)
+		Call CreatePointOnLine(pEnd, pBegin, -100, pNew)
+		pEnd.X	= pNew.X
+		pEnd.Y	= pNew.Y
+	Loop
+	Alter Object oCuttingPLine
+		Node Set Position 1, nNumPnt (pEnd.X, pEnd.Y) 
+
+	'***Removing needless points outside the MBR
+	Do Until (ObjectInfo(oCuttingPLine, OBJ_INFO_NPNTS) < 3) 
+		fX = ObjectNodeX(oCuttingPLine, 1, 2)
+		fY = ObjectNodeY(oCuttingPLine, 1, 2)
+		If not (CreatePoint(fX, fY) Within oOrigMBR) Then
+			Alter Object oCuttingPLine
+				Node Remove Position 1, 1
+		Else
+			Exit Do
+		End If
+	Loop
+	Do Until (ObjectInfo(oCuttingPLine, OBJ_INFO_NPNTS) < 3)
+		nNumPnt	= ObjectInfo(oCuttingPLine, OBJ_INFO_NPNTS) 
+		fX 		= ObjectNodeX(oCuttingPLine, 1, nNumPnt- 1)
+		fY 		= ObjectNodeY(oCuttingPLine, 1, nNumPnt - 1)
+		If not (CreatePoint(fX, fY) Within oOrigMBR) Then
+			Alter Object oCuttingPLine
+				Node Remove Position 1, nNumPnt
+		Else
+			Exit Do
+		End If
+	Loop
+
+	oCuttingLine	= IntersectNodes(oCuttingPLine, oOrigMBR, INCL_CROSSINGS)
+	oOrigMBR		= ConvertToRegion(oOrigMBR)	
+
+	If GetCoordBeginLine(oCuttingLine, pBegin) Then End If
+	If GetCoordEndLine(oCuttingLine, pEnd) Then End If
+	pMin.X	= ObjectGeography(oOrigMBR, OBJ_GEO_MINX)
+	pMin.Y	= ObjectGeography(oOrigMBR, OBJ_GEO_MINY)
+	pMax.X	= ObjectGeography(oOrigMBR, OBJ_GEO_MAXX)
+	pMax.Y	= ObjectGeography(oOrigMBR, OBJ_GEO_MAXY)
+	nNumPnt	= 1
+
+	pArrMBR(1).X	= pMin.X
+	pArrMBR(1).Y	= pMin.Y
+	pArrMBR(2).X	= pMax.X
+	pArrMBR(2).Y	= pMin.Y
+	pArrMBR(3).X	= pMax.X
+	pArrMBR(3).Y	= pMax.Y
+	pArrMBR(4).X	= pMin.X
+	pArrMBR(4).Y	= pMax.Y
+	pArrMBR(5).X	= pMin.X
+	pArrMBR(5).Y	= pMin.Y
+
+	Create Region
+		Into Variable oCuttingRegion
+		1
+		1 (pArrMBR(1).X, pArrMBR(1).Y)
+
+	'**Creating object until first intersect with cutting line...
+	For i = 2 To 5
+		nNumPnt		= nNumPnt + 1
+		bFirstIsOnLine	= IsPointOnLine(pArrMBR(i - 1), pArrMBR(i), pBegin, pFirstNew, 1)
+		bLastIsOnLine	= IsPointOnLine(pArrMBR(i - 1), pArrMBR(i), pEnd, pLastNew, 1)
+
+
+		If bFirstIsOnLine And bLastIsOnLine Then
+			If GetPythDistance(pArrMBR(i - 1), pBegin) < GetPythDistance(pArrMBR(i - 1), pEnd) Then
+				bUsingFirst = TRUE
+				pNew.X = pFirstNew.X
+				pNew.Y = pFirstNew.Y			
+			Else
+				bUsingFirst = FALSE
+				pNew.X = pLastNew.X
+				pNew.Y = pLastNew.Y			
+			End If
+		ElseIf bFirstIsOnLine Then
+			pNew.X = pFirstNew.X
+			pNew.Y = pFirstNew.Y			
+		ElseIf bLastIsOnLine Then
+			pNew.X = pLastNew.X
+			pNew.Y = pLastNew.Y			
+		End If
+
+		If bFirstIsOnLine Or bLastIsOnLine Then
+			Alter Object oCuttingRegion
+				Node Add (pNew.X, pNew.Y) 
+			Exit For 
+		Else
+			Alter Object oCuttingRegion
+				Node Add (pArrMBR(i).X, pArrMBR(i).Y) 
+		End If
+	Next
+
+	If ObjectInfo(oCuttingPLine, OBJ_INFO_NPNTS) > 2 Then
+		pMin.X	= ObjectNodeX(oCuttingPLine, 1, 1)
+		pMin.Y	= ObjectNodeY(oCuttingPLine, 1, 1)
+		pMax.X	= ObjectNodeX(oCuttingPLine, 1, 2)
+		pMax.Y	= ObjectNodeY(oCuttingPLine, 1, 2)
+
+	'	Print "Min : (" + pMin.X + ", " + pMin.Y + ")"
+	'	Print "Max : (" + pMax.X + ", " + pMax.Y + ")"
+	'	Print "New : (" + pNew.X + ", " + pNew.Y + ")"
+
+		If IsPointOnLine(pMin, pMax, pNew, pTemp, 5) Then
+			'**Append cutting line nodes to area...
+			For k = 2 To (ObjectInfo(oCuttingPLine, OBJ_INFO_NPNTS) - 1)
+				fX	= ObjectNodeX(oCuttingPLine, 1, k)
+				fY	= ObjectNodeY(oCuttingPLine, 1, k)
+				Alter Object oCuttingRegion
+					Node Add (fX, fY) 
+			Next
+		Else
+			'**Append cutting line nodes to area...
+			For k = (ObjectInfo(oCuttingPLine, OBJ_INFO_NPNTS) - 1) To 2 Step -1
+				fX	= ObjectNodeX(oCuttingPLine, 1, k)
+				fY	= ObjectNodeY(oCuttingPLine, 1, k)
+				Alter Object oCuttingRegion
+					Node Add (fX, fY) 
+			Next
+		End If
+	End If
+
+	'**Running thru MBR until second intersect with cutting line...
+	nNumPnt	= nNumPnt + 1
+	If bFirstIsOnLine And bLastIsOnLine Then
+		If bUsingFirst Then
+				Alter Object oCuttingRegion
+					Node Add (pEnd.X, pEnd.Y) 
+		Else
+			Alter Object oCuttingRegion
+				Node Add (pBegin.X, pBegin.Y) 
+		End If
+	Else
+		For i = (i + 1) To 5
+			If IsPointOnLine(pArrMBR(i - 1), pArrMBR(i), pBegin, pNew, 1) Then
+				Alter Object oCuttingRegion
+					Node Add (pBegin.X, pBegin.Y) 
+				Exit For 
+			ElseIf IsPointOnLine(pArrMBR(i - 1), pArrMBR(i), pEnd, pNew, 1) Then
+				Alter Object oCuttingRegion
+					Node Add (pEnd.X, pEnd.Y) 
+				Exit For 
+			End If
+		Next
+	End If
+
+	'**Ending object from second intersect with cutting line...
+	For i = i To 5
+		nNumPnt	= nNumPnt + 1
+		Alter Object oCuttingRegion
+			Node Add (pArrMBR(i).X, pArrMBR(i).Y) 
+	Next
+
+	'Insert Into WindowInfo(FrontWindow(), WIN_INFO_TABLE) (obj) Values (oCuttingRegion)
+
+	If not SplitRegionWithRegion(oCuttingRegion, oSplitRegion, oLeftResult, oRightResult) Then
+		Exit Function
+	End If
+
+	If not oRightResult Then
+		Note ERR_KPAK_SPLIT_RIGHT_NOT_OBJ
+		Exit Function
+	ElseIf not oLeftResult Then
+		Note ERR_KPAK_SPLIT_LEFT_NOT_OBJ
+		Exit Function
+	End If
+
+SplitRegionWithPLine = TRUE
+
+End Function
+
+'******************************************
+'Function - Opdeler en region med en Polylinie
+'******************************************
+Function SplitRegionWithRegion(	ByVal oCuttingRegion As Object, ByVal oRegionToSplit As Object,
+						oLeftResult As Object, oRightResult As Object) As Logical
+
+SplitRegionWithRegion = FALSE
+
+	'Insert Into WindowInfo(FrontWindow(), WIN_INFO_TABLE) (obj) Values (oCuttingRegion)
+
+	oRegionToSplit	= OverlayNodes(oRegionToSplit, oCuttingRegion)
+	oCuttingRegion	= OverlayNodes(oCuttingRegion, oRegionToSplit)
+	oCuttingRegion	= OverlayNodes(oCuttingRegion, oRegionToSplit)
+
+	oRightResult	= Erase(oRegionToSplit, oCuttingRegion)
+	oRightResult	= OverlayNodes(oRightResult, oRegionToSplit)
+	oLeftResult 	= Erase(oRegionToSplit, oRightResult)
+
+	If not oRightResult Then
+		Note "Højre objekt er tomt!"
+		Exit Function
+	ElseIf not oLeftResult Then
+		Note "Venstre objekt er tomt!"
+		Exit Function
+	End If
+
+SplitRegionWithRegion = TRUE
+
+End Function
+
+'****************************************
+'** OPSÆTNING AF TOLERANCE TIL SPLIT FUNKTIONEN
+'****************************************
+Sub ToleranceSetup
+
+Dim	txtTol As String
+
+	txtTol = Str$(gfSplitterTolerance)
+
+	Dialog
+		Title KPAK_DLG_TITLE_SNAP_TOLERANCE
+
+		Control StaticText	Position 5,5
+			Title KPAK_DLG_TXT_SNAP_TOLERANCE
+		Control EditText		Position 5,15
+			Value txtTol
+			Into txtTol
+		Control OKButton
+		Control CancelButton
+	If not Commandinfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	gfSplitterTolerance = Val(KommaToPoint(txtTol))
+
+End Sub
+

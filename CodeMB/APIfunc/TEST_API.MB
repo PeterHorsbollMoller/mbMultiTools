@@ -1,0 +1,122 @@
+include "mapbasic.def"
+include "apifunc.def"
+
+Define eye chr$(34)
+Define lf chr$(10)
+
+Declare Sub Main
+Declare Sub EndProgram
+Declare Sub ReadMe
+Declare Sub Start_APIBrowseFolders
+Declare Sub Start_APIGetUserName
+Declare Sub Start_APISleep
+Declare Sub Start_APILaunchURL
+Declare Sub Start_APIGetWindowsDirectory$
+Declare Sub Start_APISetMIFront
+Declare Sub Start_APIGetFilesInDirectoryRecursive
+Declare Sub Start_APICopyFile
+Declare Sub Start_APICreateDirectory
+
+Sub Main
+	Create Menu "TEST_API" As
+		"APIGetUserName()" Calling Start_APIGetUserName,
+		"APIBrowseFolders("+eye+"Overskrift"+eye+")" Calling Start_APIBrowseFolders,
+		"APISleep(2000)" Calling Start_APISleep,
+		"APILaunchURL("+eye+"http:\\www.mapinfi.dk"+eye+")" Calling Start_APILaunchURL,
+		"APIGetWindowsDirectory$()" Calling Start_APIGetWindowsDirectory$,
+		"APISetMIFront" Calling Start_APISetMIFront,
+		"APIGetFilesInDirectoryRecursive" Calling Start_APIGetFilesInDirectoryRecursive,
+		"APICopyFile" Calling Start_APICopyFile,
+		"APICreateDirectory i C:abcd_test" Calling Start_APICreateDirectory,
+		"(-",
+		"README" Calling ReadMe,
+		"Exit" Calling EndProgram
+	Alter Menu Bar Add "TEST_API"
+	Print chr$(12)
+End Sub
+
+Sub Start_APICreateDirectory
+		 Dim i_Dummy as integer
+		 i_Dummy = CreateDirectory("C:\abcd_test", 0)
+End Sub		 
+
+Sub Start_APICopyFile
+  Dim b as logical
+  Dim n as integer 
+  
+  If not FileExists(ApplicationDirectory$()+"test1.txt") Then
+    Note "Eksemplet forudsætter filen: " + ApplicationDirectory$()+"test1.txt"
+    Exit Sub
+  End If
+  
+  ' n =  0 -> owerwrite existing file
+  ' n <> 0 -> do not owerwrite existing file
+  n = 0
+  b = APICopyFile(ApplicationDirectory$()+"test1.txt", ApplicationDirectory$()+"test2.txt", n)
+End Sub
+
+Sub Start_APIBrowseFolders
+	Print APIBrowseFolders("Overskrift")
+End Sub
+
+Sub Start_APIGetUserName
+	Print APIGetUserName()
+End Sub
+
+Sub Start_APISleep
+	Print "Time Start: " + Timer()
+	Call APISleep(2000)
+	Print "Time Stop: " + Timer()
+End Sub
+
+Sub Start_APILaunchURL		
+	Dim szFile As String
+
+	szFile = "http:\\www.mapinfo.dk"
+	Call APILaunchURL(szFile)		
+End Sub
+
+Sub Start_APIGetWindowsDirectory$
+	Print APIGetWindowsDirectory$()
+End Sub
+
+Sub Start_APISetMIFront
+	Call APISetMIFront
+	Print "Call APISetMIFront sættes før den dialog der minimere MI"
+End Sub
+
+Sub Start_APIGetFilesInDirectoryRecursive
+
+Dim	szPath, arrFiles() As String,
+	i As Integer
+
+	szPath = APIBrowseFolders("Udpeg mappe som skal gennemsøges...")
+	If szPath = "" Then
+		Exit Sub
+	End If
+	szPath = szPath & "\"
+	
+	If NOT APIGetFilesInDirectoryRecursive(szPath, "", "*.TAB", arrFiles) Then
+		Note "Fejl ved rekursiv gennemsøgning!"
+	Else
+		Note "Rekursiv gennemsøgning afsluttet uden fejl!"
+		
+		For i = 1 To Ubound(arrFiles)
+			Print i & ". " & arrFiles(i)
+		Next
+	End If
+
+End Sub
+
+Sub ReadMe
+	Note "Tilføjer du en API til dette modul," + lf +
+		"opret da et eksempel i denne mbx (=TEST_API.MB)," + lf +
+		"Så bliver indholdet til at overskue." + lf +
+		" " + lf +
+		"Overhold derfor også bemærkningernes syntax i" + lf +
+		"filerne: APIfunc.mb og APIfunc.def"
+End Sub
+
+Sub EndProgram
+	End Program
+End Sub

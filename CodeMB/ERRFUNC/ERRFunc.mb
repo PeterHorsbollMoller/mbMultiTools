@@ -1,0 +1,351 @@
+'*******************************************************************************
+'** 	Program:
+'** 	Modul:	ERRFunc.mb
+'**
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+'-----------------------------------------------------------------------------------------
+Include "..\ARRAYFunc\ARRAYFunc.def"
+Include "..\IniUtil\IniUtil.def"
+Include "..\STRFunc\STRFunc.def"
+
+'**Includes of language-files...
+Include "..\Language\PlotDef.lng"
+Include "..\Language\Message.lng"
+Include "..\Language\Errors.lng"
+
+Include "ERRFunc.def"
+
+Type T_ERROR
+	nErrorCode	As Integer
+	szErrorText	As String
+End Type
+
+Type T_ERROR_OCCURENCE
+	nErrorCode		As Integer
+	szErrorText		As String
+	szComment		As String
+	dDate			As Date
+	szTime		As String
+End Type
+
+Dim	marrErrorsOccured() As T_ERROR_OCCURENCE,
+	mnNumErrors As Integer,
+	mszApplicationTitle As String
+'**********************************************************************************************''
+'Error Handling
+'**********************************************************************************************''
+Sub ERRCreateError(ByVal nErrorCode As Integer, ByVal szErrorText As String, ByVal szComment As String)
+
+OnError GoTo ErrorOccured
+
+	mnNumErrors = mnNumErrors + 1
+	ReDim marrErrorsOccured(mnNumErrors)
+
+	marrErrorsOccured(mnNumErrors).szTime		= Time(24)
+	marrErrorsOccured(mnNumErrors).dDate		= CurDate()
+	marrErrorsOccured(mnNumErrors).nErrorCode		= nErrorCode
+	marrErrorsOccured(mnNumErrors).szErrorText	= szErrorText
+	marrErrorsOccured(mnNumErrors).szComment		= szComment
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'**********************************************************************************************''
+Sub ERRCreateErrorAndShowDlg(ByVal nErrorCode As Integer, ByVal szErrorText As String, ByVal szComment As String)
+
+OnError GoTo ErrorOccured
+
+	Call ERRCreateError(nErrorCode, szErrorText, szComment)
+	Call ERRShowLastErrorDlg
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'**********************************************************************************************''
+Function ERRGetLastErrorDescription$() As String
+
+OnError GoTo ErrorOccured
+
+	If mnNumErrors = 0 Then
+		ERRGetLastErrorDescription$ = ""
+	Else
+		ERRGetLastErrorDescription$ = ERRGetErrorDescription$(mnNumErrors)
+	End If
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'**********************************************************************************************''
+Function ERRGetLastError$() As String
+
+OnError GoTo ErrorOccured
+
+	If mnNumErrors = 0 Then
+		ERRGetLastError$ = ""
+	Else
+		ERRGetLastError$ = ERRGetError$(mnNumErrors)
+	End If
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'**********************************************************************************************''
+Function ERRGetLastErrorComment$() As String
+
+OnError GoTo ErrorOccured
+
+	If mnNumErrors = 0 Then
+		ERRGetLastErrorComment$ = ""
+	Else
+		ERRGetLastErrorComment$ = ERRGetErrorComment$(mnNumErrors)
+	End If
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+Function ERRGetLastErrorText$() As String
+
+OnError GoTo ErrorOccured
+
+	If mnNumErrors = 0 Then
+		ERRGetLastErrorText$ = ""
+	Else
+		ERRGetLastErrorText$ = ERRGetErrorText$(mnNumErrors)
+	End If
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'**********************************************************************************************''
+Function ERRGetLastErrorCode() As Integer
+
+OnError GoTo ErrorOccured
+
+	If mnNumErrors = 0 Then
+		ERRGetLastErrorCode = 0
+	Else
+		ERRGetLastErrorCode = ERRGetErrorCode(mnNumErrors)
+	End If
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'**********************************************************************************************''
+Function ERRGetErrorDescription$(ByVal nErrorItem As Integer) As String
+
+OnError GoTo ErrorOccured
+
+	ERRGetErrorDescription$ = FormatDate$(marrErrorsOccured(nErrorItem).dDate)
+						& " " & marrErrorsOccured(nErrorItem).szTime
+						& lf & ERRGetError$(nErrorItem)
+						& lf & "(" & ERRGetErrorComment$(nErrorItem) & ")"
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'**********************************************************************************************''
+Function ERRGetError$(ByVal nErrorItem As Integer) As String
+
+OnError GoTo ErrorOccured
+
+	ERRGetError$ = ERRGetErrorCode(nErrorItem) & " " & ERRGetErrorText$(nErrorItem)
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'**********************************************************************************************''
+Function ERRGetErrorText$(ByVal nErrorItem As Integer) As String
+
+OnError GoTo ErrorOccured
+
+	ERRGetErrorText$ = marrErrorsOccured(nErrorItem).szErrorText
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'**********************************************************************************************''
+Function ERRGetErrorComment$(ByVal nErrorItem As Integer) As String
+
+OnError GoTo ErrorOccured
+
+	ERRGetErrorComment$ = marrErrorsOccured(nErrorItem).szComment
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'**********************************************************************************************''
+Function ERRGetErrorCode(ByVal nErrorItem As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	ERRGetErrorCode = marrErrorsOccured(nErrorItem).nErrorCode
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'**********************************************************************************************''
+Sub ERRFlushErrors
+
+OnError GoTo ErrorOccured
+
+	mnNumErrors = 0
+	ReDim marrErrorsOccured(mnNumErrors)
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub ERRShowLastErrorDlg
+
+OnError GoTo ErrorOccured
+
+	If mnNumErrors > 0 Then
+		Dialog
+			Title ERRGetApplicationTitle$()
+
+		Control EditText		Position 5,5	Width 40
+			Value Str$(ERRGetLastErrorCode())
+		Control EditText		Position 5,20	Width 400
+			Value ERRGetLastErrorText$()
+		Control EditText		Position 5,35	Width 400	Height 80
+			Value ERRGetLastErrorComment$()
+		Control OKButton
+	End If
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'**********************************************************************************************''
+Sub ERRShowLastErrorPrint
+
+OnError GoTo ErrorOccured
+
+	If mnNumErrors > 0 Then
+		Print ERRGetLastError$()
+	End If
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function ERRGetApplicationTitle$() As String
+
+OnError GoTo ErrorOccured
+
+	If mszApplicationTitle = "" Then
+		ERRGetApplicationTitle$ = "MapInfo Error"
+	Else
+		ERRGetApplicationTitle$ = mszApplicationTitle
+	End If
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub ERRSetApplicationTitle(ByVal szTitle As String)
+
+OnError GoTo ErrorOccured
+
+	mszApplicationTitle = szTitle
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+Sub ERRPrintAllErrors(ByVal szFile As String)
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	If szFile = "" Then
+		Print "--------------------------------------------------------------"
+		Print "Errors " & FormatDate$(CurDate()) & " " & Time(24)
+		Print ERRGetApplicationTitle$()
+		Print "--------------------------------------------------------------"
+		For i = 1 To mnNumErrors
+			Print ERRGetErrorDescription$(i)
+		Print "---------------------------"
+		Next	'i
+		Print "--------------------------------------------------------------"
+	Else
+		If FileExists(szFile) Then
+			Open File szFile
+				For Append
+				As #987
+				CharSet SystemInfo(SYS_INFO_CHARSET)
+		Else
+			Open File szFile
+				For Output
+				As #987
+				CharSet SystemInfo(SYS_INFO_CHARSET)
+		End If
+
+		Print #987, "--------------------------------------------------------------"
+		Print #987, "Errors " & FormatDate$(CurDate()) & " " & Time(24)
+		Print #987, ERRGetApplicationTitle$()
+		Print #987, "--------------------------------------------------------------"
+		For i = 1 To mnNumErrors
+			Print #987, ERRGetErrorDescription$(i)
+			Print #987, "---------------------------"
+		Next	'i
+		Print #987, "--------------------------------------------------------------"
+
+		Close File #987
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

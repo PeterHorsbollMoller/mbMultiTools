@@ -1,0 +1,3 @@
+Declare Sub FindAndreplaceDialog
+Declare Sub FindAndReplace_Single
+Declare Sub ReplaceDialogCheck

@@ -1,0 +1,1066 @@
+'*******************************************************************************
+'** 	Program:	MultiTools
+'** 	Modul:	PDATools
+'**			Functionality to support PDA's with search and edit themes from StyleSet
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+'-----------------------------------------------------------------------------------------
+Include "PDATools.def"
+
+Include "..\Time\Time.def"
+Include "..\TabFunc\TabFunc.def"
+Include "..\FileFunc\FileFunc.def"
+Include "..\StrFunc\StrFunc.def"
+Include "..\ArrayFunc\ArrayFunc.def"
+Include "..\IniUtil\IniUtil.def"
+Include "..\APIFunc\APIFunc.def"
+
+Include "..\StyleSet\StyleSet 5.0\KPAdminUse.def"
+Include "..\Printing\Printing 3.1\PrintValues.def"
+
+'**Includes of language-files...
+Include "..\Language\PlotDef.lng"
+Include "..\Language\Message.lng"
+Include "..\Language\Kommune.lng"
+Include "..\Language\Errors.lng"
+'-----------------------------------------------------------------------------------------
+
+Declare Sub PDAHandlerSearchDlgLoad
+Declare Sub PDAHandlerTablePicked
+Declare Sub PDAUpdateColumnLists(ByVal nCtrl As Integer)
+Declare Sub PDAHandlerSelectFolder
+
+Declare Sub PDAHandlerStyleItemPicked
+Declare Sub PDALoadExistingStyles(ByVal szKPPath As String, arrExistingStyleIDs() As Integer, arrExistingStyleNames() As String)
+
+Declare Function PDAExportKPStyles(	ByVal szKPPath As String, ByVal szStyleIDTab As String,
+						ByVal szNewPath As String) As Logical
+Declare Function PDAExportKPTables(	ByVal szKPPath As String, ByVal szKPStylesTabFile As String,
+						ByVal szNewPath As String) As Logical
+Declare Function PDAExportKPValues(	ByVal szKPPath As String, ByVal szKPStylesTabFile As String,
+						ByVal szNewPath As String) As Logical
+Declare Function PDAExportKPListValues(	ByVal szKPPath As String, ByVal szKPValuesTabFile As String,
+							ByVal szNewPath As String) As Logical
+
+Declare Function GetUserName$(ByVal szPrevValue As String, ByVal szNewValue As String) As String
+Declare Function GetUserID$(ByVal szPrevValue As String, ByVal szNewValue As String) As String
+
+'-----------------------------------------------------------------------------------------
+Dim	marrTabs(), marrCols1(), marrCols2() As String,
+	mszPDAPath As String,
+	mszVejnavnTab, mszVejnavnTabFile, mszHusnrTab, mszHusnrTabFile As String,
+	mszVejnavnCol1, mszVejnavnCol2, mszHusnrCol As String
+
+Dim	marrExistingStyleIDs(), marrExportStyleIDs() As Integer,
+	marrExistingStyleNames(), marrExportStyleNames() As String
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub PDAReadIniFile(ByVal szFile As String)
+
+Dim	i, j, nNumLines, nNumTotalItems, nNumItems As Integer,
+	szLine, arrIDs() As String
+
+OnError GoTo ErrorOccured
+
+	'***PDA Admin
+	mszPDAPath		= INIGetKeyValue$(szFile, "[PDAADMIN]", "PDAPATH")
+	If mszPDAPath <> "" Then
+		mszPDAPath		= FILEAddTrailingSlash$(mszPDAPath)
+	End If
+
+	'***PDA Search
+	mszVejnavnTab	= "VEJNAVNE"
+	mszVejnavnCol1	= "VEJNAVN"
+	mszHusnrTab		= "ADRESSER"
+	mszVejnavnCol2	= "VEJNAVN"
+	mszHusnrCol		= "HUSNR"
+
+	mszVejnavnTabFile	= INIGetKeyValue$(szFile, "[PDASEARCH]", "TABFILEA")
+	mszVejnavnTab	= PathToTableName$(mszVejnavnTabFile)
+	mszVejnavnCol1	= INIGetKeyValue$(szFile, "[PDASEARCH]", "COLUMNA1")
+
+	mszHusnrTabFile	= INIGetKeyValue$(szFile, "[PDASEARCH]", "TABFILEB")
+	mszHusnrTab		= PathToTableName$(mszHusnrTabFile)
+	mszVejnavnCol2	= INIGetKeyValue$(szFile, "[PDASEARCH]", "COLUMNB1")
+	mszHusnrCol		= INIGetKeyValue$(szFile, "[PDASEARCH]", "COLUMNB2")
+
+	'***PDA Theme buttons
+	nNumLines		= INIGetKeyValue$(szFile, "[PDAEDITTHEMES]", "NUMLINES")
+	ReDim marrExportStyleIDs(nNumLines * 10)
+	For i = 1 To nNumLines
+		szLine	= INIGetKeyValue$(szFile, "[PDAEDITTHEMES]", "LINE" & i)
+
+		ReDim arrIDs(0)
+		nNumItems = STRSplitAtKomma(szLine, arrIDs, 100)
+		If nNumItems > 0 Then
+			For j = 1 To nNumItems
+				If Val(arrIDs(j)) > 0 Then
+					nNumTotalItems				= nNumTotalItems + 1
+					marrExportStyleIDs(nNumTotalItems)	= arrIDs(j)
+				End If
+			Next
+		End If
+	Next
+	ReDim marrExportStyleIDs(nNumTotalItems)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub PDAWriteIniFile(ByVal nFile As Integer)
+
+Dim	szLine As String,
+	i, nCount As Integer
+
+OnError GoTo ErrorOccured
+
+	Print #nFile, ""
+	Print #nFile, "[PDAADMIN]"
+	Print #nFile, "PDAPATH="	& mszPDAPath
+
+	Print #nFile, ""
+	Print #nFile, "[PDASEARCH]"
+	Print #nFile, "TABLEA=" 	& mszVejnavnTabFile
+	Print #nFile, "COLUMNA1="	& mszVejnavnCol1
+	Print #nFile, "TABLEB="		& mszHusnrTabFile
+	Print #nFile, "COLUMNB1="	& mszVejnavnCol2
+	Print #nFile, "COLUMNB2="	& mszHusnrCol
+
+	Print #nFile, ""
+	Print #nFile, "[PDAEDITTHEMES]"
+	Print #nFile, "NUMLINES=" 	& (Int(Ubound(marrExportStyleIDs) / 10) + 1)
+
+	For i = 1 To Ubound(marrExportStyleIDs)
+		If szLine = "" Then
+			szLine	= Str$(marrExportStyleIDs(i))
+		Else
+			szLine	= szLine & ", " & Str$(marrExportStyleIDs(i))
+		End If
+		If i Mod 10 = 0 Then
+			nCount	= nCount + 1
+			Print #nFile, "LINE" & nCount & "="& szLine
+			szLine 	= ""
+		End If
+	Next
+
+	If szLine <> "" Then
+		nCount	= nCount + 1
+		Print #nFile, "LINE" & nCount & "="& szLine
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function PDAExportSearch() As Logical
+
+Dim	nColA1, nColB1, nColB2, nTabA, nTabB As Integer,
+	aVejnavn, aHusnr As Alias
+
+OnError GoTo ErrorOccured
+
+PDAExportSearch = FALSE
+
+	'**Åbner den tidligere anvendte vejnavnetabel
+	If mszVejnavnTabFile <> "" Then
+		If NOT TABISOpen(mszVejnavnTab) Then
+			If NOT TABIsTabFileOpen(mszVejnavnTabFile) Then
+				If FileExists(mszVejnavnTabFile) Then
+					Open Table mszVejnavnTabFile
+				End If
+			End If
+		End If
+	End If
+	'**Åbner den tidligere anvendte husnrtabel
+	If mszHusnrTabFile <> "" Then
+		If NOT TABISOpen(mszHusnrTab) Then
+			If NOT TABIsTabFileOpen(mszHusnrTabFile) Then
+				If FileExists(mszHusnrTabFile) Then
+					Open Table mszHusnrTabFile
+				End If
+			End If
+		End If
+	End If
+
+
+	If NOT CreateArrayTables(marrTabs, FALSE, TRUE, TRUE, FALSE, FALSE) Then
+		Note ERR_TAB_NO_OPEN
+		Exit Function
+	End If
+
+	Dialog
+		Title KPAK_DLG_TXT_EXPORT_SEARCH
+		Calling PDAHandlerSearchDlgLoad
+
+		Control GroupBox		Position 5,5	Width 140	Height 55
+			Title KPAK_DLG_TXT_TAB_ROADNAMES
+		Control PopUpMenu		Position 15,15	Width 120			ID 100
+			Calling PDAHandlerTablePicked
+			Title From Variable marrTabs
+			Value ARRGetItemNoStringFuzzy(mszVejnavnTab, marrTabs)
+			Into nTabA
+		Control StaticText	Position 15,30
+			Title KPAK_DLG_TXT_COL_ROADNAMES
+		Control PopUpMenu		Position 15,40	Width 120			ID 101
+			Into nColA1
+
+		'----------------------------
+		Control GroupBox		Position 5,65	Width 140	Height 80
+			Title KPAK_DLG_TXT_TAB_HOUSENO
+		Control PopUpMenu		Position 15,75	Width 120			ID 200
+			Calling PDAHandlerTablePicked
+			Title From Variable marrTabs
+			Value ARRGetItemNoStringFuzzy(mszHusnrTab, marrTabs)
+			Into nTabB
+		Control StaticText	Position 15,90
+			Title KPAK_DLG_TXT_COL_ROADNAMES
+		Control PopUpMenu		Position 15,100	Width 120			ID 201
+			Into nColB1
+		Control StaticText	Position 15,115
+			Title KPAK_DLG_TXT_COL_HOUSENO
+		Control PopUpMenu		Position 15,125	Width 120			ID 202
+			Into nColB2
+
+		'----------------------------
+		Control GroupBox		Position 5,150	Width 140	Height 30
+			Title KPAK_DLG_TXT_PDA_DIRECTORY
+		Control EditText		Position 15,160	Width 110			ID 300
+			Value mszPDAPath
+			Into mszPDAPath
+		Control Button		Position 125,160	Width 10	Height 12
+			Calling PDAHandlerSelectFolder
+			Title "..."
+
+		Control OKButton		Position 60,185	Width 40
+		Control CancelButton	Position 105,185	Width 40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	mszVejnavnTab	= marrTabs(nTabA)
+	mszVejnavnTabFile	= TableInfo(mszVejnavnTab, TAB_INFO_TABFILE)
+	mszVejnavnCol1	= marrCols1(nColA1)
+'	Print mszVejnavnTab & " " & mszVejnavnCol1
+
+	mszHusnrTab		= marrTabs(nTabB)
+	mszHusnrTabFile	= TableInfo(mszHusnrTab, TAB_INFO_TABFILE)
+	mszVejnavnCol2	= marrCols2(nColB1)
+	mszHusnrCol		= marrCols2(nColB2)
+'	Print mszHusnrTab & " " & mszVejnavnCol2 & " " & mszHusnrCol
+
+	mszPDAPath		= FILEAddTrailingSlash$(mszPDAPath)
+
+	'--------------------------------------
+	aVejnavn	= mszVejnavnTab & "." & mszVejnavnCol1
+	Select aVejnavn "VEJNAVN"
+		From mszVejnavnTab
+		Order By aVejnavn
+		Group By aVejnavn
+		Into TEMP__VEJNAVNE NoSelect
+
+	Commit Table TEMP__VEJNAVNE As mszPDAPath & "VEJNAVNE.TAB"
+	Close Table TEMP__VEJNAVNE
+	Open Table mszPDAPath & "VEJNAVNE.TAB" As TO__BE__MAPPED
+	If NOT TableInfo("TO__BE__MAPPED", TAB_INFO_MAPPABLE) Then
+		Create Map
+			For TO__BE__MAPPED
+			CoordSys Earth
+	End If
+	Call TABClose("TO__BE__MAPPED")
+
+	aVejnavn	= mszHusnrTab & "." & mszVejnavnCol2
+	aHusnr	= mszHusnrTab & "." & mszHusnrCol
+	Select 	aVejnavn "VEJNAVN", aHusnr "HUSNUMMER", Val(aHusnr) "HUSNR_TAL",
+			Right$(aHusnr, (Len(aHusnr) - Len(Str$(Val(aHusnr))))) "BOGSTAV",
+			aVejnavn + " " + aHusnr "ADRESSE"
+		From mszHusnrTab
+		Where Obj
+		Order By VEJNAVN, HUSNR_TAL, BOGSTAV
+		Into TEMP__HUSNUMRE NoSelect
+
+	Commit Table TEMP__HUSNUMRE As mszPDAPath & "ADRESSER.TAB"
+	Close Table TEMP__HUSNUMRE
+
+	'**Printing Initialization file
+	If FileExists(mszPDAPath & "Search.ini") Then
+		Kill mszPDAPath & "Search.ini"
+	End If
+
+	Open File mszPDAPath & "Search.ini"
+		For Output
+		As #654
+		CharSet SystemInfo(SYS_INFO_CHARSET)
+
+	Print #654, "VEJNAVNE"
+	Print #654, "VEJNAVN"
+	Print #654, "ADRESSER"
+	Print #654, "VEJNAVN"
+	Print #654, "HUSNUMMER"
+
+	Close File #654
+
+	Note KPAK_DLG_TXT_SEARCH_EXPORTED
+
+PDAExportSearch = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub PDAHandlerSearchDlgLoad
+
+OnError GoTo ErrorOccured
+
+	Call PDAUpdateColumnLists(100)
+	Call PDAUpdateColumnLists(200)
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub PDAHandlerTablePicked
+
+Dim	nCtrl As Integer
+
+OnError GoTo ErrorOccured
+
+	nCtrl = TriggerControl()
+	If nCtrl = 0 Then
+		Exit Sub
+	End If
+
+	Call PDAUpdateColumnLists(nCtrl)
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub PDAUpdateColumnLists(ByVal nCtrl As Integer)
+
+Dim	szTab As String
+
+OnError GoTo ErrorOccured
+
+	szTab	= marrTabs(ReadControlValue(nCtrl))
+
+	If nCtrl = 100 Then
+		If NOT CreateArrayColumns(szTab, marrCols1, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) Then
+
+		End If
+
+		Alter Control 101 Title From Variable marrCols1 Value ARRGetItemNoStringFuzzy(mszVejnavnCol1, marrCols1)
+	ElseIf nCtrl = 200 Then
+		If NOT CreateArrayColumns(szTab, marrCols2, TRUE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE, FALSE) Then
+
+		End If
+
+		Alter Control 201 Title From Variable marrCols2 Value ARRGetItemNoStringFuzzy(mszVejnavnCol2, marrCols2)
+		Alter Control 202 Title From Variable marrCols2 Value ARRGetItemNoStringFuzzy(mszHusnrCol, marrCols2)
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub PDAHandlerSelectFolder
+
+Dim	szPath As String
+
+OnError GoTo ErrorOccured
+
+	szPath = APIBrowseFolders(KPAK_DLG_TXT_PICK_PDA_DIRECTORY)
+	If szPath = "" Then
+		Exit Sub
+	End If
+
+	Alter Control 300 Value FILEAddTrailingSlash$(szPath)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function PDAExportThemeButtons(ByVal szKPSystemPath As String) As Logical
+
+Dim	i, nItem As Integer
+
+OnError GoTo ErrorOccured
+
+PDAExportThemeButtons = FALSE
+
+	Call PDALoadExistingStyles(szKPSystemPath, marrExistingStyleIDs, marrExistingStyleNames)
+
+	ReDim marrExportStyleNames(Ubound(marrExportStyleIDs))
+	For i = 1 To Ubound(marrExportStyleIDs)
+		For nItem = 1 To Ubound(marrExistingStyleIDs)
+			If marrExistingStyleIDs(nItem) = marrExportStyleIDs(i) Then
+				marrExportStyleNames(i)	= marrExistingStyleNames(nItem)
+				If ARRRemoveItemNoInteger(marrExistingStyleIDs, nItem) Then
+					'**Was removed
+				End If
+				If ARRRemoveItemNoString(marrExistingStyleNames, nItem) Then
+					'**Was removed
+				End If
+				Exit For
+			End If
+		Next	'nItem
+	Next	'i
+
+	Dialog
+		Title KPAK_DLG_TXT_EXPORT_THEME_BTNS
+
+		Control StaticText	Position 5,5
+			Title KPAK_DLG_TXT_EXIST_THEMES
+		Control ListBox		Position 5,15	Width 80	Height 100	ID 100
+			Title From Variable marrExistingStyleNames
+			Calling PDAHandlerStyleItemPicked
+
+		Control StaticText	Position 90,5
+			Title KPAK_DLG_TXT_EXPORT_THEMES
+		Control ListBox		Position 90,15	Width 80	Height 100	ID 200
+			Title From Variable marrExportStyleNames
+			Calling PDAHandlerStyleItemPicked
+
+		Control StaticText	Position 5,120
+			Title KPAK_DLG_TXT_PDA_DIRECTORY
+		Control EditText		Position 5,130	Width 150			ID 300
+			Value mszPDAPath
+			Into mszPDAPath
+		Control Button		Position 155,130	Width 15	Height 12
+			Calling PDAHandlerSelectFolder
+			Title "..."
+
+		Control OKButton		Position 85,150	Width 40
+		Control CancelButton	Position 130,150	Width 40
+
+	If NOT CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	mszPDAPath		= FILEAddTrailingSlash$(mszPDAPath)
+
+	'**Opretter tabel med liste over udvalgte STYLEID's
+	Call TABDrop("TEMP__STYLEIDS")
+	Create Table TEMP__STYLEIDS
+		(
+		STYLEID	Integer
+		)
+		File TempFileName$("")
+
+	For i = 1 To Ubound(marrExportStyleIDs)
+		Insert Into TEMP__STYLEIDS
+			(STYLEID)
+			Values (marrExportStyleIDs(i))
+	Next
+	Commit Table TEMP__STYLEIDS
+
+	If NOT PDAExportKPStyles(szKPSystemPath, "TEMP__STYLEIDS", mszPDAPath) Then
+		Note KPAK_ERR_EXPORT_SETUP & " KPSTYLES!"
+		Exit Function
+	End If
+	If NOT PDAExportKPTables(szKPSystemPath, mszPDAPath & "KPSTYLES.TAB", mszPDAPath) Then
+		Note KPAK_ERR_EXPORT_SETUP & " KPTABLES!"
+		Exit Function
+	End If
+	If NOT PDAExportKPValues(szKPSystemPath, mszPDAPath & "KPSTYLES.TAB", mszPDAPath) Then
+		Note KPAK_ERR_EXPORT_SETUP & " KPVALUES!"
+		Exit Function
+	End If
+	If NOT PDAExportKPListValues(szKPSystemPath, mszPDAPath & "KPVALUES.TAB", mszPDAPath) Then
+		Note KPAK_ERR_EXPORT_SETUP & " KPLISTVALUES!"
+		Exit Function
+	End If
+
+	Call TABDrop("TEMP__STYLEIDS")
+
+	Note KPAK_DLG_TXT_THEMES_EXPORTED
+
+PDAExportThemeButtons = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub PDAHandlerStyleItemPicked
+
+Dim	nCtrl, nItem As Integer
+
+OnError GoTo ErrorOccured
+
+	nCtrl = TriggerControl()
+	If nCtrl <> 100 AND nCtrl <> 200 Then
+		Exit Sub
+	End If
+
+'	Checking whether doubleclick was used
+'	If NOT CommandInfo(CMD_INFO_DLG_DBL) Then
+'		Exit Sub
+'	End If
+
+	nItem	= ReadControlValue(nCtrl)
+	If nItem = 0 Then
+		Exit Sub
+	End If
+
+	If nCtrl = 100 Then
+		If ARRAddItemInteger(marrExportStyleIDs, marrExistingStyleIDs(nItem)) Then
+			'**Was added
+		End If
+		If ARRAddItemString(marrExportStyleNames, marrExistingStyleNames(nItem)) Then
+			'**Was added
+		End If
+
+		If ARRRemoveItemNoInteger(marrExistingStyleIDs, nItem) Then
+			'**Was removed
+		End If
+		If ARRRemoveItemNoString(marrExistingStyleNames, nItem) Then
+			'**Was removed
+		End If
+	ElseIf nCtrl = 200 Then
+		If ARRAddItemInteger(marrExistingStyleIDs, marrExportStyleIDs(nItem)) Then
+			'**Was added
+		End If
+		If ARRAddItemString(marrExistingStyleNames, marrExportStyleNames(nItem)) Then
+			'**Was added
+		End If
+
+		If ARRRemoveItemNoInteger(marrExportStyleIDs, nItem) Then
+			'**Was removed
+		End If
+		If ARRRemoveItemNoString(marrExportStyleNames, nItem) Then
+			'**Was removed
+		End If
+	End If
+
+	Alter Control 100 Title From Variable marrExistingStyleNames
+	Alter Control 200 Title From Variable marrExportStyleNames
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub PDALoadExistingStyles(ByVal szKPPath As String, arrExistingStyleIDs() As Integer, arrExistingStyleNames() As String)
+
+Dim	bWasOpened As Logical,
+	nRows As Integer
+
+OnError GoTo ErrorOccured
+
+	bWasOpened	= kpaOpenKPStylesTable()
+
+	Select STYLEID, STYLENAME
+		From KPSTYLES
+		Order By STYLENAME
+		Into TEMP__STYLES__ORDER NoSelect
+
+	nRows	= TableInfo("TEMP__STYLES__ORDER", TAB_INFO_NROWS)
+	ReDim arrExistingStyleIDs(nRows)
+	ReDim arrExistingStyleNames(nRows)
+
+	nRows	= 0
+	Fetch First From TEMP__STYLES__ORDER
+	Do Until EOT(TEMP__STYLES__ORDER)
+		nRows = nRows + 1
+
+		arrExistingStyleIDs(nRows)	= TEMP__STYLES__ORDER.STYLEID
+		arrExistingStyleNames(nRows)	= TEMP__STYLES__ORDER.STYLENAME
+
+		Fetch Next From TEMP__STYLES__ORDER
+	Loop
+
+	If NOT bWasOpened Then
+		Call TABClose("TEMP__STYLES__ORDER")
+	Else
+		Call TABClose("KPSTYLES")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function PDAExportKPStyles(	ByVal szKPPath As String, ByVal szStyleIDTab As String,
+					ByVal szNewPath As String) As Logical
+
+Dim	bWasOpened As Logical,
+	nRows As Integer
+
+OnError GoTo ErrorOccured
+
+PDAExportKPStyles = FALSE
+
+	bWasOpened	= kpaOpenKPStylesTable()
+
+	If TABIsTabFileOpen(szNewPath & "KPSTYLES.TAB") Then
+		Call TABClose(TABGetNameFromTabFile$(szNewPath & "KPSTYLES.TAB"))
+	End If
+
+	Select *
+		From KPSTYLES
+		Where STYLEID IN (Select STYLEID From szStyleIDTab)
+		Order By TABLEID, STYLENAME
+		Into TEMP__STYLES__SELECT NoSelect
+
+	nRows	= TableInfo("TEMP__STYLES__SELECT", TAB_INFO_NROWS)
+	If nRows > 0 Then
+		Commit Table TEMP__STYLES__SELECT As szNewPath & "KPSTYLES.TAB"
+		Open Table szNewPath & "KPSTYLES.TAB" As TO__BE__MAPPED
+		If NOT TableInfo("TO__BE__MAPPED", TAB_INFO_MAPPABLE) Then
+			Create Map
+				For TO__BE__MAPPED
+				CoordSys Earth
+		End If
+		Call TABClose("TO__BE__MAPPED")
+		PDAExportKPStyles	= TRUE
+	End If
+
+	If NOT bWasOpened Then
+		Call TABClose("TEMP__STYLES__SELECT")
+	Else
+		Call TABClose("KPSTYLES")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function PDAExportKPTables(	ByVal szKPPath As String, ByVal szKPStylesTabFile As String,
+					ByVal szNewPath As String) As Logical
+
+Dim	bKPTabWasOpened, bKPStyWasOpened As Logical,
+	szTabStyl As String,
+	nRows As Integer
+
+OnError GoTo ErrorOccured
+
+PDAExportKPTables = FALSE
+
+	bKPTabWasOpened	= kpaOpenKPTablesTable()
+
+	If TABIsTabFileOpen(szKPStylesTabFile) Then
+		szTabStyl		= TABGetNameFromTabFile$(szKPStylesTabFile)
+		bKPStyWasOpened	= FALSE
+	Else
+		Open Table szKPStylesTabFile As "PDA_KPSTYLES"
+		szTabStyl		= "PDA_KPSTYLES"
+		bKPStyWasOpened	= TRUE
+	End If
+
+	If TABIsTabFileOpen(szNewPath & "KPTABLES.TAB") Then
+		Call TABClose(TABGetNameFromTabFile$(szNewPath & "KPTABLES.TAB"))
+	End If
+
+	Select *
+		From KPTABLES
+		Where TABLEID IN (Select TABLEID From szTabStyl)
+		Order By TABLEID
+		Into TEMP__TABLES__SELECT NoSelect
+
+	nRows	= TableInfo("TEMP__TABLES__SELECT", TAB_INFO_NROWS)
+	If nRows > 0 Then
+		Commit Table TEMP__TABLES__SELECT As szNewPath & "KPTABLES.TAB"
+		Open Table szNewPath & "KPTABLES.TAB" As TO__BE__MAPPED
+		If NOT TableInfo("TO__BE__MAPPED", TAB_INFO_MAPPABLE) Then
+			Create Map
+				For TO__BE__MAPPED
+				CoordSys Earth
+		End If
+		Call TABClose("TO__BE__MAPPED")
+		PDAExportKPTables	= TRUE
+	End If
+
+	If NOT bKPTabWasOpened Then
+		Call TABClose("TEMP__TABLES__SELECT")
+	Else
+		Call TABClose("KPTABLES")
+	End If
+	If bKPStyWasOpened Then
+		Call TABClose(szTabStyl)
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function PDAExportKPValues(	ByVal szKPPath As String, ByVal szKPStylesTabFile As String,
+					ByVal szNewPath As String) As Logical
+
+Dim	bKPValWasOpened, bKPStyWasOpened As Logical,
+	szTabStyl, szUserName, szUserID As String,
+	bDiableUserIDChange, bDiableUserNameChange As Logical,
+	nRows As Integer
+
+OnError GoTo ErrorOccured
+
+PDAExportKPValues = FALSE
+
+	bKPValWasOpened	= kpaOpenKPValuesTable()
+
+	If TABIsTabFileOpen(szKPStylesTabFile) Then
+		szTabStyl		= TABGetNameFromTabFile$(szKPStylesTabFile)
+		bKPStyWasOpened	= FALSE
+	Else
+		Open Table szKPStylesTabFile As "PDA_KPSTYLES"
+		szTabStyl		= "PDA_KPSTYLES"
+		bKPStyWasOpened	= TRUE
+	End If
+
+	If TABIsTabFileOpen(szNewPath & "KPVALUES.TAB") Then
+		Call TABClose(TABGetNameFromTabFile$(szNewPath & "KPVALUES.TAB"))
+	End If
+
+	Select *
+		From KPVALUES
+		Where (STYLEID IN (Select STYLEID From szTabStyl)
+		OR	STYLEID = -999)
+		AND	ACTIVE				'Ingen grund til at overføre poster som ikke er aktive
+		Order By STYLEID, ORDERBY
+		Into TEMP__VALUES__SELECT NoSelect
+
+	nRows	= TableInfo("TEMP__VALUES__SELECT", TAB_INFO_NROWS)
+	If nRows > 0 Then
+		Commit Table TEMP__VALUES__SELECT As szNewPath & "KPVALUES.TAB"
+		Open Table szNewPath & "KPVALUES.TAB" As TO__BE__MAPPED
+		If NOT TableInfo("TO__BE__MAPPED", TAB_INFO_MAPPABLE) Then
+			Create Map
+				For TO__BE__MAPPED
+				CoordSys Earth
+		End If
+
+'		Select * From TO__BE__MAPPED
+'			Where DEFAULTVALUE	= "[USERID]"
+'			OR	VALUE			= "[USERID]"
+'			Into TO__RENAME__USERID NoSelect
+'		Select * From TO__BE__MAPPED
+'			Where DEFAULTVALUE	= "[USERNAME]"
+'			OR	VALUE			= "[USERNAME]"
+'			Into TO__RENAME__USERNAME NoSelect
+'
+'		If TableInfo("TO__RENAME__USERID", TAB_INFO_NROWS) > 0 AND TableInfo("TO__RENAME__USERNAME", TAB_INFO_NROWS) > 0 Then
+'			Fetch First From TO__RENAME__USERID
+'			bDiableUserIDChange	= TO__RENAME__USERID.DISABLED
+'			Fetch First From TO__RENAME__USERNAME
+'			bDiableUserNameChange	= TO__RENAME__USERNAME.DISABLED
+'
+'			Dialog
+'				Title "Brugernavn og brugerID"
+'				Control StaticText	Position 5,5
+'					Title "Brugernavn"
+'				Control EditText		Position 5,15	Width 100
+'					Value PrintGetUserName()
+'					Into szUserName
+'				Control CheckBox		Position 5,30
+'					Title "Skrivebeskyttet"
+'					Value bDiableUserNameChange
+'					Into bDiableUserNameChange
+'
+'				Control StaticText	Position 5,45
+'					Title "BrugerID"
+'				Control EditText		Position 5,55	Width 100
+'					Value PrintGetUserID()
+'					Into szUserID
+'				Control CheckBox		Position 5,70
+'					Title "Skrivebeskyttet"
+'					Value bDiableUserIDChange
+'					Into bDiableUserIDChange
+'
+'				Control OKButton
+'
+'			Update TO__RENAME__USERID
+'				Set	VALUE			= GetUserID$(VALUE, szUserID),
+'					DEFAULTVALUE	= GetUserID$(DEFAULTVALUE, szUserID),
+'					DISABLED		= bDiableUserIDChange
+'			Update TO__RENAME__USERNAME
+'				Set	VALUE			= GetUserName$(VALUE, szUserName),
+'					DEFAULTVALUE	= GetUserName$(DEFAULTVALUE, szUserName),
+'					DISABLED		= bDiableUserNameChange
+'			Commit Table TO__BE__MAPPED
+'
+'		ElseIf TableInfo("TO__RENAME__USERID", TAB_INFO_NROWS) > 0 Then
+'			Fetch First From TO__RENAME__USERID
+'			bDiableUserIDChange	= TO__RENAME__USERID.DISABLED
+'			Fetch First From TO__RENAME__USERNAME
+'			bDiableUserNameChange	= TO__RENAME__USERNAME.DISABLED
+'
+'			Dialog
+'				Title "BrugerID"
+'				Control StaticText	Position 5,5
+'					Title "BrugerID"
+'				Control EditText		Position 5,15	Width 100
+'					Value PrintGetUserID()
+'					Into szUserID
+'				Control CheckBox		Position 5,30
+'					Title "Skrivebeskyttet"
+'					Value bDiableUserIDChange
+'					Into bDiableUserIDChange
+'
+'				Control OKButton
+'
+'			Update TO__RENAME__USERID
+'				Set	VALUE			= GetUserID$(VALUE, szUserID),
+'					DEFAULTVALUE	= GetUserID$(DEFAULTVALUE, szUserID),
+'					DISABLED		= bDiableUserIDChange
+'			Commit Table TO__BE__MAPPED
+'
+'		ElseIf TableInfo("TO__RENAME__USERNAME", TAB_INFO_NROWS) > 0 Then
+'			Fetch First From TO__RENAME__USERNAME
+'			bDiableUserNameChange	= TO__RENAME__USERNAME.DISABLED
+'
+'			Dialog
+'				Title "Brugernavn"
+'				Control StaticText	Position 5,5
+'					Title "Brugernavn"
+'				Control EditText		Position 5,15	Width 100
+'					Value PrintGetUserName()
+'					Into szUserName
+'				Control CheckBox		Position 5,30
+'					Title "Skrivebeskyttet"
+'					Value bDiableUserNameChange
+'					Into bDiableUserNameChange
+'
+'				Control OKButton
+'
+'			Update TO__RENAME__USERNAME
+'				Set	VALUE			= GetUserName$(VALUE, szUserName),
+'					DEFAULTVALUE	= GetUserName$(DEFAULTVALUE, szUserName),
+'					DISABLED		= bDiableUserNameChange
+'			Commit Table TO__BE__MAPPED
+'
+'		Else
+'			'**UserID and UserName not used
+'		End If
+
+		Call TABClose("TO__BE__MAPPED")
+		PDAExportKPValues	= TRUE
+	End If
+
+	If NOT bKPValWasOpened Then
+		Call TABClose("TEMP__VALUES__SELECT")
+	Else
+		Call TABClose("KPVALUES")
+	End If
+	If bKPStyWasOpened Then
+		Call TABClose(szTabStyl)
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function PDAExportKPListValues(	ByVal szKPPath As String, ByVal szKPValuesTabFile As String,
+						ByVal szNewPath As String) As Logical
+
+Dim	bKPValWasOpened, bKPListWasOpened As Logical,
+	szTabValues, szListID As String,
+	nRows As Integer
+
+OnError GoTo ErrorOccured
+
+PDAExportKPListValues = FALSE
+
+	bKPListWasOpened	= kpaOpenKPListValuesTable()
+
+	If TABIsTabFileOpen(szKPValuesTabFile) Then
+		szTabValues		= TABGetNameFromTabFile$(szKPValuesTabFile)
+		bKPValWasOpened	= FALSE
+	Else
+		Open Table szKPValuesTabFile As "PDA_KPVALUES"
+		szTabValues		= "PDA_KPVALUES"
+		bKPValWasOpened	= TRUE
+	End If
+
+	If TABIsTabFileOpen(szNewPath & "KPLISTVALUES.TAB") Then
+		Call TABClose(TABGetNameFromTabFile$(szNewPath & "KPLISTVALUES.TAB"))
+	End If
+
+	'**Finder de Værdier som peger på lister
+	Select * From szTabValues
+		Where Left$(VALUE, 5) = "[LIST"
+		Into LIST__EXPORTED NoSelect
+
+	If TableInfo("LIST__EXPORTED", TAB_INFO_NROWS) > 0 Then
+		'**Opretter tabel med liste over udvalgte STYLEID's
+		Call TABDrop("TEMP__LISTIDS")
+		Create Table TEMP__LISTIDS
+			(
+			LISTID	Integer
+			)
+			File TempFileName$("")
+
+		Fetch First From LIST__EXPORTED
+		Do Until EOT(LIST__EXPORTED)
+			szListID	= LIST__EXPORTED.VALUE
+			szListID	= Right$(szListID, Len(szListID) - 6)	'[LIST=123] -> 123]
+			szListID	= Left$(szListID, Len(szListID) - 1)	'123]		-> 123
+
+			Insert Into TEMP__LISTIDS
+				(LISTID)
+				Values (Val(szListID))
+			Fetch Next From LIST__EXPORTED
+		Loop
+		Commit Table TEMP__LISTIDS
+
+		'**Vælger alle de lister der er exporteret
+		Select *
+			From KPLISTVALUES
+			Where LISTID IN (Select LISTID From TEMP__LISTIDS Group By LISTID)
+			Into TEMP__LISTVALUES__SELECT NoSelect
+
+		nRows	= TableInfo("TEMP__LISTVALUES__SELECT", TAB_INFO_NROWS)
+		If nRows > 0 Then
+			Commit Table TEMP__LISTVALUES__SELECT As szNewPath & "KPLISTVALUES.TAB"
+			Open Table szNewPath & "KPLISTVALUES.TAB" As TO__BE__MAPPED
+			If NOT TableInfo("TO__BE__MAPPED", TAB_INFO_MAPPABLE) Then
+				Create Map
+					For TO__BE__MAPPED
+					CoordSys Earth
+			End If
+
+			Call TABClose("TO__BE__MAPPED")
+			PDAExportKPListValues	= TRUE
+		End If
+
+		Call TABDrop("TEMP__LISTIDS")
+	Else
+		'**No Listvalues to export, but this is not an error
+		PDAExportKPListValues	= TRUE
+	End If
+
+	If NOT bKPListWasOpened Then
+		Call TABClose("TEMP__LISTVALUES__SELECT")
+	Else
+		Call TABClose("KPLISTVALUES")
+	End If
+	If NOT bKPValWasOpened Then
+		Call TABClose("LIST__EXPORTED")
+	Else
+		Call TABClose(szTabValues)
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function GetUserName$(ByVal szPrevValue As String, ByVal szNewValue As String) As String
+
+OnError GoTo ErrorOccured
+
+GetUserName$ = szPrevValue
+
+	If szPrevValue = "[USERNAME]" Then
+		GetUserName$ = szNewValue
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function GetUserID$(ByVal szPrevValue As String, ByVal szNewValue As String) As String
+
+OnError GoTo ErrorOccured
+
+GetUserID$ = szPrevValue
+
+	If szPrevValue = "[USERID]" Then
+		GetUserID$ = szNewValue
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function

@@ -1,0 +1,2829 @@
+'********************************************************
+'**	Modul:	Læs skriv stilart fra stilarttabel
+'**			Anvendelse af Display
+'********************************************************
+Include "MapBasic.def"
+Include "Icons.def"
+
+Type T_TOGGLEBUTTON_STATUS
+	nButtonID		As Integer
+	nDisplayID		As Integer
+	bChecked		As Logical
+	bUserClicked	As Logical
+	bAllowToggle	As Logical
+End Type
+
+Type T_WINDOW_TOOGLEBUTTON
+	nWID			As Integer
+	arrtbButtons()	As T_TOGGLEBUTTON_STATUS
+End Type
+
+Include "KPAdminUse.def"
+Include "KPDisplayUse.def"
+Include "KPTableUse.def"
+Include "KPLayerUse.def"
+Include "KPGroupUse.def"
+Include "KPIconUse.def"
+
+Include "Globals.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+Include "..\..\Time\Time.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\WinFunc\WinFunc.def"
+Include "..\..\MapFunc\MapFunc.def"
+Include "..\..\FileFunc\FileFunc.def"
+
+Dim	marrToggleButton(0) As T_TOGGLEBUTTON_STATUS,
+	mbDisplaySystemHandlerActive As Logical,
+	mnCurrentWID, mnDisplayMainWID As Integer,
+	mnTime As Integer
+'********************************************************
+'	Opretter liste med Displaynavne......
+'********************************************************
+Sub kpdCreateListOfDisplayNames(arrDisplayNames() As String)
+
+Dim	nCount As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPDISPLAY
+		Order By ORDER, DISPLAYNAME
+		Into CUR_LIST_OF_DISPLAYNAMES NoSelect
+
+	ReDim arrDisplayNames(TableInfo("CUR_LIST_OF_DISPLAYNAMES", TAB_INFO_NROWS) + 1)
+	nCount = 1
+	arrDisplayNames(nCount) = MSG_TEXT_CREATE_POINTS
+
+	If TableInfo("CUR_LIST_OF_DISPLAYNAMES", TAB_INFO_NROWS) > 0 Then
+
+		Set Progressbars Off
+		Update CUR_LIST_OF_DISPLAYNAMES
+			Set ORDER	= (ROWID * 2)
+		Set Progressbars On
+
+		Fetch First From CUR_LIST_OF_DISPLAYNAMES
+		Do Until EOT(CUR_LIST_OF_DISPLAYNAMES)
+
+			nCount 		= nCount + 1
+			arrDisplayNames(nCount)	= CUR_LIST_OF_DISPLAYNAMES.DISPLAYNAME
+
+			Fetch Next From CUR_LIST_OF_DISPLAYNAMES
+		Loop
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Opretter liste med Tabelbeskrivelser knyttet til DisplayID......
+'********************************************************
+Sub kpdCreateListOfDisplayTables(ByVal nDisplayID As Integer, arrTables() As String)
+
+Dim	nRows, i As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPTABLES
+		Where TABLEID In ( Select TABLEID From KPTDISPLAY
+						Where DISPLAYID = nDisplayID
+						And TABLEID > 0)
+		Order By DESCRIPTION
+		Group By DESCRIPTION
+		Into CUR_LIST_OF_DISPLAY_TABLES NoSelect
+
+	nRows = TableInfo("CUR_LIST_OF_DISPLAY_TABLES", TAB_INFO_NROWS)
+	If nRows = 0 Then
+		ReDim arrTables(1)
+		arrTables(1) = MSG_TEXT_NONE_GIVEN
+	Else
+		ReDim arrTables(nRows)
+		i = 0
+		Fetch First From CUR_LIST_OF_DISPLAY_TABLES
+		Do Until EOT(CUR_LIST_OF_DISPLAY_TABLES)
+			i = i + 1
+			arrTables(i) = CUR_LIST_OF_DISPLAY_TABLES.DESCRIPTION
+
+			Fetch Next From CUR_LIST_OF_DISPLAY_TABLES
+		Loop
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Opretter liste med gruppebeskrivelser knyttet til DisplayID......
+'********************************************************
+Sub kpdCreateListOfDisplayGroups(ByVal nDisplayID As Integer, arrGroups() As String)
+
+Dim	nRows, i, nGroupID, nSubGroupID As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPTDISPLAY
+		Where DISPLAYID = nDisplayID
+		And TABLEID = 0
+	Into CUR_LIST_OF_DISPLAY_GROUPS NoSelect
+
+	nRows = TableInfo("CUR_LIST_OF_DISPLAY_GROUPS", TAB_INFO_NROWS)
+	If nRows = 0 Then
+		ReDim arrGroups(1)
+		arrGroups(1) = MSG_TEXT_NONE_GIVEN
+	Else
+		ReDim arrGroups(nRows)
+		i = 0
+		Fetch First From CUR_LIST_OF_DISPLAY_GROUPS
+		Do Until EOT(CUR_LIST_OF_DISPLAY_GROUPS)
+			i = i + 1
+			nGroupID	= CUR_LIST_OF_DISPLAY_GROUPS.GROUPID
+			nSubGroupID	= CUR_LIST_OF_DISPLAY_GROUPS.SUBGROUPID
+
+			arrGroups(i) = kpgGetFullGroupName$(nGroupID, nSubGroupID)
+
+			Fetch Next From CUR_LIST_OF_DISPLAY_GROUPS
+		Loop
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Returnerer største DisplayID......
+'********************************************************
+Function kpdGetMaxDisplayID() As Integer
+
+Dim	bCloseTab As Logical,
+	nMax As Integer
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPDisplayTable()
+
+	Select Max(DISPLAYID) "MAXID"
+		From KPDISPLAY
+		Into MAX_ID NoSelect
+
+	If TableInfo("MAX_ID", TAB_INFO_NROWS) = 0 Then
+		nMax = 0
+	Else
+		Fetch First From MAX_ID
+		nMax = MAX_ID.MAXID
+	End If
+
+	If bCloseTab Then
+		Close Table KPDISPLAY
+	Else
+		Close Table MAX_ID
+	End If
+
+	kpdGetMaxDisplayID	= nMax
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer næsteledige DisplayID......
+'********************************************************
+Function kpdGetNextDisplayID() As Integer
+
+OnError GoTo ErrorOccured
+
+	kpdGetNextDisplayID	= kpdGetMaxDisplayID() + 1
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function kpdGetNextSeparatorID() As Integer
+
+Dim	bCloseTab As Logical,
+	nMin As Integer
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPDisplayTable()
+
+	Select Min(DISPLAYID) "MINID"
+		From KPDISPLAY
+		Where DISPLAYID <= 0
+		Into MIN_ID NoSelect
+
+	If TableInfo("MIN_ID", TAB_INFO_NROWS) = 0 Then
+		nMin = 0
+	Else
+		Fetch First From MIN_ID
+		nMin = MIN_ID.MINID
+	End If
+
+	If bCloseTab Then
+		Close Table KPDISPLAY
+	Else
+		Close Table MIN_ID
+	End If
+
+kpdGetNextSeparatorID	= nMin - 1
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	returnerer ElementNo udfra DisplayName......
+'********************************************************
+Function kpdGetDisplayElementNo(ByVal szDisplayName As String, arrDisplayNames() As String) As Integer
+
+Dim	i As Integer
+
+OnError GoTo ErrorOccured
+
+	kpdGetDisplayElementNo = 1
+
+	For i = 1 To Ubound(arrDisplayNames)
+		If arrDisplayNames(i) = szDisplayName Then
+			kpdGetDisplayElementNo = i
+			Exit Function
+		End If
+	Next
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer DisplayID udfra ElementNo......
+'********************************************************
+Function kpdGetDisplayIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+	Fetch Rec (nElementNo - 1) From CUR_LIST_OF_DISPLAYNAMES
+
+	kpdGetDisplayIDFromElementNo = CUR_LIST_OF_DISPLAYNAMES.DISPLAYID
+	Exit Function
+'--------------------
+ErrorOccured:
+	kpdGetDisplayIDFromElementNo = 0
+
+End Function
+
+'********************************************************
+'	Returnerer TableID udfra ElementNo......
+'********************************************************
+Function kpdGetDisplayTableIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+	Fetch Rec nElementNo From CUR_LIST_OF_DISPLAY_TABLES
+
+	kpdGetDisplayTableIDFromElementNo = CUR_LIST_OF_DISPLAY_TABLES.TABLEID
+	Exit Function
+'--------------------
+ErrorOccured:
+	kpdGetDisplayTableIDFromElementNo = 0
+
+End Function
+
+'********************************************************
+'	Returnerer GroupID udfra ElementNo......
+'********************************************************
+Function kpdGetDisplayGroupIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+OnError GoTo ErrorOccured
+	Fetch Rec nElementNo From CUR_LIST_OF_DISPLAY_GROUPS
+
+	kpdGetDisplayGroupIDFromElementNo = CUR_LIST_OF_DISPLAY_GROUPS.GROUPID
+	Exit Function
+'--------------------
+ErrorOccured:
+	kpdGetDisplayGroupIDFromElementNo = 0
+
+End Function
+
+'********************************************************
+'	Returnerer SubGroupID udfra ElementNo......
+'********************************************************
+Function kpdGetDisplaySubGroupIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+	OnError GoTo ErrorOccured
+	Fetch Rec nElementNo From CUR_LIST_OF_DISPLAY_GROUPS
+
+	kpdGetDisplaySubGroupIDFromElementNo = CUR_LIST_OF_DISPLAY_GROUPS.SUBGROUPID
+	Exit Function
+'--------------------
+ErrorOccured:
+	kpdGetDisplaySubGroupIDFromElementNo = 0
+
+End Function
+
+'**********************************************************************************************''
+'Ændrer sorteringsrækkefølge fr angivet element
+'**********************************************************************************************''
+Function kpdChangeOrderByElementNo(ByVal nElementNo As Integer, ByVal nOrderChange As Integer) As Logical
+
+OnError GoTo ErrorOccured
+
+kpdChangeOrderByElementNo = FALSE
+
+	Set Progressbars Off
+	Update CUR_LIST_OF_DISPLAYNAMES
+		Set 	ORDER	= ORDER + nOrderChange
+		Where	ROWID	= (nElementNo - 1)
+	Set Progressbars On
+
+kpdChangeOrderByElementNo = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer IconFileID udfra DisplayID......
+'********************************************************
+Function kpdGetIconFileID(ByVal nDisplayID As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPDISPLAY
+		Where DISPLAYID = nDisplayID
+		Into CUR_DISPLAY_SELECTED NoSelect
+
+	If TableInfo("CUR_DISPLAY_SELECTED", TAB_INFO_NROWS) = 0 Then
+		kpdGetIconFileID = ICONFILEID_DEFAULT_THEME
+	Else
+		Fetch First From CUR_DISPLAY_SELECTED
+		kpdGetIconFileID = CUR_DISPLAY_SELECTED.ICONFILEID
+	End If
+
+	Close Table CUR_DISPLAY_SELECTED
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer IconNo udfra DisplayID......
+'********************************************************
+Function kpdGetIconNo(ByVal nDisplayID As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPDISPLAY
+		Where DISPLAYID = nDisplayID
+		Into CUR_DISPLAY_SELECTED NoSelect
+
+	If TableInfo("CUR_DISPLAY_SELECTED", TAB_INFO_NROWS) = 0 Then
+		kpdGetIconNo = 1
+	Else
+		Fetch First From CUR_DISPLAY_SELECTED
+		kpdGetIconNo = CUR_DISPLAY_SELECTED.ICONNO
+	End If
+
+	Close Table CUR_DISPLAY_SELECTED
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Returnerer WorFile udfra DisplayID......
+'**********************************************************************************************''
+Function kpdGetWorkspaceFile$(ByVal nDisplayID As Integer) As String
+
+Dim	bCloseDisplayTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseDisplayTab = kpaOpenKPDisplayTable()
+
+	Select * From KPDISPLAY
+		Where DISPLAYID = nDisplayID
+		Into CUR_DISPLAY_SELECTED NoSelect
+
+	If TableInfo("CUR_DISPLAY_SELECTED", TAB_INFO_NROWS) = 0 Then
+		kpdGetWorkspaceFile$ = ""
+	Else
+		Fetch First From CUR_DISPLAY_SELECTED
+		kpdGetWorkspaceFile$ = CUR_DISPLAY_SELECTED.WORFILE
+	End If
+
+	Close Table CUR_DISPLAY_SELECTED
+
+	If bCloseDisplayTab Then
+		Close Table KPDISPLAY
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Returnerer CloseAll udfra DisplayID......
+'**********************************************************************************************''
+Function kpdCloseAllBeforeOpening(ByVal nDisplayID As Integer) As Logical
+
+Dim	bCloseDisplayTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseDisplayTab = kpaOpenKPDisplayTable()
+
+	Select * From KPDISPLAY
+		Where DISPLAYID = nDisplayID
+		Into CUR_DISPLAY_SELECTED NoSelect
+
+	If TableInfo("CUR_DISPLAY_SELECTED", TAB_INFO_NROWS) = 0 Then
+		kpdCloseAllBeforeOpening = FALSE
+	Else
+		Fetch First From CUR_DISPLAY_SELECTED
+		kpdCloseAllBeforeOpening = CUR_DISPLAY_SELECTED.CLOSEALL
+	End If
+
+	Close Table CUR_DISPLAY_SELECTED
+
+	If bCloseDisplayTab Then
+		Close Table KPDISPLAY
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Returnerer Active udfra DisplayID......
+'**********************************************************************************************''
+Function kpdActive(ByVal nDisplayID As Integer) As Logical
+
+Dim	bCloseDisplayTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseDisplayTab = kpaOpenKPDisplayTable()
+
+	Select * From KPDISPLAY
+		Where DISPLAYID = nDisplayID
+		Into CUR_DISPLAY_SELECTED NoSelect
+
+	If TableInfo("CUR_DISPLAY_SELECTED", TAB_INFO_NROWS) = 0 Then
+		kpdActive = TRUE
+	Else
+		Fetch First From CUR_DISPLAY_SELECTED
+		kpdActive = CUR_DISPLAY_SELECTED.ACTIVE
+	End If
+
+	Close Table CUR_DISPLAY_SELECTED
+
+	If bCloseDisplayTab Then
+		Close Table KPDISPLAY
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer DisplayName udfra DisplayID......
+'********************************************************
+Function kpdGetDisplayName$(ByVal nDisplayID As Integer) As String
+
+OnError GoTo ErrorOccured
+
+	Select * From KPDISPLAY
+		Where DISPLAYID = nDisplayID
+		Into CUR_DISPLAY_SELECTED NoSelect
+
+	If TableInfo("CUR_DISPLAY_SELECTED", TAB_INFO_NROWS) = 0 Then
+		kpdGetDisplayName$ = ""
+	Else
+		Fetch First From CUR_DISPLAY_SELECTED
+		kpdGetDisplayName$ = CUR_DISPLAY_SELECTED.DISPLAYNAME
+	End If
+
+	Close Table CUR_DISPLAY_SELECTED
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Returnerer DisplayID udfra DisplayName ......
+'********************************************************
+Function kpdGetDisplayID(ByVal szDisplayName As String) As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPDISPLAY
+		Where DISPLAYNAME = szDisplayName
+		Into CUR_DISPLAY_SELECTED NoSelect
+
+	If TableInfo("CUR_DISPLAY_SELECTED", TAB_INFO_NROWS) = 0 Then
+		kpdGetDisplayID = 0
+	Else
+		Fetch First From CUR_DISPLAY_SELECTED
+		kpdGetDisplayID = CUR_DISPLAY_SELECTED.DISPLAYID
+	End If
+
+	Close Table CUR_DISPLAY_SELECTED
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+' Fjerner et MultiLag setup vha. DisplayID
+'**********************************************************************************************''
+Function kpdRemoveDisplay(ByVal nDislayID As Integer) As Integer
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+kpdRemoveDisplay	= RESULT_DISPLAY_SETUP_NOT_ERASED
+
+	'**KOMBINATION / RELATION TABLE
+	bCloseTab	= kpaOpenKPTDisplayTable()
+
+	Select * From KPTDISPLAY
+		Where DISPLAYID = nDislayID
+		Into TO__REMOVE__DISPLAY NoSelect
+
+	If GetNumRows("TO__REMOVE__DISPLAY") > 0 Then
+		kpdRemoveDisplay	= RESULT_DISPLAY_SETUP_ERASED
+		Delete From TO__REMOVE__DISPLAY
+	Else
+		kpdRemoveDisplay	= RESULT_DISPLAY_SETUP_DIDNOT_EXIST
+	End If
+
+	If bCloseTab Then
+		Commit Table KPTDISPLAY
+		Call TABClose("KPTDISPLAY")
+	Else
+		Call TABClose("TO__REMOVE__DISPLAY")
+	End If
+
+	'**LIST OF MULTI LAYER BUTTONS
+	bCloseTab	= kpaOpenKPDisplayTable()
+
+	Select * From KPDISPLAY
+		Where DISPLAYID = nDislayID
+		Into TO__REMOVE__DISPLAY NoSelect
+
+	If GetNumRows("TO__REMOVE__DISPLAY") > 0 Then
+		kpdRemoveDisplay	= RESULT_DISPLAY_SETUP_ERASED
+		Delete From TO__REMOVE__DISPLAY
+	End If
+
+	If bCloseTab Then
+		Commit Table KPDISPLAY
+		Call TABClose("KPDISPLAY")
+	Else
+		Call TABClose("TO__REMOVE__DISPLAY")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+' Fjerner et MultiLag vha. TABLEID / LaYERID
+'**********************************************************************************************''
+Function kpdRemoveDisplayByTable(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Logical
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+kpdRemoveDisplayByTable	= RESULT_DISPLAY_SETUP_NOT_ERASED
+
+	bCloseTab	= kpaOpenKPTDisplayTable()
+
+	If nLayerID = VAL_LAYERID_ALL_BY_TAB Then
+		Select * From KPTDISPLAY
+			Where TABLEID = nTableID
+			Into TO__REMOVE__DISPLAY NoSelect
+	Else
+		Select * From KPTDISPLAY
+			Where TABLEID = nTableID
+			AND LAYERID = nLayerID
+			Into TO__REMOVE__DISPLAY NoSelect
+	End If
+
+	If GetNumRows("TO__REMOVE__DISPLAY") > 0 Then
+		kpdRemoveDisplayByTable	= RESULT_DISPLAY_SETUP_ERASED
+		Delete From TO__REMOVE__DISPLAY
+	Else
+		kpdRemoveDisplayByTable	= RESULT_DISPLAY_SETUP_DIDNOT_EXIST
+	End If
+
+	If bCloseTab Then
+		Commit Table KPTDISPLAY
+		Call TABClose("KPTDISPLAY")
+	Else
+		Call TABClose("TO__REMOVE__DISPLAY")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'***********************************************************************************************************************
+'********************************************************
+'	Kaldes af Displayknapper......
+'********************************************************
+Sub kpdDisplayButtonAction
+
+Dim	nID, nWID As Integer,
+	bCloseDisplayTab, bWorkspaceOpened As Logical
+
+OnError GoTo ErrorOccured
+
+	nID = CommandInfo(CMD_INFO_TOOLBTN)
+	nID = nID - BTN_ID_DISPLAY
+
+	bCloseDisplayTab = kpaOpenKPDisplayTable()
+
+	If kpdCloseAllBeforeOpening(nID) Then
+		Close All Interactive
+		If NOT TABIsOpen("KPDISPLAY") Then
+			bCloseDisplayTab = kpaOpenKPDisplayTable()
+		End If
+	End If
+
+	If kpdOpenDisplayWorkspace(nID) Then
+		bWorkspaceOpened	= TRUE
+	End If
+
+	nWID = MAPGetMapWIDDialog(TRUE, FALSE, FALSE)
+	If nWID = 0 Then
+		'**Ingen kortvinduer åbne, fjern alle registreringer fra KPLAYERSOPEN
+		Call kpdUnRegisterLayersAll
+		Exit Sub
+	End If
+	If nWID <> MAP_CREATE_NEW Then
+		'***Gør udvalgt vindue til aktive og forreste
+		Set Window nWID
+			Front
+	Else
+		'**Ingen kortvinduer åbne, fjern alle registreringer fra KPLAYERSOPEN
+		Call kpdUnRegisterLayersAll
+	End If
+
+	Set Event Processing Off
+
+	If NOT kpdOpenDisplayTables(nID, nWID) AND NOT bWorkspaceOpened Then
+		Note ERR_STYL_NO_TAB_ATTACH_MULTIL
+	End If
+
+	Set Event Processing On
+
+	mnDisplayMainWID = nWID
+
+	If bCloseDisplayTab Then
+		Call TABClose("KPDISPLAY")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Kaldes af Displayknapper med Toggle......
+'********************************************************
+Sub kpdDisplayButtonActionToggle
+
+Dim	nButtonID, nItemNo, nID, nWID As Integer,
+	bCloseDisplayTab, bWorkspaceOpened, bTablesOpened As Logical
+
+OnError GoTo ErrorOccured
+
+	nButtonID	= CommandInfo(CMD_INFO_TOOLBTN)
+	nItemNo	= nButtonID - BTN_ID_DISPLAY
+	nID		= marrToggleButton(nItemNo).nDisplayID
+
+'	Print "Start mnDisplayMainWID=" & mnDisplayMainWID
+
+	bCloseDisplayTab = kpaOpenKPDisplayTable()
+
+	If marrToggleButton(nItemNo).bChecked Then
+		'**Close tables...
+
+		nWID = MAPGetFirstMapWID()
+		If nWID <> MAP_CREATE_NEW Then
+			'***Gør udvalgt vindue til aktive og forreste
+			Set Window nWID
+				Front
+		End If
+
+		Set Event Processing Off
+
+		'Print "Lukker tabeller for DisplayID: " & nID
+		Call kpdCloseDisplayTables(nID, nWID)
+
+		Set Event Processing On
+
+		'marrToggleButton(nItemNo).bChecked		= FALSE
+		marrToggleButton(nItemNo).bUserClicked	= FALSE
+	Else
+		'**Open tables...
+		If kpdCloseAllBeforeOpening(nID) Then
+			Close All Interactive
+			If NOT TABIsOpen("KPDISPLAY") Then
+				bCloseDisplayTab = kpaOpenKPDisplayTable()
+			End If
+		End If
+
+		'Print "Åbner tabeller for DisplayID: " & nID
+		If kpdOpenDisplayWorkspace(nID) Then
+			bWorkspaceOpened	= TRUE
+		End If
+
+		nWID = MAPGetMapWIDDialog(TRUE, FALSE, FALSE)
+		If nWID = 0 Then
+			'**Ingen kortvinduer åbne, fjern alle registreringer fra KPLAYERSOPEN
+			Call kpdUnRegisterLayersAll
+			Exit Sub
+		End If
+		If nWID <> MAP_CREATE_NEW Then
+			'***Gør udvalgt vindue til aktive og forreste
+			Set Window nWID
+				Front
+		Else
+			'**Ingen kortvinduer åbne, fjern alle registreringer fra KPLAYERSOPEN
+			Call kpdUnRegisterLayersAll
+		End If
+
+		Set Event Processing Off
+		bTablesOpened = kpdOpenDisplayTables(nID, nWID)
+
+		If nWID > 0 Then
+			Set Window nWID
+				Front
+		End If
+
+		If NOT bTablesOpened AND NOT bWorkspaceOpened Then
+			Note ERR_STYL_NO_TAB_ATTACH_MULTIL
+			marrToggleButton(nItemNo).bChecked		= FALSE
+			marrToggleButton(nItemNo).bUserClicked	= FALSE
+		ElseIf NOT bTablesOpened AND bWorkspaceOpened Then
+			marrToggleButton(nItemNo).bChecked		= FALSE
+			marrToggleButton(nItemNo).bUserClicked	= FALSE
+		Else
+			marrToggleButton(nItemNo).bChecked		= TRUE
+			marrToggleButton(nItemNo).bUserClicked	= TRUE
+		End If
+
+		Set Event Processing On
+	End If
+
+'	If marrToggleButton(nItemNo).bChecked Then
+'		Alter Button ID nButtonID Check
+'	Else
+'		Alter Button ID nButtonID UnCheck
+'	End If
+
+	mnDisplayMainWID = FrontWindow()
+	Call kpdToggleUnToggleButton(mnDisplayMainWID)
+
+	If bCloseDisplayTab Then
+		Call TABClose("KPDISPLAY")
+	End If
+
+'	Print "Slut mnDisplayMainWID=" & mnDisplayMainWID
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Toggler/Untoggler knapper afhængig af om alle tabeller er åbne eller ej
+'**********************************************************************************************''
+Sub kpdToggleUnToggleButton(ByVal nWID As Integer)
+
+Dim	nBtn, nBtnID, nDisplayID, nNumDisplay, nNumOpen, nNumMaps As Integer,
+	bCloseTabByDisplayTab, bCloseOpenLayerTab, bWinExists As Logical
+
+OnError GoTo ErrorOccured
+
+	If NumTables() = 0 Then
+		Call kpdUnToggleAllButtons
+		Exit Sub
+	ElseIf NumWindows() = 0 Then
+		Call kpdUnToggleAllButtons
+		Exit Sub
+	End If
+
+	If nWID = 0 Then
+		nWID = MAPGetFirstMapWID()
+	End If
+
+	bCloseTabByDisplayTab	= kpaOpenKPTablesByDisplayTable()
+	bCloseOpenLayerTab	= kpaOpenKPLayersOpenTable()
+
+	bWinExists			= WINExists(nWID)
+	nNumMaps 			= WINGetNumMapWindows()
+
+	If nNumMaps = 1 AND WINExists(mnDisplayMainWID) Then
+		nWID 		= mnDisplayMainWID
+		bWinExists	= WINExists(nWID)
+	End If
+
+	For nBtn = 1 To Ubound(marrToggleButton)
+		nDisplayID	= marrToggleButton(nBtn).nDisplayID
+		nBtnID	= marrToggleButton(nBtn).nButtonID
+
+		nNumDisplay	= 0
+		nNumOpen	= 0
+
+		If bWinExists AND marrToggleButton(nBtn).bAllowToggle Then
+			Select * From KPTABLESBYDISPLAY
+				Where DISPLAYID = nDisplayID
+				Into CURR__TABLES__DISPLAY NoSelect
+
+			If TABIsOpen("CURR__TABLES__DISPLAY") Then
+				nNumDisplay	= TableInfo("CURR__TABLES__DISPLAY", TAB_INFO_NROWS)
+			Else
+				nNumDisplay	= 0
+			End If
+
+			If nNumDisplay > 0 Then
+				Select * From KPLAYERSOPEN
+					Where WINDOWID	= nWID
+					AND TABLELAYERID	In (Select TABLELAYERID
+										From CURR__TABLES__DISPLAY)
+					Into CURR__TABLES__OPEN NoSelect
+
+				If TABIsOpen("CURR__TABLES__OPEN") Then
+					nNumOpen	= TableInfo("CURR__TABLES__OPEN", TAB_INFO_NROWS)
+				Else
+					nNumOpen	= 0
+				End If
+			End If
+		End If
+
+		If nNumOpen = 0 Then
+			'Print "**Ingen tabeller fra display er åbne"
+			marrToggleButton(nBtn).bChecked 	= FALSE
+			marrToggleButton(nBtn).bUserClicked	= FALSE
+			Alter Button ID nBtnID Uncheck
+		ElseIf nNumOpen >= nNumDisplay Then
+			'Print "**Alle tabeller fra display er åbne"
+			marrToggleButton(nBtn).bChecked = TRUE
+			Alter Button ID nBtnID Check
+		ElseIf marrToggleButton(nBtn).bUserClicked Then
+			'Print "**en eller flere - men ikke alle - er åbne og bruger har valgt dette display"
+			marrToggleButton(nBtn).bChecked = TRUE
+			Alter Button ID nBtnID check
+		Else
+			'Print "**en eller flere - men ikke alle - er åbne"
+			marrToggleButton(nBtn).bChecked = FALSE
+			Alter Button ID nBtnID Uncheck
+		End If
+	Next
+
+	If bCloseTabByDisplayTab Then
+		Call TABClose("KPTABLESBYDISPLAY")
+	Else
+		Call TABClose("CURR__TABLES__DISPLAY")
+	End If
+
+	If bCloseOpenLayerTab Then
+		Call TABClose("KPLAYERSOPEN")
+	Else
+		Call TABClose("CURR__TABLES__OPEN")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Untoggler alle knapper, anvendes f.eks hvis der er ingen tabeller/vinduer åbne
+'**********************************************************************************************''
+Sub kpdUnToggleAllButtons
+
+Dim	nBtn, nBtnID As Integer,
+	bCloseTabByDisplayTab, bCloseOpenLayerTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseTabByDisplayTab	= kpaOpenKPTablesByDisplayTable()
+	bCloseOpenLayerTab	= kpaOpenKPLayersOpenTable()
+
+	For nBtn = 1 To Ubound(marrToggleButton)
+		nBtnID	= marrToggleButton(nBtn).nButtonID
+
+		marrToggleButton(nBtn).bChecked 	= FALSE
+		marrToggleButton(nBtn).bUserClicked	= FALSE
+		Alter Button ID nBtnID Uncheck
+	Next
+
+	If bCloseTabByDisplayTab Then
+		Call TABClose("KPTABLESBYDISPLAY")
+	End If
+
+	If bCloseOpenLayerTab Then
+		Call TABClose("KPLAYERSOPEN")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler til knap: Aktiverer/Deaktiverer automatisk opdatering af multilag-knapper
+'**********************************************************************************************''
+Sub kpdToggleUnToggleAutoUpdate
+
+OnError GoTo ErrorOccured
+
+	If kpaEnableDisplayAutoUpdate() Then
+		Alter Button kpdToggleUnToggleAutoUpdate Uncheck
+		Call kpaSetEnableDisplayAutoUpdate(FALSE)
+	Else
+		Alter Button kpdToggleUnToggleAutoUpdate Check
+		Call kpaSetEnableDisplayAutoUpdate(TRUE)
+		Call kpdStartUpToggleUnToggleButton
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Opstartsprocedure som kaldes til at toggle/untoggle trykknapperne
+'**********************************************************************************************''
+Sub kpdStartUpToggleUnToggleButton
+
+Dim	nWID, nNumLayers As Integer
+
+OnError GoTo ErrorOccured
+
+'mnTime = Timer()
+'Print "kpdStartUpToggleUnToggleButton"
+
+	If NumWindows() = 0 Then
+		'Print "Ingen vinduer!"
+		Call kpdUnRegisterLayersAll
+		Exit Sub
+	End If
+
+	nWID = MAPGetFirstMapWID()
+	If nWID = MAP_CREATE_NEW Then
+		'Print "Ingen kortvinduer!"
+		Call kpdUnRegisterLayersAll
+		Exit Sub
+	ElseIf nWID = 0 Then
+		'Print "Ingen kortvinduer!"
+		Call kpdUnRegisterLayersAll
+		Exit Sub
+	End If
+
+	mbDisplaySystemHandlerActive = TRUE
+
+	Set Window nWID
+		Front
+
+	nNumLayers = kpdRegisterActiveLayers(nWID)
+	Call kpdToggleUnToggleButton(nWID)
+
+	mbDisplaySystemHandlerActive = FALSE
+
+	mnDisplayMainWID = nWID
+
+'Print "kpdStartUpToggleUnToggleButton " & (Timer() - mnTime) & " sek."
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'"System"-handler for kpDisplay
+'**********************************************************************************************''
+Sub kpdKP_WinClosedHandler(ByVal nWID As Integer)
+
+OnError GoTo ErrorOccured
+
+	If mbDisplaySystemHandlerActive Then
+'		Print"mbDisplaySystemHandlerActive"
+		Exit Sub
+	End If
+	If NOT kpaEnableDisplayWinFocusChngHndl() Then
+'		Print"kpaEnableDisplayWinFocusChngHndl"
+		Exit Sub
+	End If
+	If NOT kpaEnableDisplayAutoUpdate() Then
+'		Print"kpaEnableDisplayAutoUpdate"
+		Exit Sub
+	End If
+'	If NOT WINExists(nWID) Then
+'		Exit Sub
+'	End If
+
+	mbDisplaySystemHandlerActive = TRUE
+
+'	Print "WinClosedHandler: mnDisplayMainWID=" & mnDisplayMainWID
+	If nWID = mnDisplayMainWID Then		'mnCurrentWID
+		Call kpdUnRegisterLayersByWID(nWID)
+		Call kpdUnToggleAllButtons
+
+'		Call kpdToggleUnToggleButton(nWID)
+	End If
+
+	mbDisplaySystemHandlerActive = FALSE
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'"System"-handler for kpDisplay
+'**********************************************************************************************''
+Sub kpdKP_WinFocusChangedHandler(ByVal nWID As Integer)
+
+Dim	nNumLayers, nFrontWID As Integer
+
+OnError GoTo ErrorOccured
+
+	If mbDisplaySystemHandlerActive Then
+		Exit Sub
+	End If
+	If NOT kpaEnableDisplayWinFocusChngHndl() Then
+		Exit Sub
+	End If
+	If NOT kpaEnableDisplayAutoUpdate() Then
+		Exit Sub
+	End If
+	If nWID = 0 Then
+		Exit Sub
+	End If
+	If NOT WINExists(nWID) Then
+		Exit Sub
+	End If
+
+	Do Case WindowInfo(nWID, WIN_INFO_TYPE)
+		Case WIN_MAPPER, WIN_BROWSER
+			'**Continue
+		Case WIN_LAYOUT, WIN_GRAPH
+			'**Continue
+		Case WIN_3DMAP
+			'**Continue
+		Case Else
+			Exit Sub
+	End Case
+
+	nFrontWID	= FrontWindow()
+	If mnDisplayMainWID = nFrontWID Then	'mnCurrentWID
+		Exit Sub
+	End If
+
+	mbDisplaySystemHandlerActive = TRUE
+
+	If nFrontWID = 0 Then
+		'Print "Ingen vinduer!"
+		Call kpdToggleUnToggleButton(nFrontWID)
+	Else
+		Do Case WindowInfo(nFrontWID, WIN_INFO_TYPE)
+			Case WIN_MAPPER
+				nNumLayers = kpdRegisterActiveLayers(nFrontWID)
+				Call kpdToggleUnToggleButton(nFrontWID)
+			Case Else
+				'Print "WinType: " & WindowInfo(nFrontWID, WIN_INFO_TYPE)
+				Call kpdToggleUnToggleButton(nFrontWID)
+		End Case
+	End If
+
+	mnCurrentWID	= nFrontWID
+
+	mbDisplaySystemHandlerActive = FALSE
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'"System"-handler for kpDisplay
+'**********************************************************************************************''
+Sub kpdKP_WinChangedhandler(ByVal nWID As Integer)
+
+Dim	nNumLayers, nFrontWID As Integer
+
+OnError GoTo ErrorOccured
+
+	If mbDisplaySystemHandlerActive Then
+		Exit Sub
+	End If
+	If NOT kpaEnableDisplayWinFocusChngHndl() Then
+		Exit Sub
+	End If
+	If NOT kpaEnableDisplayAutoUpdate() Then
+		Exit Sub
+	End If
+	If NOT WINExists(nWID) Then
+		Exit Sub
+	End If
+
+	Do Case WindowInfo(nWID, WIN_INFO_TYPE)
+		Case WIN_MAPPER, WIN_BROWSER
+			'**Continue
+		Case WIN_LAYOUT, WIN_GRAPH
+			'**Continue
+		Case WIN_3DMAP
+			'**Continue
+		Case Else
+			Exit Sub
+	End Case
+
+	nFrontWID	= FrontWindow()
+	If NOT mnDisplayMainWID = nFrontWID Then		'mnCurrentWID
+		Exit Sub
+	End If
+
+	mbDisplaySystemHandlerActive = TRUE
+
+	If nFrontWID = 0 Then
+		'Print "Ingen vinduer!"
+		Call kpdToggleUnToggleButton(nFrontWID)
+	Else
+		Do Case WindowInfo(nFrontWID, WIN_INFO_TYPE)
+			Case WIN_MAPPER
+				nNumLayers = kpdRegisterActiveLayers(nFrontWID)
+				Call kpdToggleUnToggleButton(nFrontWID)
+			Case Else
+				'Print "WinType: " & WindowInfo(nFrontWID, WIN_INFO_TYPE)
+				Call kpdToggleUnToggleButton(nFrontWID)
+		End Case
+	End If
+
+	mnCurrentWID	= nFrontWID
+
+	mbDisplaySystemHandlerActive = FALSE
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Undersøger om der er forskel i aktive lag i forhold til registrerede lag
+'Returnerer antal lag	: 	hvis der ingen forskel er
+'Returnerer 0		:	hvis der er forskel
+'**********************************************************************************************''
+Function kpdCheckActiveLayers(ByVal nWID As Integer) As Integer
+
+Dim	bCloseTab, bUpdateOrder As Logical,
+	nLayerNum, nType As Integer,
+	szName As String
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPLayersOpenTable()
+
+	Select * From KPLAYERSOPEN
+		Where WINDOWID	= nWID
+		Order By CURRENTORDER
+		Into LAYERS__IN__MAP NoSelect
+
+kpdCheckActiveLayers = GetNumRows("LAYERS__IN__MAP")
+
+	If GetNumRows("LAYERS__IN__MAP") = MapperInfo(nWID, MAPPER_INFO_LAYERS) Then
+		nLayerNum = 0
+		Fetch First From LAYERS__IN__MAP
+		Do Until EOT(LAYERS__IN__MAP)
+			nLayerNum 	= nLayerNum + 1
+			szName	= LayerInfo(nWID, nLayerNum, LAYER_INFO_NAME)
+			If LAYERS__IN__MAP.LAYERNAME = szName Then
+				nType = LayerInfo(nWID, nLayerNum, LAYER_INFO_TYPE)
+				If LAYERS__IN__MAP.LAYERTYPE = nType Then
+					'**Let's try next layer
+					If nLayerNum <> LAYERS__IN__MAP.CURRENTORDER Then
+						bUpdateOrder = TRUE
+					End If
+				Else
+					'Print nLayerNum & " :" & nType & " registreret som " & LAYERS__IN__MAP.LAYERTYPE
+					bUpdateOrder		= FALSE
+					kpdCheckActiveLayers	= 0
+					Exit Do
+				End If
+			Else
+				'Print nLayerNum & " :" & szName & " registreret som " & LAYERS__IN__MAP.LAYERNAME
+				bUpdateOrder		= FALSE
+				kpdCheckActiveLayers 	= 0
+				Exit Do
+			End If
+			Fetch Next From LAYERS__IN__MAP
+		Loop
+	Else
+		'Print "Antal lag: " & MapperInfo(nWID, MAPPER_INFO_LAYERS) & " registreret som " & GetNumRows("LAYERS__IN__MAP")
+		bUpdateOrder		= FALSE
+		kpdCheckActiveLayers	= 0
+	End If
+
+	If bUpdateOrder Then
+		Set Table KPLAYERSOPEN FastEdit On Undo Off
+		Update LAYERS__IN__MAP
+			Set CURRENTORDER = ROWID
+		Commit Table KPLAYERSOPEN
+	End If
+
+	If bCloseTab Then
+		Call TABClose("KPLAYERSOPEN")
+	Else
+		Call TABClose("LAYERS__IN__MAP")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Registrerer lag i angivet kort
+'Undersøge om lagene er registreret OK -> fortsættes uden registrering,
+'ellers fjerner eventuelle referencer til dette kort
+'returns number of layers in map
+'**********************************************************************************************''
+Function kpdRegisterActiveLayers(ByVal nWID As Integer) As Integer
+
+Dim	nLayerNum, nNumLayers, nError As Integer,
+	bCloseLay, bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+'Print "kpdRegisterActiveLayers - start " & (Timer() - mnTime) & " sek."
+
+	bCloseLay = kpaOpenKPLayersOpenTable()
+	bCloseTab = kpaOpenKPTablesTable()
+
+	nNumLayers	= kpdCheckActiveLayers(nWID)
+'Print "    efter kpdCheckActiveLayers" & (Timer() - mnTime) & " sek."
+	If nNumLayers > 0 Then
+		kpdRegisterActiveLayers = nNumLayers
+'Print "    efter kpdRegisterActiveLayers" & (Timer() - mnTime) & " sek."
+		If bCloseLay Then
+		'	Print "kpdRegisterActiveLayers - Close KPLAYERSOPEN"
+			Call TABClose("KPLAYERSOPEN")
+		End If
+		If bCloseTab Then
+			Call TABClose("KPTABLES")
+		End If
+		Exit Function
+	End If
+
+	Set Progressbars Off
+
+	Call kpdUnRegisterLayersByWID(nWID)
+	'Print "    efter kpdUnRegisterLayersByWID" & (Timer() - mnTime) & " sek."
+	Call kpaDropIndexKPLayersOpen
+	Set Table KPLAYERSOPEN FastEdit On Undo Off
+
+	nNumLayers = MapperInfo(nWID, MAPPER_INFO_LAYERS)
+	For nLayerNum = 1 To nNumLayers
+		If NOT kpdRegisterActiveLayer(nWID, nLayerNum) Then
+			nError = nError + 1
+			Print "Lag " & nLayerNum & " kunne ikke registreres!"
+		End If
+	Next
+	'Print "    efter kpdRegisterActiveLayer" & (Timer() - mnTime) & " sek."
+
+	Commit Table KPLAYERSOPEN
+	Set Table KPLAYERSOPEN FastEdit Off Undo On
+	Call kpaCreateIndexKPLayersOpen
+
+	If bCloseLay Then
+		Call TABClose("KPLAYERSOPEN")
+	End If
+	If bCloseTab Then
+		Call TABClose("KPTABLES")
+	End If
+
+	Set Progressbars On
+
+kpdRegisterActiveLayers = (nNumLayers - nError)
+
+'Print "kpdRegisterActiveLayers - slut " & (Timer() - mnTime) & " sek."
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Undersøger om en given tabel/lag er registreret som åben
+'**********************************************************************************************''
+Function kpdIsTableLayerOpen(ByVal nMID As Integer, ByVal nTableID As Integer, ByVal nLayerID As Integer) As Logical
+
+OnError GoTo ErrorOccured
+
+kpdIsTableLayerOpen = FALSE
+
+	Select * From KPLAYERSOPEN
+		Where WINDOWID	= nMID
+		AND 	TABLEID 	= nTableID
+		AND	LAYERID 	= nLayerID
+		Into __IS__LAYER__OPEN NoSelect
+
+	If GetNumRows("__IS__LAYER__OPEN") > 0 Then
+		kpdIsTableLayerOpen = TRUE
+	End If
+
+	Call TABClose("__IS__LAYER__OPEN")
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Register a single layer
+'**********************************************************************************************''
+Function kpdRegisterActiveLayer(ByVal nWID As Integer, ByVal nLayerNum As Integer) As Logical
+
+Dim	nTableID, nLayerID, nType, nOrder As Integer,
+	szTab, szTabFile, szLayerName As String
+
+OnError GoTo ErrorOccured
+
+kpdRegisterActiveLayer = FALSE
+
+	szLayerName	= LayerInfo(nWID, nLayerNum, LAYER_INFO_NAME)
+	nType		= LayerInfo(nWID, nLayerNum, LAYER_INFO_TYPE)
+
+	szTabFile	= LayerInfo(nWID, nLayerNum, LAYER_INFO_PATH)
+	szTab		= szLayerName	'TABGetNameFromTabFile$(szTabFile)
+
+	nTableID	= kptGetTableIDFromTabFile(szTabFile)	'4 secs
+	'PEM: Should retrieve the right LayerID if Various Layer Setting is allowed
+	'	For now this function allways returns 0
+	nLayerID	= kplGetLayerIDFromLayerSetting(nTableID, nWID, nLayerNum)	'0 secs
+
+	If nTableID = 0 Then
+		nOrder = 0
+	Else
+		nOrder = kplGetOrder(nTableID, nLayerID)	'2 secs
+	End If
+
+	Insert Into KPLAYERSOPEN
+		(	WINDOWID, TABLEID, LAYERID, TABLELAYERID, TABLENAME, TABFILENAME,
+		 	LAYERNAME, LAYERTYPE, DEFAULTORDER, CURRENTORDER)
+		 Values
+		 (	nWID, nTableID, nLayerID, nTableID & "-" & nLayerID, szTab, szTabFile,
+		 	szLayerName, nType, nOrder, nLayerNum)
+
+kpdRegisterActiveLayer = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Afregistrerer tabeller ud fra ikke længere åbne kortvinduer
+'**********************************************************************************************''
+Sub kpdUnRegisterLayersByWindows
+
+Dim	bCloseTab As Logical,
+	nCount, arrWIDs() As Integer
+
+OnError GoTo ErrorOccured
+
+	If NumWindows() = 0 Then
+		Call kpaDropTableKPLayersOpen
+	End If
+
+	bCloseTab = kpaOpenKPLayersOpenTable()
+
+	Select * From KPLAYERSOPEN
+		Group By WINDOWID
+		Into GROUPED__BY__WID NoSelect
+
+	nCount = 0
+	Fetch First From GROUPED__BY__WID
+	Do Until EOT(GROUPED__BY__WID)
+		nCount = nCount + 1
+		ReDim arrWIDs(nCount)
+		arrWIDs(nCount) = GROUPED__BY__WID.WINDOWID
+
+		Fetch Next From GROUPED__BY__WID
+	Loop
+
+	Call TABClose("GROUPED__BY__WID")
+
+	For nCount = 1 To Ubound(arrWIDs)
+		If NOT WINExists(arrWIDs(nCount)) Then
+			Call kpdUnRegisterLayersByWID(arrWIDs(nCount))
+		End If
+	Next
+
+	If bCloseTab Then
+		Call TABClose("KPLAYERSOPEN")
+	Else
+		Call TABClose("LAYER__TO__UNREG")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Fjerne registreringer for alle lag
+'**********************************************************************************************''
+Sub kpdUnRegisterLayersAll
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPLayersOpenTable()
+	Call TABDrop("KPLAYERSOPEN")
+	Call kpdUnToggleAllButtons
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Fjerne registrering af lag udfra window
+'**********************************************************************************************''
+Sub kpdUnRegisterLayersByWID(ByVal nWID As Integer)
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPLayersOpenTable()
+
+	Select * From KPLAYERSOPEN
+		Where WINDOWID	= nWID
+		Into LAYER__TO__UNREG NoSelect
+
+	If GetNumRows("LAYER__TO__UNREG") > 0 Then
+		'Print "Afregistrerer " & GetNumRows("LAYER__TO__UNREG") & " lag"
+		Set Table KPLAYERSOPEN FastEdit On Undo Off
+		Delete From LAYER__TO__UNREG
+		Commit Table KPLAYERSOPEN
+	Else
+		'Print "Ingen lag som skal afregistreres med kpdUnRegisterLayersByWID"
+	End If
+
+	If bCloseTab Then
+		Call TABClose("KPLAYERSOPEN")
+	Else
+		Call TABClose("LAYER__TO__UNREG")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Fjerne registrering af et lag udfra tabellens fil
+'**********************************************************************************************''
+Sub kpdUnRegisterLayersByTabFile(ByVal szTabFile As String)
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPLayersOpenTable()
+
+	Select * From KPLAYERSOPEN
+		Where TABFILENAME	= szTabFile
+		Into LAYER__TO__UNREG NoSelect
+
+	If GetNumRows("LAYER__TO__UNREG") > 0 Then
+		Set Table KPLAYERSOPEN FastEdit On Undo Off
+		Delete From LAYER__TO__UNREG
+		Commit Table KPLAYERSOPEN
+	End If
+
+	If bCloseTab Then
+		Call TABClose("KPLAYERSOPEN")
+	Else
+		Call TABClose("LAYER__TO__UNREG")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Fjerne registrering af lag udfra TABLEID
+'**********************************************************************************************''
+Sub kpdUnRegisterLayersByTableID(ByVal nTableID As Integer)
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPLayersOpenTable()
+
+	Select * From KPLAYERSOPEN
+		Where TABLEID		= nTableID
+		Into LAYER__TO__UNREG NoSelect
+
+	If GetNumRows("LAYER__TO__UNREG") > 0 Then
+		Set Table KPLAYERSOPEN FastEdit On Undo Off
+		Delete From LAYER__TO__UNREG
+		Commit Table KPLAYERSOPEN
+	End If
+
+	If bCloseTab Then
+		Call TABClose("KPLAYERSOPEN")
+	Else
+		Call TABClose("LAYER__TO__UNREG")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+' Fjerne registrering af et lag udfra window og Layernum
+'**********************************************************************************************''
+Sub kpdUnRegisterLayersByLayerNum(ByVal nWID As Integer, ByVal nLayerNum As Integer)
+
+Dim	bCloseTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseTab = kpaOpenKPLayersOpenTable()
+
+	Select * From KPLAYERSOPEN
+		Where WINDOWID		= nWID
+		AND	CURRENTORDER	= nLayerNum
+		Into LAYER__TO__UNREG NoSelect
+
+	If GetNumRows("LAYER__TO__UNREG") > 0 Then
+		Set Table KPLAYERSOPEN FastEdit On Undo Off
+		Delete From LAYER__TO__UNREG
+		Commit Table KPLAYERSOPEN
+	End If
+
+	If bCloseTab Then
+		Call TABClose("KPLAYERSOPEN")
+	Else
+		Call TABClose("LAYER__TO__UNREG")
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'registrerer hvilke tabeller der skal åbnes
+'returns number of tables to open
+'**********************************************************************************************''
+Function kpdRegisterLayersToAddToMap(ByVal nDisplayID As Integer) As Integer
+
+Dim	nResult, nTableID, nLayerID, nGroupID, nSubGroupID As Integer,
+	bCloseTDisplayTab, bCloseTGroupTab, bCloseLayersTab, bCloseTablesTab, bCloseLayersToAdd As Logical
+
+OnError GoTo ErrorOccured
+
+kpdRegisterLayersToAddToMap = 0
+
+	Call kpaDropTableKPLayersToAdd
+
+	bCloseTDisplayTab = kpaOpenKPTDisplayTable()
+	bCloseTGroupTab	= kpaOpenKPTGroupTable()
+	bCloseLayersTab	= kpaOpenKPLayersTable()
+	bCloseTablesTab	= kpaOpenKPTablesTable()
+	bCloseLayersToAdd	= kpaOpenKPLayersToAddTable()
+
+	Set Table KPLAYERSTOADD FastEdit On Undo Off
+
+	Select TABLEID, LAYERID
+		From KPTDISPLAY
+		Where DISPLAYID = nDisplayID
+		And TABLEID > 0
+		Group By TABLEID, LAYERID
+		Into TO_BE_OPENED NoSelect
+
+	If TableInfo("TO_BE_OPENED", TAB_INFO_NROWS) > 0 Then
+		Fetch First From TO_BE_OPENED
+		Do Until EOT(TO_BE_OPENED)
+
+			nTableID = TO_BE_OPENED.TABLEID
+			nLayerID = TO_BE_OPENED.LAYERID
+
+			nResult = kpdRegisterLayerToAdd(nTableID, nLayerID)
+			If nResult > 0 Then
+				'***table was registered
+			ElseIf nResult = 0 Then
+				'***Table was allready registered
+			Else
+				'***Error registering Table
+			End If
+
+			Fetch Next From TO_BE_OPENED
+		Loop
+	End If
+
+	Commit Table KPLAYERSTOADD
+	Set Table KPLAYERSTOADD FastEdit On Undo Off
+
+	'***Opening tables using groups
+	Select GROUPID, SUBGROUPID From KPTDISPLAY
+		Where DISPLAYID = nDisplayID
+		And TABLEID = 0
+		Into TO_BE_OPENED NoSelect
+
+	If TableInfo("TO_BE_OPENED", TAB_INFO_NROWS) > 0 Then
+		Fetch First From TO_BE_OPENED
+		Do Until EOT(TO_BE_OPENED)
+
+			nGroupID	= TO_BE_OPENED.GROUPID
+			nSubGroupID	= TO_BE_OPENED.SUBGROUPID
+
+			'Print "(GroupID/SubGroupID) : (" & nGroupID & "/" & nSubGroupID & ")"
+			If kpdRegisterLayersToAddByGroup(nGroupID, nSubGroupID) > 0 Then
+				'** Some tables were registered from this group
+			End If
+		Loop
+	End If
+
+	Commit Table KPLAYERSTOADD
+
+	Call TABClose("TO_BE_OPENED")
+
+	kpdRegisterLayersToAddToMap = GetNumRows("KPLAYERSTOADD")
+
+	If bCloseTDisplayTab Then
+		Call TABClose("KPTDISPLAY")
+	End If
+	If bCloseTGroupTab Then
+		Call TABClose("KPTGROUP")
+	End If
+	If bCloseLayersTab Then
+		Call TABClose("KPLAYERS")
+	End If
+	If bCloseTablesTab Then
+		Call TABClose("KPTABLES")
+	End If
+	If bCloseLayersToAdd Then
+		Call TABClose("KPLAYERSTOADD")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Registrerer tabeller i en given gruppering
+'**********************************************************************************************''
+Function kpdRegisterLayersToAddByGroup(ByVal nGroupID As Integer, ByVal nSubGroupID As Integer) As Integer
+
+Dim	nResult, nTableID, nLayerID, nNumTables As Integer
+
+OnError GoTo ErrorOccured
+
+	If nGroupID > GROUPID_NONE Then
+
+		If nGroupID = GROUPID_ALL Then
+			Select TABLEID, LAYERID From KPTGROUP
+				Group By TABLEID, LAYERID
+				Into TAB_TO_OPEN NoSelect
+		Else
+			If nSubGroupID = SUBGROUPID_ALL Then
+				Select TABLEID, LAYERID From KPTGROUP
+					Where GROUPID = nGroupID
+					Group By TABLEID, LAYERID
+					Into TAB_TO_OPEN NoSelect
+			Else
+				Select TABLEID, LAYERID From KPTGROUP
+					Where GROUPID = nGroupID
+					AND SUBGROUPID = nSubGroupID
+					Group By TABLEID, LAYERID
+					Into TAB_TO_OPEN NoSelect
+			End If
+		End If
+
+		Fetch First From TAB_TO_OPEN
+		Do Until EOT(TAB_TO_OPEN)
+
+			nTableID = TAB_TO_OPEN.TABLEID
+			nLayerID = TAB_TO_OPEN.LAYERID
+
+			nResult = kpdRegisterLayerToAdd(nTableID, nLayerID)
+			If nResult > 0 Then
+				'***table was registered
+				nNumTables	= nNumTables + 1
+			ElseIf nResult = 0 Then
+				'***Table was allready registered
+			Else
+				'***Error registering Table
+			End If
+
+			Fetch Next From TAB_TO_OPEN
+		Loop
+		Fetch Next From TO_BE_OPENED
+
+		Call TABClose("TAB_TO_OPEN")
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Registrerer en enkelt tabel
+'**********************************************************************************************''
+Function kpdRegisterLayerToAdd(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Integer
+
+Dim	nType, nOrder As Integer,
+	szTab, szTabFile, szLayerName As String
+
+OnError GoTo ErrorOccured
+
+kpdRegisterLayerToAdd = -1
+
+	If kpdIsTableLayerRegistered(nTableID, nLayerID) Then
+		kpdRegisterLayerToAdd = 0
+		Exit Function
+	End If
+
+	szTabFile	= kptGetTabFileName$(nTableID)
+	szTab		= kptGetMapInfoTableName$(nTableID)
+
+	nType		= -1	'LayerInfo(nWID, nLayerNum, LAYER_INFO_TYPE)
+	nOrder 	= kplGetOrder(nTableID, nLayerID)
+
+	'Print "Table : " & nTableID & " LayerID : " & nLayerID & " Order: " & nOrder & " Table: " & szTab
+
+	Insert Into KPLAYERSTOADD
+		(	TABLEID, LAYERID, TABLELAYERID, TABLENAME, TABFILENAME,
+		 	LAYERNAME, LAYERTYPE, DEFAULTORDER)
+		 Values
+		 (	nTableID, nLayerID, nTableID & "-" & nLayerID, szTab, szTabFile,
+		 	szTab, nType, nOrder)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Undersøger om en given tabel/layer allerede er registreret til visning
+'**********************************************************************************************''
+Function kpdIsTableLayerRegistered(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Logical
+
+OnError GoTo ErrorOccured
+
+kpdIsTableLayerRegistered = FALSE
+
+	Select * From KPLAYERSTOADD
+		Where TABLEID 	= nTableID
+		AND	LAYERID 	= nLayerID
+		Into __IS__LAYER__REGIST NoSelect
+
+	If GetNumRows("__IS__LAYER__REGIST") > 0 Then
+		kpdIsTableLayerRegistered = TRUE
+	End If
+
+	Call TABClose("__IS__LAYER__REGIST")
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Tilføjer de registrerede lag til kortvinduet
+'**********************************************************************************************''
+Function kpdAddRegisteredLayersToMap(nMID As Integer) As Integer
+
+Dim	nCount, nRowID, nTableID, nLayerID, nCurOrder, nDefaultOrder, nNewlayers, nType As Integer,
+	bCloseLayersOpen, bCloseLayersToAdd, bCloseLayersTab, bCloseTablesTab As Logical,
+	bRedrawTurnOff As Logical,
+	szCmdStr, szTabFile, szTab, szLayerName As String
+
+OnError GoTo ErrorOccured
+
+kpdAddRegisteredLayersToMap = 0
+
+	mbDisplaySystemHandlerActive = TRUE
+
+	bCloseLayersTab	= kpaOpenKPLayersTable()
+	bCloseTablesTab	= kpaOpenKPTablesTable()
+	bCloseLayersToAdd	= kpaOpenKPLayersToAddTable()
+	bCloseLayersOpen	= kpaOpenKPLayersOpenTable()
+
+	Select * From KPLAYERSTOADD
+		Order By DEFAULTORDER Desc
+		Into CUR__LAYERS__TO__ADD NoSelect
+
+	Set Progressbars Off
+	Set Table KPLAYERSTOADD FastEdit On Undo Off
+
+	nCurOrder	= GetNumRows("CUR__LAYERS__TO__ADD")
+	Fetch First From CUR__LAYERS__TO__ADD
+	Do Until EOT(CUR__LAYERS__TO__ADD)
+		nTableID		= CUR__LAYERS__TO__ADD.TABLEID
+		nLayerID		= CUR__LAYERS__TO__ADD.LAYERID
+		szTabFile		= CUR__LAYERS__TO__ADD.TABFILENAME
+		nDefaultOrder	= CUR__LAYERS__TO__ADD.DEFAULTORDER
+		nRowID		= CUR__LAYERS__TO__ADD.ROWID
+
+		If WINExists(nMID) AND NOT bRedrawTurnOff Then
+			bRedrawTurnOff = TRUE
+			Set Window nMID
+				Title WindowInfo(nMID, WIN_INFO_NAME)
+			Set Map
+				Window nMID
+				ReDraw Off
+		End If
+
+		If NOT kpdIsTableLayerOpen(nMID, nTableID, nLayerID) Then
+			szTab = kptOpenTableInMapTop$(nTableID, nLayerID, nMID, TRUE)
+			If szTab = "" Then
+				Print ERR_TAB_OPENING & " ID: " & nTableID & " Tabel: " &  kptGetMapInfoTableName$(nTableID)
+			Else
+				szLayerName	= LayerInfo(nMID, 1, LAYER_INFO_NAME)
+				nType		= LayerInfo(nMID, 1, LAYER_INFO_TYPE)
+
+				Update CUR__LAYERS__TO__ADD
+					Set	LAYERNAME		= szLayerName,
+						LAYERTYPE		= nType,
+						NEWORDER		= nDefaultOrder,
+						CURRENTORDER	= nCurOrder,
+						WINDOWID		= nMID
+					Where	ROWID			= nRowID
+			End If
+		End If
+
+		nCurOrder = nCurOrder - 1
+
+		Fetch Next From CUR__LAYERS__TO__ADD
+	Loop
+
+	Select * From KPLAYERSTOADD
+		Where CURRENTORDER = 0
+		Into TO__DELETE__LAYERS NoSelect
+
+	If GetNumRows("TO__DELETE__LAYERS") > 0 Then
+		Delete From TO__DELETE__LAYERS
+		Commit Table KPLAYERSTOADD
+		Pack Table KPLAYERSTOADD Data
+
+		Select * From KPLAYERSTOADD
+			Order By CURRENTORDER
+			Into CUR__LAYERS__TO__ADD NoSelect
+
+		Update CUR__LAYERS__TO__ADD
+			Set CURRENTORDER	= ROWID
+	End If
+
+	Commit Table KPLAYERSTOADD
+	Set Progressbars On
+
+	Call TABClose("TO__DELETE__LAYERS")
+	Call TABClose("CUR__LAYERS__TO__ADD")
+
+	'--------------
+	'Reorder layers
+	Set Table KPLAYERSOPEN FastEdit On Undo Off
+
+	nNewlayers = GetNumRows("KPLAYERSTOADD")
+	If nNewlayers > 0 Then
+		Select * From KPLAYERSOPEN
+			Where WINDOWID = nMID
+			Into CUR__WINDOW__LAYERS NoSelect
+
+		Update CUR__WINDOW__LAYERS
+			Set 	CURRENTORDER	= (CURRENTORDER + nNewlayers),
+				NEWORDER		= DEFAULTORDER
+
+		Insert Into KPLAYERSOPEN
+			Select * From KPLAYERSTOADD
+
+		Select * From KPLAYERSOPEN
+			Where NEWORDER <= 0
+			AND	WINDOWID = nMID
+			Into LAYERS__NO__DEFAULT__ORDER NoSelect
+		If GetNumRows("LAYERS__NO__DEFAULT__ORDER") > 0 Then
+			Update LAYERS__NO__DEFAULT__ORDER
+				Set NEWORDER	= CURRENTORDER
+		End If
+		Call TABClose("CUR__WINDOW__LAYERS")
+		Call TABClose("LAYERS__NO__DEFAULT__ORDER")
+
+		Select * From KPLAYERSOPEN
+			Where	WINDOWID = nMID
+			Order By NEWORDER
+			Into LAYERS__NEW__ORDER NoSelect
+
+		nCount = 0
+		Fetch First From LAYERS__NEW__ORDER
+		Do Until EOT(LAYERS__NEW__ORDER)
+			nCount = nCount + 1
+			If nCount = 1 Then
+				szCmdStr = "Set Map Window " & nMID
+						& " Order " & LAYERS__NEW__ORDER.CURRENTORDER
+			Else
+				szCmdStr = szCmdStr & ", " & LAYERS__NEW__ORDER.CURRENTORDER
+			End If
+
+			Fetch Next From LAYERS__NEW__ORDER
+		Loop
+
+		'Print szCmdStr
+		Run Command szCmdStr
+
+		Update LAYERS__NEW__ORDER
+			Set	CURRENTORDER	= ROWID
+
+		Commit Table KPLAYERSOPEN
+		Call TABClose("LAYERS__NEW__ORDER")
+	End If
+
+	If bRedrawTurnOff Then
+		Set Map
+			Window nMID
+			ReDraw On
+	End If
+
+	Set Window nMID
+		Title Default
+
+	mbDisplaySystemHandlerActive = FALSE
+
+	'--------------
+	If bCloseLayersTab Then
+		Call TABClose("KPLAYERS")
+	End If
+	If bCloseTablesTab Then
+		Call TABClose("KPTABLES")
+	End If
+	If bCloseLayersToAdd Then
+		Call TABClose("KPLAYERSTOADD")
+	End If
+	If bCloseLayersOpen Then
+		Call TABClose("KPLAYERSOPEN")
+	End If
+
+kpdAddRegisteredLayersToMap = nCount
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG
+		& lf & Error$()
+		& lf & szCmdStr
+
+End Function
+
+'**********************************************************************************************''
+'	Åbner et eventuelt arbejdsområde tilknyttet aktuel MultiLag
+'**********************************************************************************************''
+Function kpdOpenDisplayWorkspace(ByVal nDisplayID As Integer) As Logical
+
+Dim	szWorFile As String
+
+OnError GoTo ErrorOccured
+
+	szWorFile = kpdGetWorkspaceFile$(nDisplayID)
+	If szWorFile = "" Then
+		kpdOpenDisplayWorkspace = TRUE
+		Exit Function
+	End If
+
+kpdOpenDisplayWorkspace = FALSE
+
+	szWorFile	= kpaGetAbsoluteFileName$(szWorFile)
+	If NOT FileExists(szWorFile) Then
+		Note ERR_WOR_NOT_FOUND & szWorFile
+		Exit Function
+	End If
+
+	Run Application szWorFile
+
+kpdOpenDisplayWorkspace = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Åbner tabeller for et bestemt Display......
+'********************************************************
+Function kpdOpenDisplayTables(ByVal nDisplayID As Integer, nMID As Integer) As Logical
+'nMID = -999/MAP_CREATE_NEW: Opret nyt kort
+
+Dim	nNumLayers, nNewLayers As Integer
+
+OnError GoTo ErrorOccured
+
+kpdOpenDisplayTables = FALSE
+
+	If nMID <> MAP_CREATE_NEW Then
+		nNumLayers = kpdRegisterActiveLayers(nMID)
+	End If
+
+	Call kpaDropTableKPLayersToAdd
+	nNewLayers = kpdRegisterLayersToAddToMap(nDisplayID)
+	If nNewLayers = 0 Then
+		Exit Function
+	End If
+
+	nNewLayers = kpdAddRegisteredLayersToMap(nMID)
+	If nNewLayers = nNumLayers Then
+		'**Same number of layers after and before
+	End If
+
+	kpdOpenDisplayTables = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Lukker Display tables......
+'********************************************************
+Sub kpdCloseDisplayTables(ByVal nDisplayID As Integer, nMID As Integer)
+
+Dim	nTableID, nGroupID, nSubGroupID As Integer,
+	bCloseTDisplayTab, bCloseTGroupTab, bCloseTOpenTab As Logical,
+	bNoTablesAttached As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseTDisplayTab = kpaOpenKPTDisplayTable()
+	bCloseTGroupTab	= kpaOpenKPTGroupTable()
+	bCloseTOpenTab	= kpaOpenKPLayersOpenTable()
+
+	Select TABLEID From KPTDISPLAY
+		Where DISPLAYID = nDisplayID
+		And TABLEID > 0
+		Group By TABLEID
+		Into TO_BE_CLOSED NoSelect
+
+	bNoTablesAttached = TRUE
+	If TableInfo("TO_BE_CLOSED", TAB_INFO_NROWS) > 0 Then
+
+		bNoTablesAttached = FALSE
+
+		Fetch First From TO_BE_CLOSED
+		Do Until EOT(TO_BE_CLOSED)
+
+			If WINExists(nMID) Then
+				Set Map
+					Window nMID
+					ReDraw Off
+				Set Window nMID
+					Title WindowInfo(nMID, WIN_INFO_NAME)
+			End If
+
+			nTableID = TO_BE_CLOSED.TABLEID
+			'Print "Table : "+ kptGetMapInfoTableName$(nTableID)
+
+			If not kptCloseTable(nTableID, TRUE) Then
+				Print ERR_TAB_CLOSING + kptGetMapInfoTableName$(nTableID)
+			Else
+				Call kpdUnRegisterLayersByTableID(nTableID)
+			End If
+			Fetch Next From TO_BE_CLOSED
+		Loop
+
+	End If
+
+	'***closing tables using groups
+	Select * From KPTDISPLAY
+		Where DISPLAYID = nDisplayID
+		And TABLEID = 0
+		Into TO_BE_CLOSED NoSelect
+
+	If TableInfo("TO_BE_CLOSED", TAB_INFO_NROWS) > 0 Then
+
+		Fetch First From TO_BE_CLOSED
+		Do Until EOT(TO_BE_CLOSED)
+
+			nGroupID	= TO_BE_CLOSED.GROUPID
+			nSubGroupID	= TO_BE_CLOSED.SUBGROUPID
+
+			If nGroupID > GROUPID_NONE Then
+				If nGroupID = GROUPID_ALL Then
+					Select TABLEID From KPTGROUP
+						Group By TABLEID
+						Into TAB_TO_CLOSE NoSelect
+				Else
+					If nSubGroupID = SUBGROUPID_ALL Then
+						Select TABLEID From KPTGROUP
+							Where GROUPID = nGroupID
+							Group By TABLEID
+							Into TAB_TO_CLOSE NoSelect
+					Else
+						Select TABLEID From KPTGROUP
+							Where GROUPID = nGroupID
+							AND SUBGROUPID = nSubGroupID
+							Group By TABLEID
+							Into TAB_TO_CLOSE NoSelect
+					End If
+				End If
+
+				Fetch First From TAB_TO_CLOSE
+				Do Until EOT(TAB_TO_CLOSE)
+
+					If WINExists(nMID) Then
+						Set Map
+							Window nMID
+							ReDraw Off
+					End If
+
+					nTableID = TAB_TO_CLOSE.TABLEID
+					'Print "Table : "+ kptGetMapInfoTableName$(nTableID)
+
+					If not kptCloseTable(nTableID, TRUE) Then
+						Print ERR_TAB_CLOSING + kptGetMapInfoTableName$(nTableID)
+					Else
+						Call kpdUnRegisterLayersByTableID(nTableID)
+					End If
+					Fetch Next From TAB_TO_CLOSE
+				Loop
+				Fetch Next From TO_BE_CLOSED
+			End If
+		Loop
+	Else
+		If bNoTablesAttached Then
+			Note ERR_STYL_NO_TAB_ATTACH_MULTIL
+		End If
+	End If
+
+	If WINExists(nMID) Then
+		Set Map
+			Window nMID
+			ReDraw On
+		Set Window nMID
+			Title Default
+	End If
+
+	If TableOpen("TO_BE_CLOSED") Then
+		Close Table TO_BE_CLOSED
+	End If
+	If TableOpen("TAB_TO_CLOSE") Then
+		Close Table TAB_TO_CLOSE
+	End If
+
+	If bCloseTDisplayTab Then
+		Close Table KPTDISPLAY
+	End If
+	If bCloseTGroupTab Then
+		Close Table KPTGROUP
+	End If
+	If bCloseTOpenTab Then
+		Close Table kpaGetKPLayersOpenTabName$()
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Opretter Display ButtonPad......
+'********************************************************
+Sub kpdCreateDisplayButtonPad
+
+OnError GoTo ErrorOccured
+
+	If kpaGetDiplayButtonToggle() Then
+		Call kpdCreateDisplayButtonPadToggle
+	Else
+		Call kpdCreateDisplayButtonPadPush
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Opretter Display ButtonPad......
+'********************************************************
+Sub kpdCreateDisplayButtonPadPush
+
+Dim	nCloseDisplayTab, nCloseIconTab, bFirst As Logical,
+	szPadTitle, szTitle As String,
+	nIconFile, nIcon, nDisplayID As Integer
+
+OnError GoTo ErrorOccured
+
+	nCloseDisplayTab 	= kpaOpenKPDisplayTable()
+	nCloseIconTab	= kpaOpenKPIconsTable()
+
+	szPadTitle = kpaGetKPDisplayPadName$()
+
+	Select * From KPDISPLAY
+		Where ACTIVE
+		Order By ORDER, DISPLAYNAME
+		Into BUTTON_TO_CREATE NoSelect
+
+	Fetch First From BUTTON_TO_CREATE
+	bFirst = TRUE
+	Do Until EOT(BUTTON_TO_CREATE)
+
+		szTitle	= BUTTON_TO_CREATE.DISPLAYNAME
+		szTitle	= szTitle + "\n" + szTitle
+
+		nIconFile	= BUTTON_TO_CREATE.ICONFILEID
+		nIcon		= BUTTON_TO_CREATE.ICONNO
+		nDisplayID	= BUTTON_TO_CREATE.DISPLAYID
+
+		Call kpdAddButtonToDisplayPadPush(nDisplayID, szTitle, kpiGetIconFileName$(nIconFile), nIcon, szPadTitle, bFirst)
+
+		bFirst = FALSE
+		Fetch Next From BUTTON_TO_CREATE
+	Loop
+
+	If nCloseDisplayTab Then
+		Close Table KPDISPLAY
+	Else
+		Close Table BUTTON_TO_CREATE
+	End If
+	If nCloseIconTab Then
+		Close Table KPICONS
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Tilføjer knap til menupalette "MultiTab"
+'********************************************************
+Sub kpdAddButtonToDisplayPadPush(	ByVal nDisplayID As Integer, ByVal szMsg As String,
+						ByVal szIconFile As String, ByVal nIcon As Integer,
+						ByVal szPadTitle As String, ByVal bFirst As Logical)
+
+Dim	szIconFilePath As String
+
+OnError GoTo ErrorOccured
+
+	If nDisplayID < 0 Then
+		If bFirst Then
+			Create ButtonPad szPadTitle As
+				Separator
+		Else
+			Alter ButtonPad szPadTitle Add
+				Separator
+		End If
+		Exit Sub
+	End If
+
+	If szIconFile = STYL_THEME_ICON_TEXT Then
+		szIconFilePath = GetFileNameAbsolute$(gszTemaIconFile)
+	ElseIf szIconFile = STYL_MAPINFO_ICON_TEXT Then
+		szIconFilePath = szIconFile
+	Else
+		szIconFilePath = GetFileNameAbsolute$(szIconFile)
+	End If
+
+	If szIconFilePath <> STYL_MAPINFO_ICON_TEXT And not FileExists(szIconFilePath) Then
+		Print ERR_ICONFILE_NOT_FOUND + szIconFilePath
+		GoTo AddOrdinaryButton
+	End If
+
+	If szIconFilePath = STYL_MAPINFO_ICON_TEXT Then
+		If bFirst Then
+			Create ButtonPad szPadTitle As
+				PushButton
+					Calling kpdDisplayButtonAction
+					Icon nIcon
+					ID BTN_ID_DISPLAY + nDisplayID
+					HelpMsg szMsg
+		Else
+			Alter ButtonPad szPadTitle Add
+				PushButton
+					Calling kpdDisplayButtonAction
+					Icon nIcon
+					ID BTN_ID_DISPLAY + nDisplayID
+					HelpMsg szMsg
+		End If
+	Else
+		If bFirst Then
+			Create ButtonPad szPadTitle As
+				PushButton
+					Calling kpdDisplayButtonAction
+					Icon nIcon File szIconFilePath
+					ID BTN_ID_DISPLAY + nDisplayID
+					HelpMsg szMsg
+		Else
+			Alter ButtonPad szPadTitle Add
+				PushButton
+					Calling kpdDisplayButtonAction
+					Icon nIcon File szIconFilePath
+					ID BTN_ID_DISPLAY + nDisplayID
+					HelpMsg szMsg
+		End If
+	End If
+
+	Exit Sub
+'-------------
+AddOrdinaryButton:
+
+	OnError GoTo 0
+
+	If bFirst Then
+		Create ButtonPad szPadTitle As
+			PushButton
+				Calling kpdDisplayButtonAction
+				Icon MI_ICON_LAYERS
+				ID BTN_ID_DISPLAY + nDisplayID
+				HelpMsg szMsg
+	Else
+		Alter ButtonPad szPadTitle Add
+			PushButton
+			Calling kpdDisplayButtonAction
+			Icon MI_ICON_LAYERS
+			ID BTN_ID_DISPLAY + nDisplayID
+			HelpMsg szMsg
+	End If
+
+	Exit Sub
+'-------------
+ErrorOccured:
+
+	Print ERR_ICON_LOADING_1 + nIcon +
+		ERR_ICON_LOADING_2 + szIconFilePath + " : " + lf
+		+ Error$()
+
+	Resume AddOrdinaryButton
+
+End Sub
+
+'********************************************************
+'	Opretter Display ButtonPad......
+'********************************************************
+Sub kpdCreateDisplayButtonPadToggle
+
+Dim	nCloseDisplayTab, nCloseIconTab As Logical,
+	szPadTitle, szTitle As String,
+	nCount, nIconFile, nIcon, nDisplayID As Integer
+
+OnError GoTo ErrorOccured
+
+	nCloseDisplayTab 	= kpaOpenKPDisplayTable()
+	nCloseIconTab	= kpaOpenKPIconsTable()
+
+	szPadTitle = kpaGetKPDisplayPadName$()
+
+	Select * From KPDISPLAY
+		Where ACTIVE
+		Order By ORDER, DISPLAYNAME
+		Into BUTTON_TO_CREATE NoSelect
+
+	If GetNumRows("BUTTON_TO_CREATE") > 0 Then
+		If kpaShowUserInfluenceButton() Then
+			Create ButtonPad szPadTitle As
+				ToggleButton
+					Icon 103 File kpaGetKPToolsDLLFile32$()
+					HelpMsg "Aktiver/deaktiver automatisk opdatering af MultiLag-knapper.\nAktiver/deaktiver automatisk opdatering"
+					Calling kpdToggleUnToggleAutoUpdate
+				Separator
+		End If
+
+		Fetch First From BUTTON_TO_CREATE
+		ReDim marrToggleButton(GetNumRows(BUTTON_TO_CREATE))
+		nCount = 0
+		Do Until EOT(BUTTON_TO_CREATE)
+
+			nCount = nCount + 1
+
+			szTitle	= BUTTON_TO_CREATE.DISPLAYNAME
+			szTitle	= szTitle + "\n" + szTitle
+
+			nIconFile	= BUTTON_TO_CREATE.ICONFILEID
+			nIcon		= BUTTON_TO_CREATE.ICONNO
+			nDisplayID	= BUTTON_TO_CREATE.DISPLAYID
+
+			If BUTTON_TO_CREATE.WORFILE = "" Then
+				marrToggleButton(nCount).bAllowToggle = TRUE
+				Call kpdAddToggleButtonToDisplayPad(nDisplayID, szTitle, kpiGetIconFileName$(nIconFile), nIcon, szPadTitle, nCount)
+			Else
+				'Print "Toggle forbudt!"
+				marrToggleButton(nCount).bAllowToggle = FALSE
+				Call kpdAddToggleButtonToDisplayPad(nDisplayID, szTitle, kpiGetIconFileName$(nIconFile), nIcon, szPadTitle, nCount)
+				'Print "marrToggleButton(nCount).bAllowToggle: " & marrToggleButton(nCount).bAllowToggle
+			End If
+
+			Fetch Next From BUTTON_TO_CREATE
+		Loop
+
+		'**Hvis Automatisk opdatering er aktiveret, så tryk "tænd/sluk"-knappen ned
+		If kpaEnableDisplayAutoUpdate() Then
+			Alter Button kpdToggleUnToggleAutoUpdate Check
+			Call kpdStartUpToggleUnToggleButton
+		End If
+	Else
+		Call kpaSetEnableDisplayAutoUpdate(FALSE)
+	End If
+
+	If nCloseDisplayTab Then
+		Close Table KPDISPLAY
+	Else
+		Close Table BUTTON_TO_CREATE
+	End If
+	If nCloseIconTab Then
+		Close Table KPICONS
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Tilføjer knap til menupalette "MultiTab", som ToggleButtons
+'********************************************************
+Sub kpdAddToggleButtonToDisplayPad(	ByVal nDisplayID As Integer, ByVal szMsg As String,
+						ByVal szIconFile As String, ByVal nIcon As Integer,
+						ByVal szPadTitle As String, ByVal nCount As Integer)
+
+Dim	szIconFilePath As String
+
+OnError GoTo ErrorOccured
+
+	If nDisplayID < 0 Then
+		Alter ButtonPad szPadTitle Add
+			Separator
+		Exit Sub
+	End If
+
+	'**Creating array to control the status of the togglebuttons...
+	marrToggleButton(nCount).nButtonID	= BTN_ID_DISPLAY + nCount
+	marrToggleButton(nCount).nDisplayID	= nDisplayID
+	marrToggleButton(nCount).bChecked	= FALSE
+
+	If szIconFile = STYL_THEME_ICON_TEXT Then
+		szIconFilePath = GetFileNameAbsolute$(gszTemaIconFile)
+	ElseIf szIconFile = STYL_MAPINFO_ICON_TEXT Then
+		szIconFilePath = szIconFile
+	Else
+		szIconFilePath = GetFileNameAbsolute$(szIconFile)
+	End If
+
+	If szIconFilePath <> STYL_MAPINFO_ICON_TEXT And not FileExists(szIconFilePath) Then
+		Print ERR_ICONFILE_NOT_FOUND + szIconFilePath
+		GoTo AddOrdinaryButton
+	End If
+
+	If szIconFilePath = STYL_MAPINFO_ICON_TEXT Then
+		If NOT kpaShowUserInfluenceButton() AND nCount = 1 Then
+			Create ButtonPad szPadTitle As
+				ToggleButton
+					Calling kpdDisplayButtonActionToggle
+					Icon nIcon
+					ID marrToggleButton(nCount).nButtonID
+					HelpMsg szMsg
+		Else
+			Alter ButtonPad szPadTitle Add
+				ToggleButton
+					Calling kpdDisplayButtonActionToggle
+					Icon nIcon
+					ID marrToggleButton(nCount).nButtonID
+					HelpMsg szMsg
+		End If
+	Else
+		If NOT kpaShowUserInfluenceButton() AND nCount = 1 Then
+			Create ButtonPad szPadTitle As
+				ToggleButton
+					Calling kpdDisplayButtonActionToggle
+					Icon nIcon File szIconFilePath
+					ID marrToggleButton(nCount).nButtonID
+					HelpMsg szMsg
+		Else
+			Alter ButtonPad szPadTitle Add
+				ToggleButton
+					Calling kpdDisplayButtonActionToggle
+					Icon nIcon File szIconFilePath
+					ID marrToggleButton(nCount).nButtonID
+					HelpMsg szMsg
+		End If
+	End If
+
+	Exit Sub
+'-------------
+AddOrdinaryButton:
+
+	OnError GoTo 0
+
+	If NOT kpaShowUserInfluenceButton() AND nCount = 1 Then
+		Create ButtonPad szPadTitle As
+			ToggleButton
+				Calling kpdDisplayButtonActionToggle
+				Icon MI_ICON_LAYERS
+				ID marrToggleButton(nCount).nButtonID
+				HelpMsg szMsg
+	Else
+		Alter ButtonPad szPadTitle Add
+			ToggleButton
+			Calling kpdDisplayButtonActionToggle
+			Icon MI_ICON_LAYERS
+			ID marrToggleButton(nCount).nButtonID
+			HelpMsg szMsg
+	End If
+
+	Exit Sub
+'-------------
+ErrorOccured:
+
+	Print ERR_ICON_LOADING_1 + nIcon +
+		ERR_ICON_LOADING_2 + szIconFilePath + " : " + lf
+		+ Error$()
+
+	Resume AddOrdinaryButton
+
+End Sub
+
+'**********************************************************************************************''
+'Registrerer hvilke tabeller der åbnes af hvilke MultiLag/Display
+'**********************************************************************************************''
+Function kpdRegisterTablesByDisplay() As Integer
+
+Dim	bTabByDisplayTab, bTGroupTab, bDisplayTab, bTDisplayTab As Logical,
+	nDisplayID, nRows As Integer,
+	szTempFile As String
+
+OnError GoTo ErrorOccured
+
+kpdRegisterTablesByDisplay = 0
+
+	Call kpaDropTableKPTablesByDisplay
+
+	bTGroupTab		= kpaOpenKPTGroupTable()
+	bDisplayTab		= kpaOpenKPDisplayTable()
+	bTDisplayTab	= kpaOpenKPTDisplayTable()
+	bTabByDisplayTab	= kpaOpenKPTablesByDisplayTable()
+
+	Set Table KPTABLESBYDISPLAY FastEdit On Undo Off
+
+	Fetch First From KPDISPLAY
+	Do Until EOT(KPDISPLAY)
+		nDisplayID	= KPDISPLAY.DISPLAYID
+
+		Call kpdRegisterTablesByDisplaySingle(nDisplayID)
+
+		Fetch Next From KPDISPLAY
+	Loop
+
+	Commit Table KPTABLESBYDISPLAY
+
+	'**Grouping and saving...
+	szTempFile	= TempFileName$("")
+	Select * From KPTABLESBYDISPLAY
+		Group By DISPLAYID, TABLEID, LAYERID
+		Into GROUPED__TABS__BY__DISPLAY NoSelect
+
+	nRows	= GetNumRows("GROUPED__TABS__BY__DISPLAY")
+	If nRows < GetNumRows(KPTABLESBYDISPLAY) Then
+
+		Commit Table GROUPED__TABS__BY__DISPLAY As szTempFile
+		Drop Table KPTABLESBYDISPLAY
+
+		Open Table szTempFile As KPTABLESBYDISPLAY2
+		Rename Table KPTABLESBYDISPLAY2 As kpaGetKPTablesByDisplayFileName$()
+		Call TABClose("KPTABLESBYDISPLAY2")
+		If NOT bTabByDisplayTab Then
+			bTabByDisplayTab = kpaOpenKPTablesByDisplayTable()
+		End If
+	Else
+		Call TABClose("GROUPED__TABS__BY__DISPLAY")
+	End If
+
+	If bTabByDisplayTab Then
+		Call TABClose("KPTABLESBYDISPLAY")
+	End If
+	If bTGroupTab Then
+		Call TABClose("KPTGROUP")
+	End If
+	If bDisplayTab Then
+		Call TABClose("KPDISPLAY")
+	End If
+	If bTDisplayTab Then
+		Call TABClose("KPTDISPLAY")
+	End If
+
+kpdRegisterTablesByDisplay = nRows
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Registrerer tabeller tilknyttet et givent display/multilag
+'**********************************************************************************************''
+Sub kpdRegisterTablesByDisplaySingle(ByVal nDisplayID As Integer)
+
+Dim	nTableID, nLayerID, nGroupID, nSubGroupID As Integer
+
+OnError GoTo ErrorOccured
+
+	Select * From KPTDISPLAY
+		Where	DISPLAYID	= nDisplayID
+		And	GROUPID	= 0
+		Into CUR__SINGLE__DISPLAY__TAB NoSelect
+
+	Fetch First From CUR__SINGLE__DISPLAY__TAB
+	Do Until EOT(CUR__SINGLE__DISPLAY__TAB)
+		nTableID	= CUR__SINGLE__DISPLAY__TAB.TABLEID
+		nLayerID	= CUR__SINGLE__DISPLAY__TAB.LAYERID
+
+		Insert Into KPTABLESBYDISPLAY
+			(DISPLAYID, TABLEID, LAYERID, TABLELAYERID)
+			Values(nDisplayID, nTableID, nLayerID, nTableID & "-" & nLayerID)
+
+		Fetch Next From CUR__SINGLE__DISPLAY__TAB
+	Loop
+
+	Call TABClose("CUR__SINGLE__DISPLAY__TAB")
+
+	'**Looping thru groups/subgroups
+	Select * From KPTDISPLAY
+		Where	DISPLAYID	= nDisplayID
+		And	TABLEID	= 0
+		AND	GROUPID	<> GROUPID_NONE
+		Into CUR__SINGLE__DISPLAY__GROUP NoSelect
+
+	Fetch First From CUR__SINGLE__DISPLAY__GROUP
+	Do Until EOT(CUR__SINGLE__DISPLAY__GROUP)
+		nGroupID	= CUR__SINGLE__DISPLAY__GROUP.GROUPID
+		nSubGroupID	= CUR__SINGLE__DISPLAY__GROUP.SUBGROUPID
+
+		If nGroupID = GROUPID_ALL Then
+			Select TABLEID, LAYERID From KPTGROUP
+				Group By TABLEID, LAYERID
+				Into CUR__SINGLE__DISPLAY__TAB NoSelect
+		Else
+			If nSubGroupID = SUBGROUPID_ALL Then
+				Select TABLEID, LAYERID From KPTGROUP
+					Where GROUPID = nGroupID
+					Group By TABLEID, LAYERID
+					Into CUR__SINGLE__DISPLAY__TAB NoSelect
+			Else
+				Select TABLEID, LAYERID From KPTGROUP
+					Where GROUPID = nGroupID
+					AND SUBGROUPID = nSubGroupID
+					Group By TABLEID, LAYERID
+					Into CUR__SINGLE__DISPLAY__TAB NoSelect
+			End If
+		End If
+
+		Fetch First From CUR__SINGLE__DISPLAY__TAB
+		Do Until EOT(CUR__SINGLE__DISPLAY__TAB)
+			nTableID	= CUR__SINGLE__DISPLAY__TAB.TABLEID
+			nLayerID	= CUR__SINGLE__DISPLAY__TAB.LAYERID
+
+			Insert Into KPTABLESBYDISPLAY
+				(DISPLAYID, TABLEID, LAYERID, TABLELAYERID)
+				Values(nDisplayID, nTableID, nLayerID, nTableID & "-" & nLayerID)
+
+			Fetch Next From CUR__SINGLE__DISPLAY__TAB
+		Loop
+		Fetch Next From CUR__SINGLE__DISPLAY__GROUP
+	Loop
+
+	Call TABClose("CUR__SINGLE__DISPLAY__TAB")
+	Call TABClose("CUR__SINGLE__DISPLAY__GROUP")
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

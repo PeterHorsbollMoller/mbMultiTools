@@ -1,0 +1,167 @@
+
+Declare Function PRVALGetPrintingVersion$() As String
+Declare Function PRVALGetPrintingVersion() As Float
+
+
+'*******Reading & Writing ini-file....
+Declare Sub PrintWriteIniFile(ByVal nFile As Integer)
+Declare Sub PrintReadIniFile(Byval szFile As String)
+
+Declare Sub PrintWriteIniFileLayouts(ByVal nFile As Integer)
+Declare Sub PrintReadIniFileLayouts(Byval szFile As String)
+
+Declare Sub PrintingValuesWriteIniFile(Byval nFile As integer)
+Declare Sub PrintingValuesReadIniFile(Byval szFile As String)
+
+'-------------------------------------------------------------------------
+'********Default values....
+Declare Function PrintGetUsername() As String
+Declare Function PrintGetUserID() As String
+Declare Function PrintGetUserIDFromLogon() As Logical
+Declare Function PrintGetDepartment() As String
+Declare Function PrintGetAddress() As String
+Declare Function PrintGetZipKode() As String
+Declare Function PrintGetZipArea() As String
+Declare Function PrintGetTelephone() As String
+Declare Function PrintGetFaximil() As String
+Declare Function PrintGetFirm()  As String
+Declare Function PrintGetMapName()  As String
+Declare Function PrintGetCaseNumber()  As String
+Declare Function PrintGetCaseTitle()  As String
+Declare Function PrintGetCaseSubTitle()  As String
+
+Declare Sub PrintSetUsername(ByVal szVal As String)
+Declare Sub PrintSetUserID(ByVal szVal As String)
+Declare Sub PrintSetUserIDFromLogon(ByVal bVal As Logical)
+Declare Sub PrintSetDepartment(ByVal szVal As String)
+Declare Sub PrintSetAddress(ByVal szVal As String)
+Declare Sub PrintSetZipKode(ByVal szVal As String)
+Declare Sub PrintSetZipArea(ByVal szVal As String)
+Declare Sub PrintSetTelephone(ByVal szVal As String)
+Declare Sub PrintSetFaximil(ByVal szVal As String)
+Declare Sub PrintSetFirm(ByVal szVal As String)
+Declare Sub PrintSetMapName(ByVal szVal As String)
+Declare Sub PrintSetCaseNumber(ByVal szVal As String)
+Declare Sub PrintSetCaseTitle(ByVal szVal As String)
+Declare Sub PrintSetCaseSubTitle(ByVal szVal As String)
+
+'-------------------------------------------------------------------------
+Declare Function PrintGetLayoutFileName$() As String
+
+'**Path to temporary header tables, default is "" = Window Temp
+Declare Sub PrintSetPathToTempHeaderTable(ByVal szPath As String)
+Declare Function PrintGetPathToTempHeaderTable$() As String
+
+Declare Sub PrintSetScale(ByVal nScale As Integer)
+Declare Function PrintGetScale() As Integer
+Declare Function PrintGetScale$() As String
+Declare Sub PrintSetRotation(ByVal fRotation As Float)
+Declare Function PrintGetRotation() As Float
+Declare Function PrintGetRotation$() As String
+
+Declare Sub PrintSetScaleType(ByVal nValue As Integer)
+Declare Function PrintGetScaleType() As Integer
+Declare Sub PrintSetMinimumScale(ByVal nValue As Integer)
+Declare Function PrintGetMinimumScale() As Integer
+Declare Sub PrintSetMaximumScale(ByVal nValue As Integer)
+Declare Function PrintGetMaximumScale() As Integer
+Declare Sub PrintSetScaleRounding(ByVal nValue As Integer)
+Declare Function PrintGetScaleRounding() As Integer
+Declare Sub PrintSetBufferWhenAutoScale(ByVal nValue As Integer)
+Declare Function PrintGetBufferWhenAutoScale() As Integer
+
+Declare Sub PrintSetMapCenter(ByVal fX As Float, ByVal fY As Float)
+Declare Sub PrintSetMapCenterX(ByVal fX As Float)
+Declare Sub PrintSetMapCenterY(ByVal fY As Float)
+Declare Sub PrintGetMapCenter(fX As Float, fY As Float)
+Declare Function PrintGetMapCenterX() As Float
+Declare Function PrintGetMapCenterY() As Float
+
+Declare Sub PrintSetReadCoordinateFromMap(ByVal bValue As Logical)
+Declare Function PrintReadCoordinateFromMap() As Logical
+
+'-------------------------------------------------------------------------
+Declare Sub PrintSetWinLanguage(ByVal snLan As SmallInt)
+Declare Sub PrintSetMILanguage(ByVal snLan As SmallInt)
+Declare Sub PrintSetPaperSize(ByVal snSize As SmallInt)
+Declare Sub PrintSetPaperSize$(ByVal szSize As String)
+Declare Sub PrintSetPageOrientation(ByVal snOrient As SmallInt)
+Declare Sub PrintSetPageOrientation$(ByVal szOrient As String)
+Declare Sub PrintSetAutoPrint(ByVal bValue As Logical)
+Declare Sub PrintSetShowRuntimeValuesDialog(ByVal bValue As Logical)
+Declare Sub PrintSetClonMapWindow(ByVal bValue As Logical)
+Declare Sub PrintSetPreview(ByVal bValue As Logical)
+Declare Sub PrintSetBatchPrint(ByVal bValue As Logical)
+Declare Sub PrintSetAskSaveFrameToTable(ByVal bValue As Logical)
+Declare Sub PrintSetCreateMoreFrames(ByVal bValue As Logical)
+Declare Sub PrintSetHideFrameTable(ByVal bValue As Logical)
+Declare Sub PrintSetPromptWhenChangeInPaperSize(ByVal bValue As Logical)
+Declare Sub PrintSetReadFromSelection(ByVal bValue As Logical)
+Declare Sub PrintSetMapHeaderTableName(ByVal szValue As String)
+Declare Sub PrintSetSpecialPlotTabFileName(ByVal szFile As String)
+Declare Sub PrintSetAllowSpecialPlot(ByVal bValue As Logical)
+Declare Sub PrintSetAllowRotatedPlot(ByVal bValue As Logical)
+Declare Sub PrintSetUseNorthArrow(ByVal bValue As Logical)
+Declare Sub PrintSetWorFileUsingSpecPlot(ByVal szFile As String)
+Declare Sub PrintSetSpecPlotName(ByVal szName As String)
+Declare Sub PrintSetWarnOnNoSelection(ByVal bValue As Logical)
+Declare Sub PrintSetColumnNamesToSortBy(ByVal szValue As String)
+
+Declare Function PrintGetWinLanguage() As SmallInt
+Declare Function PrintGetMILanguage() As SmallInt
+Declare Function PrintGetPaperSize() As SmallInt
+Declare Function PrintGetPaperSize$() As String
+Declare Function GetWindowsPaperSizeNo(ByVal snPaperSize As SmallInt) As Integer
+Declare Function PrintGetPageOrientation() As SmallInt
+Declare Function PrintGetPageOrientation$() As String
+Declare Function PrintAutoPrint() As Logical
+Declare Function PrintShowRuntimeValuesDialog() As Logical
+Declare Function PrintClonMapWindow() As Logical
+Declare Function PrintUsePreview() As Logical
+Declare Function PrintBatchPrint() As Logical
+Declare Function PrintAskSaveFrameToTable() As Logical
+Declare Function PrintCreateMoreFrames() As Logical
+Declare Function PrintHideFrameTable() As Logical
+Declare Function PrintPromptWhenChangeInPaperSize() As Logical
+Declare Function PrintReadFromSelection() As Logical
+Declare Function PrintGetMapHeaderTableName$() As String
+Declare Function PrintGetSpecialPlotTabFileName$() As String
+Declare Function PrintAllowSpecialPlot() As Logical
+Declare Function PrintAllowRotatedPlot() As Logical
+Declare Function PrintIsRotatedPlotPossible(ByVal nMapID As Integer) As Logical
+Declare Function PrintIsMapRotated(ByVal nMapID As Integer) As Logical
+Declare Function PrintUseNorthArrow() As Logical
+Declare Function PrintUseSpecialPlot() As Logical
+Declare Function PrintSpecialPlotIsPossible() As Logical
+Declare Function PrintGetWorFileUsingSpecPlot$() As String		'Returns an empty string if standard print else worfile
+Declare Function PrintGetSpecPlotName$() As String
+Declare Function PrintWarnOnNoSelection() As Logical
+Declare Function PrintGetColumnNamesToSortBy$() As String
+
+'-------------------------------------------------------------------------
+Declare Sub PrintSetLibraryLanguage
+Declare Sub PrintSetPageOrientationBeforePrinting
+Declare Sub PrintMI4ZPageOrientBeforePrint
+Declare Sub PrintMI55ZPageOrientBeforePrint
+
+Declare Sub PrintSetFrameWidth(ByVal fValue As Float)
+Declare Sub PrintSetFrameHeight(ByVal fValue As Float)
+Declare Sub PrintSetMapWinID(ByVal nWID As Integer)
+Declare Sub PrintSetLayoutWinID(ByVal nWID As Integer)
+Declare Sub PrintSetNumberOfTab(ByVal nTab As Integer)
+Declare Sub PrintSetNumberOfWin(ByVal nWin As Integer)
+
+Declare Function PrintGetFrameWidth() As Float
+Declare Function PrintGetFrameHeight() As Float
+Declare Function PrintGetMapWinID() As Integer
+Declare Function PrintGetLayoutWinID() As Integer
+Declare Function PrintGetNumberOfTab() As Integer
+Declare Function PrintGetNumberOfWin() As Integer
+
+'**Control over tables and windows opened by printinglayouts...
+Declare Sub PrintCreateHiddenOpenedTables(ByVal nFromTabNo As Integer)
+Declare Sub PrintCloseHiddenOpenedTables(ByVal bAskBeforeClose As Logical)
+Declare Sub PrintCreateHiddenOpenedWindows(ByVal nFromWinNo As Integer)
+Declare Sub PrintCloseHiddenOpenedWindows(ByVal bAskBeforeClose As Logical)
+
+Declare Sub PrintReplaceHiddenOpenedTable(ByVal szReplaceTab As String, ByVal szReplaceWithTab As String)

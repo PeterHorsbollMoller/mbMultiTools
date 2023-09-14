@@ -1,0 +1,267 @@
+Define eye                                               Chr$(34)
+Define lf                                                Chr$(10)
+
+'--- Default About box--------------------------------------
+Define MSG_DLG_TITLE_ABOUT                               "Om "
+Define MSG_DLG_TXT_KAMPSAX                               "COWI A/S"
+Define MSG_DLG_TXT_KAMPSAX_DEPARTMENT                    "Geografisk Information og IT"
+Define MSG_DLG_TXT_KAMPSAX_ADDRESS                       "Rugårdsvej 55"
+
+
+Define MSG_DLG_TITLE_INPUT_CONDITION                     "Indtast betingelse..."
+Define MSG_DLG_TXT_WILDCARD                              "Brug % som jokertegn."
+
+'--- Icons and icons files --------------------------------------
+Define MSG_ICON_FILE                                     "Ikonfil"
+Define MSG_ICON_ICONNO                                   "Ikonnr"
+Define MSG_ICON_FILE_PICK_POINTS                         "Udpeg fil med ikoner..."
+
+'--- Menus --------------------------------------
+Define MSG_MNU_ABOUT_PROGRAM                             "O&m "
+Define MSG_MNU_EXIT_PROGRAM                              "Af&slut "
+
+Define MSG_MNU_HELP_DRAW_PLINE                           "Tegn en polylinie på redigerbart kort eller aktivt layoutlag.\nPolylinie"
+Define MSG_MNU_HELP_DRAW_POLYGON                         "Tegn en ny polygon på redigerbart kort eller aktivt layout.\nPolygon"
+Define MSG_MNU_HELP_DRAW_TEXT                            "Læg tekst på kort/layout eller rediger dataliste.\nTekst"
+Define MSG_MNU_HELP_DRAW_SYMBOL                          "Placer et symbol (punkt) på redigerbart kort eller aktivt layout.\nSymbol"
+
+Define MSG_SYS_MAPINFO_RUNTIME                           "MapInfo Runtime"
+
+'--- Objects and styles --------------------------------------
+Define MSG_OBJ_BORDER                                    "Afgrænsning"
+Define MSG_OBJ_FILL                                      "Udfyldning"
+Define MSG_OBJ_FONT                                      "Tekstobjekt"
+Define MSG_OBJ_KIND                                      "Objekttyper"
+Define MSG_OBJ_LINE                                      "Linie"
+Define MSG_OBJ_REGION                                    "Region"
+Define MSG_OBJ_SYMBOL                                    "Symbol"
+Define MSG_OBJ_FRAMESIZE                                 "Rammestørrelse"
+Define MSG_TXT_FRAMESIZE                                 MSG_OBJ_FRAMESIZE
+
+'--- File and folders --------------------------------------
+Define MSG_FILE_FILE                                     "Fil"
+Define MSG_FILE_FILETYPE                                 "Filtype"
+Define MSG_FILE_DIRECTORY                                "Bibliotek"
+Define MSG_FILE_PICK_NEW_POINTS                          "Udpeg ny fil..."
+Define MSG_FILE_PICK_POINTS                              "Udpeg fil..."
+
+Define MSG_RESOLUTION_DPI                                "Opløsning (DPI)"
+
+Define MSG_WIDTH_CM                                      "Bredde, cm"
+Define MSG_HEIGHT_CM                                     "Højde, cm"
+Define MSG_WIDTH_M                                       "Bredde, m"
+Define MSG_HEIGHT_M                                      "Højde, m"
+Define MSG_BUFFER_M                                      "Buffer, m"
+
+'--- Tables --------------------------------------
+Define MSG_TAB_TABLE                                     "Tabel"
+Define MSG_TAB_TABLES                                    "Tabeller"
+Define MSG_TAB_MULTIPLE_TABLES                           "Flere tabeller"
+Define MSG_TAB_OPEN_POINTS                               "Åben tabel..."
+Define MSG_TAB_SELECT                                    "Vælg tabel"
+Define MSG_TAB_PICK                                      "Udpeg tabel"
+Define MSG_TAB_PICK_POINTS                               "Udpeg tabel..."
+Define MSG_TAB_PICK_NEW_POINTS                           "Udpeg ny tabel..."
+Define MSG_TAB_NAME_RESULT_TAB_POINTS                    "Navngiv resultattabel..."
+Define MSG_TAB_ASK_SAVE_CHANGES                          "Gem ændringer i tabellen "
+Define MSG_TAB_SELECTED                                  "Udvalgt tabel"
+
+'--- Columns --------------------------------------
+Define MSG_COL_COLUMN                                    "Kolonne"
+Define MSG_COL_COLUMNS                                   "Kolonner"
+Define MSG_COL_COLUMN_TYPE                               "Kolonnetype"
+Define MSG_COL_SELECT_FROM_TAB                           "Vælg kolonne fra tabel"
+
+'--- Windows --------------------------------------
+Define MSG_WIN_MAP                                       "Kort"
+Define MSG_WIN_THE_MAP                                   "Kortet"
+Define MSG_WIN_MAP_WINDOW                                "Kortvindue"
+Define MSG_WIN_MAP_WINDOWS                               "Kortvinduer"
+Define MSG_WIN_MAP_CENTER                                "Kortcentrum"
+Define MSG_WIN_LAYOUT                                    "Layout"
+Define MSG_WIN_LAYOUT_FRAME                              "Layout ramme"
+Define MSG_WIN_LAYOUT_FRAMES                             "Layout rammer"
+Define MSG_WIN_BROWSER                                   "Liste"
+Define MSG_WIN_CREATE_NEW_MAP                            "Opret nyt kortvindue..."
+
+Define MSG_DIALOG                                        "Dialog"
+
+'--- Map and layers --------------------------------------
+Define MSG_MAP_LAYER_ADD                                 "Tilføj lag"
+Define MSG_MAP_LAYER_COSMETIC                            "Kosmetisk lag"
+Define MSG_MAP_LAYER_EDITABLE                            "Redigerbart lag"
+Define MSG_MAP_COSMETIC_REMOVES                          "Kosmetisk lag bliver slettet!"
+
+'--- Workspace --------------------------------------
+Define MSG_WOR_PICK_NEW_POINTS                           "Udpeg nyt arbejdsområde..."
+Define MSG_WOR_PICK_POINTS                               "Udpeg arbejdsområde..."
+Define MSG_WOR_WORKSPACE                                 "Arbejdsområde"
+
+'--- Actions --------------------------------------
+Define MSG_ABORT                                         "Afbryd"
+Define MSG_ADD                                           "Tilføj"
+Define MSG_APPLY                                         "Anvend"
+Define MSG_ALTER                                         "Rediger"
+Define MSG_BEGIN                                         "Start"
+Define MSG_CLOSE                                         "Luk"
+Define MSG_CLOSE_ALL                                     "Luk alle"
+Define MSG_CONTINUE                                      "Fortsæt"
+Define MSG_CREATE                                        "Opret"
+Define MSG_DELETE                                        "Slet"
+Define MSG_DOWNLOAD                                      "Download"
+Define MSG_EDIT                                          "Rediger"
+Define MSG_END                                           "Afslut"
+Define MSG_EXECUTE                                       "Udfør"
+Define MSG_GET                                           "Hent"
+Define MSG_INSERT                                        "Indsæt"
+Define MSG_LOAD                                          "Indlæs"
+Define MSG_MOVE                                          "Flyt"
+Define MSG_MOVEDOWN                                      "Flyt ned"
+Define MSG_MOVETO                                        "Flyt til"
+Define MSG_MOVEUP                                        "Flyt op"
+Define MSG_NEW                                           "Ny"
+Define MSG_OPEN                                          "Åbn"
+Define MSG_PICK_NEW                                      "Udpeg ny"
+Define MSG_PICK                                          "Udpeg"
+Define MSG_RELOAD                                        "Genindlæs"
+Define MSG_REMOVE                                        "Fjern"
+Define MSG_RENAME                                        "Omdøb"
+Define MSG_REVERT                                        "Kasser"
+Define MSG_SAVE                                          "Gem"
+Define MSG_SAVE_NOT                                      "Gem ikke"
+Define MSG_SEARCH                                        "Søg"
+Define MSG_SELECT                                        "Vælg"
+Define MSG_SHOW                                          "Vis"
+Define MSG_SORTED                                        "Sorteret"
+Define MSG_NOT_SORTED_ORDER                              "Ikke sorteret rækkefølge"
+Define MSG_SORTED_ORDER                                  "Sorteret rækkefølge"
+Define MSG_UNSORTED                                      "Ikke sorteret"
+Define MSG_STOP                                          "Afbryd"
+Define MSG_UPDATE                                        "Opdater"
+Define MSG_UPLOAD                                        "Upload"
+Define MSG_USE                                           "Anvend"
+
+'--- Directions --------------------------------------
+Define MSG_UP                                            "Op"
+Define MSG_DOWN                                          "Ned"
+Define MSG_LEFT                                          "Venstre"
+Define MSG_RIGHT                                         "Højre"
+Define MSG_BEFORE                                        "Før"
+Define MSG_AFTER                                         "Efter"
+Define MSG_NEXT                                          "Næste"
+Define MSG_PREV                                          "Forrige"
+Define MSG_FOREWARD                                      "Frem"
+Define MSG_BACK                                          "Tilbage"
+Define MSG_CURRENT                                       "Aktuel"
+
+Define MSG_NO                                            "Nej"
+Define MSG_YES                                           "Ja"
+Define MSG_AND                                           "og"
+Define MSG_OR                                            "eller"
+
+Define MSG_ALL                                           "Alle"
+Define MSG_NONE                                          "Ingen"
+Define MSG_UNKNOWN                                       "Ukendt"
+Define MSG_UNDEFINED                                     "Udefineret"
+Define MSG_NONE_GIVEN                                    "Ingen angivet"
+Define MSG_NO_VALUES                                     "Ingen værdier"
+Define MSG_DEFAULT                                       "Standard"
+Define MSG_MINIMUM                                       "Mindste"
+Define MSG_MAXIMUM                                       "Største"
+Define MSG_ROUND_TO                                      "Afrund til"
+Define MSG_ZOOMIN                                        "Zoom In"
+Define MSG_ZOOMOUT                                       "Zoom ud"
+Define MSG_PAN                                           "Pan"
+
+Define MSG_ACTIVE                                        "Aktiv"
+Define MSG_GENERAL                                       "Generel"
+Define MSG_GENERALLY                                     "Generelt"
+Define MSG_NAME                                          "Navn"
+Define MSG_DESCRIPTION                                   "Beskrivelse"
+Define MSG_COORDSYS                                      "Koordinatsytem"
+Define MSG_PROJECTION                                    "Projektion"
+Define MSG_VALUE                                         "Værdi"
+Define MSG_VALUES                                        "Værdier"
+Define MSG_TEXT                                          "Tekst"
+
+Define MSG_PRINTSETUP                                    "Printeropsætning"
+
+'--------------------------------------------------------
+'--- Backwards compatability: ---------------------------
+'--- Use them with out points and add the points manually
+
+Define MSG_TEXT_UPDATE_POINTS                            MSG_TEXT_UPDATE_POINTS + "..."
+Define MSG_TEXT_SAVE_POINTS                              MSG_TEXT_SAVE + "..."
+Define MSG_TEXT_REMOVE_POINTS                            MSG_TEXT_REMOVE + "..."
+Define MSG_TEXT_PICK_POINTS                              MSG_TEXT_PICK + "..."
+Define MSG_TEXT_ADD_POINTS                               MSG_TEXT_ADD + "..."
+Define MSG_TEXT_ALTER_POINTS                             MSG_TEXT_ALTER + "..."
+Define MSG_TEXT_CLOSE_POINTS                             MSG_TEXT_CLOSE + "..."
+Define MSG_TEXT_CREATE_POINTS                            MSG_TEXT_CREATE + "..."
+Define MSG_TEXT_NEW_POINTS                               MSG_TEXT_NEW + "..."
+Define MSG_TEXT_PICK_NEW_POINTS                          MSG_TEXT_PICK_NEW + "..."
+
+Define MSG_TEXT_PRINTSETUP_POINTS                        MSG_TEXT_PRINTSETUP + "..."
+
+'------------------------------------------------------
+'--- Backwards compatability: ---------------------------
+
+Define MSG_SELECT_TABLE                                  MSG_TAB_SELECT
+Define MSG_SELECTED_TABLE                                MSG_TAB_SELECTED
+
+Define MSG_TXT_COLUMN                                    MSG_COL_COLUMN
+Define MSG_TXT_COLUMNS                                   MSG_COL_COLUMN
+
+Define MSG_LAYER_ADD                                     MSG_MAP_LAYER_ADD
+Define MSG_LAYER_COSMETIC                                MSG_MAP_LAYER_COSMETIC
+Define MSG_LAYER_EDITABLE                                MSG_MAP_LAYER_EDITABLE
+
+Define MSG_TXT_WORKSPACE                                 MSG_WOR_WORKSPACE
+
+Define MSG_TXT_FILE                                      MSG_FILE_FILE
+Define MSG_TXT_FILETYPE                                  MSG_FILE_FILETYPE
+Define MSG_TXT_DIRECTORY                                 MSG_FILE_DIRECTORY
+
+Define MSG_TEXT_NONE_GIVEN                               MSG_NONE_GIVEN
+Define MSG_TEXT_NO_VALUES                                MSG_NO_VALUES
+
+Define MSG_TEXT_UP                                       MSG_UP
+Define MSG_TEXT_DOWN                                     MSG_DOWN
+
+Define MSG_TEXT_EXECUTE                                  MSG_EXECUTE
+Define MSG_TEXT_ADD                                      MSG_ADD
+Define MSG_TEXT_APPLY                                    MSG_APPLY
+Define MSG_TEXT_USE                                      MSG_USE
+Define MSG_TEXT_ALTER                                    MSG_ALTER
+Define MSG_TEXT_CLOSE                                    MSG_CLOSE
+Define MSG_TEXT_CLOSE_ALL                                MSG_CLOSE_ALL
+Define MSG_TEXT_CONTINUE                                 MSG_CONTINUE
+Define MSG_TEXT_NEXT                                     MSG_NEXT
+Define MSG_TEXT_PREV                                     MSG_PREV
+Define MSG_TEXT_CREATE                                   MSG_CREATE
+Define MSG_TEXT_NEW                                      MSG_NEW
+Define MSG_TEXT_PICK_NEW                                 MSG_PICK_NEW
+Define MSG_TEXT_NONE                                     MSG_NONE
+Define MSG_TEXT_PICK                                     MSG_PICK
+Define MSG_TEXT_REMOVE                                   MSG_REMOVE
+Define MSG_TEXT_SAVE                                     MSG_SAVE
+Define MSG_TEXT_SAVE_NOT                                 MSG_SAVE_NOT
+Define MSG_TEXT_REVERT                                   MSG_REVERT
+Define MSG_TEXT_STOP                                     MSG_STOP
+Define MSG_TEXT_UPDATE                                   MSG_UPDATE
+Define MSG_TEXT_RELOAD                                   MSG_RELOAD
+Define MSG_TEXT_SHOW                                     MSG_SHOW
+Define MSG_TEXT_SELECT_TABLE                             MSG_SELECT_TABLE
+Define MSG_TEXT_SELECT                                   MSG_SELECT
+Define MSG_TEXT_GENRALLY                                 MSG_GENERALLY
+
+Define MSG_TEXT_NAME                                     MSG_NAME
+Define MSG_DESCRITION                                    MSG_DESCRIPTION
+Define MSG_TXT_DESCRITION                                MSG_DESCRIPTION
+Define MSG_TXT_COORDSYS                                  MSG_COORDSYS
+Define MSG_TXT_PROJECTION                                MSG_PROJECTION
+Define MSG_TXT_VALUES                                    MSG_VALUES
+
+Define MSG_TEXT_PRINTSETUP                               MSG_PRINTSETUP
+
+

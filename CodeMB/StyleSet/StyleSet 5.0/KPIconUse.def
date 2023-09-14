@@ -1,0 +1,14 @@
+Declare Sub kpiCreateListOfIconFileNames(arrIconFiles() As String)
+Declare Function kpiGetIconElementNo(ByVal szIconDesc As String, arrIcons() As String) As Integer
+Declare Function kpiGetIconFileROWIDFromElementNo(ByVal nElementNo As Integer) As Integer
+Declare Function kpiGetIconFileIDFromElementNo(ByVal nElementNo As Integer) As Integer
+
+Declare Function kpiGetMaxIconFileID() As Integer
+Declare Function kpiGetNextIconFileID() As Integer
+
+Declare Function kpiIconFileReferenceInTable(ByVal szTabToSearch As String, ByVal nIconFileID As Integer) As Logical
+
+Declare Function kpiGetIconShortName$(ByVal nIconID As Integer) As String
+Declare Function kpiGetIconFileName$(ByVal nIconID As Integer) As String
+Declare Function kpiGetIconFileIDFromFilename(ByVal szRelativeFilename As String) As Integer
+Declare Function kpiGetIconFileIDFromShortName(ByVal szShortName As String) As Integer

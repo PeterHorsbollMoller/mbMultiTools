@@ -1,0 +1,68 @@
+'*********************************************************************************************************
+'Historik:
+' 30.09.2002/PEM	- Opdelt IniUtil i IniUtil og StrFunc, se nærmere i StrFunc
+'			- Omdøbt alle procedure så de starter med enten INI eller STR
+' 11.11.2002/PEM	- Rettet fejl i ConvValueToStringWithNDecimals()
+' 19.11.2002/PEM	- Rettet fejl i INIGetKeyValue$() søger nu efter 'szKey & "="'
+' 21.02.2003/PEM	- Fejl i INIGetKeyValue$() rettet
+' 11.06.2003/PEM	- Tilføjet INIGetKeyValueCharSet$() og GetIniKeyValueCharSet()
+' 05.01.2004/PEM	- Tilføjet INIGetIniFilePathRead$() og INIGetIniFilePathWrite$()
+' 27.01.2004/PEM	- Ændret INIGetIniFilePathRead$() og INIGetIniFilePathWrite$() så de
+'				anvender GetFolderPath$(FOLDER_MI_PREFERENCE), hvis MIVersion >= 650
+'*********************************************************************************************************
+Declare Function INIReadLine(ByVal nFile As Integer) As String
+Declare Function INIReadLineToSemiColon(ByVal nFile As Integer) As String
+
+Declare Function INIFindGroup(ByVal nFile As Integer, ByVal szGroup As String) As Logical
+Declare Function INIFindGroupFromStart(ByVal nFile As Integer, ByVal szGroup As String) As Logical
+Declare Function INIGetKeyValue$(ByVal szFile As String, ByVal szGroup As String, ByVal szKey As String) As String
+Declare Function INIGetKeyValueCharSet$(	ByVal szFile As String, ByVal szGroup As String,
+					 		ByVal szKey As String, ByVal szCharSet As String) As String
+
+Declare Function INIGetIniFilePathRead$(ByVal szApplication As String, ByVal szFile As String) As String
+Declare Function INIGetIniFilePathWrite$(ByVal szApplication As String) As String
+
+'*********************************************************************************************************
+'Backwards compatability
+Declare Function ReadInitLine() As String
+Declare Function ReadInitLineFromFile(ByVal nFile As Integer) As String
+Declare Function ReadInitLineToSemiColonFromFile(ByVal nFile As Integer) As String
+
+Declare Function SearchFileForGroup(ByVal nFile As Integer, ByVal szSearchGroup As String) As Logical
+Declare Function GetIniKeyValue(ByVal szFile As String, ByVal szSearchGroup As String, ByVal szKey As String) As String
+Declare Function GetIniKeyValueCharSet(	ByVal szFile As String, ByVal szSearchGroup As String,
+					 		ByVal szKey As String, ByVal szCharSet As String) As String
+Declare Function FindGroup (ByVal nFile As Integer, ByVal szGroup As String) As Logical
+
+'*********************************************************************************************************
+'Backwards compatability - moved to StrFunc
+Declare Function StrSplitSpace(szOrigBuf As string, arrSubBuf(0) As string,
+					 ByVal nMaxSub As Integer) As Integer
+Declare Function StrSplitKomma(szOrigBuf As string, arrSubBuf(0) As string,
+					 ByVal nMaxSub As Integer) As Integer
+Declare Function StrSplitPoint(szOrigBuf As string, arrSubBuf(0) As string,
+					 ByVal nMaxSub As Integer) As Integer
+Declare Function StrSplitDefinedChar(szOrigBuf As string, ByVal szChar As String,
+						 arrSubBuf(0) As string, ByVal nMaxSub As Integer) As Integer
+Declare Function KommaToPoint(ByVal szText As String) As String
+Declare Function PointToKomma(ByVal szText As String) As String
+Declare Function SearchAndReplace(ByVal szText As String, ByVal szSearch As String, ByVal szReplace As String) As String
+
+Declare Function GetKeyFromKeyString$(ByVal szKeyString As String) As String
+Declare Function GetKeyValueFromKeyString$(ByVal szKeyString As String) As String
+
+Declare Function Number2StringNoZero$(ByVal nNumber As Integer) As String
+
+Declare Function NumItemsInStringList(szStringList As String) As Integer
+Declare Function ExtractItemFromStringList$(ByVal szStringList As String, ByVal nItem As Integer) As String
+Declare Function AddItemToStringList$(ByVal szStringList As String, ByVal szItem As String) As String
+Declare Function RTrimStringList$(ByVal szStringList As String) As String
+Declare Function GetUniqueStringList$(ByVal szStringList As String) As String
+
+Declare Function ExtractValueInParensis$(ByVal szText As String) As String
+
+Declare Function SetSpaceAfterString$(ByVal szTekst As String, ByVal nChar As Integer) As String
+Declare Function SetZeroBeforeValue$(ByVal nValue As Integer, ByVal nChar As Integer) As String
+
+Declare Function ConvValueToStringWithNDecimals$(ByVal fValue As Float, ByVal nDecimals As Integer,
+								ByVal szDecimalChar As String) As String

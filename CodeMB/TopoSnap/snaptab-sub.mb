@@ -1,0 +1,461 @@
+'***************************************************************************
+'**
+'**       Program: SNAPTAB - subroutines
+'**
+'**       Viser koordinater i objekter udvalgt via "snap" indenfor rektangel,
+'**       eller koordinater til alle punkter i et objekt.
+'**
+'**       D. 16.11.1997 søf   Udvikling indledt.
+'**       D. 26.11.1997 søf   Sen. ændr. ifm. udvikl.
+'**	  D. 10.04.2000 søf   Version for testing Topo-snap
+'**
+'***************************************************************************
+
+Include "MapBasic.def"
+Include "menu.def"
+
+Include "..\TopoSnap.def"
+Include "TopoSnapTest.def"
+Include "Snaptab-sub.def"
+
+
+'---------------------------------------------------------------------------
+' Snap objekter og vis snap tabel.
+'---------------------------------------------------------------------------
+Sub Snap
+
+Dim x, y, x2, y2 as Float
+Dim xmx,ymx      as Float        '/ Max. koord til aktuel select rektangel.
+Dim xmi,ymi      as Float        '/ Min. koord til aktuel select rektangel.
+Dim xc, yc       as Float        '/ Koord. til cirkel-center eller midte af rektangel.
+Dim xp, yp       as Float        '/ Koord. til aktuelt punkt.
+Dim dr           as Float        '/ Radius (dist) i snap/select cirkel.
+Dim dp           as Float        '/ Afstand til aktuelt punkt.
+Dim i            as Integer
+Dim win_id       as Integer
+Dim s_table      as Alias
+Dim row_id       as Integer
+Dim i_tab        as Integer
+Dim n_tab        as Integer
+Dim nos          as Integer
+Dim snptyp       as Smallint     '/ Kode for snap type: 2=rektangel, 3=cirkel
+Dim snp_sel      as String       '/ Navn på snap-selection table.
+Dim snpsel_obj   as object       '/ Snap selection object.
+Dim snp_obj      as object       '/ Aktuelt snappet object.
+Dim objtyp       as integer      '/ Objekt type for aktuelt objekt.
+Dim coln         as Alias        '/ Alias for column name.
+Dim is           as Integer
+Dim npoly        as Smallint     '/ Antal polygoner i polyline/region
+Dim npnts        as Integer      '/ Antal punkter i aktuel polygon
+Dim npntst       as Integer      '/ Total antal punkter i olygon
+Dim ipol         as Smallint     '/ Index/nr på aktuel polygon
+Dim ip           as Integer      '/ Index/nr på aktuelt punkt
+Dim str          as String       '/ String til print tekst.
+Dim noi          as Integer      '/ Antal objekter indenfor select fig.
+Dim npi          as Integer      '/ Antal punkter indenfor select fig.
+
+
+snp_sel = strPrgName
+
+Print Chr$(12) + strPrgName + ": " + strPrgIden
+Print "---------------------------------------------------------------"
+Print ""
+
+win_id = FrontWindow()
+If WindowInfo(win_id, WIN_INFO_TYPE) <> WIN_MAPPER then
+  Note strPrgName + " virker kun på map vindue"
+  Exit Sub
+end if
+
+n_tab = NumTables()
+''print "n_tab: " + n_tab
+For i_tab = 1 to n_tab
+  s_table = TableInfo(i_tab,TAB_INFO_NAME)
+  if TableInfo(i_tab,TAB_INFO_MAPPABLE_TABLE) then
+''    print "i_tab: " + i_tab + ", s_table: " + s_table
+    Set Map
+      CoordSys Table TableInfo(i_tab,TAB_INFO_NAME)
+      XY Units "m"
+      Distance Units "m"
+    Exit For
+  end if
+Next
+
+snptyp = CommandInfo(CMD_INFO_TOOLBTN)
+
+x  = CommandInfo(CMD_INFO_X)
+y  = CommandInfo(CMD_INFO_Y)
+
+x2 = CommandInfo(CMD_INFO_X2)
+y2 = CommandInfo(CMD_INFO_Y2)
+
+Set Distance Units "m"
+
+''print lf
+
+If snptyp = 2 then              '/ Rektangel
+  xmx = Maximum(x,x2)
+  ymx = Maximum(y,y2)
+  xmi = Minimum(x,x2)
+  ymi = Minimum(y,y2)
+  xc  = (x+x2)/2
+  yc  = (y+y2)/2
+  Print "Rektangel:"
+  Print "    x1: " + xmx + ", y1: " + ymx
+  Print "    x2: " + xmi + ", y2: " + ymi
+  '--- Dan snap recktangel
+  Create Rect Into Variable snpsel_obj (x,y) (x2,y2)
+  dr = -1
+elseif snptyp = 3 then         '/ Cirkel
+  xc = x
+  yc = y
+  dr = Distance(xc,yc,x2,y2,"m")
+  Print "Cirkel: xc: " + xc + ", yc: " + yc + "; Radius: " + dr
+''--  Print "Cirkel: x2: " + x2 + ", y2: " + y2
+  snpsel_obj = CreateCircle(x,y,dr)
+''--     Insert Into s_table (obj) Values (snpsel_obj)
+end if
+
+
+
+  n_tab = NumTables()
+  print "Antal tabeller: " + n_tab
+  Print "--------------------------------"
+  noi = 0
+  npi = 0
+    
+  For i_tab = 1 to n_tab
+    s_table = TableInfo(i_tab,TAB_INFO_NAME)
+''    print "s_table: " + s_table
+    If NOT TableInfo(i_tab,TAB_INFO_TEMP) AND TableInfo(i_tab, TAB_INFO_TYPE) <> TAB_TYPE_IMAGE then
+
+
+''      print "Snap fra tabel: " + s_table
+
+      Select * from s_table Where obj Partly Within snpsel_obj Into snp_sel
+      nos = SelectionInfo(SEL_INFO_NROWS)
+''      print "nos: " + nos
+
+      if nos>0 then
+        is  = 0
+        Fetch First from snp_sel
+        Do While Not EOT(snp_sel)
+          noi = noi + 1
+          is = is + 1
+          Print is + ". af " + nos + " objekter i snap select; tabel: " + s_table
+
+          coln = snp_sel+".obj"
+          snp_obj = coln
+          objtyp = ObjectInfo(snp_obj, OBJ_INFO_TYPE)
+
+          '--- Vis koordinater mv. indenfor select område, afhængig af objekt type.
+
+          Do Case objtyp
+
+            Case OBJ_TYPE_LINE
+              xp = ObjectGeography(snp_obj, OBJ_GEO_LINEBEGX)
+              yp = ObjectGeography(snp_obj, OBJ_GEO_LINEBEGY)
+              dp = Distance(xc,yc,xp,yp,"m")
+              If (snptyp=2 and xmi <= xp and xp <= xmx and ymi <= yp and yp <= ymx) or
+                 (snptyp=3 and dp<=dr ) then
+                str = "LINE -beg"
+                Call Prt_koord ( str, xp, yp, dp )
+                npi = npi + 1
+              end if
+              xp = ObjectGeography(snp_obj, OBJ_GEO_LINEENDX)
+              yp = ObjectGeography(snp_obj, OBJ_GEO_LINEENDY)
+              dp = Distance(xc,yc,xp,yp,"m")
+              If (snptyp=2 and xmi <= xp and xp <= xmx and ymi <= yp and yp <= ymx) or
+                 (snptyp=3 and dp<=dr ) then
+                str = "LINE -end"
+                Call Prt_koord ( str, xp, yp, dp )
+                npi = npi + 1
+              end if
+
+            Case OBJ_TYPE_PLINE
+              npoly = ObjectInfo(snp_obj, OBJ_INFO_NPOLYGONS)
+              npnts = ObjectInfo(snp_obj, OBJ_INFO_NPNTS)
+              Print "POLYLINE; Antal sektioner: " + npoly
+              PRINT "                    Antal punkter:   " + npnts
+              npntst = 0
+              For ipol = 1 to npoly
+                npnts  = ObjectInfo(snp_obj, OBJ_INFO_NPOLYGONS+ipol)
+                npntst = npntst + npnts
+''                Print ipol + ". sektion: Antal punkter: " + npnts
+                For ip = 1 to npnts
+                  xp = ObjectNodeX(snp_obj, ipol, ip)
+                  yp = ObjectNodeY(snp_obj, ipol, ip)
+                  dp = Distance(xc,yc,xp,yp,"m")
+                  If (snptyp=2 and xmi <= xp and xp <= xmx and ymi <= yp and yp <= ymx) or
+                     (snptyp=3 and dp<=dr ) then
+                    If npoly>1 then
+                      str = Format$(ip,"####") + "/" + Format$(ipol,"####") + " pkt/pol"
+                    else
+                      str = Format$(ip,"####") + ". pkt"
+                    end if
+                    Call Prt_koord ( str, xp, yp, dp )
+                    npi = npi + 1
+                  end if
+                Next
+              Next
+              Print "Samlet antal punkter i polyline: " + npntst
+
+            Case OBJ_TYPE_REGION
+              npoly = ObjectInfo(snp_obj, OBJ_INFO_NPOLYGONS)
+              npnts = ObjectInfo(snp_obj, OBJ_INFO_NPNTS)
+              Print "REGION; Antal polygoner: " + npoly
+              Print "              Antal punkter:   " + npnts
+              npntst = 0
+              For ipol = 1 to npoly
+                npnts  = ObjectInfo(snp_obj, OBJ_INFO_NPOLYGONS+ipol)
+                npntst = npntst + npnts
+''                Print "  " + ipol + ". polygon: Antal punkter: " + npnts
+                For ip = 1 to npnts
+                  xp = ObjectNodeX(snp_obj, ipol, ip)
+                  yp = ObjectNodeY(snp_obj, ipol, ip)
+                  dp = Distance(xc,yc,xp,yp,"m")
+                  If (snptyp=2 and xmi <= xp and xp <= xmx and ymi <= yp and yp <= ymx) or
+                     (snptyp=3 and dp<=dr ) then
+                    If npoly>1 then
+                      str = Format$(ip,"####") + "/" + Format$(ipol,"####") + " pkt/pol"
+                    else
+                      str = Format$(ip,"####") + ". pkt"
+                    end if
+                    Call Prt_koord ( str, xp, yp, dp )
+                    npi = npi + 1
+                  end if
+                Next
+              Next
+              Print "Samlet antal punkter i region: " + npntst
+
+            Case OBJ_TYPE_POINT
+              xp = ObjectGeography(snp_obj, OBJ_GEO_POINTX)
+              yp = ObjectGeography(snp_obj, OBJ_GEO_POINTY)
+              dp = Distance(xc,yc,xp,yp,"m")
+              str = "POINT"
+              Call Prt_koord ( str, xp, yp, dp )
+              npi = npi + 1
+
+            Case OBJ_TYPE_RECT
+              xp = ObjectGeography(snp_obj, OBJ_GEO_LINEBEGX)
+              yp = ObjectGeography(snp_obj, OBJ_GEO_LINEBEGY)
+              dp = Distance(xc,yc,xp,yp,"m")
+              If (snptyp=2 and xmi <= xp and xp <= xmx and ymi <= yp and yp <= ymx) or
+                 (snptyp=3 and dp<=dr ) then
+                str = "RECT - 1.pkt"
+                Call Prt_koord ( str, xp, yp, dp )
+                npi = npi + 1
+              end if
+              xp = ObjectGeography(snp_obj, OBJ_GEO_LINEENDX)
+              yp = ObjectGeography(snp_obj, OBJ_GEO_LINEENDY)
+              dp = Distance(xc,yc,xp,yp,"m")
+              If (snptyp=2 and xmi <= xp and xp <= xmx and ymi <= yp and yp <= ymx) or
+                 (snptyp=3 and dp<=dr ) then
+                str = "RECT - 2.pkt"
+                Call Prt_koord ( str, xp, yp, dp )
+                npi = npi + 1
+              end if
+
+            Case Else
+              Print ">>>> Ikke impl. Obj_info_type: " + objtyp
+
+          End Case
+          Print "---------------------------------------------------------------"
+
+          Fetch Next from snp_sel
+        Loop
+      end if
+    end if
+  Next
+  Print "Ialt " + npi + " punkter i " + noi + " objekter i snap-selection"
+  print ""
+
+
+If SelectionInfo(SEL_INFO_NROWS) then
+  Run Menu Command M_QUERY_UNSELECT
+  Close Table snp_sel
+end if
+
+End Sub
+
+
+'---------------------------------------------------------------------------
+' List udpeget objekt.
+'---------------------------------------------------------------------------
+Sub List
+
+Dim x, y         as Float        '/ Koord. til udpeget INFO punkt.
+Dim xp, yp       as Float        '/ Koord. til aktuelt punkt.
+Dim dp           as Float        '/ Afstand til aktuelt punkt.
+Dim i            as Integer
+Dim win_id       as Integer
+Dim s_table      as Alias
+Dim row_id       as Integer
+Dim i_tab        as Integer
+Dim n_tab        as Integer
+Dim nos          as Integer
+Dim snp_obj      as object       '/ Aktuelt snappet object.
+Dim objtyp       as integer      '/ Objekt type for aktuelt objekt.
+Dim coln         as Alias        '/ Alias for column name.
+Dim npoly        as Smallint     '/ Antal polygoner i polyline/region
+Dim npnts        as Integer      '/ Antal punkter i aktuel polygon
+Dim npntst       as Integer      '/ Total antal punkter i olygon
+Dim ipol         as Smallint     '/ Index/nr på aktuel polygon
+Dim ip           as Integer      '/ Index/nr på aktuelt punkt
+Dim str          as String       '/ String til print tekst.
+
+
+Print Chr$(12) + strPrgName + ": List koordinater"
+Print "---------------------------------------------------------------"
+Print ""
+
+win_id = FrontWindow()
+If WindowInfo(win_id, WIN_INFO_TYPE) <> WIN_MAPPER then
+  Note strPrgName + " virker kun på map vindue"
+  Exit Sub
+end if
+
+Set Format Number "Local"
+
+Set Map Window win_id Redraw Off
+
+'-print "MapperInfo(): " + MapperInfo(win_id,MAPPER_INFO_XYUNITS)
+'-if MapperInfo(win_id,MAPPER_INFO_XYUNITS) <> "m" then
+  n_tab = NumTables()
+  ''print "Antal tabeller: " + n_tab
+  For i_tab = 1 to n_tab
+    s_table = TableInfo(i_tab,TAB_INFO_NAME)
+    if TableInfo(i_tab,TAB_INFO_MAPPABLE_TABLE) then
+''      print "i_tab: " + i_tab + ", s_table: " + s_table
+      Set Map
+        CoordSys Table TableInfo(i_tab,TAB_INFO_NAME)
+        XY Units "m"
+        Distance Units "m"
+      Exit For
+    end if
+  Next
+'-end if
+Set Map Window win_id Redraw On
+
+x = CommandInfo(CMD_INFO_X)
+y = CommandInfo(CMD_INFO_Y)
+
+str = "Info koord"
+dp = -1.0
+Call Prt_koord ( str, x, y, dp )
+
+nos = SearchPoint(win_id, x, y)
+print "Antal INFO objekter: " + nos
+
+Print "--------------------------------"
+
+  For i = 1 to nos
+    s_table = SearchInfo(i, SEARCH_INFO_TABLE)
+    row_id  = SearchInfo(i, SEARCH_INFO_ROW)
+    Print "Tabel: " + s_table
+
+    If Left$( s_table, 8) = "Cosmetic" then
+      Print "Objekt fra kosmetisk lag"
+    else
+      Fetch rec row_id From s_table            '/ Hent objekt fra tabel.
+      coln = s_table + ".obj"
+      snp_obj = coln
+      objtyp = ObjectInfo(snp_obj, OBJ_INFO_TYPE)
+
+      '--- Print 1. column værdi.
+      s_table = s_table + ".col1"
+      Print "Coln1: " + s_table
+
+      '--- Vis koordinater mv. afhængig af objekt type.
+
+      Do Case objtyp
+
+        Case OBJ_TYPE_LINE
+          xp = ObjectGeography(snp_obj, OBJ_GEO_LINEBEGX)
+          yp = ObjectGeography(snp_obj, OBJ_GEO_LINEBEGY)
+          str = "LINE -beg"
+          Call Prt_koord ( str, xp, yp, dp )
+          xp = ObjectGeography(snp_obj, OBJ_GEO_LINEENDX)
+          yp = ObjectGeography(snp_obj, OBJ_GEO_LINEENDY)
+          str = "LINE -end"
+          Call Prt_koord ( str, xp, yp, dp )
+
+        Case OBJ_TYPE_PLINE
+          npoly = ObjectInfo(snp_obj, OBJ_INFO_NPOLYGONS)
+          npnts = ObjectInfo(snp_obj, OBJ_INFO_NPNTS)
+          Print "POLYLINE; Antal sektioner: " + npoly
+          PRINT "                    Antal punkter:   " + npnts
+          npntst = 0
+          For ipol = 1 to npoly
+            npnts  = ObjectInfo(snp_obj, OBJ_INFO_NPOLYGONS+ipol)
+            npntst = npntst + npnts
+            Print ipol + ". sektion: Antal punkter: " + npnts
+            For ip = 1 to npnts
+              xp = ObjectNodeX(snp_obj, ipol, ip)
+              yp = ObjectNodeY(snp_obj, ipol, ip)
+              str = Format$(ip,"####") + ". pkt"
+              Call Prt_koord ( str, xp, yp, dp )
+            Next
+          Next
+          Print "Samlet antal punkter i polyline: " + npntst
+
+        Case OBJ_TYPE_REGION
+          npoly = ObjectInfo(snp_obj, OBJ_INFO_NPOLYGONS)
+          npnts = ObjectInfo(snp_obj, OBJ_INFO_NPNTS)
+          Print "REGION; Antal polygoner: " + npoly
+          Print "              Antal punkter:   " + npnts
+          npntst = 0
+          For ipol = 1 to npoly
+            npnts  = ObjectInfo(snp_obj, OBJ_INFO_NPOLYGONS+ipol)
+            npntst = npntst + npnts
+            Print "  " + ipol + ". polygon: Antal punkter: " + npnts
+            For ip = 1 to npnts
+              xp = ObjectNodeX(snp_obj, ipol, ip)
+              yp = ObjectNodeY(snp_obj, ipol, ip)
+              str = Format$(ip,"####") + ". pkt"
+              Call Prt_koord ( str, xp, yp, dp )
+            Next
+          Next
+          Print "Samlet antal punkter i region: " + npntst
+
+        Case OBJ_TYPE_POINT
+          xp = ObjectGeography(snp_obj, OBJ_GEO_POINTX)
+          yp = ObjectGeography(snp_obj, OBJ_GEO_POINTY)
+          str = "POINT"
+          Call Prt_koord ( str, xp, yp, dp )
+
+        Case OBJ_TYPE_RECT
+          xp = ObjectGeography(snp_obj, OBJ_GEO_LINEBEGX)
+          yp = ObjectGeography(snp_obj, OBJ_GEO_LINEBEGY)
+          str = "RECT - 1.pkt"
+          Call Prt_koord ( str, xp, yp, dp )
+          xp = ObjectGeography(snp_obj, OBJ_GEO_LINEENDX)
+          yp = ObjectGeography(snp_obj, OBJ_GEO_LINEENDY)
+          str = "RECT - 2.pkt"
+          Call Prt_koord ( str, xp, yp, dp )
+
+        Case Else
+          Print ">>>> Ikke impl. Obj_info_type: " + objtyp
+
+      End Case
+    end if
+    Print "---------------------------------------------------------------"
+  Next
+
+End Sub
+
+
+'---------------------------------------------------------------------------
+' Print koordinater
+'---------------------------------------------------------------------------
+Sub Prt_koord (str as String, xp as Float, yp as Float, dp as Float )
+
+If dp < 0.0 then
+  Print str + ":  x: " + Format$(xp,"#.###") + ",  y: " + Format$(yp,"#.###")
+else
+  Print str + ":  x: " + Format$(xp,"#.###") + ",  y: " + Format$(yp,"#.###") +
+              ", dp: " + Format$(dp,"#.###")
+end if
+
+End Sub
+

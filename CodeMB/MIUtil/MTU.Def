@@ -1,0 +1,71 @@
+'-------------------------------------------------------------------------
+'	MapTools Utilities DLL
+'	From
+'		The MapTools Company
+'		104 Montreal lane
+'		Oak Ridge, Tennessee 37830
+'		USA
+'-------------------------------------------------------------------------
+
+'-------------------------------------------------------------------------
+'	in MTU.DLL
+'-------------------------------------------------------------------------
+
+Declare Function MTU_CreateDirectory Lib "MapToolsUtilities.DLL" Alias "CreateDirectory"
+							(ByVal DirName as String) as Logical
+Declare Function DeleteDirectory Lib "MapToolsUtilities.DLL"
+							(ByVal DirName as String) as Logical
+Declare Function FileCopy Lib "MapToolsUtilities.DLL"
+							(ByVal InFileName as String, 
+							 ByVal OutFileName as String,
+							 ByVal ErrorIfExists as Logical) as Logical
+Declare Function GetFileSize Lib "MapToolsUtilities.DLL"
+							(ByVal Name as String) as Integer
+Declare Function GetFreeDiskSpace Lib "MapToolsUtilities.DLL" () as Integer
+Declare Function RenameDirectory Lib "MapToolsUtilities.DLL"
+							(ByVal OldName as String,
+							 ByVal NewName as String) as Integer
+Declare Function SetAttributesOff Lib "MapToolsUtilities.DLL" 
+							(ByVal FileName as String) as logical
+Declare Function SetCurrentDirectory Lib "MapToolsUtilities.DLL" 
+							(ByVal DirectoryName as String)as Logical
+
+'-------------------------------------------------------------------------
+'	in MTUAUX.MBO
+'-------------------------------------------------------------------------
+
+Declare Function DeleteFile	(ByVal FileName as String) as Logical
+Declare Function DirectoryExists
+							(ByVal DirectoryName as String) as Logical
+Declare Function GetAttributes$
+							(ByVal FileName as String) as String
+Declare Function GetCurrentDirectoryAlias$( ) as String
+Declare Function GetCurrentDirectoryName$( ) as String
+Declare Function GetDriveType$
+							(ByVal DriveLetter as String ) as String
+Declare Function GetFileExtension$
+							(ByVal FileName as String) as String
+Declare Function GetFileDateTime$
+							(ByVal FileName as String) as String
+Declare Function GetFileNameList$
+							(ByVal mask as String) as String
+Declare Function GetFileAliasList$
+							(ByVal mask as String) as String
+Declare Function GetItemFromList$
+							(ByVal ListName as String, 
+							 ByVal Choice as Integer) as String
+Declare Function GetLogicalDriveList$ as String
+Declare Function GetPlatformName$( ) as String
+Declare Function GetScreenWidthHeight( ) as Integer
+Declare Function GetSubdirectoryNameList$
+							(ByVal mask as String) as String
+Declare Function GetSubdirectoryAliasList$
+							(ByVal mask as String) as String
+Declare Function ItemsInList(ByVal ListName as String) as Integer
+'Declare Function RenameFile	(ByVal OldFileName as String, 
+'							 ByVal NewFileName as String) as Logical
+Declare Function SetAttributeReadOnly
+							(ByVal FileName as String) as logical
+
+'-------------------------------------------------------------------------
+

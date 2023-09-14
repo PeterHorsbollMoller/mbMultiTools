@@ -1,0 +1,447 @@
+Define PLTM_TAB_STORE_FRAME                              "PLOT_RAMMER"
+Define PLTM_FRAME_COL_BITMAP_DIRECTORY                   "DIRECTORY_BMP"
+Define PLTM_FRAME_COL_BITMAP_FILETYPE                    "FILETYPE_BMP"
+Define PLTM_FRAME_COL_BITMAP_WIDTH                       "WIDTH_BMP"
+Define PLTM_FRAME_COL_BITMAP_HEIGHT                      "HEIGHT_BMP"
+
+Define PLTM_MULTI_COL_WORKSPACE_SAVE                     "WORKSPACE_SAVE"
+
+Define PLTM_TAB_NORTH_ARROW                              "PLOT_NORDPIL"
+Define PLTM_TAB_SCALEBAR                                 "PLOT_MÅLESTOK"
+Define TAB_STORE_FRAME                                   PLTM_TAB_STORE_FRAME
+
+Define PLTM_FOLDER_PLOTWOR_DEFAULT                       "Udskriv"
+
+Define PLTM_DLG_BTN_CURRENTPRINT                         "Aktuel udskrift"
+Define PLTM_DLG_BTN_ADVANCED_PRINT                       "Avanceret udskrivning"
+Define PLTM_DLG_BTN_DEFAULTVALUES                        "Standard værdier"
+Define PLTM_DLG_BTN_PLOT_MENUITEMS                       "Definér faste plot"
+Define PLTM_DLG_BTN_PRINTLAYOUTS                         "Udskriftslayout"
+Define PLTM_DLG_BTN_SETUP                                "Generel Opsætning"
+Define PLTM_DLG_BTN_MULTIPLOT                            "MultiPlot"
+Define PLTM_DLG_BTN_SPEC_PLOT                            "Special layout"
+
+Define PLTM_DLG_LST_LANGUAGES                            "Dansk;Engelsk;Svensk;Andet"
+
+Define PLTM_DLG_TITLE_SETTINGS                           "Indstillinger"
+Define PLTM_DLG_TITLE_SETUP                              "Generel Opsætning"
+Define PLTM_DLG_TITLE_ALTER_FRAME                        "Ret ramme"
+Define PLTM_DLG_TITLE_BATCH_PLOTTING                     "Udskriver rammer"
+Define PLTM_DLG_TITLE_CHANGE_FRAMESIZE                   "Ændrer rammestørrelser"
+Define PLTM_DLG_TITLE_BATCH_TO_BITMAP                    "Gemmer kortrammer som bitmap"
+
+
+Define PLTM_DLG_TXT_ASK_FRAME_TO_TABLE                   "Spørg om udskriftsramme skal gemmes"
+Define PLTM_DLG_TXT_GENEREL                              "Generelt"
+Define PLTM_DLG_TXT_HIDE_FRAMETABLE                      "Skjul rammetabel ved udskrift"
+Define PLTM_DLG_TXT_LANGUAGE                             "Sprog"
+Define PLTM_DLG_TXT_MAPINFO                              "MapInfo"
+Define PLTM_DLG_TXT_WINDOWS                              "Windows"
+Define PLTM_DLG_TXT_PRINTFRAMES                          "Udskriftsrammer"
+Define PLTM_DLG_TXT_PRMPT_CHANGE_PAPER                   "Advar ved ændring i papirstørrelse"
+Define PLTM_DLG_TXT_SETTING_DIALOG                       "Indstillinger samlet i en dialog"
+Define PLTM_DLG_TXT_WRITE_SETUP_PRINT                    "Gem indstillinger efter udskrivning"
+Define PLTM_DLG_TXT_SHOW_DEFAULT_DLG                     "Vis opstartsdialog"
+Define PLTM_DLG_TXT_STARTUP                              "Opstart"
+
+Define PLTM_DLG_TXT_HEIGHT_DIFFERENCE                    "Højdeforskel.....:"
+
+Define PLTM_DLG_TXT_WIDTH_DIFFERENCE                     "Breddeforskel.....:"
+
+Define PLTM_LAYOUT_READY_TO_PRINT                        "Udskriftslayout er nu klart til udskrift!"
+Define PLTM_ORIENT_BOTH                                  "Stående;Liggende"
+Define PLTM_ORIENT_LANDSCAPE                             "Liggende"
+Define PLTM_ORIENT_PORTRAIT                              "Stående"
+Define PLTM_PAPERORIENTATION                             "Papirretning"
+
+
+Define PLTM_WIN_PRINTLAYOUT                              "Udskriftslayout"
+Define PLTM_WIN_PRINTMAP                                 "Udskriftskort"
+Define PLTM_WIN_REMOVE_RECORDS_MAP                       "Oversigt: Fjern poster"
+
+
+Define PLTM_DLG_TITLE_INPUT_VALUES                       "Indtast værdier til indsættelse i layout"
+Define PLTM_DLG_TITLE_DEFAULT_VALUES                     "Standard værdier"
+Define PLTM_DLG_TITLE_PRINT_SETUP                        "Udskriftsopsætning"
+Define PLTM_DLG_TITLE_PRINTLAYOUT                        "Udskriftslayout"
+Define PLTM_DLG_TITLE_CURRENTFORMAT                      "Aktuelt udskriftsformat"
+Define PLTM_DLG_TITLE_QUICK_PRINT                        "Hurtig udskrift"
+Define PLTM_DLG_TITLE_PICK_PRINTWOR                      "Udpeg udskriftsarbejdsområde : "
+Define PLTM_DLG_TITLE_PICK_SAVEWOR_DIR                   "Udpeg mappe til at gemme arbejdsområder i..."
+Define PLTM_DLG_TITLE_PICK_PRNFILE_DIR                   "Udpeg mappe til at kopiere printfiler til..."
+Define PLTM_DLG_TITLE_PICK_PRINTFILE                     "Angiv navn på printfil som skal omdøbes..."
+
+
+Define PLTM_DLG_TITLE_PRINT_SCALE                        "Udskriv i 1 : "
+Define PLTM_DLG_TITLE_DEFINE_PRINTMENU                   "Definér print menupunkter"
+Define PLTM_DLG_TITLE_ADD_MENU                           "Tilføj menupunkt..."
+Define PLTM_DLG_TITLE_SAVE_FRAME                         "Gem ramme"
+Define PLTM_DLG_TITLE_CLOSE_TABLES                       "Luk tabeller"
+Define PLTM_DLG_TITLE_CLOSE_WINDOWS                      "Luk vinduer"
+Define PLTM_DLG_TITLE_FRAMES_TO_PRINT                    "Rammer til udskrift"
+Define PLTM_DLG_TITLE_FRAMES_TO_RESIZE                   "Rammer som skal ændres"
+Define PLTM_DLG_TITLE_FRAMES_TO_EXPORT                   "Rammer som skal eksporteres til raster"
+
+Define PLTM_DLG_TITLE_FRAMES_2_PRINT                     PLTM_DLG_TITLE_FRAMES_TO_PRINT
+Define PLTM_DLG_TITLE_FRAMES_2_RESIZE                    PLTM_DLG_TITLE_FRAMES_TO_RESIZE
+Define PLTM_DLG_TITLE_CHANGE_PRINTER                     "Ret printer"
+Define PLTM_DLG_TITLE_SPECIAL_PLOT                       "Special udskriftslayout"
+Define PLTM_DLG_TITLE_NORTH_ARROWS                       "Nordpile"
+Define PLTM_DLG_TITLE_SCALEBARS                          "Målestokke"
+Define PLTM_DLG_TITLE_MAP_INTO_FRAME                     "Indsæt kort i ramme"
+Define PLTM_DLG_TITLE_CENTER_OBJ                         "Vælg objekt til center"
+Define PLTM_DLG_TITLE_NEW_FRAME_OBJ                      "Nyt rammeobjekt"
+Define PLTM_DLG_TITLE_MULTIPLOT                          "MultiPlot"
+Define PLTM_DLG_TITLE_MULTIPLOT_SETUP                    "MultiPlot opsætning"
+Define PLTM_DLG_TITLE_LAYOUT_SETTING                     "Opsætning af udskriftslayout"
+
+Define PLTM_DLG_TITLE_SETUP_TO_BITMAP                    "Gem kortrammer som bitmap"
+
+Define PLTM_DLG_TITLE_ADD_REMOVE_RECS                    "Tilføj/fjern poster til udskrivning"
+Define PLTM_DLG_TXT_RECS_REMOVED                         "Fjernede poster"
+Define PLTM_DLG_TXT_RECS_ADDED                           "Udvalgte til udskrivning"
+
+Define PLTM_DLG_BTN_PRINTERSETUP                         "Printeropsætning"
+
+Define PLTM_DLG_BTN_ADVANCED_SETUP                       "Avanceret opsætning..."
+Define PLTM_DLG_TXT_PRINTERS                             "Printere..."
+Define PLTM_DLG_TXT_MAPHEADER_IN_TAB                     "Tegningshoved i tabel"
+Define PLTM_DLG_TXT_MAPHEADER_TABNAME                    "Tabeller med tegningshoved (adskilt med ;)"
+Define PLTM_DLG_TXT_SORTING_COLS                         "Sorteringskolonner"
+Define PLTM_DLG_TXT_SORTING_COLNAMES                     "Kolonner til sorterings (adskilt med ;)"
+
+Define PLTM_DLG_TXT_CASE                                 "Sag"
+Define PLTM_DLG_TXT_CASENO                               "Sagsnummer"
+Define PLTM_DLG_TXT_CASETITLE                            "Sagsnavn"
+Define PLTM_DLG_TXT_CASESUBTITLE                         "Sagsundernavn"
+Define PLTM_DLG_TXT_USER                                 "Bruger"
+Define PLTM_DLG_TXT_USERNAME                             "Navn"
+Define PLTM_DLG_TXT_USERID                               "Initialer"
+Define PLTM_DLG_TXT_USERID_FROM_LOGON                    "Læs brugernavn fra logon"
+Define PLTM_DLG_TXT_EMAIL                                "E-mail"
+Define PLTM_DLG_TXT_FIRM                                 "Firma"
+Define PLTM_DLG_TXT_FIRMNAME                             "Firmanavn"
+Define PLTM_DLG_TXT_FIRM_DEPARTMENT                      "Afdeling"
+Define PLTM_DLG_TXT_FIRM_ADDRESS                         "Adresse"
+Define PLTM_DLG_TXT_FIRM_ZIP                             "Postnr"
+Define PLTM_DLG_TXT_FIRM_ZIPAREA                         "By"
+Define PLTM_DLG_TXT_FIRM_PHONE                           "Telefonnr"
+Define PLTM_DLG_TXT_FIRM_FAXIMILE                        "Telefax"
+Define PLTM_DLG_TXT_FIRM_WEB                             "Web"
+
+Define PLTM_DLG_BTN_EXTRA_VALUES                         "Ekstra standard værdier"
+Define PLTM_DLG_TITLE_EXTRA_VALUES                       "Ekstra standard værdier"
+
+Define PLTM_DLG_TXT_LAYOUTS                              "Udskriftslayout"
+Define PLTM_DLG_TXT_SAVEWOR_DIR                          "Mappe hvori arbejdsområder gemmes"
+Define PLTM_DLG_TXT_PRINTFILE_DIR                        "Mappe hvortil printfiler kopieres"
+Define PLTM_DLG_TXT_PRINTFILE                            "Navn på printfil"
+
+
+Define PLTM_DLG_TXT_PAPERORIENTATION                     "Papirretning"
+Define PLTM_DLG_TXT_ORIENT_LANDSCAPE                     "Liggende"
+Define PLTM_DLG_TXT_ORIENT_PORTRAIT                      "Stående"
+Define PLTM_DLG_TXT_PAPERFORMAT                          "Papirformat"
+Define PLTM_DLG_TXT_NUM_COPIES                           "Antal kopier"
+
+Define PLTM_DLG_LST_ORIENT_BOTH                          "Stående;Liggende"
+Define PLTM_DLG_LST_ORIENT_TRIPLE                        "Begge;Stående;Liggende"
+Define PLTM_DLG_LST_PAPERSIZE_ALL                        "Alle;A4;A3;A2;A1;A0"
+Define PLTM_DLG_LST_START_ROW                            "Udskriv alle;Start ved værdi.:;Start ved RowID:"
+Define PLTM_DLG_LST_SCALE_OR_COLUMN                      "Fast målforhold: 1:;Fra kolonne"
+Define PLTM_DLG_LST_SEL_AREA_OR_SCALE                    "Tilpasset udvalgte objekter;Tilpasset aktuelt kort;Angivet målforhold"
+Define PLTM_DLG_LST_AREA_OR_SCALE                        "Tilpasset aktuelt kort;Angivet målforhold"
+Define PLTM_DLG_TXT_AUTOSCALE_SETTING                    "Opsætning for beregnede målforhold"
+Define PLTM_DLG_TXT_MIN_SCALE                            "Mindste målforhold"
+Define PLTM_DLG_TXT_MAX_SCALE                            "Største målforhold"
+Define PLTM_DLG_TXT_SCALE_ROUND                          "Afrunde målforhold til"
+Define PLTM_DLG_TXT_USING_MAX_SCALE                      "Beregnet målforhold er for stort. Anvender størst tilladte!"
+Define PLTM_DLG_TXT_USING_MIN_SCALE                      "Beregnet målforhold er for lille. Anvender mindst tilladte!"
+Define PLTM_ERR_MIN_AUTOSCALE_TO_SMALL                   "Det mindst tilladte målforhold må ikke være mindre end 1"
+Define PLTM_ERR_MAX_AUTOSCALE_TO_SMALL                   "Det størst tilladte målforhold må ikke være mindre end 1"
+Define PLTM_ERR_RND_AUTOSCALE_TO_SMALL                   "Værdien der skal afrundes til, må ikke være mindre end 1"
+Define PLTM_ERR_MIN_SCALE_LESSTHAN_MAX                   "Det mindst tilladt målforhold må ikke være større end det størst tilladte"
+Define PLTM_ERR_LIST_OF_TABS_HAS_COMMA                   "Listen med tabeller må ikke indeholde komma"
+Define PLTM_ERR_LIST_OF_COLS_HAS_COMMA                   "Listen med kolonner må ikke indeholde komma"
+
+Define PLTM_DLG_TXT_CURRENT_FORMAT                       "Aktuelt udskriftsformat"
+Define PLTM_DLG_TXT_INFOBOX                              "Tegningshoved"
+Define PLTM_DLG_TXT_WITH_INFOBOX                         "Med tegningshoved"
+Define PLTM_DLG_TXT_WITHOUT_INFOBOX                      "Uden tegningshoved"
+Define PLTM_DLG_TXT_AUTOPRINT                            "Udskriv automatisk"
+Define PLTM_DLG_TXT_SHOW_RUNTIME_VAL                     "Vis altid dialog med runtime-værdier"
+Define PLTM_DLG_TXT_USE_CLON_MAP                         "Anvend en kopi af kortvinduet ved udskrift"
+Define PLTM_DLG_TXT_USE_PREVIEW                          "Anvend PreView ved udskrift"
+Define PLTM_DLG_TXT_READ_FROM_TABLE                      "Læs værdier fra udvalgt objekt/rammetabel"
+Define PLTM_DLG_TXT_WARN_ON_NO_SELECT                    "Advar mod udskrivning uden udvælgelse"
+Define PLTM_DLG_TXT_WARN_TOOLARGE_SEL                    "Advar mod for mange udvalgte poster"
+Define PLTM_DLG_TXT_ERASE_NOT_USED_RTV                   "Slet ikke-anvendte runtime tekster"
+
+Define PLTM_DLG_TXT_MENUTITLE                            "Menupunktets titel:"
+Define PLTM_DLG_TXT_PRINT_SCALE                          "Udskriv i 1 : "
+Define PLTM_DLG_TXT_SPECIAL_PLOT                         "Special udskriftslayout"
+Define PLTM_DLG_TXT_SIMPLE_PLOT                          "Simple udskriftslayouts"
+Define PLTM_ASK_PRINT_FRAMES                             "Ønsker du at udskrive de udvalgte rammer?"
+Define PLTM_ASK_CENTER_MAPS_BY_SEL                       "Ønsker du at centrere dine kort efter den aktive udvælgelse?"
+Define PLTM_ASK_READ_VALUES_FROM_REC                     "Ønsker du at læse værdier fra denne post?"
+Define PLTM_ASK_DESELECT_IN_DLG_OR_MAP                   "Der er udvalgt flere poster end der er afsat plads til i tegningshovedet. Ønsker du at fravælge nogle af disse i en dialog eller i kortet?"
+
+Define PLTM_DLG_TXT_PICK_FRAMETABLE                      "Udpeg ønsket placering af tabel til udskriftsrammer..."
+Define PLTM_DLG_TXT_PICK_EXPORT_BITMAP                   "Udpeg ønsket placering af eksporterede kortvinduer..."
+Define PLTM_DLG_TXT_PICK_SPECPLOTTABLE                   "Udpeg tabel med special udskriftslayout..."
+Define PLTM_DLG_TXT_SAVE_SPECPLOTTABLE                   "Navngiv ny tabel med special udskriftslayout..."
+Define PLTM_DLG_TXT_PICK_COORDTABLE                      "Udpeg tabel med ønsket projektion..."
+Define PLTM_DLG_TXT_PICK_FRAMES_2_PRNT                   "Udpeg rammer, som skal udskrives:"
+Define PLTM_DLG_TXT_CONDITIONS                           "Betingelser:"
+
+'Områdenavn - max 32 tegn :" 32 defineres på Runtimetidspunkt
+Define PLTM_DLG_TXT_FRAMENAME                            "Områdenavn - max "
+Define PLTM_DLG_TXT_CHARS                                " tegn :"
+Define PLTM_DLG_TXT_NO_NAME_ENTERED                      "Der skal angives et navn"
+Define PLTM_DLG_TXT_NAME_TO_LONG                         "For langt navn angivet!"
+Define PLTM_DLG_TXT_NAME_EXISTS                          "Navnet findes allerede i tabel!"
+Define PLTM_DLG_TXT_CREATE_MORE_FRAMES                   "Opret flere rammer"
+
+Define PLTM_DLG_TXT_SCALE_1_TO                           "Målforhold 1 : "
+Define PLTM_DLG_TXT_ROTATION                             "Rotation:"
+
+Define PLTM_DLG_TXT_CLOSE_TAB_1                          "Ønsker du at lukke disse tabeller, som"
+Define PLTM_DLG_TXT_CLOSE_TAB_2                          "er blevet åbnet af et udskriftslayout?"
+Define PLTM_DLG_TXT_CLOSE_WIN_1                          "Ønsker du at lukke disse vinduer, som"
+Define PLTM_DLG_TXT_CLOSE_WIN_2                          "er blevet åbnet af et udskriftslayout?"
+
+Define PLTM_DLG_TXT_READ_VAL_FROM_COL                    "Læs værdi fra kolonnen "
+Define PLTM_DLG_TXT_READ_VAL_FROM_COLS                   "Læs værdier fra kolonnerne "
+
+Define PLTM_DLG_TXT_RUNTIMEVALUE                         "Runtime-værdi"
+Define PLTM_DLG_TXT_RUNTIMETEXT                          "Runtime-tekst"
+Define PLTM_DLG_TXT_DEFAULTVALUE                         "Standardværdi"
+Define PLTM_DLG_TXT_VALUE                                "Værdi"
+Define PLTM_DLG_TXT_VALUE_FROM_LIST                      "Værdi fra liste"
+
+Define PLTM_DLG_TXT_CURRENT                              "Nuværende:"
+Define PLTM_DLG_TXT_NEXT                                 "Næste:"
+
+Define PLTM_DLG_TXT_USABLE_N_ARROWS                      "Tilgængelige nordpile"
+Define PLTM_DLG_TXT_USE_NORTH_ARROW                      "Nordpil"
+Define PLTM_DLG_TXT_USABLE_SCALEBARS                     "Tilgængelige målestokke"
+Define PLTM_DLG_TXT_USE_SCALEBAR                         "Målestok"
+
+
+Define PLTM_DLG_TAB_WITH_COORDINATES                     "Tabel med centerkoordinater"
+Define PLTM_DLG_TXT_START_POSITION                       "Startposition"
+Define PLTM_DLG_TXT_START_ROW                            "Start ved..."
+Define PLTM_DLG_TXT_PRINTS_AT_A_TIME                     "Antal udskrifter ad gangen"
+Define PLTM_DLG_TXT_MAPS_TO_PRINT                        "Kortvinduer til udskrift"
+Define PLTM_DLG_TXT_SAVE_PLOT_AS_WOR                     "Gem plot som arbejdsområder"
+
+Define PLTM_DLG_ASK_LAYOUT_SETUP_OK_1                    "Er dette det rigtige udskriftslayout"
+Define PLTM_DLG_ASK_LAYOUT_SETUP_OK_2                    "og den rigtige printeropsætning ?"
+Define PLTM_DLG_CHOOSE_LAYOUT                            "Vælg udskriftslayout"
+
+Define PLTM_ASK_REMOVE_MENU                              "Ønsker du at fjerne menupunktet "
+Define PLTM_ASK_SAVE_FRAME_TO_TABLE                      "Ønsker du at gemme rammen?"
+Define PLTM_ASK_REMOVE_ROTATION                          "Det aktive kortvindue er roteret. Ønsker du at nulstille rotationen inden du fortsætter?"
+Define PLTM_ASK_NO_SELECTION_ABORT                       "Der er ingen aktiv udvælgelse! Ønsker du at fortsætte udskrivningen?"
+
+Define PLTM_TXT_NO_FRAMES                                "Ingen rammer"
+Define PLTM_TXT_NO_USABLE_FRAMES                         "Ingen anvendelige special udskriftslayouts"
+
+Define PLTM_TXT_NORTH_ARROW_SIMPLE                       "Simpel nordpil"
+Define PLTM_TXT_NORTH_ARROW_SIMPLE_2                     "Helt simpel nordpil"
+Define PLTM_TXT_NORTH_ARROW_TRIANGLE                     "Trekantet nordpil"
+Define PLTM_TXT_SCALEBAR_SIMPLE                          "Simpel målestok"
+Define PLTM_TXT_SCALEBAR_BLACKWHITE                      "Sort/hvid målestok"
+
+Define PLTM_DLG_N_PLOT_PRINT_CONTINUE                    " plot er blevet udskrevet. Ønsker du at fortsætte ?"
+
+Define PLTM_INF_USING_MAP_CENTER                         "Anvender kortets centerkoordinater!"
+Define PLTM_INF_BATCHPRINT_CANCELLED                     "Batch-udskrivning blev afbrudt!"
+
+'PreView ButtonPad...
+Define PLTM_BUT_PREVIEW_CHANGE_SCALE                     "Rette udskriftsmålforhold.\nRet målforhold"
+Define PLTM_BUT_PREVIEW_CONTINUE_PRINT                   "Fortsæt udskrivningen med det markerede område.\nFortsæt udskrift"
+Define PLTM_BUT_PREVIEW_ABORT                            "Stop udskrivning.\nAfbryd"
+Define PLTM_BUT_PREVIEW_SAVE_FRAME                       "Gem udskriftsområdets aktuelle placering i tabel Rammer.\nGem ramme i tabel"
+Define PLTM_BUT_PREVIEW_QUICK_PRINT                      "Udskrivning i fast målforhold\nHurtig udskrift"
+
+Define PLTM_MNU_PRINT_SCALE                              "Udskriv i fast mål"
+Define PLTM_MNU_HELP_CURRENT_PRINT                       "Opsætning vedr. aktuel udskrift."
+Define PLTM_MNU_HELP_DEFINE_MENU                         "Definér hvilke udplotningsmålforhold der skal være direkte tilgængelige i menuen."
+Define PLTM_MNU_HELP_LAYOUTS                             "Opsætning vedr. udskrifslayout."
+Define PLTM_MNU_HELP_PRINT_INPUT                         "Udskriver i valgfrit målforhold"
+Define PLTM_MNU_HELP_PRINT_QUICK                         "Viser dialog med opsætninger inden udskrift."
+Define PLTM_MNU_HELP_SETUP                               "Generel opsætning vedr. "
+
+Define PLTM_MNU_TITLE                                    "&PlotModul"
+Define PLTM_MNU_TITLE_CURRENT_PRINT                      "&Aktuel udskrift"
+Define PLTM_MNU_TITLE_DEFINE_MENU                        "&Definér faste plot"
+Define PLTM_MNU_TITLE_LAYOUTS                            "Udskrifts&layout"
+Define PLTM_MNU_TITLE_PRINT_INPUT                        "1 : &indtastet"
+Define PLTM_MNU_TITLE_PRINT_QUICK                        "&Udskriv"
+Define PLTM_MNU_TITLE_SETUP                              "&Opsætning"
+Define PLTM_MNU_TITLE_REMOVE_ROTATION                    "Nulstil rotation i aktivt kort"
+Define PLTM_MNU_HLP_REMOVE_ROTATION                      "Fjerner rotationen i det aktive kortvindue."
+Define PLTM_MNU_TITLE_MAP_INTO_FRAMES                    "Indsæt kortvindue i aktivt layoutvindue"
+Define PLTM_MNU_HLP_MAP_INTO_FRAMES                      "Indsætter et eller flere kort i det aktive layouts tomme rammer."
+Define PLTM_MNU_TITLE_MULTI_PLOT                         "&MultiPlot..."
+Define PLTM_MNU_HLP_MULTI_PLOT                           "Udskrivning af plots efter poster i en tabel."
+Define PLTM_MNU_TITLE_EXPORT_FRAMES                      "Eksporter plotrammer til bitmaps/rasterbilleder..."
+Define PLTM_MNU_HLP_EXPORT_FRAMES                        "Eksporter plotrammer til bitmaps/rasterbilleder."
+
+Define PPRO_MNU_HELP_BATCHPLOT                           "Udskriver udvalgte rammer."
+Define PPRO_MNU_HELP_CREATEFRAMES                        "Opret rammer uden at udskrive dem."
+Define PPRO_MNU_HELP_CREATE_FRAMETABLE                   "Opret tabel til udskriftsrammer."
+Define PPRO_MNU_HELP_CURRENT_PRINT                       "Opsætning vedr. aktuel udskrift."
+Define PPRO_MNU_HELP_DEFINE_MENU                         "Definér hvilke udplotningsmålforhold der skal være direkte tilgængelige i menuen."
+Define PPRO_MNU_HELP_SPEC_PLOT_SETUP                     "Definér special plotopsætninger mht. udskriftslayout og papirformat."
+
+Define PPRO_MNU_HELP_LAYOUTS                             "Opsætning vedr. udskrifslayout."
+Define PPRO_MNU_HELP_PRINT_INPUT                         "Udskriver i valgfrit målforhold."
+Define PPRO_MNU_HELP_PRINT_QUICK                         "Viser dialog med opsætninger inden udskrift."
+Define PPRO_MNU_HELP_RESIZE_FRAMES                       "Ændrer størrelsen på oprettede udskriftsrammer efter nuværende udskriftslayouts."
+Define PPRO_MNU_HELP_SETTINGS                            "Indstillinger vedr. "
+Define PPRO_MNU_HELP_SETUP                               "Generel opsætning vedr. "
+
+Define PPRO_MNU_TITLE_BATCHPLOT                          "&BatchPlot..."
+Define PPRO_MNU_TITLE_CREATEFRAMES                       "&Opret rammer..."
+Define PPRO_MNU_TITLE_CREATE_FRAMETAB                    "Opret &tabel til rammer..."
+Define PPRO_MNU_TITLE_CURRENT_PRINT                      "&Aktuel udskrift..."
+Define PPRO_MNU_TITLE_DEFINE_MENU                        "&Definér faste plot..."
+Define PPRO_MNU_TITLE_SPEC_PLOT_SETUP                    "Definér &special udskriftslayout..."
+Define PPRO_MNU_TITLE_FRAMEPLOTTING                      "Udskrifts&rammer"
+Define PPRO_MNU_TITLE_AUTO_PLOTTING                      "Automatisk udskrivning"
+Define PPRO_MNU_TITLE_LAYOUTS                            "Udskrifts&layout..."
+Define PPRO_MNU_TITLE_PRINT_INPUT                        "1 : &indtastet..."
+Define PPRO_MNU_TITLE_PRINT_QUICK                        "&Hurtig udskrift..."
+Define PPRO_MNU_TITLE_RESIZE_FRAMES                      "Ændre størrelse på rammer..."
+Define PPRO_MNU_TITLE_SETTINGS                           "&Indstillinger..."
+Define PPRO_MNU_TITLE_SETUP                              "&Opsætning..."
+
+Define PPRO_BUT_HELP_QUICK_PRINT                         "Viser dialog med opsætninger inden udskrift.\nHurtig udskrift"
+Define PPRO_BUT_HELP_CHANGE_SCALE                        "Rette udskriftsmålforhold.\nRet målforhold"
+Define PPRO_BUT_HELP_CONTINUE_PRINT                      "Fortsæt udskrivningen med det markerede område.\nFortsæt udskrift"
+Define PPRO_BUT_HELP_ABORT                               "Stop udskrivning.\nAfbryd"
+Define PPRO_BTN_HLP_CLOSE_WIN_AND_TABS                   "Luk tabeller og vinduer åbnet under udskrivning.\nLuk udskrivningstabeller og vinduer"
+Define PPRO_BUT_HELP_SAVE_FRAME                          "Gem udskriftsområdets aktuelle placering i ramme-tabel.\nGem ramme i tabel"
+Define PLTM_BUT_HELP_ROTATION_LINE                       "Sæt rotation vha en tegnet linie.\nSæt rotation efter linie"
+Define PLTM_BUT_HELP_MAP_INTO_FRAMES                     "Indsætter et eller flere kort i det aktive layouts tomme rammer.\nIndsæt kort i layout"
+
+'-------------------------------------------------------------
+'***These elements are used for backwards compability...
+Define PLTM_DLG_POSS_LANGUAGES                           PLTM_DLG_LST_LANGUAGES
+Define PLTM_DLG_CHOISE_ORIENT_BOTH                       PLTM_DLG_LST_ORIENT_BOTH
+Define PLTM_DLG_CHOISE_ORIENT_TRIPLE                     PLTM_DLG_LST_ORIENT_TRIPLE
+Define PLTM_DLG_CHOISE_PAPERSIZE_ALL                     PLTM_DLG_LST_PAPERSIZE_ALL
+Define PLTM_DLG_CHOISE_SCALE_OR_COLUMN                   PLTM_DLG_LST_SCALE_OR_COLUMN
+Define PLTM_DLG_CHOISE_START_ROW                         PLTM_DLG_LST_START_ROW
+Define PRNT_WIN_PRINTLAYOUT                              PLTM_WIN_PRINTLAYOUT
+Define PRNT_WIN_PRINTMAP                                 PLTM_WIN_PRINTMAP
+Define PRNT_DLG_TITLE_INPUT_VALUES                       PLTM_DLG_TITLE_INPUT_VALUES
+Define PRNT_DLG_TITLE_DEFAULT_VALUES                     PLTM_DLG_TITLE_DEFAULT_VALUES
+Define PRNT_DLG_TITLE_PRINT_SETUP                        PLTM_DLG_TITLE_PRINT_SETUP
+Define PRNT_DLG_TITLE_PRINTLAYOUT                        PLTM_DLG_TITLE_PRINTLAYOUT
+Define PRNT_DLG_TITLE_CURRENTFORMAT                      PLTM_DLG_TITLE_PRINTLAYOUT
+Define PRNT_DLG_TITLE_QUICK_PRINT                        PLTM_DLG_TITLE_PRINTLAYOUT
+Define PRNT_DLG_TITLE_PICK_PRINTWOR                      PLTM_DLG_TITLE_PICK_PRINTWOR
+Define PRNT_DLG_TITLE_PRINT_SCALE                        PLTM_DLG_TITLE_PRINT_SCALE
+Define PRNT_DLG_TITLE_DEFINE_PRINTMENU                   PLTM_DLG_TITLE_DEFINE_PRINTMENU
+Define PRNT_DLG_TITLE_ADD_MENU                           PLTM_DLG_TITLE_ADD_MENU
+Define PRNT_DLG_TITLE_SAVE_FRAME                         PLTM_DLG_TITLE_SAVE_FRAME
+Define PRNT_DLG_TITLE_CLOSE_TABLES                       PLTM_DLG_TITLE_CLOSE_TABLES
+Define PRNT_DLG_TITLE_CLOSE_WINDOWS                      PLTM_DLG_TITLE_CLOSE_TABLES
+Define PRNT_DLG_TITLE_FRAMES_TO_PRINT                    PLTM_DLG_TITLE_FRAMES_TO_PRINT
+Define PRNT_DLG_TITLE_FRAMES_TO_RESIZE                   PLTM_DLG_TITLE_FRAMES_TO_RESIZE
+Define PRNT_DLG_TITLE_CHANGE_PRINTER                     PLTM_DLG_TITLE_CHANGE_PRINTER
+Define PRNT_DLG_BTN_PRINTERSETUP                         PLTM_DLG_BTN_PRINTERSETUP
+
+Define PRNT_DLG_TXT_CASE                                 PLTM_DLG_TXT_CASE
+Define PRNT_DLG_TXT_CASENO                               PLTM_DLG_TXT_CASE
+Define PRNT_DLG_TXT_CASETITLE                            PLTM_DLG_TXT_CASETITLE
+Define PRNT_DLG_TXT_CASESUBTITLE                         PLTM_DLG_TXT_CASESUBTITLE
+Define PRNT_DLG_TXT_USER                                 PLTM_DLG_TXT_CASESUBTITLE
+Define PRNT_DLG_TXT_USERNAME                             PLTM_DLG_TXT_USERNAME
+Define PRNT_DLG_TXT_USERID                               PLTM_DLG_TXT_USERNAME
+Define PRNT_DLG_TXT_FIRM                                 PLTM_DLG_TXT_FIRM
+Define PRNT_DLG_TXT_FIRMNAME                             PLTM_DLG_TXT_FIRM
+Define PRNT_DLG_TXT_FIRM_DEPARTMENT                      PLTM_DLG_TXT_FIRM_DEPARTMENT
+Define PRNT_DLG_TXT_FIRM_ADDRESS                         PLTM_DLG_TXT_FIRM_ADDRESS
+Define PRNT_DLG_TXT_FIRM_ZIP                             PLTM_DLG_TXT_FIRM_ADDRESS
+Define PRNT_DLG_TXT_FIRM_ZIPAREA                         PLTM_DLG_TXT_FIRM_ZIPAREA
+Define PRNT_DLG_TXT_FIRM_PHONE                           PLTM_DLG_TXT_FIRM_PHONE
+Define PRNT_DLG_TXT_FIRM_FAXIMILE                        PLTM_DLG_TXT_FIRM_FAXIMILE
+
+Define PRNT_DLG_TXT_LAYOUTS                              PLTM_DLG_TXT_LAYOUTS
+Define PRNT_DLG_TXT_PAPERORIENTATION                     PLTM_DLG_TXT_PAPERORIENTATION
+Define PRNT_DLG_TXT_ORIENT_LANDSCAPE                     PLTM_DLG_TXT_ORIENT_LANDSCAPE
+Define PRNT_DLG_TXT_ORIENT_PORTRAIT                      PLTM_DLG_TXT_ORIENT_PORTRAIT
+Define PRNT_DLG_TXT_PAPERFORMAT                          PLTM_DLG_TXT_PAPERFORMAT
+Define PRNT_DLG_TXT_CURRENT_FORMAT                       PLTM_DLG_TXT_CURRENT_FORMAT
+Define PRNT_DLG_TXT_AUTOPRINT                            PLTM_DLG_TXT_AUTOPRINT
+Define PRNT_DLG_TXT_SHOW_RUNTIME_VAL                     PLTM_DLG_TXT_SHOW_RUNTIME_VAL
+Define PRNT_DLG_TXT_USE_CLON_MAP                         PLTM_DLG_TXT_USE_CLON_MAP
+Define PRNT_DLG_TXT_USE_PREVIEW                          PLTM_DLG_TXT_USE_PREVIEW
+Define PRNT_DLG_TXT_MENUTITLE                            PLTM_DLG_TXT_MENUTITLE
+Define PRNT_DLG_TXT_PRINT_SCALE                          PLTM_DLG_TXT_PRINT_SCALE
+
+Define PRNT_DLG_TXT_PICK_FRAMETABLE                      PLTM_DLG_TXT_PICK_FRAMETABLE
+Define PRNT_DLG_TXT_PICK_COORDTABLE                      PLTM_DLG_TXT_PICK_COORDTABLE
+Define PRNT_DLG_TXT_PICK_FRAMES_2_PRNT                   PLTM_DLG_TXT_PICK_FRAMES_2_PRNT
+Define PRNT_DLG_TXT_CONDITIONS                           PLTM_DLG_TXT_CONDITIONS
+
+'Områdenavn - max 32 tegn :" 32 defineres på Runtimetidspunkt
+Define PRNT_DLG_TXT_FRAMENAME                            PLTM_DLG_TXT_FRAMENAME
+Define PRNT_DLG_TXT_CHARS                                PLTM_DLG_TXT_CHARS
+Define PRNT_DLG_TXT_NO_NAME_ENTERED                      PLTM_DLG_TXT_NO_NAME_ENTERED
+Define PRNT_DLG_TXT_NAME_TO_LONG                         PLTM_DLG_TXT_NAME_TO_LONG
+Define PRNT_DLG_TXT_NAME_EXISTS                          PLTM_DLG_TXT_NAME_EXISTS
+Define PRNT_DLG_TXT_CREATE_MORE_FRAMES                   PLTM_DLG_TXT_CREATE_MORE_FRAMES
+
+Define PRNT_DLG_TXT_SCALE_1_TO                           PLTM_DLG_TXT_SCALE_1_TO
+
+Define PRNT_DLG_TXT_CLOSE_TAB_1                          PLTM_DLG_TXT_CLOSE_TAB_1
+Define PRNT_DLG_TXT_CLOSE_TAB_2                          PLTM_DLG_TXT_CLOSE_TAB_2
+Define PRNT_DLG_TXT_CLOSE_WIN_1                          PLTM_DLG_TXT_CLOSE_TAB_2
+Define PRNT_DLG_TXT_CLOSE_WIN_2                          PLTM_DLG_TXT_CLOSE_WIN_2
+
+Define PRNT_DLG_TXT_CURRENT                              PLTM_DLG_TXT_CLOSE_WIN_2
+Define PRNT_DLG_TXT_NEXT                                 PLTM_DLG_TXT_CLOSE_WIN_2
+
+Define PRNT_ASK_REMOVE_MENU                              PLTM_ASK_REMOVE_MENU
+Define PRNT_ASK_SAVE_FRAME_TO_TABLE                      PLTM_ASK_SAVE_FRAME_TO_TABLE
+
+Define PRNT_TXT_ORIENT_LANDSCAPE                         PLTM_ORIENT_LANDSCAPE
+Define PRNT_TXT_ORIENT_PORTRAIT                          PLTM_ORIENT_PORTRAIT
+
+Define PRNT_TXT_NO_FRAMES                                PLTM_TXT_NO_FRAMES
+
+Define PRNT_DLG_CHOISE_ORIENT_BOTH                       PLTM_ORIENT_BOTH
+Define PRNT_DLG_CHOISE_ORIENT_TRIPLE                     PLTM_DLG_CHOISE_ORIENT_TRIPLE
+Define PRNT_DLG_CHOISE_PAPERSIZE_ALL                     PLTM_DLG_CHOISE_PAPERSIZE_ALL
+
+Define PRNT_ERR_PRINT_THIS_SCALE                         "Kan ikke skrive ud i dette målforhold: 1 : "
+Define PRNT_ERR_REPLACE_RUNTIME_VAL                      "Problemer med erstatning af runtimeværdier!"
+Define PRNT_ERR_SCALE_MIN_1                              "Målforholdet skal være større end 1!"
+Define PRNT_ERR_TITLE_DEMANDED                           "Der skal angives en titel!"
+Define PRNT_ERR_TITLE_NO_COMMAS                          "Titlen må ikke indeholde kommaer!"
+Define PRNT_ERR_CHANGE_OF_SCALE                          "Fejl ved ændring af målforhold!"
+Define PRNT_ERR_PREVIEW_AREA_NOT_FOUND                   "Kunne ikke finde PreView området!"
+
+Define PRNT_ERR_PREVIEW_TABLE_NOT_OPEN                   "Tabel med PreView-området er ikke åben!"
+Define PRNT_ERR_FRAME_TABLE_NOT_OPEN                     "Tabel med rammer er ikke åben!"
+Define PRNT_ERR_PREVIEW_TABLE_EMPTY                      "Tabel med rammer er tom!"
+Define PRNT_ERR_CREATING_PREVIEW_AREA                    "Fejl ved oprettelse af Preview-område!"
+Define PRNT_ERR_CLOSE_FRAMETABLE_FIRST                   "Luk først tabellen med udskriftsrammer!"
+Define PRNT_ERR_NAME_MAY_NOT_BE_CHNGED                   "Navnet må ikke ændres fra det angivne!"
+Define PRNT_INFO_READ_PREVIEWAREA_ERR                    "Fejl ved læsning af preview område!"
+
+Define PRNT_INF_USING_MAP_CENTER                         PLTM_INF_USING_MAP_CENTER
+Define PRNT_INF_BATCHPRINT_CANCELLED                     PLTM_INF_BATCHPRINT_CANCELLED
+
+'PreView ButtonPad...
+Define PRNT_BUT_PREVIEW_CHANGE_SCALE                     PLTM_BUT_PREVIEW_CHANGE_SCALE
+Define PRNT_BUT_PREVIEW_CONTINUE_PRINT                   PLTM_BUT_PREVIEW_CONTINUE_PRINT
+Define PRNT_BUT_PREVIEW_ABORT                            PLTM_BUT_PREVIEW_ABORT
+Define PRNT_BUT_PREVIEW_SAVE_FRAME                       PLTM_BUT_PREVIEW_SAVE_FRAME
+
+

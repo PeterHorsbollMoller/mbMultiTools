@@ -1,0 +1,360 @@
+'*******************************************************************************
+'** 	Program:	TextTool
+'** 	Modul:	TextToolIni	
+'**			Initiering af TextTool
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+'**Includes of language-files...
+Include "..\Language\Message.lng"
+Include "..\Language\Errors.lng"
+Include "..\Language\PlotDef.lng"
+Include "..\Language\StyleDef.lng"
+Include "..\Language\Kommune.lng"
+
+Include "TextToolIni.def"
+
+'-----------------------------------------------------------------------------------------
+Include "..\TabFunc\TabFunc.def"
+Include "..\PadFunc\PadFunc.def"
+Include "..\WinFunc\WinFunc.def"
+Include "..\IniUtil\IniUtil.def"
+Include "..\GeoFunc\GeoFunc.def"
+Include "..\StyleFunc\StyleFunc.def"
+
+Dim	mszLayer, mszXCol, mszYCol, mszAngleCol As String,
+	mszHusnrCol, mszLitraCol As String,
+	mfTextSize, mfZoom, mfPerpendicDistance As Float,
+	mfntText As Font
+
+'**********************************************************************************************''
+'Sætter navnet på aktuelt anvendt tabel
+'**********************************************************************************************''
+Sub TXTTSetTableName(ByVal szName As String)
+
+OnError GoTo ErrorOccured
+
+	mszLayer = szName
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Sætter navnet på på af de anvendte kolonner
+'**********************************************************************************************''
+Sub TXTTSetColumnNames(ByVal szCol As String, ByVal szName As String)
+
+OnError GoTo ErrorOccured
+
+	Do Case szCol
+		Case "X"
+			mszXCol	= szName
+		Case "Y"
+			mszYCol	= szName
+		Case "ANGLE"
+			mszAngleCol	= szName
+		Case "NO"
+			mszHusnrCol	= szName
+		Case "LITRA"
+			mszLitraCol	= szName
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'returnerer navnet på anvendte tabel
+'**********************************************************************************************''
+Function TXTTGetTable$() As String
+
+OnError GoTo ErrorOccured
+
+	TXTTGetTable$ = mszLayer
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'returnerer navnet på anvendte tabel
+'**********************************************************************************************''
+Function TXTTGetColX$() As String
+
+OnError GoTo ErrorOccured
+
+	TXTTGetColX$ = mszXCol
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+
+'**********************************************************************************************''
+'returnerer navnet på anvendte tabel
+'**********************************************************************************************''
+Function TXTTGetColY$() As String
+
+OnError GoTo ErrorOccured
+
+	TXTTGetColY$ = mszYCol
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+
+'**********************************************************************************************''
+'returnerer navnet på anvendte tabel
+'**********************************************************************************************''
+Function TXTTGetColAngle$() As String
+
+OnError GoTo ErrorOccured
+
+	TXTTGetColAngle$ = mszAngleCol
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+
+'**********************************************************************************************''
+'returnerer navnet på anvendte tabel
+'**********************************************************************************************''
+Function TXTTGetColNo$() As String
+
+OnError GoTo ErrorOccured
+
+	TXTTGetColNo$ =  mszHusnrCol
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'returnerer navnet på anvendte tabel
+'**********************************************************************************************''
+Function TXTTGetColLitra$() As String
+
+OnError GoTo ErrorOccured
+
+	TXTTGetColLitra$ = mszLitraCol
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub TXTTSetTextSize(ByVal fValue As Float)
+
+OnError GoTo ErrorOccured
+
+	mfTextSize = fValue
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub TXTTSetZoom(ByVal fValue As Float)
+
+OnError GoTo ErrorOccured
+
+	mfZoom = fValue
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub TXTTSetPerpDistance(ByVal fValue As Float)
+
+OnError GoTo ErrorOccured
+
+	mfPerpendicDistance = fValue
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub TXTTSetTextFont(ByVal fntValue As Font)
+
+OnError GoTo ErrorOccured
+
+	mfntText = fntValue
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'returnerer størrelse af teksten i meter
+'**********************************************************************************************''
+Function TXTTGetTextSize() As Float
+
+OnError GoTo ErrorOccured
+
+	TXTTGetTextSize = mfTextSize
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'returnerer Zoom i meter
+'**********************************************************************************************''
+Function TXTTGetZoom() As Float
+
+OnError GoTo ErrorOccured
+
+	TXTTGetZoom = mfZoom
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'returnerer Afstand fra linie
+'**********************************************************************************************''
+Function TXTTGetPerpDistance() As Float
+
+OnError GoTo ErrorOccured
+
+	TXTTGetPerpDistance = mfPerpendicDistance
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer tekstfont
+'**********************************************************************************************''
+Function TXTTGetTextFont() As Font
+
+OnError GoTo ErrorOccured
+
+	TXTTGetTextFont = mfntText
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'------------------------------------------------------------------------------------------------------
+'****************************************
+'Læs INIFile - Afstande og størrelser
+'****************************************
+Sub TXTToolReadIniFile(ByVal szFile As String)
+
+OnError GoTo ErrorOccured
+
+	mfPerpendicDistance	= 2.0
+	mfZoom			= 100		'meters
+	mfTextSize			= 2		'meters
+	mfntText			= CurrentFont()
+	
+	If not FileExists(szFile) Then
+		'Print "Filen findes ikke : " + szFile
+		Exit Sub
+	End If
+
+	mfPerpendicDistance	= Val(KommaToPoint(GetIniKeyValue(szFile, "[TEXTTOOL]", "PERPDIST")))
+
+	mfTextSize			= Val(KommaToPoint(GetIniKeyValue(szFile, "[TEXTTOOL]", "TEXTSIZE")))
+	If mfTextSize = 0 Then
+		mfTextSize = 2	'meters
+	End If
+	mfZoom			= Val(KommaToPoint(GetIniKeyValue(szFile, "[TEXTTOOL]", "ZOOM")))
+	If mfZoom = 0 Then
+		mfZoom = 100
+	End If
+
+	mfntText 			= StyleFuncGetFontFromString(GetIniKeyValue(szFile, "[TEXTTOOL]", "FONT"))
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Skriv INIFile - Afstande og størrelser
+'****************************************
+Sub TXTToolWriteIniFile(ByVal nFile As String)
+
+OnError GoTo ErrorOccured
+
+	Print #nFile, ""
+	Print #nFile, "[TEXTTOOL]"
+	Print #nFile, "PERPDIST=" & Str$(mfPerpendicDistance)
+	Print #nFile, "TEXTSIZE=" & Str$(mfTextSize)
+	Print #nFile, "ZOOM=" & Str$(mfZoom)
+	Print #nFile, "FONT=" & StyleFuncGetStringFromFont$(mfntText)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

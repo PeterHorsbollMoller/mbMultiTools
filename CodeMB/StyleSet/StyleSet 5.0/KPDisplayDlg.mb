@@ -1,0 +1,940 @@
+'********************************************************
+'**	Modul:		KPDisplayDlg.mb
+'**	Funktioner:		Læs fra / skriv til KPDisplay tabellen
+'**				Opsætning af multilagknapper i dialoger
+'********************************************************
+Include "MapBasic.def"
+Include "Menu.def"
+
+Include "KPAdminUse.def"
+Include "KPTableUse.def"
+Include "KPTableDlg.def"
+Include "KPIconUse.def"
+Include "KPIconDlg.def"
+Include "KPGroupDlg.def"
+Include "KPDisplayUse.def"
+Include "KPDisplayDlg.def"
+
+Include "Globals.def"
+
+Include "..\..\Time\Time.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\FileFunc\FileFunc.def"
+Include "..\..\DLLView\DLLView.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+'---------------------
+Define	KPD_CTRL_DISPLAYNAMES_LIST		100
+Define	KPD_CTRL_DISPLAYNAME_MOVE_UP		110
+Define	KPD_CTRL_DISPLAYNAME_MOVE_DOWN	120
+Define	KPD_CTRL_ICONFILES_LIST			200
+Define	KPD_CTRL_ICONNO_EDIT			210
+Define	KPD_CTRL_ICONNO_BTN			211
+Define	KPD_CTRL_TABLES				300
+Define	KPD_CTRL_TABLES_ADD			310
+Define	KPD_CTRL_TABLES_REMOVE			320
+Define	KPD_CTRL_GROUPS				400
+Define	KPD_CTRL_GROUPS_ADD			410
+Define	KPD_CTRL_GROUPS_REMOVE			420
+Define	KPD_CTRL_WORFILE_EDIT			500
+Define	KPD_CTRL_WORFILE_BTN			501
+Define	KPD_CTRL_CLOSE_ALL_CHK			600
+Define	KPD_CTRL_ACTIVE_CHK			700
+
+'---------------------
+Declare Sub kpdHandlerDialogStartup
+Declare Sub kpdHandlerDisplayNamePicked
+Declare Sub kpdHandlerChangeDisplayOrder
+Declare Sub kpdHandlerIkonFilePicked
+Declare Sub kpdHandlerPickIconNo
+Declare Sub kpdHandlerPickWorFile
+Declare Sub kpdHandlerAddTable
+Declare Sub kpdHandlerAddGroup
+Declare Sub kpdHandlerRemoveTable
+Declare Sub kpdHandlerRemoveGroup
+Declare Sub kpdHandlerSaveCurrentSetting(ByVal nDisplay As Integer)
+Declare Sub kpdHandlerRemoveCurrentSetting
+Declare Sub kpdReadStartupPositionFromMap
+
+Dim	marrListOfIconFiles(0), marrListOfTables(0) As String,
+	marrListOfFullGroupNames(0), marrListOfDisplayNames(0) As String,
+	mnPrevIconFile, mnPrevDisplay As Integer,
+	mbReCreateButtonPad, mbSaveSettings As Logical
+'********************************************************
+'	Kalder Dialog med display/multilagknapper...
+'********************************************************
+Sub kpdShowDialogDisplay
+
+Dim	bCloseTablesTab, bCloseDisplayTab, bCloseTDisplayTab, bCloseIconTab As Logical,
+	bCloseGroupTab, bCloseSGroupTab, bCloseTGroupTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseTablesTab	= kpaOpenKPTablesTable()
+	bCloseDisplayTab	= kpaOpenKPDisplayTable()
+	bCloseTDisplayTab	= kpaOpenKPTDisplayTable()
+	bCloseIconTab	= kpaOpenKPIconsTable()
+	bCloseGroupTab	= kpaOpenKPGroupTable()
+	bCloseSGroupTab	= kpaOpenKPSGroupTable()
+	bCloseTGroupTab	= kpaOpenKPTGroupTable()
+
+	If kpdDialogDisplay() Then
+		'User pushed the OKButton...
+	Else
+		'User pushed the CancelButton...
+	End If
+
+	If bCloseTablesTab Then
+		Close Table KPTABLES
+	Else
+		If TableOpen("CUR_LIST_OF_TABLES") Then
+			Close Table CUR_LIST_OF_TABLES
+		End If
+	End If
+	If bCloseDisplayTab Then
+		Close Table KPDISPLAY
+	Else
+		If TableOpen("CUR_LIST_OF_DISPLAYS") Then
+			Close Table CUR_LIST_OF_DISPLAYS
+		End If
+	End If
+	If bCloseTDisplayTab Then
+		Close Table KPTDISPLAY
+	End If
+	If bCloseIconTab Then
+		Close Table KPICONS
+	Else
+		If TableOpen("CUR_LIST_OF_ICONFILES") Then
+			Close Table CUR_LIST_OF_ICONFILES
+		End If
+	End If
+	If bCloseGroupTab Then
+		Close Table KPGROUP
+	Else
+		If TableOpen("CUR_LIST_OF_GROUPS") Then
+			Close Table CUR_LIST_OF_GROUPS
+		End If
+	End If
+	If bCloseSGroupTab Then
+		Close Table KPSGROUP
+	Else
+		If TableOpen("CUR_LIST_OF_SUBGROUPS") Then
+			Close Table CUR_LIST_OF_SUBGROUPS
+		End If
+	End If
+	If bCloseTGroupTab Then
+		Close Table KPTGROUP
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Dialog med display/multilagknapper...
+'********************************************************
+Function kpdDialogDisplay() As Logical
+
+Dim	bCloseTablesTab, bCloseDisplayTab, bCloseTDisplayTab, bCloseIconTab As Logical,
+	bCloseGroupTab, bCloseSGroupTab, bCloseTGroupTab As Logical,
+	szIconNo As String,
+	nDisplayNo, nIconFileNo, nTabDisplay As Integer
+
+OnError GoTo ErrorOccured
+
+	kpdDialogDisplay = FALSE
+
+	bCloseTablesTab	= kpaOpenKPTablesTable()
+	bCloseDisplayTab	= kpaOpenKPDisplayTable()
+	bCloseTDisplayTab	= kpaOpenKPTDisplayTable()
+	bCloseIconTab	= kpaOpenKPIconsTable()
+	bCloseGroupTab	= kpaOpenKPGroupTable()
+	bCloseSGroupTab	= kpaOpenKPSGroupTable()
+	bCloseTGroupTab	= kpaOpenKPTGroupTable()
+
+	mbReCreateButtonPad = FALSE
+
+	Dialog
+		Title STYL_DLG_TITLE_MULTILAYER_BUTT
+		Calling kpdHandlerDialogStartup
+
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_DESCRIPTION
+		Control ListBox		Position 5,15	Width 145	Height 60		ID KPD_CTRL_DISPLAYNAMES_LIST
+			Calling kpdHandlerDisplayNamePicked
+			Into nDisplayNo
+		Control Button		Position 155,15	Width 50	Height 13
+			Title STYL_DLG_BTN_REMOVE_SETUP
+			Calling kpdHandlerRemoveCurrentSetting
+		Control Button		Position 155,30	Width 50	Height 13		ID KPD_CTRL_DISPLAYNAME_MOVE_UP
+			Title MSG_MOVE & " " & MSG_UP
+			Calling kpdHandlerChangeDisplayOrder
+		Control Button		Position 155,45	Width 50	Height 13		ID KPD_CTRL_DISPLAYNAME_MOVE_DOWN
+			Title MSG_MOVE & " " & MSG_DOWN
+			Calling kpdHandlerChangeDisplayOrder
+'		Control Button		Position 155,65	Width 50	Height 13
+'			Title STYL_DLG_BTN_REMOVE_SETUP
+'			Calling kpdHandlerRemoveCurrentSetting
+
+		'-------
+		Control StaticText	Position 5,80
+			Title STYL_DLG_TXT_ICONFILE
+		Control PopUpMenu		Position 5,90	Width 140				ID KPD_CTRL_ICONFILES_LIST
+			Calling kpdHandlerIkonFilePicked
+			Into nIconFileNo
+		Control StaticText	Position 150,80
+			Title STYL_DLG_TXT_ICON
+		Control EditText		Position 150,90	Width 40				ID KPD_CTRL_ICONNO_EDIT
+			Into szIconNo
+		Control Button		Position 190,90	Width 15	Height 12		ID KPD_CTRL_ICONNO_BTN
+			Title "..."
+			Calling kpdHandlerPickIconNo
+
+		'-------
+		Control GroupBox		Position 5,105	Width 200	Height 30
+			Title MSG_WOR_WORKSPACE
+		Control EditText		Position 30,115	Width 165				ID KPD_CTRL_WORFILE_EDIT
+		Control Button		Position 15,115	Width 15	Height 12		ID KPD_CTRL_WORFILE_BTN
+			Title "..."
+			Calling kpdHandlerPickWorFile
+
+		'-------
+		Control GroupBox		Position 5,140	Width 200	Height 60
+			Title STYL_DLG_TXT_TABLES
+		Control ListBox		Position 15,150	Width 135	Height 45		ID KPD_CTRL_TABLES
+
+		Control Button		Position 155,155	Width 40				ID KPD_CTRL_TABLES_ADD
+			Title MSG_TEXT_ADD
+			Calling kpdHandlerAddTable
+		Control Button		Position 155,175	Width 40				ID KPD_CTRL_TABLES_REMOVE
+			Title MSG_TEXT_REMOVE
+			Calling kpdHandlerRemoveTable
+
+		'-------
+		Control GroupBox		Position 5,205	Width 200	Height 60
+			Title STYL_DLG_TXT_GROUPS
+		Control ListBox		Position 15,215	Width 135	Height 45		ID KPD_CTRL_GROUPS
+
+		Control Button		Position 155,220	Width 40				ID KPD_CTRL_GROUPS_ADD
+			Title MSG_TEXT_ADD
+			Calling kpdHandlerAddGroup
+		Control Button		Position 155,240	Width 40				ID KPD_CTRL_GROUPS_REMOVE
+			Title MSG_TEXT_REMOVE
+			Calling kpdHandlerRemoveGroup
+
+		'-------
+		Control CheckBox		Position 15,272						ID KPD_CTRL_CLOSE_ALL_CHK
+			Title STYL_DLG_TXT_FIRST_CLOSE_ALL
+		Control CheckBox		Position 15,284						ID KPD_CTRL_ACTIVE_CHK
+			Title MSG_ACTIVE
+
+		'-------
+		Control Button		Position 115,270	Width 85
+			Title STYL_DLG_BTN_READ_MAP_POSITION
+			Calling kpdReadStartupPositionFromMap
+
+		'-------
+		Control OKButton		Position 115,290	Width 40
+			Calling kpdHandlerDisplayNamePicked
+		Control CancelButton	Position 160,290	Width 40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Rollback Table KPDISPLAY
+		Rollback Table KPTDISPLAY
+		Rollback Table KPTABLES
+		Rollback Table KPICONS
+		GoTo BeforeExitFunction
+	Else
+		Commit Table KPDISPLAY
+		Commit Table KPTDISPLAY
+		Commit Table KPTABLES
+		Commit Table KPICONS
+	End If
+
+	If mbReCreateButtonPad Then
+		Call kpdCreateDisplayButtonPad
+	End If
+
+	nTabDisplay	= kpdRegisterTablesByDisplay()
+'	Print nTabDisplay & " tabeller registreret"
+
+	kpdDialogDisplay = TRUE
+
+'------------------------------------
+BeforeExitFunction:
+
+	If bCloseTablesTab Then
+		Close Table KPTABLES
+	Else
+		If TableOpen("CUR_LIST_OF_TABLES") Then
+			Close Table CUR_LIST_OF_TABLES
+		End If
+	End If
+	If bCloseDisplayTab Then
+		Close Table KPDISPLAY
+	Else
+		If TableOpen("CUR_LIST_OF_DISPLAYS") Then
+			Close Table CUR_LIST_OF_DISPLAYS
+		End If
+	End If
+	If bCloseTDisplayTab Then
+		Close Table KPTDISPLAY
+	End If
+	If bCloseIconTab Then
+		Close Table KPICONS
+	Else
+		If TableOpen("CUR_LIST_OF_ICONFILES") Then
+			Close Table CUR_LIST_OF_ICONFILES
+		End If
+	End If
+	If bCloseGroupTab Then
+		Close Table KPGROUP
+	Else
+		If TableOpen("CUR_LIST_OF_GROUPS") Then
+			Close Table CUR_LIST_OF_GROUPS
+		End If
+	End If
+	If bCloseSGroupTab Then
+		Close Table KPSGROUP
+	Else
+		If TableOpen("CUR_LIST_OF_SUBGROUPS") Then
+			Close Table CUR_LIST_OF_SUBGROUPS
+		End If
+	End If
+	If bCloseTGroupTab Then
+		Close Table KPTGROUP
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Handler - Opstart af dialogen...
+'********************************************************
+Sub kpdHandlerDialogStartup
+
+OnError GoTo ErrorOccured
+
+	mnPrevDisplay = 2
+
+	'***Creating list of displays...
+	Call kpdCreateListOfDisplayNames(marrListOfDisplayNames)
+	If Ubound(marrListOfDisplayNames) = 1 Then
+		mnPrevDisplay = 1
+	End If
+	Alter Control KPD_CTRL_DISPLAYNAMES_LIST Title From Variable marrListOfDisplayNames Value mnPrevDisplay
+
+	'***Creating list of iconfiles..
+	Call kpiCreateListOfIconFileNames(marrListOfIconFiles)
+	Alter Control KPD_CTRL_ICONFILES_LIST Title From Variable marrListOfIconFiles
+
+	mbSaveSettings = FALSE
+	Call kpdHandlerDisplayNamePicked
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Display blev valgt...
+'********************************************************
+Sub kpdHandlerDisplayNamePicked
+
+Dim	nDisplay As Integer
+
+OnError GoTo ErrorOccured
+
+	If mbSaveSettings AND marrListOfDisplayNames(mnPrevDisplay) <> "(-" Then
+		Call kpdHandlerSaveCurrentSetting(mnPrevDisplay)
+	End If
+	mbSaveSettings	= TRUE
+
+	nDisplay = ReadControlValue(KPD_CTRL_DISPLAYNAMES_LIST)
+	If nDisplay = 1 Then
+		'**Show dialog with CreateNewDisplay...
+		If kpdDialogCreateNewDisplay() Then
+
+			Call kpdCreateListOfDisplayNames(marrListOfDisplayNames)
+			mnPrevDisplay = kpdGetDisplayElementNo(kpdGetDisplayName$(kpdGetMaxDisplayID()), marrListOfDisplayNames)
+			Alter Control KPD_CTRL_DISPLAYNAMES_LIST Title From Variable marrListOfDisplayNames Value mnPrevDisplay
+
+			mbReCreateButtonPad = TRUE
+		Else
+			Alter Control KPD_CTRL_DISPLAYNAMES_LIST Value mnPrevDisplay
+			Exit Sub
+		End If
+	Else
+		mnPrevDisplay = nDisplay
+	End If
+
+	nDisplay = kpdGetDisplayIDFromElementNo(mnPrevDisplay)
+	Call kpdCreateListOfDisplayTables(nDisplay, marrListOfTables)
+	Alter Control KPD_CTRL_TABLES Title From Variable marrListOfTables Disable
+
+	Call kpdCreateListOfDisplayGroups(nDisplay, marrListOfFullGroupNames)
+	Alter Control KPD_CTRL_GROUPS Title From Variable marrListOfFullGroupNames
+
+	mnPrevIconFile = kpiGetIconElementNo(kpiGetIconShortName$(kpdGetIconFileID(nDisplay)), marrListOfIconFiles)
+	Alter Control KPD_CTRL_ICONFILES_LIST	Value	mnPrevIconFile
+
+	Alter Control KPD_CTRL_ICONNO_EDIT		Value Str$(kpdGetIconNo(nDisplay))
+
+	Alter Control KPD_CTRL_WORFILE_EDIT		Value kpdGetWorkspaceFile$(nDisplay)
+	Alter Control KPD_CTRL_CLOSE_ALL_CHK	Value kpdCloseAllBeforeOpening(nDisplay)
+	Alter Control KPD_CTRL_ACTIVE_CHK		Value kpdActive(nDisplay)
+
+	If marrListOfDisplayNames(mnPrevDisplay) = "(-" Then
+		Alter Control KPD_CTRL_TABLES 		Disable
+		Alter Control KPD_CTRL_TABLES_ADD		Disable
+		Alter Control KPD_CTRL_TABLES_REMOVE	Disable
+		Alter Control KPD_CTRL_GROUPS 		Disable
+		Alter Control KPD_CTRL_GROUPS_ADD		Disable
+		Alter Control KPD_CTRL_GROUPS_REMOVE	Disable
+
+		Alter Control KPD_CTRL_ICONFILES_LIST	Disable
+		Alter Control KPD_CTRL_ICONNO_EDIT		Disable
+
+		Alter Control KPD_CTRL_WORFILE_EDIT		Disable
+		Alter Control KPD_CTRL_WORFILE_BTN		Disable
+		Alter Control KPD_CTRL_CLOSE_ALL_CHK	Disable
+		Alter Control KPD_CTRL_ACTIVE_CHK		Disable
+	Else
+		Alter Control KPD_CTRL_TABLES 		Enable
+		Alter Control KPD_CTRL_TABLES_ADD		Enable
+		Alter Control KPD_CTRL_TABLES_REMOVE	Enable
+		Alter Control KPD_CTRL_GROUPS 		Enable
+		Alter Control KPD_CTRL_GROUPS_ADD		Enable
+		Alter Control KPD_CTRL_GROUPS_REMOVE	Enable
+
+		Alter Control KPD_CTRL_ICONFILES_LIST	Enable
+		Alter Control KPD_CTRL_ICONNO_EDIT		Enable
+
+		Alter Control KPD_CTRL_WORFILE_EDIT		Enable
+		Alter Control KPD_CTRL_WORFILE_BTN		Enable
+		Alter Control KPD_CTRL_CLOSE_ALL_CHK	Enable
+		Alter Control KPD_CTRL_ACTIVE_CHK		Enable
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Sub kpdHandlerChangeDisplayOrder
+
+Dim	nItem, nCtrl, nNewItem, nChangeValue As Integer
+
+OnError GoTo ErrorOccured
+
+	nItem = ReadControlValue(KPD_CTRL_DISPLAYNAMES_LIST)
+	nCtrl	= TriggerControl()
+
+	If nItem = 0 Then
+		Exit Sub
+	End If
+
+	Do Case nCtrl
+		Case KPD_CTRL_DISPLAYNAME_MOVE_UP
+			If nItem <= 2 Then
+				Exit Sub
+			End If
+
+			nChangeValue	= -3
+			nNewItem		= mnPrevDisplay - 1
+		Case KPD_CTRL_DISPLAYNAME_MOVE_DOWN
+			If nItem >= Ubound(marrListOfDisplayNames) Then
+				Exit Sub
+			End If
+
+			nChangeValue 	= 3
+			nNewItem		= mnPrevDisplay + 1
+	End Case
+
+	If kpdChangeOrderByElementNo(nItem, nChangeValue) Then
+		Call kpdCreateListOfDisplayNames(marrListOfDisplayNames)
+		mnPrevDisplay = nNewItem
+		Alter Control KPD_CTRL_DISPLAYNAMES_LIST Title From Variable marrListOfDisplayNames Value mnPrevDisplay
+
+		mbReCreateButtonPad = TRUE
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	En ikonfil blev valgt...
+'********************************************************
+Sub kpdHandlerIkonFilePicked
+
+Dim	nElementNo As Integer
+
+OnError GoTo ErrorOccured
+
+	nElementNo = ReadControlValue(KPD_CTRL_ICONFILES_LIST)
+	If nElementNo = 1 Then
+		If kpiDialogIconFileInfo() Then
+
+			'***Creating list of iconfiles..
+			Call kpiCreateListOfIconFileNames(marrListOfIconFiles)
+			mnPrevIconFile = kpiGetIconElementNo(kpiGetIconShortName$(kpiGetMaxIconFileID()), marrListOfIconFiles)
+			Alter Control KPD_CTRL_ICONFILES_LIST Title From Variable marrListOfIconFiles Value mnPrevIconFile
+		Else
+			Alter Control KPD_CTRL_ICONFILES_LIST Value mnPrevIconFile
+		End If
+	Else
+		mnPrevIconFile = nElementNo
+	End If
+
+	If mnPrevIconFile = 1 OR mnPrevIconFile = 3 Then
+		'Cannot pick icons using the visual picker
+		Alter Control KPD_CTRL_ICONNO_BTN Disable
+	Else
+		Alter Control KPD_CTRL_ICONNO_BTN Enable
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'	Udpeg icon visuelt med IconPicker
+'**********************************************************************************************''
+Sub kpdHandlerPickIconNo
+
+Dim	nIcon, nFileID As Integer,
+	szDLLFile As String
+
+OnError GoTo ErrorOccured
+
+	nFileID	= kpiGetIconFileIDFromElementNo(ReadControlValue(KPD_CTRL_ICONFILES_LIST))
+	szDLLFile	= kpiGetIconFileName$(nFileID)
+	nIcon		= GetUserPickedIconNoFromDLLAtMouse(szDLLFile)
+	If nIcon = 0 Then
+		Exit Sub
+	End If
+
+	Alter Control KPD_CTRL_ICONNO_EDIT Value Str$(nIcon)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'	Udpeg fil med arbejdsområde
+'**********************************************************************************************''
+Sub kpdHandlerPickWorFile
+
+Dim	szFile As String
+
+OnError GoTo ErrorOccured
+
+	szFile	= FileOpenDlg("", "", "WOR", MSG_WOR_PICK_POINTS)
+	If szFile	= "" Then
+		Exit Sub
+	End If
+
+	szFile	= kpaGetRelativeFileName$(szFile)
+
+	Alter Control KPD_CTRL_WORFILE_EDIT Value szFile
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Tilføjer tabel til display...
+'********************************************************
+Sub kpdHandlerAddTable
+
+Dim	nTableID, nDisplayID As Integer
+
+OnError GoTo ErrorOccured
+
+	nTableID = kptDialogSelectTable()
+	If nTableID = 0 Then
+		Exit Sub
+	End If
+
+	nDisplayID = ReadControlValue(KPD_CTRL_DISPLAYNAMES_LIST)
+	If nDisplayID < 2 Then
+		Exit Sub
+	End If
+	nDisplayID = kpdGetDisplayIDFromElementNo(nDisplayID)
+
+	Select * From KPTDISPLAY
+		Where DISPLAYID	= nDisplayID
+		And	TABLEID	= nTableID
+		Into CHECK_IF_EXISTS NoSelect
+
+	If TableInfo("CHECK_IF_EXISTS", TAB_INFO_NROWS) = 0 Then
+		Insert Into KPTDISPLAY
+			(DISPLAYID, TABLEID)
+			Values (nDisplayID, nTableID)
+	End If
+
+	Close Table CHECK_IF_EXISTS
+
+	Call kpdCreateListOfDisplayTables(kpdGetDisplayIDFromElementNo(mnPrevDisplay), marrListOfTables)
+	Alter Control KPD_CTRL_TABLES Title From Variable marrListOfTables
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Tilføjer gruppe til display...
+'********************************************************
+Sub kpdHandlerAddGroup
+
+Dim	nTableID, nDisplayID, nGroupID, nSubGroupID As Integer
+
+OnError GoTo ErrorOccured
+
+	nDisplayID = ReadControlValue(KPD_CTRL_DISPLAYNAMES_LIST)
+	If nDisplayID < 2 Then
+		Exit Sub
+	End If
+
+	If not kpgDialogSelectGroupSetting(nGroupID, nSubGroupID) Then
+		Exit Sub
+	End If
+
+	nDisplayID = kpdGetDisplayIDFromElementNo(nDisplayID)
+
+	Select * From KPTDISPLAY
+		Where DISPLAYID	= nDisplayID
+		And	GROUPID	= nGroupID
+		And	SUBGROUPID	= nSubGroupID
+		Into CHECK_IF_EXISTS NoSelect
+
+	If TableInfo("CHECK_IF_EXISTS", TAB_INFO_NROWS) = 0 Then
+		Insert Into KPTDISPLAY
+			(DISPLAYID, GROUPID, SUBGROUPID)
+			Values (nDisplayID, nGroupID, nSubGroupID)
+	End If
+
+	Close Table CHECK_IF_EXISTS
+
+	Call kpdCreateListOfDisplayGroups(nDisplayID, marrListOfFullGroupNames)
+	Alter Control KPD_CTRL_GROUPS Title From Variable marrListOfFullGroupNames
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - fjern udpeget tabel fra display...
+'********************************************************
+Sub kpdHandlerRemoveTable
+
+Dim	nTab, nDisplay, nTableID, nDisplayID As Integer
+
+OnError GoTo ErrorOccured
+
+	nDisplay	= ReadControlValue(KPD_CTRL_DISPLAYNAMES_LIST)
+	If nDisplay < 2 Then
+		Exit Sub
+	End If
+	nTab		= ReadControlValue(KPD_CTRL_TABLES)
+	If nTab = 0 Then
+		Alter Control KPD_CTRL_TABLES Value 1
+		Exit Sub
+	End If
+
+	nTableID	= kpdGetDisplayTableIDFromElementNo(nTab)
+	nDisplayID 	= kpdGetDisplayIDFromElementNo(nDisplay)
+
+	Select * From KPTDISPLAY
+		Where DISPLAYID = nDisplayID
+		And TABLEID = nTableID
+		Into TO_BE_DELETED NoSelect
+
+	Delete From TO_BE_DELETED
+
+	Close Table TO_BE_DELETED
+
+	Call kpdCreateListOfDisplayTables(nDisplayID, marrListOfTables)
+	If nTab > Ubound(marrListOfTables) Then
+		nTab = Ubound(marrListOfTables)
+	End If
+	Alter Control KPD_CTRL_TABLES Title From Variable marrListOfTables Value nTab
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Fjerne udvalgt gruppe
+'********************************************************
+Sub kpdHandlerRemoveGroup
+
+Dim	nFullGroup, nDisplay, nGroupID, nSubGroupID, nDisplayID As Integer
+
+OnError GoTo ErrorOccured
+
+	nDisplay	= ReadControlValue(KPD_CTRL_DISPLAYNAMES_LIST)
+	If nDisplay < 2 Then
+		Exit Sub
+	End If
+	nFullGroup		= ReadControlValue(KPD_CTRL_GROUPS)
+	If nFullGroup = 0 Then
+		Alter Control KPD_CTRL_GROUPS Value 1
+		Exit Sub
+	End If
+
+	nGroupID	= kpdGetDisplayGroupIDFromElementNo(nFullGroup)
+	nSubGroupID	= kpdGetDisplaySubGroupIDFromElementNo(nFullGroup)
+	nDisplayID 	= kpdGetDisplayIDFromElementNo(nDisplay)
+
+	Select * From KPTDISPLAY
+		Where DISPLAYID = nDisplayID
+		And GROUPID = nGroupID
+		And SUBGROUPID = nSubGroupID
+		Into TO_BE_DELETED NoSelect
+
+	Delete From TO_BE_DELETED
+
+	Close Table TO_BE_DELETED
+
+	Call kpdCreateListOfDisplayGroups(nDisplayID, marrListOfFullGroupNames)
+	If nFullGroup > Ubound(marrListOfFullGroupNames) Then
+		nFullGroup = Ubound(marrListOfFullGroupNames)
+	End If
+	Alter Control KPD_CTRL_GROUPS Title From Variable marrListOfFullGroupNames Value nFullGroup
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Gemmer nuværende indstillinger
+'********************************************************
+Sub kpdHandlerSaveCurrentSetting(ByVal nDisplay As Integer)
+
+Dim	szIconFileID, nIconNo, nDisplayID As Integer,
+	szWorFile As String,
+	bCloseAll, bActive As Logical
+
+OnError GoTo ErrorOccured
+
+	nDisplayID = kpdGetDisplayIDFromElementNo(nDisplay)
+	If nDisplayID = 0 Then
+		Exit Sub
+	End If
+
+	szIconFileID	= kpiGetIconFileIDFromElementNo(ReadControlValue(KPD_CTRL_ICONFILES_LIST))
+	nIconNo 		= Val(ReadControlValue(KPD_CTRL_ICONNO_EDIT))
+	szWorFile		= ReadControlValue(KPD_CTRL_WORFILE_EDIT)
+	bCloseAll		= ReadControlValue(KPD_CTRL_CLOSE_ALL_CHK)
+	bActive		= ReadControlValue(KPD_CTRL_ACTIVE_CHK)
+
+	Select * From KPDISPLAY
+		Where DISPLAYID = nDisplayID
+		Into DISPLAY_TO_UPDATE NoSelect
+
+	If szIconFileID <> DISPLAY_TO_UPDATE.ICONFILEID Then
+		mbReCreateButtonPad = TRUE
+	ElseIf nIconNo <> DISPLAY_TO_UPDATE.ICONNO Then
+		mbReCreateButtonPad = TRUE
+	End If
+
+	Update DISPLAY_TO_UPDATE
+		Set	ICONNO	= nIconNo,
+			ICONFILEID	= szIconFileID,
+			WORFILE	= szWorFile,
+			CLOSEALL	= bCloseAll,
+			ACTIVE	= bActive
+
+	Close Table DISPLAY_TO_UPDATE
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Fjerne udvalgt Display-setup
+'********************************************************
+Sub kpdHandlerRemoveCurrentSetting
+
+Dim	nDisplay, nDisplayID As Integer
+
+OnError GoTo ErrorOccured
+
+	nDisplay	= ReadControlValue(KPD_CTRL_DISPLAYNAMES_LIST)
+	If nDisplay < 2 Then
+		Exit Sub
+	End If
+
+	If Ask(STYL_ASK_REMOVE_SETUP + marrListOfDisplayNames(nDisplay), MSG_NO, MSG_YES) Then
+		Exit Sub
+	End If
+
+	nDisplayID 	= kpdGetDisplayIDFromElementNo(nDisplay)
+
+	If kpdRemoveDisplay(nDisplayID) = RESULT_DISPLAY_SETUP_ERASED Then
+		Call kpdCreateListOfDisplayNames(marrListOfDisplayNames)
+
+		If nDisplay > Ubound(marrListOfDisplayNames) Then
+			nDisplay = Ubound(marrListOfDisplayNames)
+		End If
+		Alter Control KPD_CTRL_DISPLAYNAMES_LIST Title From Variable marrListOfDisplayNames Value nDisplay
+
+		mbSaveSettings	= FALSE
+		mnPrevDisplay	= nDisplay
+		Call kpdHandlerDisplayNamePicked
+
+		mbReCreateButtonPad = TRUE
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'Handler - Læser og husker aktuelt opstartsposition / zoom fra aktivt kortvindue
+'**********************************************************************************************''
+Sub kpdReadStartupPositionFromMap
+
+Dim	nWID As Integer,
+	fCenterX, fCenterY, fZoom As Float
+
+OnError GoTo ErrorOccured
+
+	nWID = FrontWindow()
+	If nWID = 0 Then
+		Note ERR_WIN_NO_MAP_OPEN
+		Exit Sub
+	ElseIf WindowInfo(nWID, WIN_INFO_TYPE) <> WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Sub
+	End If
+
+	Set CoordSys Earth
+	Set Distance Units "m"
+	fCenterX	= MapperInfo(nWID, MAPPER_INFO_CENTERX)
+	fCenterY	= MapperInfo(nWID, MAPPER_INFO_CENTERY)
+	fZoom		= MapperInfo(nWID, MAPPER_INFO_ZOOM)
+
+	Call kpaSetCenterAndZoomForNewMap("X", fCenterX)
+	Call kpaSetCenterAndZoomForNewMap("Y", fCenterY)
+	Call kpaSetCenterAndZoomForNewMap("ZOOM", fZoom)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Dialog - navngiv nyt Displaysetup
+'********************************************************
+Function kpdDialogCreateNewDisplay() As Logical
+
+Dim	szName As String,
+	nDisplayID As Integer,
+	bSeparator As Logical
+
+OnError GoTo ErrorOccured
+
+kpdDialogCreateNewDisplay = FALSE
+
+'-------------------------
+ShowDialogAgain:
+
+	Dialog
+		Title STYL_DLG_TITLE_NEW_MULTILAYER
+
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_DESCRIPTION
+		Control EditText		Position 5,15	Width 180
+			Value szName
+			Into szName
+
+		Control CheckBox		Position 5,32
+			Title "Separator"
+			Value FALSE
+			Into bSeparator
+
+		Control OKButton		Position 95,30
+		Control CancelButton	Position 140,30
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	ElseIf szName = "" AND NOT bSeparator Then
+		Exit Function
+	End If
+
+	If bSeparator Then
+		Insert Into KPDISPLAY
+			(DISPLAYID, DISPLAYNAME, ACTIVE)
+			Values (kpdGetNextSeparatorID(), "(-", TRUE)
+	Else
+		nDisplayID = kpdGetDisplayID(szName)
+
+		If nDisplayID = 0 Then
+			Insert Into KPDISPLAY
+				(DISPLAYID, ICONFILEID, ICONNO, DISPLAYNAME, ACTIVE)
+				Values (kpdGetNextDisplayID(), ICONFILEID_DEFAULT_THEME, 1, szName, TRUE)
+		Else
+			Note ERR_STYL_MULTILAYER_NAME_EXISTS + szName
+			GoTo ShowDialogAgain
+		End If
+	End If
+
+kpdDialogCreateNewDisplay = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function

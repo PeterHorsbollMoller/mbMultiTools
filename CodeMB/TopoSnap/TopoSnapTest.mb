@@ -1,0 +1,457 @@
+'***************************************************************************
+'**
+'** Name:	TopoSnapTest
+'**
+'** Purpose:	Test of Topological snap in objects in multiple Mapinfo tables,
+'** 		with inserting of common/shared points
+'**
+'** Developed:	07.04.2000 SØF
+'** Last modi:	27.04.2000 SØF
+'**
+'***************************************************************************
+
+Include "MapBasic.def"
+Include "menu.def"
+Include "icons.def"
+
+Include "..\TopoSnap.def"
+Include "TopoSnapTest.def"
+Include "Snaptab-sub.def"
+Include "..\..\GeoFunc\geofunc.def"
+
+
+
+'**Definitions: Layer to be edited, info about this layer (from PEM)
+
+Global	gszEditLayer, gszThemeName As String,
+		gnRowsInLayer As Integer
+
+'*************
+
+Declare Sub TopoSnap (
+		pSearchPnt as T_POINT,		'* Current search/snap point.
+		ByVal strTabName as String,	'* Name of current editable table.
+		ByVal intRowId as Integer	'* Row Id of newly created object (0 if none).
+		)
+
+Declare Sub Main
+
+Declare Sub TopoSnapTest
+Declare Sub TopoSnapParam
+Declare Sub TopoSnapPolyline
+Declare Sub TopoSnapRegion
+Declare Sub WinChangedHandler
+
+
+'---------------------------------------------------------------------------
+' Main
+'---------------------------------------------------------------------------
+Sub Main
+
+	strPrgName = "TopoSnap"
+	strPrgIden = "Topological snap"
+
+
+	gbooTopoSnapActive = FALSE	'** Deactivate TopoSnap.
+	
+	gfltLinSnpDist = 5.0		'** Tolerance for line snap for ref. zoom level.
+	gfltRefZoom    = 500		'** Ref. zoom level for snap tol.
+	gfltIdPntDist  = 1.0		'** Tolerance for identical points.
+
+	gfltTolIdCoor  = 0.001		'** Tolerance for identical coordinate values.
+
+	gintSeaMode    = 2		'** Search mode.
+
+	gbooSnapCosmetic = FALSE
+
+
+	'** Create TopoSnap toolbutton Pad.
+	
+	Create ButtonPad strPrgname As
+	
+	ToolButton	Calling List ID 1
+		Icon		MI_ICON_INFO
+		Cursor		MI_CURSOR_CROSSHAIR
+		Drawmode	DM_CUSTOM_POINT
+		HELPMsg		"Udpeg objekt\nUdpeg list obj"
+
+	ToolButton	Calling Snap ID 2
+		Icon		MI_ICON_SEARCH_RECT
+		Cursor		MI_CURSOR_FINGER_LEFT
+		Drawmode	DM_CUSTOM_RECT
+		HELPMsg		"Drag snap rektangel\nDrag snap rekt"
+  
+	ToolButton	Calling Snap ID 3
+		Icon		MI_ICON_SEARCH_RADIUS
+		Cursor		MI_CURSOR_FINGER_LEFT
+		Drawmode	DM_CUSTOM_LINE
+		HELPMsg		"Drag snap cirkel\nDrag snap cirkel/R-line"
+
+	Separator
+	
+	ToolButton	Calling TopoSnapTest ID 4
+		Icon		MI_ICON_ADD_NODE
+		Cursor		MI_CURSOR_CROSSHAIR
+		Drawmode	DM_CUSTOM_POINT
+		HELPMsg		strPrgName + ": " + strPrgIden
+
+	Separator
+
+	PushButton	Calling TopoSnapParam ID 5
+		Icon		MI_ICON_COMMUNICATION_1
+		HELPMsg		strPrgName + ": Enter TopoSnap parameters"
+
+	Separator
+	
+	PushButton	Calling TopoSnapPolyline ID 6
+		Icon		MI_ICON_POLYLINE
+''		Cursor		MI_CURSOR_CROSSHAIR
+		HELPMsg		strPrgName + ": " + strPrgIden + " Digitize POLYLINE"
+
+	PushButton	Calling TopoSnapRegion ID 7
+		Icon		MI_ICON_POLYGON
+''		Cursor		MI_CURSOR_CROSSHAIR
+		HELPMsg		strPrgName + ": " + strPrgIden + " Digitize REGION"
+
+	Title strPrgName
+	Width 11
+	Position (0.4, 1.0)
+
+	'** Add Activate toggle button.
+	
+	Call TopoSnapSetup ( strPrgname, 10 )
+
+	'** Original source from TopoSnapSetup
+
+	Alter ButtonPad strPrgName
+		Add ToggleButton	Calling TopoSnapActToggle Id gintTopoSnapButtonId
+			Icon		MI_ICON_COMMUNICATION_3
+			HELPMsg		strPrgName + ": Toggle " + strPrgIden
+			Uncheck
+
+
+
+	Print strPrgName + " is active"
+
+End Sub
+
+
+
+'---------------------------------------------------------------------------
+'**	Topological snap test
+'---------------------------------------------------------------------------
+Sub TopoSnapTest
+
+Dim pSearchPnt		as T_POINT	'* Current search/snap point
+Dim intWinId		as Integer	'* Current window identifier.
+Dim idxTab		as Integer	'* Index to current table.
+
+
+	intWinId = FrontWindow()
+	If WindowInfo(intWinId, WIN_INFO_TYPE) <> WIN_MAPPER then
+		Note strPrgName + " only works on a map window"
+		Exit Sub
+	end if
+
+	Set Format Number "Local"
+
+	Set Map Window intWinId Redraw Off
+
+	'-print "MapperInfo(): " + MapperInfo(intWinId,MAPPER_INFO_XYUNITS)
+	'-if MapperInfo(intWinId,MAPPER_INFO_XYUNITS) <> "m" then
+
+	If gintDebugLev >= 1 then
+		Print "-------------------------------------------------------------------"
+		print strPrgName + ": " + strPrgIden + " - Begin: " + Time(24)
+	end if
+
+
+	'** Set MapInfo coord system.
+
+	For idxTab = 1 to NumTables()
+		if TableInfo(idxTab,TAB_INFO_MAPPABLE_TABLE) then
+			Set Map
+				CoordSys Table TableInfo(idxTab,TAB_INFO_NAME)
+				XY Units "m"
+				Distance Units "m"
+			Exit For
+		end if
+	Next	'idxTab
+
+
+	'** Get picked point and perform snap search.
+
+	pSearchPnt.X = CommandInfo(CMD_INFO_X)
+	pSearchPnt.Y = CommandInfo(CMD_INFO_Y)
+
+
+	'** Call Topo Snap routine
+	
+	Call TopoSnap (pSearchPnt, " ", 0)
+
+	If gintDebugLev >= 1 then
+		Print "-------------------------------------------------------------------"
+		print strPrgName + ": " + strPrgIden + " - End: " + Time(24)
+	end if
+
+End Sub
+
+
+'---------------------------------------------------------------------------
+'**	GUI for entering Parameters
+'---------------------------------------------------------------------------
+Sub TopoSnapParam
+
+
+	Dialog  
+		Title strPrgName + ": " + strPrgIden 
+
+	Control StaticText	Position  10, 15 Width 100 Height 10
+		Title "Tolerance for line snap:"
+	Control EditText	Position 110, 15 Width  30 Height 10
+		Value gfltLinSnpDist
+		Into  gfltLinSnpDist
+
+	Control StaticText	Position  10, 30 Width 100 Height 10
+		Title "At Zoom level (m):"
+	Control EditText	Position 110, 30 Width  30 Height 10
+		Value gfltRefZoom
+		Into  gfltRefZoom
+
+	Control StaticText	Position  10, 45 Width 100 Height 10
+		Title "Tolerance for identical points:"
+	Control EditText	Position 110, 45 Width  30 Height 10
+		Value gfltIdPntDist
+		Into  gfltIdPntDist
+
+	Control CheckBox	Position  10, 60
+		Title "Snap in Cosmetic Layer"
+		Value gbooSnapCosmetic
+		Into  gbooSnapCosmetic
+
+	Control RadioGroup 	Position  10, 75
+		Title "&SearchPoint;&Select buffer" 
+		Value gintSeaMode
+		Into  gintSeaMode
+
+	Control StaticText	Position  10,110 Width 100 Height 10	Id 30
+		Title "Debug level:"
+'		Hide
+	Control EditText	Position 110,110 Width  30 Height 10	Id 31
+		Value gintDebugLev
+		Into  gintDebugLev
+'		Hide
+
+	Control OKButton	Position  50,  130
+	Control CancelButton	Position 100,  130
+
+
+'	If gintDebugLev >= 0 then
+'		Alter Control 30 Show
+'		Alter Control 31 Show
+'	end if
+
+	If CommandInfo(CMD_INFO_DLG_OK) Then 
+
+		Print "Tolerance for line snap:        " + gfltLinSnpDist
+		Print "Ref Zoom level:                 " + gfltRefZoom
+		Print "Tolerance for identical points: " + gfltIdPntDist
+		Print "Search mode:                    " + gintSeaMode
+	End If 
+
+End Sub
+
+
+'---------------------------------------------------------------------------
+'**	Polyline digit with topological snap in end point.
+'---------------------------------------------------------------------------
+Sub TopoSnapPolyline
+
+Dim intWinId		as Integer	'* Current window identifier.
+Dim intEditLayer	as Integer	'* Current editable layer.
+
+
+	intWinId = FrontWindow()
+	If WindowInfo(intWinId, WIN_INFO_TYPE) <> WIN_MAPPER then
+		Note strPrgName + " only works on a map window"
+		Exit Sub
+	end if
+
+	Set Format Number "Local"
+
+	Set Map Window intWinId Redraw Off
+
+
+	If gintDebugLev >= 1 then
+		Print "-------------------------------------------------------------------"
+		print strPrgName + ": " + strPrgIden + " Polyline - Begin: " + Time(24)
+	end if
+
+
+	'>> Set active drawing layer (TEST)
+
+''	gszEditLayer = "Testdigi"
+	intEditLayer = MapperInfo(intWinId, MAPPER_INFO_EDIT_LAYER)
+	If gintDebugLev >= 1 then
+		Print "intEditLayer=" + intEditLayer
+	end if
+	If intEditLayer = -1 then
+		Note strPrgName + ": No editable table found !"
+		Exit Sub
+	end if
+	
+	gszEditLayer = LayerInfo(intWinId, intEditLayer, LAYER_INFO_NAME)
+	If gintDebugLev >= 1 then
+		Print "gscEditLayer=" + gszEditLayer
+	end if
+
+	gnRowsInLayer = TableInfo(gszEditLayer, TAB_INFO_NROWS)
+
+	''Set Map Layer gszEditLayer
+	''	Editable On
+
+	'** Activate Windows Handler and Tool.
+	
+	Set Handler WinChangedHandler On
+
+	If gintDebugLev >= 1 then
+		print "M_TOOLS_POLYLINE activate ..."
+	end if
+	
+	Run Menu Command M_TOOLS_POLYLINE
+
+
+	'** Deactivate  Windows Handler
+	
+'??	Set Handler WinChangedHandler Off
+	
+	
+	If gintDebugLev >= 1 then
+		print strPrgName + ": zzz"
+	end if
+	
+End Sub
+
+
+'---------------------------------------------------------------------------
+'**	Region/Polygon digit with topological snap in end point.
+'---------------------------------------------------------------------------
+Sub TopoSnapRegion
+
+Dim intWinId		as Integer	'* Current window identifier.
+Dim intEditLayer	as Integer	'* Current editable layer.
+
+
+	intWinId = FrontWindow()
+	If WindowInfo(intWinId, WIN_INFO_TYPE) <> WIN_MAPPER then
+		Note strPrgName + " only works on a map window"
+		Exit Sub
+	end if
+
+	Set Format Number "Local"
+
+	Set Map Window intWinId Redraw Off
+
+
+	If gintDebugLev >= 1 then
+		Print "-------------------------------------------------------------------"
+		print strPrgName + ": " + strPrgIden + " Region - Begin: " + Time(24)
+	end if
+
+
+	'>> Set active drawing layer (TEST)
+
+''	gszEditLayer = "Testdigi"
+	intEditLayer = MapperInfo(intWinId, MAPPER_INFO_EDIT_LAYER)
+	If gintDebugLev >= 1 then
+		Print "intEditLayer=" + intEditLayer
+	end if
+	If intEditLayer = -1 then
+		Note strPrgName + ": No editable table found !"
+		Exit Sub
+	end if
+	
+	gszEditLayer = LayerInfo(intWinId, intEditLayer, LAYER_INFO_NAME)
+	If gintDebugLev >= 1 then
+		Print "gscEditLayer=" + gszEditLayer
+	end if
+
+	gnRowsInLayer = TableInfo(gszEditLayer, TAB_INFO_NROWS)
+
+	Set Map Layer gszEditLayer
+		Editable On
+
+	'** Activate Windows Handler and Tool.
+	
+	Set Handler WinChangedHandler On
+
+	If gintDebugLev >= 1 then
+		print "M_TOOLS_POLYGON activate ..."
+	end if
+	
+	Run Menu Command M_TOOLS_POLYGON
+
+
+	'** Deactivate  Windows Handler
+	
+'??	Set Handler WinChangedHandler Off
+	
+	
+	If gintDebugLev >= 1 then
+		print strPrgName + ": zzz"
+	end if
+	
+End Sub
+
+
+'****************************************
+'Handler til opfangning af nye objekter...
+'****************************************
+Sub WinChangedhandler
+
+Dim	nRow As Integer,
+	a As Alias,
+	szDate As String
+
+
+'??	If CommandInfo(CMD_INFO_CTRL) Then
+'??		Print "WinChangedHandler: CMD_INFO_CTRL"
+'??	end if
+
+	Set Handler WinChangedHandler Off
+
+Print "WinChangedHandler activated"
+
+
+	If gszEditLayer = "" Then
+		Exit Sub
+	End If
+
+	If gnRowsInLayer = TableInfo(gszEditLayer, TAB_INFO_NROWS) Then
+		Exit Sub
+	ElseIf gnRowsInLayer > TableInfo(gszEditLayer, TAB_INFO_NROWS) Then
+		gnRowsInLayer = TableInfo(gszEditLayer, TAB_INFO_NROWS)
+		Exit Sub
+	End If
+
+	Fetch Last From gszEditLayer
+	a = gszEditLayer + ".RowID"	nRow = a
+
+''Print "WinChangedHandler: a=" + a + "; nRow=" + nRow
+
+	Print "gbooTopoSnapActive=" + gbooTopoSnapActive
+
+	Call TopoSnapDigiObjExec (gszEditLayer, nRow)
+
+	'***Here is supposed to be a insert of alfanummeric values...
+'	If not kpvUpdateTableWithValues(gszEditLayer, gnCurrentStyleID, nRow, TRUE, TRUE) Then
+'		Print "Problem med opdatering af værdier!"
+'	End If
+	'****
+
+	gnRowsInLayer = TableInfo(gszEditLayer, TAB_INFO_NROWS)
+
+	Set Handler WinChangedHandler On
+
+End Sub
+

@@ -1,0 +1,160 @@
+'*******************************************************************************
+'** 	Program:	DLLView
+'** 	Modul:	DLLView	
+'**			Visning af MapInfo knapikoner i dll
+'*******************************************************************************
+
+Include "MapBasic.def"
+Include "Icons.def"
+Include "Menu.def"
+
+Include "..\Language\Errors.lng"
+Include "..\Language\Message.lng"
+
+Include "DLLView.def"
+Include "..\Time\Time.def"
+Include "..\APIFunc\APIFunc.def"
+
+Declare Function GetFocus Lib "User32"() as Integer
+Declare Function GetIconNumDLL Lib "DllView.DLL" Alias "GetIconNumExt"
+			(ByVal Handle As Integer, ByVal szPath as string) As Integer
+Declare Function GetIconNumExtDLL Lib "DllView.DLL" Alias "GetIconNumExt"
+			(	ByVal Handle As Integer, ByVal szPath As String,
+				ByVal nLeftPos As Integer, ByVal nTopPos As Integer) As Integer
+Declare Function GetIconNum Lib "DllView" Alias "GetIconNumExt"
+			(ByVal Handle As Integer, ByVal szPath as string) As Integer
+Declare Function GetIconNumExt Lib "DllView" Alias "GetIconNumExt"
+			(	ByVal Handle As Integer, ByVal szPath As String,
+				ByVal nLeftPos As Integer, ByVal nTopPos As Integer) As Integer
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function GetUserPickedIconNoFromDLL(ByVal szDLLPath As String) As Integer
+
+Dim	nIcon As Integer
+
+OnError GoTo ErrorOccured
+
+GetUserPickedIconNoFromDLL = 0
+
+	If szDLLPath = "" Then
+		Exit Sub
+	ElseIf szDLLPath = MSG_NONE Then
+		Exit Sub
+	ElseIf PathToFileName$(szDLLPath) = "DllView.dll" Then
+		Note ERR_ICONFILE_UNUSABLE_FOR_ICONS
+		Exit Sub
+	End If
+
+	If not FileExists(szDLLPath) Then
+		Note ERR_ICONFILE_NOT_FOUND & szDLLPath
+		Exit Sub
+	End If
+
+	nIcon = GetIconNum(GetFocus(), szDLLPath)
+
+	GetUserPickedIconNoFromDLL = nIcon
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function GetUserPickedIconNoFromDLLExt(	ByVal szDLLPath As String,
+							ByVal nPosLeft As Integer, ByVal nPosTop As Integer) As Integer
+
+Dim	nIcon As Integer
+
+OnError GoTo ErrorOccured1
+
+GetUserPickedIconNoFromDLLExt = 0
+
+	If szDLLPath = "" Then
+		Exit Sub
+	ElseIf szDLLPath = MSG_NONE Then
+		Exit Sub
+	ElseIf PathToFileName$(szDLLPath) = "DllView.dll" Then
+		Note ERR_ICONFILE_UNUSABLE_FOR_ICONS
+		Exit Sub
+	End If
+
+	If not FileExists(szDLLPath) Then
+		Note ERR_ICONFILE_NOT_FOUND & szDLLPath
+		Exit Sub
+	End If
+
+	nIcon = GetIconNumExtDLL(GetFocus(), szDLLPath, nPosLeft, nPosTop)
+	GetUserPickedIconNoFromDLLExt = nIcon
+	
+	Exit Function
+'-------------------------
+ErrorOccured1:
+	Note ERR_ERRORMSG + Error$()
+
+OnError GoTo ErrorOccured
+
+	nIcon = GetIconNumExt(GetFocus(), szDLLPath, nPosLeft, nPosTop)
+	GetUserPickedIconNoFromDLLExt = nIcon
+
+	Exit Function
+
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Viser dialog til udpegning af icon hvor musen befinder sig.
+'**********************************************************************************************''
+Function GetUserPickedIconNoFromDLLAtMouse(ByVal szDLLPath As String) As Integer
+
+Dim	nIcon, nPosLeft, nPosTop As Integer
+
+OnError GoTo ErrorOccured1
+
+GetUserPickedIconNoFromDLLAtMouse = 0
+
+	If szDLLPath = "" Then
+		Exit Sub
+	ElseIf szDLLPath = MSG_NONE Then
+		Exit Sub
+	ElseIf PathToFileName$(szDLLPath) = "DllView.dll" Then
+		Note ERR_ICONFILE_UNUSABLE_FOR_ICONS
+		Exit Sub
+	End If
+
+	If not FileExists(szDLLPath) Then
+		Note ERR_ICONFILE_NOT_FOUND & szDLLPath
+		Exit Sub
+	End If
+
+	nPosLeft	= APIGetCursorPositionX()
+	nPosTop	= APIGetCursorPositionY()
+
+	nIcon = GetIconNumExtDLL(GetFocus(), szDLLPath, nPosLeft, nPosTop)
+	GetUserPickedIconNoFromDLLAtMouse = nIcon
+	
+	Exit Function
+'-------------------------
+ErrorOccured1:
+	Note ERR_ERRORMSG + Error$()
+
+OnError GoTo ErrorOccured
+
+	nIcon = GetIconNumExt(GetFocus(), szDLLPath, nPosLeft, nPosTop)
+	GetUserPickedIconNoFromDLLAtMouse = nIcon
+
+	Exit Function
+
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Function

@@ -1,0 +1,80 @@
+Define STYLE_DONT_USE		-999999
+
+Define STYLE_PRE_PEN		MakePen(1,2,0)
+Define STYLE_PRE_BRUSH		MakeBrush(2,0,0)
+Define STYLE_PRE_SYMBOL		MakeSymbol(35,0,12)
+Define STYLE_PRE_FONT		MakeFont("Times",0,9,0,-1)
+Define STYLE_PRE_LINE		MakePen(1,2,0)
+
+Define STYLE_INVISIBLE_BRUSH	MakeBrush(1,0,0)
+Define STYLE_INVISIBLE_PEN	MakePen(1,1,0)
+
+'**Start values for buttonID...
+Define BTN_ID_LINE		100
+Define BTN_ID_POLYGON		300
+Define BTN_ID_SYMBOL		500
+Define BTN_ID_FONT		700
+Define BTN_ID_DISPLAY		2000
+
+'**Special values
+Define GROUPID_NONE			-99
+Define GROUPID_ALL			-1
+Define GROUPID_UNKNOWN			0
+Define SUBGROUPID_NONE			-99
+Define SUBGROUPID_ALL			-1
+Define SUBGROUPID_UNKNOWN		0
+
+Define VAL_LAYERID_ALL_BY_TAB		-1
+
+Define VAL_LAYER_UNSORTED		0
+
+Define RESULT_GROUP_SETUP_NOT_CREATED	-1
+Define RESULT_GROUP_SETUP_CREATED		1
+Define RESULT_GROUP_SETUP_EXISTED		0
+Define RESULT_GROUP_SETUP_NOT_ERASED	-11
+Define RESULT_GROUP_SETUP_ERASED		11
+Define RESULT_GROUP_SETUP_DIDNOT_EXIST	10
+Define RESULT_LAYER_SETUP_NOT_ERASED	-1
+Define RESULT_LAYER_SETUP_ERASED		1
+Define RESULT_LAYER_SETUP_DIDNOT_EXIST	0
+Define RESULT_DISPLAY_SETUP_NOT_ERASED	-1
+Define RESULT_DISPLAY_SETUP_ERASED		1
+Define RESULT_DISPLAY_SETUP_DIDNOT_EXIST	0
+
+'***ICONFILEID for default iconfiles...
+Define ICONFILEID_DEFAULT_THEME	-1	
+Define ICONFILEID_DEFAULT_MI		-2
+
+'**Name of Theme pads...
+'Define PAD_THEME_LINE		"Tema Linie"
+'Define PAD_THEME_POLYGON	"Tema Region"
+'Define PAD_THEME_SYMBOL		"Tema Symbol"
+'Define PAD_THEME_FONT		"Tema Tekst"
+
+'**Columns to update by creation of new objects...
+'Define STYLE_COLUMN_NAME		"Objekttype"
+'Define STYLE_COLUMN_USERID		"BrugerID"
+'Define STYLE_COLUMN_DATE		"Oprind_Dato"
+
+'Type Styles
+'	ID As Integer
+'	Table As String
+'	Name As String
+'	IconFile As String
+'	Icon As Integer
+'	UseLine As Logical
+'	LineStyle As Pen
+'	UsePen As Logical
+'	PenStyle As Pen
+'	UseBrush As Logical
+'	BrushStyle As Brush
+'	UseSymbol As Logical
+'	SymbolStyle As Symbol
+'	UseFont As Logical
+'	FontStyle As Font
+'	Edited As Logical
+'End Type
+
+'**Definitions: Delete and Create ButtonPad:
+'Global	gbPolygonCreate, gbLineCreate As Logical,
+'		gbFontCreate, gbSymbolCreate As Logical 

@@ -1,0 +1,6 @@
+Declare Function PDAExportSearch() As Logical
+Declare Function PDAExportThemeButtons(ByVal szKPSystemPath As String) As Logical
+
+Declare Sub PDAReadIniFile(ByVal szFile As String)
+Declare Sub PDAWriteIniFile(ByVal nFile As Integer)
+

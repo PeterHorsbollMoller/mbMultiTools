@@ -1,0 +1,1661 @@
+'*******************************************************************************
+'** 	Modul:	Time.mb
+'**			Module for timefunctions...
+'*******************************************************************************
+Include "MapBasic.def"
+
+
+Include "Time.def"
+
+Include "..\Language\TimeDate.lng"
+
+'**********************************************************************************************''
+'Get Current time - hour.minuts.seconds
+'**********************************************************************************************''
+Function GetTime$() As String
+
+Dim	stimNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+
+	GetTime$	= 	Right$("0" & Str$(stimNow.wHour),2)
+			& ":" & Right$("0" & Str$(stimNow.wMinute),2)
+			& ":" & Right$("0" & Str$(stimNow.wSecond),2)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Get Current hour
+'**********************************************************************************************''
+Function GetHour() As SmallInt
+
+Dim	stimNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+	GetHour = stimNow.wHour
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Get Current minute
+'**********************************************************************************************''
+Function GetMinute() As SmallInt
+
+Dim	stimNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+	GetMinute = stimNow.wMinute
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Get Current second
+'**********************************************************************************************''
+Function GetSecond() As SmallInt
+
+Dim	stimNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+	GetSecond = stimNow.wSecond
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Get Current millisecond
+'**********************************************************************************************''
+Function GetMilliSecond() As SmallInt		'@METAGS GetMilliSecond
+
+Dim	stimNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+	GetMilliSecond = stimNow.wMilliSeconds
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Sammenligner to SYSTEMTIME, og returnerer om 1 er nyest, 2 er nyest eller om de er samme alder
+'**********************************************************************************************''
+Function TIMECompareSystemTimes(stFirst As SYSTEMTIME, stSecond As SYSTEMTIME) As Integer
+
+OnError GoTo ErrorOccured
+
+	If TIMEAreSystemTimesEqual(stFirst, stSecond) Then
+		TIMECompareSystemTimes = TIME_COMP_SAME_TIME			'0
+	ElseIf TIMEIsFirstSystemTimeNewest(stFirst, stSecond) Then
+		TIMECompareSystemTimes = TIME_COMP_FIRST_NEWEST			'1
+	ElseIf TIMEIsFirstSystemTimeNewest(stSecond, stFirst) Then
+		TIMECompareSystemTimes = TIME_COMP_SECOND_NEWEST		'2
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer om de 2 SYSTEMTIME er nøjagtig ens
+'**********************************************************************************************''
+Function TIMEAreSystemTimesEqual(stFirst As SYSTEMTIME, stSecond As SYSTEMTIME) As Logical
+
+OnError GoTo ErrorOccured
+
+TIMEAreSystemTimesEqual = FALSE
+
+	If stFirst.wMilliSeconds <> stSecond.wMilliSeconds Then
+		Exit Function
+	ElseIf stFirst.wSecond <> stSecond.wSecond Then
+		Exit Function
+	ElseIf stFirst.wMinute <> stSecond.wMinute Then
+		Exit Function
+	ElseIf stFirst.wHour <> stSecond.wHour Then
+		Exit Function
+	ElseIf stFirst.wDay <> stSecond.wDay Then
+		Exit Function
+	ElseIf stFirst.wMonth <> stSecond.wMonth Then
+		Exit Function
+	ElseIf stFirst.wYear <> stSecond.wYear Then
+		Exit Function
+	End If
+
+TIMEAreSystemTimesEqual = TRUE
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer om den første SYSTEMTIME er nyest/størst
+'Hvis de er lige gamle/nye returneres FALSE
+'**********************************************************************************************''
+Function TIMEIsFirstSystemTimeNewest(stFirst As SYSTEMTIME, stSecond As SYSTEMTIME) As Logical
+
+Dim	nMilliSecFirst, nMilliSecSecond As Integer
+
+OnError GoTo ErrorOccured
+
+	If stFirst.wYear > stSecond.wYear Then
+'		Print "Year: " & stFirst.wYear & " > " & stSecond.wYear
+		TIMEIsFirstSystemTimeNewest = TRUE
+		Exit Function
+	ElseIf stFirst.wYear < stSecond.wYear Then
+'		Print "Year: " & stFirst.wYear & " < " & stSecond.wYear
+		TIMEIsFirstSystemTimeNewest = FALSE
+		Exit Function		
+	End If
+
+	If stFirst.wMonth > stSecond.wMonth Then
+'		Print "Month: " & stFirst.wMonth & " > " & stSecond.wMonth
+		TIMEIsFirstSystemTimeNewest = TRUE
+		Exit Function
+	ElseIf stFirst.wMonth < stSecond.wMonth Then
+'		Print "Month: " & stFirst.wMonth & " < " & stSecond.wMonth
+		TIMEIsFirstSystemTimeNewest = FALSE
+		Exit Function		
+	End If
+
+	If stFirst.wDay > stSecond.wDay Then
+'		Print "Day: " & stFirst.wDay & " > " & stSecond.wDay
+		TIMEIsFirstSystemTimeNewest = TRUE
+		Exit Function
+	ElseIf stFirst.wDay < stSecond.wDay Then
+'		Print "Day: " & stFirst.wDay & " < " & stSecond.wDay
+		TIMEIsFirstSystemTimeNewest = FALSE
+		Exit Function		
+	End If
+
+	'**The day is the same, let's look at the milliseconds from midnight
+	nMilliSecFirst	= TIMEHoursToMilliSeconds(stFirst.wHour)
+					+ TIMEMinutsToMilliSeconds(stFirst.wMinute)
+					+ TIMESecondsToMilliSeconds(stFirst.wSecond)
+					+ stFirst.wMilliSeconds
+	nMilliSecSecond	= TIMEHoursToMilliSeconds(stSecond.wHour)
+					+ TIMEMinutsToMilliSeconds(stSecond.wMinute)
+					+ TIMESecondsToMilliSeconds(stSecond.wSecond)
+					+ stSecond.wMilliSeconds
+
+	If nMilliSecFirst > nMilliSecSecond Then
+		TIMEIsFirstSystemTimeNewest = TRUE
+		Exit Function
+	End If
+	
+TIMEIsFirstSystemTimeNewest = FALSE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Get Time spent - milliseconds..
+'**********************************************************************************************''
+Function TimeSpent(prevTime As SYSTEMTIME) As Integer		'@METAGS TimeSpent
+
+Dim	stimNow As SYSTEMTIME,
+	nMilliSecNow, nMilliSecBefore As Integer
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+
+	nMilliSecBefore 	= TIMEHoursToMilliSeconds(prevTime.wHour)
+					+ TIMEMinutsToMilliSeconds(prevTime.wMinute)
+					+ TIMESecondsToMilliSeconds(prevTime.wSecond)
+					+ prevTime.wMilliSeconds
+	nMilliSecNow	= TIMEHoursToMilliSeconds(stimNow.wHour)
+					+ TIMEMinutsToMilliSeconds(stimNow.wMinute) 
+					+ TIMESecondsToMilliSeconds(stimNow.wSecond) 
+					+ stimNow.wMilliSeconds
+
+	TimeSpent = nMilliSecNow - nMilliSecBefore
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function TIMEMilliSecondsSpent(stPrev As SYSTEMTIME) As Integer
+
+Dim	stimNow As SYSTEMTIME,
+	nDays, nMilliSecNow, nMilliSecBefore As Integer
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+
+	nDays			= TIMEDaysBetween(stimNow, stPrev)
+
+	nMilliSecBefore 	= TIMEHoursToMilliSeconds(prevTime.wHour)
+					+ TIMEMinutsToMilliSeconds(prevTime.wMinute)
+					+ TIMESecondsToMilliSeconds(prevTime.wSecond)
+					+ prevTime.wMilliSeconds
+	nMilliSecNow	= TIMEHoursToMilliSeconds(stimNow.wHour)
+					+ TIMEMinutsToMilliSeconds(stimNow.wMinute) 
+					+ TIMESecondsToMilliSeconds(stimNow.wSecond) 
+					+ stimNow.wMilliSeconds
+
+TIMEMilliSecondsSpent	= TIMEDaysToMilliSeconds(nDays) + (nMilliSecNow - nMilliSecBefore)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function TIMEHoursSpent(stThen As SYSTEMTIME) As Integer
+
+Dim	nHours, nDays As Integer,
+	stNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stNow)
+
+	nDays		= TIMEDaysBetween(stNow, stThen)
+	nHours	= TIMEDaysToHours(nDays) + (stNow.wHour - stThen.wHour)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Antal dage mellem 2 SYSTEMTIME's
+'**********************************************************************************************''
+Function TIMEDaysBetween(stNow As SYSTEMTIME, stThen As SYSTEMTIME) As Integer
+
+Dim	dNow, dPrev As Date
+
+OnError GoTo ErrorOccured
+
+	dNow	= GetDateFromSystemTime(stNow)
+	dPrev	= GetDateFromSystemTime(stThen)
+	
+	TIMEDaysBetween = dNow - dPrev
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Konvereter secunder til millisekunder
+'**********************************************************************************************''
+Function TIMESecondsToMilliSeconds(ByVal nSeconds As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	TIMESecondsToMilliSeconds = 1000 * nSeconds
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Konvereter minutter til millisekunder
+'**********************************************************************************************''
+Function TIMEMinutsToMilliSeconds(ByVal nMinuts As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	TIMEMinutsToMilliSeconds = TIMESecondsToMilliSeconds(TIMEMinutsToSeconds(nMinuts))
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Konvereter minutter til millisekunder
+'**********************************************************************************************''
+Function TIMEMinutsToSeconds(ByVal nMinuts As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	TIMEMinutsToSeconds = nMinuts * 60
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Konvereter timer til millisekunder
+'**********************************************************************************************''
+Function TIMEHoursToMilliSeconds(ByVal nHours As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	TIMEHoursToMilliSeconds = TIMEMinutsToMilliSeconds(TIMEHoursToMinuts(nHours))
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Konvereter timer til millisekunder
+'**********************************************************************************************''
+Function TIMEHoursToMinuts(ByVal nHours As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	TIMEHoursToMinuts = nHours * 60
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Konvereter dage til millisekunder
+'**********************************************************************************************''
+Function TIMEDaysToMilliSeconds(ByVal nDays As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	TIMEDaysToMilliSeconds = TIMEHoursToMilliSeconds(TIMEDaysToHours(nDays))
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Konvereter dage til millisekunder
+'**********************************************************************************************''
+Function TIMEDaysToHours(ByVal nDays As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	TIMEDaysToHours = nDays * 24
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Returnerer dato ud fra systemtid
+'**********************************************************************************************''
+Function GetDateFromSystemTime(stimCur As SYSTEMTIME) As Date
+
+Dim	szDate As String
+
+OnError GoTo ErrorOccured
+
+	szDate			= Str$(stimCur.wYear)
+						& Right$("0" & Str$(stimCur.wMonth), 2)
+						& Right$("0" + Str$(stimCur.wDay), 2)
+
+	GetDateFromSystemTime	= NumberToDate(Val(szDate))
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'
+'**********************************************************************************************''
+Function TIMEGetNiceSystemTime$(stCur As SYSTEMTIME) As String
+
+Dim	szDate, szTime As String,
+	dDate As Date
+
+OnError GoTo ErrorOccured
+
+	dDate		= GetDateFromSystemTime(stCur)
+	szDate	= GetWeekDay$() & ", " & Date2String$(dDate)
+	szTime	= Right$("0" & Str$(stCur.wHour), 2)
+				& ":" & Right$("0" & Str$(stCur.wMinute), 2)
+				& ":" & Right$("0" & Str$(stCur.wSecond), 2)
+	If stCur.wMilliSeconds > 0 Then
+		szTime = szTime
+				& ":" & Right$("000" & Str$(stCur.wMilliSeconds), 4)
+	End If
+	
+	TIMEGetNiceSystemTime$	= szDate & " " & szTime
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Viser en dialog hvor brugeren kan udpege en dato
+'**********************************************************************************************''
+Function GetDateFromDlg(ByVal nPosX As Integer, ByVal nPosY As Integer,
+				nYear As Integer, nMonth As Integer, nDay As Integer) As Logical
+
+OnError GoTo ErrorOccured
+
+GetDateFromDlg = FALSE
+
+	Call PickTheDate (nPosX, nPosY, nYear, nMonth, nDay)
+	If nYear = -1 OR nMonth = -1 OR nDay = -1 Then
+		Exit Function
+	End If
+	
+GetDateFromDlg = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Returnerer Ugedagsnavn
+'**********************************************************************************************''
+Function GetWeekDay$() As String
+
+Dim	stimNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+
+	Do Case stimNow.wDayOfWeek
+		Case 1
+			GetWeekDay$ = TIME_DATE_MONDAY
+		Case 2
+			GetWeekDay$ = TIME_DATE_TUESDAY
+		Case 3
+			GetWeekDay$ = TIME_DATE_WEDNESDAY
+		Case 4
+			GetWeekDay$ = TIME_DATE_THURSDAY
+		Case 5
+			GetWeekDay$ = TIME_DATE_FRIDAY
+		Case 6
+			GetWeekDay$ = TIME_DATE_SATURDAY
+		Case 7
+			GetWeekDay$ = TIME_DATE_SUNDAY
+		Case Else
+			GetWeekDay$ = ""
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Returnerer Ugedagsnavn fra en givet dato
+'**********************************************************************************************''
+Function GetWeekDayFromDate$(ByVal dDate As Date) As String
+
+OnError GoTo ErrorOccured
+
+	Do Case WeekDay(dDate)
+		Case 1
+			GetWeekDayFromDate$ = TIME_DATE_SUNDAY
+		Case 2
+			GetWeekDayFromDate$ = TIME_DATE_MONDAY
+		Case 3
+			GetWeekDayFromDate$ = TIME_DATE_TUESDAY
+		Case 4
+			GetWeekDayFromDate$ = TIME_DATE_WEDNESDAY
+		Case 5
+			GetWeekDayFromDate$ = TIME_DATE_THURSDAY
+		Case 6
+			GetWeekDayFromDate$ = TIME_DATE_FRIDAY
+		Case 7
+			GetWeekDayFromDate$ = TIME_DATE_SATURDAY
+		Case Else
+			GetWeekDayFromDate$ = ""
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Returnerer månedsnavn - hele navnet
+'**********************************************************************************************''
+Function GetMonthLong$() As String
+
+Dim	stimNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+
+	Do Case stimNow.wMonth
+		Case 1
+			GetMonthLong$ = TIME_DATE_LONG_JAN
+		Case 2
+			GetMonthLong$ = TIME_DATE_LONG_FEB
+		Case 3
+			GetMonthLong$ = TIME_DATE_LONG_MAR
+		Case 4
+			GetMonthLong$ = TIME_DATE_LONG_APR
+		Case 5
+			GetMonthLong$ = TIME_DATE_LONG_MAY
+		Case 6
+			GetMonthLong$ = TIME_DATE_LONG_JUN
+		Case 7
+			GetMonthLong$ = TIME_DATE_LONG_JUL
+		Case 8
+			GetMonthLong$ = TIME_DATE_LONG_AUG
+		Case 9
+			GetMonthLong$ = TIME_DATE_LONG_SEP
+		Case 10
+			GetMonthLong$ = TIME_DATE_LONG_OKT
+		Case 11
+			GetMonthLong$ = TIME_DATE_LONG_NOV
+		Case 12
+			GetMonthLong$ = TIME_DATE_LONG_DEC
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Returnerer månedsnavn fra angivet dato - hele navnet
+'**********************************************************************************************''
+Function GetMonthLongFromDate$(ByVal dDate As Date) As String
+
+OnError GoTo ErrorOccured
+
+	Do Case Month(dDate)
+		Case 1
+			GetMonthLongFromDate$ = TIME_DATE_LONG_JAN
+		Case 2
+			GetMonthLongFromDate$ = TIME_DATE_LONG_FEB
+		Case 3
+			GetMonthLongFromDate$ = TIME_DATE_LONG_MAR
+		Case 4
+			GetMonthLongFromDate$ = TIME_DATE_LONG_APR
+		Case 5
+			GetMonthLongFromDate$ = TIME_DATE_LONG_MAY
+		Case 6
+			GetMonthLongFromDate$ = TIME_DATE_LONG_JUN
+		Case 7
+			GetMonthLongFromDate$ = TIME_DATE_LONG_JUL
+		Case 8
+			GetMonthLongFromDate$ = TIME_DATE_LONG_AUG
+		Case 9
+			GetMonthLongFromDate$ = TIME_DATE_LONG_SEP
+		Case 10
+			GetMonthLongFromDate$ = TIME_DATE_LONG_OKT
+		Case 11
+			GetMonthLongFromDate$ = TIME_DATE_LONG_NOV
+		Case 12
+			GetMonthLongFromDate$ = TIME_DATE_LONG_DEC
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Returnerer månedsnavn - 3 tegn
+'**********************************************************************************************''
+Function GetMonthShort$() As String
+
+Dim	stimNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+
+	Do Case stimNow.wMonth
+		Case 1
+			GetMonthShort$ = TIME_DATE_SHORT_JAN
+		Case 2
+			GetMonthShort$ = TIME_DATE_SHORT_FEB
+		Case 3
+			GetMonthShort$ = TIME_DATE_SHORT_MAR
+		Case 4
+			GetMonthShort$ = TIME_DATE_SHORT_APR
+		Case 5
+			GetMonthShort$ = TIME_DATE_SHORT_MAY
+		Case 6
+			GetMonthShort$ = TIME_DATE_SHORT_JUN
+		Case 7
+			GetMonthShort$ = TIME_DATE_SHORT_JUL
+		Case 8
+			GetMonthShort$ = TIME_DATE_SHORT_AUG
+		Case 9
+			GetMonthShort$ = TIME_DATE_SHORT_SEP
+		Case 10
+			GetMonthShort$ = TIME_DATE_SHORT_OKT
+		Case 11
+			GetMonthShort$ = TIME_DATE_SHORT_NOV
+		Case 12
+			GetMonthShort$ = TIME_DATE_SHORT_DEC
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Returnerer månedsnavn fra angivet dato - 3 tegn
+'**********************************************************************************************''
+Function GetMonthShortFromDate$(ByVal dDate As String) As String
+
+OnError GoTo ErrorOccured
+
+	Do Case Month(dDate)
+		Case 1
+			GetMonthShortFromDate$ = TIME_DATE_SHORT_JAN
+		Case 2
+			GetMonthShortFromDate$ = TIME_DATE_SHORT_FEB
+		Case 3
+			GetMonthShortFromDate$ = TIME_DATE_SHORT_MAR
+		Case 4
+			GetMonthShortFromDate$ = TIME_DATE_SHORT_APR
+		Case 5
+			GetMonthShortFromDate$ = TIME_DATE_SHORT_MAY
+		Case 6
+			GetMonthShortFromDate$ = TIME_DATE_SHORT_JUN
+		Case 7
+			GetMonthShortFromDate$ = TIME_DATE_SHORT_JUL
+		Case 8
+			GetMonthShortFromDate$ = TIME_DATE_SHORT_AUG
+		Case 9
+			GetMonthShortFromDate$ = TIME_DATE_SHORT_SEP
+		Case 10
+			GetMonthShortFromDate$ = TIME_DATE_SHORT_OKT
+		Case 11
+			GetMonthShortFromDate$ = TIME_DATE_SHORT_NOV
+		Case 12
+			GetMonthShortFromDate$ = TIME_DATE_SHORT_DEC
+	End Case
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Returnerer året
+'**********************************************************************************************''
+Function GetYear$() As String
+
+Dim	stimNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+	GetYear$ = Str$(stimNow.wYear)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Returnerer dato - kun dag
+'**********************************************************************************************''
+Function GetDay$() As String
+
+Dim	stimNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+	GetDay$ = Str$(stimNow.wDay)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'	Returnerer Månedsnummer
+'**********************************************************************************************''
+Function GetMonthNumber$() As String
+
+Dim	stimNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+	GetMonthNumber$ = Str$(stimNow.wMonth)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+'Get Current date - YYYYMMDD
+'************************************************************************************************************************
+Function GetDate$() As String
+
+Dim	stimNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+	GetDate$ = Str$(stimNow.wYear)
+			& Right$("0" & Str$(stimNow.wMonth), 2)
+			& Right$("0" & Str$(stimNow.wDay), 2)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+'Get Current date - DD.MM.YYYY
+'************************************************************************************************************************
+Function GetNiceDate$() As String
+
+Dim	stimNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+
+	GetNiceDate$ = Right$("0" & Str$(stimNow.wDay), 2) & "."
+			 & Right$("0" & Str$(stimNow.wMonth), 2) & "."
+			 & Str$(stimNow.wYear)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+'Get Current date - DD. MMMMMMMM YYYY
+'************************************************************************************************************************
+Function GetLongDate$() As String
+
+Dim	stimNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+	GetLongDate$ = 			Str$(stimNow.wDay)
+			 	& ". " &	GetMonthLongFromDate$(GetDateFromSystemTime(stimNow))
+				& " " &	Str$(stimNow.wYear)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+'Get Current date - DD. MMM. YYYY
+'************************************************************************************************************************
+Function GetShortDate$() As String
+
+Dim	stimNow As SYSTEMTIME
+
+OnError GoTo ErrorOccured
+
+	Call GetLocalTime(stimNow)
+	GetShortDate$ = 			Str$(stimNow.wDay)
+			 	& ". " &	GetMonthShortFromDate$(GetDateFromSystemTime(stimNow))
+				& ". " &	Str$(stimNow.wYear)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+'	Konverterer Dato til streng
+'************************************************************************************************************************
+Function Date2String$(ByVal dDate As Date) As String
+
+OnError GoTo ErrorOccured
+
+	Date2String$ = ""
+
+	If Str$(Day(dDate)) = "0" Then
+		Exit Function
+	ElseIf Str$(Month(dDate)) = "0" Then
+		Exit Function
+	ElseIf Str$(Year(dDate)) = "0" Then
+		Exit Function
+	Else
+		Date2String$ = Right$("00" & Day(dDate), 2)
+					& "-" & Right$("00" & Month(dDate), 2)
+					& "-" & Year(dDate)
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+'	Konv streng til dato
+'************************************************************************************************************************
+Function String2Date(ByVal szDate As String) As Date
+'**Format: DD-MM-YYYY
+
+Dim	szDay, szMonth, szYear As String,
+	nDate As Integer
+
+OnError GoTo ErrorOccured
+
+	If szDate = "" Then
+		Exit Function
+	ElseIf not Len(szDate) = 10 Then
+		Exit Function
+	End If
+
+	szDay		= Left$(szDate, 2)
+	szMonth	= Mid$(szDate, 4, 2)
+	szYear	= Right$(szDate, 4)
+	nDate		= Val(szYear + szMonth + szDay)
+
+	String2Date = NumberToDate(nDate)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+'	Konv streng til dato
+'************************************************************************************************************************
+Function GetDateFromDayMonthYear(ByVal szDay As String, ByVal szMonth As String, ByVal szYear As String) As Date
+
+Dim	szDate As String
+
+OnError GoTo ErrorOccured
+
+	If szDay = "" Then
+		GetDateFromDayMonthYear = String2Date("")
+	ElseIf szMonth = "" Then
+		GetDateFromDayMonthYear = String2Date("")
+	ElseIf szYear = "" Then
+		GetDateFromDayMonthYear = String2Date("")
+	Else
+		szDate = Right$("00" & szDay, 2)
+				& "-" & Right$("00" & szMonth, 2)
+				& "-" & szYear
+		GetDateFromDayMonthYear = String2Date(szDate)
+	End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+'	Returnerer Dagen udfra Dato
+'************************************************************************************************************************
+Function GetDayFromDate$(ByVal dDate As Date) As String
+
+OnError GoTo ErrorOccured
+
+	GetDayFromDate$ = Right$("00" & Str$(Day(dDate)), 2)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+'	Returnerer måneden udfra Dato
+'************************************************************************************************************************
+Function GetMonthFromDate$(ByVal dDate As Date) As String
+
+OnError GoTo ErrorOccured
+
+	GetMonthFromDate$ = Right$("00" & Str$(Month(dDate)), 2)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+'	Returnerer året udfra Dato
+'************************************************************************************************************************
+Function GetYearFromDate$(ByVal dDate As Date) As String
+
+OnError GoTo ErrorOccured
+
+	GetYearFromDate$ = Str$(Year(dDate))
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+'	Checker dag, måned og år som tegn og retter evt. mindre fejl
+'************************************************************************************************************************
+Function CheckDateStrings(szDay As String, szMonth As String, szYear As String) As Logical
+
+Dim	bShootingYear As Logical,
+	nDay, nMonth, nMaxDays As Integer
+
+OnError GoTo ErrorOccured
+
+CheckDateStrings	= FALSE
+
+	'Print "Checker : " + szDay + "." + szMonth + "." + szYear
+
+	If not CheckDayString(szDay) Then
+		Exit Function
+	ElseIf not CheckMonthString(szMonth) Then
+		Exit Function
+	ElseIf not CheckYearString(szYear) Then
+		Exit Function
+	End If
+
+	bShootingYear	= FALSE
+	If Val(szYear) Mod 4 = 0 Then
+		If Val(szYear) Mod 100 = 0 Then
+			If Val(szYear) Mod 400 = 0 Then
+				bShootingYear	= TRUE
+			End If
+		Else
+			bShootingYear	= TRUE
+		End If
+	End If
+
+	If Left$(szDay, 1) = "0" Then
+		nDay	= Val(Right$(szDay, Len(szDay) - 1))
+	Else
+		nDay	= Val(szDay)
+	End If
+	If Left$(szMonth, 1) = "0" Then
+		nMonth	= Val(Right$(szMonth, Len(szMonth) - 1))
+	Else
+		nMonth	= Val(szMonth)
+	End If
+	
+	Do Case nMonth
+		Case 1, 3, 5, 7, 8, 10, 12
+			nMaxDays = 31
+		Case 2
+			If bShootingYear Then
+				nMaxDays = 29
+			Else
+				nMaxDays = 28
+			End If
+		Case 4, 6, 9, 11
+			nMaxDays = 30
+	End Case
+
+	'Print "Max dage i måned : " + nMaxDays + " i forhold til angivet " + nDay
+	If nDay > nMaxDays Then
+		Note "Den " + nMonth + ". måned indeholder kun " + nMaxDays + " dage!"
+		Exit Function
+	End If
+
+CheckDateStrings = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+'	Checker dag som tegn og retter evt. mindre fejl
+'************************************************************************************************************************
+Function CheckDayString(szDay As String) As Logical
+
+OnError GoTo ErrorOccured
+
+CheckDayString = FALSE
+
+	If Left$(szDay, 1) = "0" Then
+		szDay		= Right$(szDay, Len(szDay) - 1)
+	End If
+
+	If Len(szDay) > 2 Then
+		Note "Angiv dagen med højst to karakterer!"
+		Exit Function
+	ElseIf Len(szDay) = 0 Then
+		Note "Angiv dagen med mindst én karakter!"
+		Exit Function
+	ElseIf Val(szDay) < 1 or Val(szDay) > 31 Then
+		Note "Dagen skal angives med en værdi mellem 1 og 31!"
+		Exit Function
+	End If
+
+	szDay	= Right$(("00" + szDay), 2)
+
+CheckDayString = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+'	Checker måned som tegn og retter evt. mindre fejl
+'************************************************************************************************************************
+Function CheckMonthString(szMonth As String) As Logical
+
+OnError GoTo ErrorOccured
+
+CheckMonthString	= FALSE
+
+	If Left$(szMonth, 1) = "0" Then
+		szMonth	= Right$(szMonth, Len(szMonth) - 1)
+	End If
+
+	If Len(szMonth) > 2 Then
+		Note "Angiv måneden med højst to karakterer!"
+		Exit Function
+	ElseIf Len(szMonth) = 0 Then
+		Note "Angiv måneden med mindst én karakter!"
+		Exit Function
+	ElseIf Val(szMonth) < 1 or Val(szMonth) > 12 Then
+		Note "Måneden skal angives med en værdi mellem 1 og 12!"
+		Exit Function
+	End If
+
+	szMonth	= Right$(("00" + szMonth), 2)
+
+CheckMonthString	= TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+'	Checker årstal som tegn og retter evt. mindre fejl
+'************************************************************************************************************************
+Function CheckYearString(szYear As String) As Logical
+
+OnError GoTo ErrorOccured
+
+CheckYearString = FALSE
+
+	If Len(szYear) <> 4 Then
+		Note "Angiv året med 4 karakterer!"
+		Exit Function
+	ElseIf Val(szYear) < 1900 Then
+		Note "Året skal angives med en værdi Større end 1900!"
+		Exit Function
+	ElseIf Val(szYear) > 9999 Then
+		Note "Året skal angives med en værdi mindre end 9999!"
+		Exit Function
+	End If
+
+CheckYearString = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'************************************************************************************************************************
+'	Beregner tidsrum
+'************************************************************************************************************************
+Function TimespendDays(ByVal dDate1 As Date, ByVal dDate2 As Date) As Integer
+
+OnError GoTo ErrorOccured
+
+	TimespendDays = dDate2 - dDate1
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'************************************************************************************************************************
+Function TimespendWeeks(ByVal dDate1 As Date, ByVal dDate2 As Date) As Float
+
+OnError GoTo ErrorOccured
+
+	TimespendWeeks = (dDate2 - dDate1) / 7
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+'************************************************************************************************************************
+Function TimespendMonths(ByVal dDate1 As Date, ByVal dDate2 As Date) As Float
+
+Dim	nDage, dDate, nFaktor, nMåned1, nMåned2, nMånednr, i As Integer,
+	fMåneder As Float
+
+OnError GoTo ErrorOccured
+
+	nDage = dDate2 - dDate1
+
+	'Hvis det er tilbage i tiden ændres tidsrummet til minus
+	nFaktor = 1
+	If nDage < 0 Then
+		dDate		= dDate1
+		dDate1	= dDate2
+		dDate2	= dDate
+		nFaktor	= -1	
+		nDage		= -nDage
+	End If
+ 	
+	nMåned1	= Val(GetMonthFromDate$(dDate1))
+	nMåned2	= Val(GetMonthFromDate$(dDate2))
+	If Val(GetYearFromDate$(dDate2)) > Val(GetYearFromDate$(dDate1)) Then
+		nMåned2	= nMåned2 + (Val(GetYearFromDate$(dDate2)) - Val(GetYearFromDate$(dDate1))) * 12
+	End If
+
+	fMåneder = 0
+
+	For i = nMåned1 To nMåned2
+		nMånednr	= i
+		Do Until nMånednr <= 12
+			nMånednr = nMånednr - 12
+		Loop
+		Do Case nMånednr
+			Case 1,3,5,7,8,10,12
+				If nDage >= 31 Then 
+					fMåneder	= fMåneder + 1
+					nDage		= nDage - 31
+				Else
+					fMåneder	= fMåneder + nDage/31
+					Exit For
+				End If
+			Case 4,6,9,11
+				If nDage >= 30 Then
+					fMåneder	= fMåneder + 1
+					nDage		= nDage - 30
+				Else
+					fMåneder	= fMåneder + nDage/30
+					Exit For
+				End If
+			Case 2
+				If Skudår((Val(GetYearFromDate$(dDate1)) * 12 + i - 2) / 12) Then
+					If nDage >=29 Then
+						fMåneder	= fMåneder + 1
+						nDage		= nDage - 29
+					Else
+						fMåneder	= fMåneder + nDage/29
+						Exit For
+					End If
+				Else 
+					If nDage >=28 Then
+						fMåneder	= fMåneder + 1
+						nDage		= nDage - 28
+					Else
+						fMåneder	= fMåneder + nDage/28
+						Exit For
+					End If
+				End If
+		End Case
+	Next
+
+	TimespendMonths = fMåneder * nFaktor 	 
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+Function TimespendKvartal(ByVal dDate1 As Date, ByVal dDate2 As Date) As Float
+
+OnError GoTo ErrorOccured
+
+	TimespendKvartal = TimespendMonths(dDate1, dDate2) / 3
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+Function TimespendHalfYears(ByVal dDate1 As Date, ByVal dDate2 As Date) As Float
+
+OnError GoTo ErrorOccured
+
+	TimespendHalfYears = TimespendMonths(dDate1, dDate2) / 6
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+Function TimespendYears(ByVal dDate1 As Date, ByVal dDate2 As Date) As Float
+
+OnError GoTo ErrorOccured
+
+	TimespendYears = TimespendMonths(dDate1, dDate2) / 12
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+Function Skudår(ByVal nYear As Integer) As Logical
+
+OnError GoTo ErrorOccured
+
+	If nYear Mod 4 = 0 Then
+		If nYear Mod 100 = 0 Then
+			If nYear Mod 400 = 0 Then
+				Skudår	= TRUE
+			End If
+		Else
+			Skudår	= TRUE
+		End If
+	End If
+
+	'If Year / 4 - Int(Year / 4) = 0 Then
+	'	Skudår = TRUE
+	'End If
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+Function DaysInMonth(ByVal nMonth As Integer, ByVal nYear As Integer) As Integer
+
+OnError GoTo ErrorOccured
+
+	Do Case nMonth
+		Case 1
+			DaysInMonth = 31
+		Case 2
+			If Skudår(nYear) Then
+				DaysInMonth = 29
+			Else
+				DaysInMonth = 28
+			End If
+		Case 3
+			DaysInMonth = 31
+		Case 4
+			DaysInMonth = 30
+		Case 5
+			DaysInMonth = 31
+		Case 6
+			DaysInMonth = 30
+		Case 7
+			DaysInMonth = 31
+		Case 8
+			DaysInMonth = 31
+		Case 9
+			DaysInMonth = 30
+		Case 10
+			DaysInMonth = 31
+		Case 11
+			DaysInMonth = 30
+		Case 12
+			DaysInMonth = 31
+	End Case
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+Function NewDateAfterNDays(ByVal dDate As Date, ByVal nDays As Integer) As Date
+	
+Dim	nNewYear, nNewMonth, nNewDay As Integer
+
+OnError GoTo ErrorOccured
+
+	nNewYear	= Val(GetYearFromDate$(dDate))
+	nNewMonth	= Val(GetMonthFromDate$(dDate))
+	nNewDay	= Val(GetDayFromDate$(dDate)) + nDays 
+
+	Do Until nNewDay <= DaysInMonth(nNewMonth, nNewYear)
+		nNewDay	= nNewDay - DaysInMonth(nNewMonth,nNewYear)
+		nNewMonth	= nNewMonth + 1
+	Loop
+
+	Do Until nNewMonth <= 12	
+		nNewMonth	= nNewMonth - 12
+		nNewYear	= nNewYear + 1
+	Loop
+	
+	NewDateAfterNDays	= GetDateFromDayMonthYear(Str$(nNewDay), Str$(nNewMonth), Str$(nNewYear))	
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+		
+End Function
+
+'************************************************************************************************************************
+Function NewDateAfterNWeeks(ByVal dDate As Date, ByVal nWeeks As Integer) As Date
+	
+Dim	nNewYear, nNewMonth, nNewDay As Integer
+
+OnError GoTo ErrorOccured
+
+	nNewYear	= Val(GetYearFromDate$(dDate))
+	nNewMonth	= Val(GetMonthFromDate$(dDate))
+	nNewDay	= Val(GetDayFromDate$(dDate)) + 7 * nWeeks 
+
+	Do Until nNewDay <= DaysInMonth(nNewMonth,nNewYear)
+		nNewDay	= nNewDay - DaysInMonth(nNewMonth,nNewYear)
+		nNewMonth	= nNewMonth + 1
+	Loop
+
+	Do Until nNewMonth <= 12	
+		nNewMonth	= nNewMonth - 12
+		nNewYear	= nNewYear + 1
+	Loop
+	
+	NewDateAfterNWeeks	= GetDateFromDayMonthYear(Str$(nNewDay), Str$(nNewMonth), Str$(nNewYear))	
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function	
+'************************************************************************************************************************
+Function NewDateAfterNMonths(ByVal dDate As Date, ByVal nMonths As Integer) As Date
+	
+Dim	nNewYear, nNewMonth, nNewDay As Integer
+
+OnError GoTo ErrorOccured
+
+	nNewYear	= Val(GetYearFromDate$(dDate))
+	nNewMonth	= Val(GetMonthFromDate$(dDate)) + nMonths
+	nNewDay	= Val(GetDayFromDate$(dDate))
+	
+	Do Until nNewMonth <= 12
+		nNewMonth	= nNewMonth - 12
+		nNewYear	= nNewYear + 1
+	Loop
+	If nNewDay > DaysInMonth(nNewMonth,nNewYear) Then
+		nNewDay	= DaysInMonth(nNewMonth, nNewYear)
+	End If
+		
+	NewDateAfterNMonths	= GetDateFromDayMonthYear(Str$(nNewDay), Str$(nNewMonth), Str$(nNewYear))	
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function	
+
+'************************************************************************************************************************
+Function NewDateAfterNKvartaler(ByVal dDate As Date, ByVal nKvartaler As Integer) As Date
+
+Dim	nNewYear, nNewMonth, nNewDay As Integer
+
+OnError GoTo ErrorOccured
+
+	nNewYear	= Val(GetYearFromDate$(dDate))
+	nNewMonth	= Val(GetMonthFromDate$(dDate)) + 3 * nKvartaler
+	nNewDay	= Val(GetDayFromDate$(dDate))
+	
+	Do Until nNewMonth <= 12
+		nNewMonth	= nNewMonth - 12
+		nNewYear	= nNewYear + 1
+	Loop
+	
+	If nNewDay > DaysInMonth(nNewMonth,nNewYear) Then
+		nNewDay	= DaysInMonth(nNewMonth, nNewYear)
+	End If
+		
+	NewDateAfterNKvartaler	= GetDateFromDayMonthYear(Str$(nNewDay), Str$(nNewMonth), Str$(nNewYear))	
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+Function NewDateAfterNHalfYears(ByVal dDate As Date, ByVal nHalfYears As Integer) As Date
+	
+Dim	nNewYear, nNewMonth, nNewDay As Integer
+
+OnError GoTo ErrorOccured
+
+	nNewYear	= Val(GetYearFromDate$(dDate))
+	nNewMonth	= Val(GetMonthFromDate$(dDate)) + 6 * nHalfYears
+	nNewDay	= Val(GetDayFromDate$(dDate))
+	
+	Do Until nNewMonth <= 12
+		nNewMonth	= nNewMonth - 12
+		nNewYear	= nNewYear + 1
+	Loop
+		
+	If nNewDay > DaysInMonth(nNewMonth, nNewYear) Then
+		nNewDay	= DaysInMonth(nNewMonth, nNewYear)
+	End If
+		
+	NewDateAfterNHalfYears	= GetDateFromDayMonthYear(Str$(nNewDay), Str$(nNewMonth), Str$(nNewYear))	
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************************
+Function NewDateAfterNYears(ByVal dDate As Date, ByVal nYears As Integer) As Date		
+
+Dim	nNewYear As String
+
+OnError GoTo ErrorOccured
+
+	nNewYear	= Val(GetYearFromDate$(dDate)) + nYears
+	
+	NewDateAfterNYears = GetDateFromDayMonthYear(GetDayFromDate$(dDate), GetMonthFromDate$(dDate), Str$(nNewYear))
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer dato fra dato/tid tekst, dato/tid returneres af MTU - GetFileDateTime$()
+'**********************************************************************************************''
+Function TIMEGetDateFromTimeStamp(ByVal szDateTime As String) As Date
+
+Dim	szDate As String
+
+OnError GoTo ErrorOccured
+
+	szDateTime	= RTrim$(LTrim$(szDateTime))
+
+	szDate	= Mid$(szDateTime, 7, 4)
+				& Mid$(szDateTime, 4, 2)
+				& Left$(szDateTime, 2)
+
+	'Print "Date: " & szDate
+
+	TIMEGetDateFromTimeStamp = NumberToDate(Val(szDate))
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Returnerer tid fra dato/tid tekst, dato/tid returneres af MTU - GetFileDateTime$()
+'**********************************************************************************************''
+Function TIMEGetTimeFromTimeStamp(ByVal szDateTime As String) As Float
+
+Dim	fHour, fMinut, fSecond As Integer
+
+OnError GoTo ErrorOccured
+
+	fHour		= Val(Mid$(szDateTime, 12, 2))
+	fMinut	= Val(Mid$(szDateTime, 15, 2))
+	fSecond	= Val(Mid$(szDateTime, 18, 2))
+
+	TIMEGetTimeFromTimeStamp = fHour + ((fMinut + (fSecond / 60)) / 60)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'************************************************************************************************************
+'************************************************************************************************************
+'***	Backward compatability
+'************************************************************************************************************
+'************************************************************************************************************
+'****************************************
+'Get Current time - hour.minuts.seconds
+'****************************************
+Function GetTime() As String
+
+OnError GoTo ErrorOccured
+
+	GetTime = GetTime$()
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function

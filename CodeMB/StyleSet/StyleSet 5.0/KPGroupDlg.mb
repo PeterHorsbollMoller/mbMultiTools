@@ -1,0 +1,885 @@
+'********************************************************
+'**	Modul:		KPTableSetup.mb
+'**	Funktioner:		Læs fra / skriv til KPTable tabellen
+'**				Opsætning af værdier i dialoger
+'********************************************************
+Include "MapBasic.def"
+
+Include "KPAdminUse.def"
+Include "KPTableUse.def"
+Include "KPTableDlg.def"
+Include "KPLayerUse.def"
+Include "KPGroupDlg.def"
+Include "KPGroupUse.def"
+Include "KPDisplayUse.def"
+
+Include "Globals.def"
+
+Include "..\..\TabFunc\TabFunc.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+'-------------------
+
+Define	KPG_CTRL_GROUP_LIST		100
+Define	KPG_CTRL_SUBGROUP_LIST		200
+Define	KPG_CTRL_TABLES_LIST		300
+Define	KPG_CTRL_ADD_SETTING_BTN	400
+Define	KPG_CTRL_REMOVE_SETTING_BTN	500
+
+'-------------------
+Declare Sub HandlerGroupNamePicked
+Declare Sub HandlerSubGroupNamePicked
+
+Declare Sub HandlerGroupNamePickedAll
+Declare Sub HandlerSubGroupNamePickedAll
+Declare Sub HandlerShowListOfTables(ByVal nItem As Integer)
+
+Declare Sub HandlerAddGroupSetting
+Declare Sub HandlerRemoveGroupSetting
+
+Declare Sub HandlerGroupNamePickedSelect
+
+Dim	marrListOfGroupNames(0), marrListOfSubGroupNames(0), marrTableLayerNames() As String,
+	mnGroupID, mnSubGroupID, mnPrevGroup, mnPrevSubGroup As Integer
+
+'********************************************************
+'	Handler - Slet aktuel tabelindstilling...
+'********************************************************
+Function kpgShowCreateNewGroupDialog() As Integer
+
+Dim	szName As String,
+	nNewGroupID As Integer,
+	bCloseGroupTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseGroupTab 	= kpaOpenKPGroupTable()
+
+	kpgShowCreateNewGroupDialog = FALSE
+
+	Dialog
+		Title STYL_DLG_TITLE_NEW_GROUP
+
+		Control StaticText	Position 5,5
+			Title MSG_TEXT_NAME
+		Control EditText		Position 5,15	Width 100
+			Into szName
+
+		Control OKButton
+		Control CancelButton
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	ElseIf szName = "" Then
+		Exit Function
+	End If
+
+	nNewGroupID = kpgGetGroupID(szName)
+
+	If nNewGroupID = GROUPID_NONE Then
+		nNewGroupID = kpgGetNextGroupID()
+		Insert Into KPGROUP
+			(GROUPID, GROUPNAME)
+			Values (nNewGroupID, szName)
+	End If
+
+	kpgShowCreateNewGroupDialog = nNewGroupID
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Handler - Slet aktuel tabelindstilling...
+'********************************************************
+Function kpgShowCreateNewSubGroupDialog() As Integer
+
+Dim	szName As String,
+	nNewSubGroupID As Integer
+
+OnError GoTo ErrorOccured
+
+	kpgShowCreateNewSubGroupDialog = 0
+
+	Dialog
+		Title STYL_DLG_TITLE_NEW_SUBGROUP
+
+		Control StaticText	Position 5,5
+			Title MSG_TEXT_NAME
+		Control EditText		Position 5,15	Width 100
+			Into szName
+
+		Control OKButton
+		Control CancelButton
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	ElseIf szName = "" Then
+		Exit Function
+	End If
+	
+	nNewSubGroupID = kpgGetSubGroupID(szName)
+
+	If nNewSubGroupID = SUBGROUPID_NONE Then
+		nNewSubGroupID = kpgGetNextSubGroupID()
+		Insert Into KPSGROUP
+			(SUBGROUPID, SUBGROUPNAME)
+			Values (nNewSubGroupID, szName)
+	End If
+
+	kpgShowCreateNewSubGroupDialog = nNewSubGroupID
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Udvælg ny join mellem tabeller og grupper/undergrupper...
+'********************************************************
+Function kpgCreateNewGroupSettingDialog(ByVal nTableID As Integer, ByVal nLayerID As Integer) As Logical
+
+Dim	nGroupID, nSubGroupID, nTabDisplay As Integer,
+	bCloseTableTab, bCloseTGroupTab, bCloseGroupTab, bCloseSubGroupTab As Logical
+
+OnError GoTo ErrorOccured
+
+kpgCreateNewGroupSettingDialog = FALSE
+
+	bCloseTableTab	= kpaOpenKPTablesTable()
+	bCloseGroupTab 	= kpaOpenKPGroupTable()
+	bCloseSubGroupTab	= kpaOpenKPSGroupTable()
+	bCloseTGroupTab	= kpaOpenKPTGroupTable()
+
+	Call kpgCreateListOfGroupNames(marrListOfGroupNames)
+	If Ubound(marrListOfGroupNames) = 2 Then
+		mnPrevGroup = 2
+	Else
+		mnPrevGroup = 3
+	End If
+	Call kpgCreateListOfSubGroupNames(marrListOfSubGroupNames)
+	If Ubound(marrListOfSubGroupNames) = 2 Then
+		mnPrevSubGroup = 2
+	Else
+		mnPrevSubGroup = 3
+	End If
+
+	Dialog
+		Title STYL_DLG_TITLE_SELECT_GROUPING			Height 105
+		Calling HandlerGroupNamePicked
+		'--------
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_TABLE
+		Control EditText		Position 5,15	Width 100
+			Value kptGetMapInfoTableName$(nTableID) & " - " & kplGetDescription$(nTableID, nLayerID)
+			Disable
+		'--------
+		Control StaticText	Position 5,30
+			Title STYL_DLG_TXT_GROUPS
+		Control PopUpMenu		Position 5,40	Width 190			ID KPG_CTRL_GROUP_LIST
+			Calling HandlerGroupNamePicked
+			Title From Variable marrListOfGroupNames
+			Value mnPrevGroup
+			Into nGroupID
+		'--------
+		Control StaticText	Position 5,55
+			Title STYL_DLG_TXT_SUBGROUPS
+		Control PopUpMenu		Position 5,65	Width 190			ID KPG_CTRL_SUBGROUP_LIST
+			Calling HandlerSubGroupNamePicked
+			Title From Variable marrListOfSubGroupNames
+			Value mnPrevSubGroup
+			Into nSubGroupID
+		'--------
+		Control ListBox		Position 5,70	Width 190	Height 100	ID KPG_CTRL_TABLES_LIST
+			Hide
+		Control Button		Position 20,170	Width 30			ID KPG_CTRL_ADD_SETTING_BTN
+			Title MSG_ADD
+			Calling HandlerAddGroupSetting
+			Hide
+		Control Button		Position 60,170	Width 30			ID KPG_CTRL_REMOVE_SETTING_BTN
+			Title MSG_REMOVE
+			Calling HandlerRemoveGroupSetting
+			Hide
+		'--------
+		Control OKButton		Position 110,85	Width 40
+		Control CancelButton	Position 155,85	Width 40
+
+	If CommandInfo(CMD_INFO_DLG_OK) Then
+		nGroupID	= kpgGetGroupIDFromElementNo(nGroupID)
+		nSubGroupID	= kpgGetSubGroupIDFromElementNo(nSubGroupID)
+		
+		If nGroupID > 0 Then
+			If kpgCreateGroupSetup(nTableID, nLayerID, nGroupID, nSubGroupID) <> RESULT_GROUP_SETUP_NOT_CREATED Then
+				'**Group Setup was created successfully
+			End If
+		End If
+
+		Commit Table KPGROUP
+		Commit Table KPSGROUP
+		Commit Table KPTGROUP
+
+		nTabDisplay	= kpdRegisterTablesByDisplay()
+		'Print nTabDisplay & " tabeller registreret"
+	Else
+		'**User pushed CancelButton
+		Rollback Table KPGROUP
+		Rollback Table KPSGROUP
+		Rollback Table KPTGROUP
+	End If
+
+	If bCloseGroupTab Then
+		Call TABClose("KPGROUP")
+	Else
+		Call TABClose("CUR_LIST_OF_GROUPS")
+	End If
+	If bCloseSubGroupTab Then
+		Close Table KPSGROUP
+	Else
+		Call TABClose("CUR_LIST_OF_SUBGROUPS")
+	End If
+	If bCloseTableTab Then
+		Call TABClose("KPTABLES")
+	Else
+		Call TABClose("CUR_LIST_OF_GROUP_TABLES")
+	End If
+	If bCloseTGroupTab Then
+		Call TABClose("KPTGROUP")
+	End If
+	
+kpgCreateNewGroupSettingDialog = TRUE
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Udvælg gruppe/undergruppe kombination...
+'********************************************************
+Function kpgSelectNewGroupSettingDialog(nGroupID As Integer, nSubGroupID As Integer) As Logical
+
+Dim	bCloseTableTab, bCloseTGroupTab, bCloseGroupTab, bCloseSubGroupTab As Logical
+
+OnError GoTo ErrorOccured
+
+kpgSelectNewGroupSettingDialog = FALSE
+
+	bCloseTableTab	= kpaOpenKPTablesTable()
+	bCloseGroupTab 	= kpaOpenKPGroupTable()
+	bCloseSubGroupTab	= kpaOpenKPSGroupTable()
+	bCloseTGroupTab	= kpaOpenKPTGroupTable()
+
+	Call kpgCreateListOfGroupNames(marrListOfGroupNames)
+	If Ubound(marrListOfGroupNames) = 2 Then
+		mnPrevGroup = 2
+	Else
+		mnPrevGroup = 3
+	End If
+	Call kpgCreateListOfSubGroupNames(marrListOfSubGroupNames)
+	If Ubound(marrListOfSubGroupNames) = 2 Then
+		mnPrevSubGroup = 2
+	Else
+		mnPrevSubGroup = 3
+	End If
+
+	Dialog									Height 75
+		Title STYL_DLG_TITLE_SELECT_GROUPING
+		Calling HandlerGroupNamePicked
+		'--------
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_GROUPS
+		Control PopUpMenu		Position 5,15	Width 190			ID KPG_CTRL_GROUP_LIST
+			Calling HandlerGroupNamePicked
+			Title From Variable marrListOfGroupNames
+			Value mnPrevGroup
+			Into nGroupID
+		'--------
+		Control StaticText	Position 5,30
+			Title STYL_DLG_TXT_SUBGROUPS
+		Control PopUpMenu		Position 5,40	Width 190			ID KPG_CTRL_SUBGROUP_LIST
+			Calling HandlerSubGroupNamePicked
+			Title From Variable marrListOfSubGroupNames
+			Value mnPrevSubGroup
+			Into nSubGroupID
+		'--------
+		Control ListBox		Position 5,55	Width 190	Height 100	ID KPG_CTRL_TABLES_LIST
+			Hide
+		Control Button		Position 5,60	Width 30			ID KPG_CTRL_ADD_SETTING_BTN
+			Title MSG_ADD
+			Calling HandlerAddGroupSetting
+			Hide
+		Control Button		Position 40,60	Width 30			ID KPG_CTRL_REMOVE_SETTING_BTN
+			Title MSG_REMOVE
+			Calling HandlerRemoveGroupSetting
+			Hide
+		'--------
+		Control OKButton		Position 110,60	Width 40
+		Control CancelButton	Position 155,60	Width 40
+
+	If CommandInfo(CMD_INFO_DLG_OK) Then
+		nGroupID	= kpgGetGroupIDFromElementNo(nGroupID)
+		nSubGroupID	= kpgGetSubGroupIDFromElementNo(nSubGroupID)
+	
+		Commit Table KPGROUP
+		Commit Table KPSGROUP
+		Commit Table KPTGROUP
+	Else
+		'**User pushed CancelButton
+		Rollback Table KPGROUP
+		Rollback Table KPSGROUP
+		Rollback Table KPTGROUP
+	End If
+
+	If bCloseGroupTab Then
+		Call TABClose("KPGROUP")
+	Else
+		Call TABClose("CUR_LIST_OF_GROUPS")
+	End If
+	If bCloseSubGroupTab Then
+		Close Table KPSGROUP
+	Else
+		Call TABClose("CUR_LIST_OF_SUBGROUPS")
+	End If
+	If bCloseTableTab Then
+		Call TABClose("KPTABLES")
+	Else
+		Call TABClose("CUR_LIST_OF_GROUP_TABLES")
+	End If
+	If bCloseTGroupTab Then
+		Call TABClose("KPTGROUP")
+	End If
+	
+kpgSelectNewGroupSettingDialog = TRUE
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Handler - Der blev valgt i listen med gruppenavne...
+'********************************************************
+Sub HandlerGroupNamePicked
+
+Dim	nNew, nPick As Integer
+
+OnError GoTo ErrorOccured
+
+	nPick 	= ReadControlValue(KPG_CTRL_GROUP_LIST)
+	mnGroupID	= kpgGetGroupIDFromElementNo(nPick)
+
+	If nPick = 1 Then
+		nNew = kpgShowCreateNewGroupDialog()
+		If nNew = 0 Then
+			Alter Control KPG_CTRL_GROUP_LIST Value mnPrevGroup
+			Exit Sub
+		End If
+
+		Call kpgCreateListOfGroupNames(marrListOfGroupNames)
+		mnPrevGroup = kpgGetGroupElementNo(kpgGetGroupName$(nNew), marrListOfGroupNames)
+		Alter Control KPG_CTRL_GROUP_LIST Title From Variable marrListOfGroupNames Value mnPrevGroup
+	Else
+		mnPrevGroup = nPick	
+	End If
+
+	If mnPrevGroup = 2 Then
+		Alter Control KPG_CTRL_SUBGROUP_LIST 	Value 2	Disable
+		Alter Control KPG_CTRL_ADD_SETTING_BTN			Disable
+		Alter Control KPG_CTRL_REMOVE_SETTING_BTN			Disable
+	Else
+		If mnPrevSubGroup > Ubound(marrListOfSubGroupNames) Then
+			mnPrevSubGroup = Ubound(marrListOfSubGroupNames)
+		End If
+
+		Alter Control KPG_CTRL_SUBGROUP_LIST 	Value mnPrevSubGroup 	Enable
+		Alter Control KPG_CTRL_ADD_SETTING_BTN					Enable
+		Alter Control KPG_CTRL_REMOVE_SETTING_BTN					Enable
+		'Call HandlerShowListOfTables(1)
+		Call HandlerSubGroupNamePicked
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Der blev valgt i listen med gruppenavne...
+'********************************************************
+Sub HandlerGroupNamePickedAll
+
+Dim	nNew, nPick As Integer
+
+OnError GoTo ErrorOccured
+
+	nPick 	= ReadControlValue(KPG_CTRL_GROUP_LIST)
+	mnGroupID	= kpgGetGroupIDFromElementNo(nPick)
+
+	If nPick = 1 Then
+		nNew = kpgShowCreateNewGroupDialog()
+		If nNew = 0 Then
+			Alter Control KPG_CTRL_GROUP_LIST Value mnPrevGroup
+			Exit Sub
+		End If
+
+		Call kpgCreateListOfGroupNames(marrListOfGroupNames)
+		mnPrevGroup = kpgGetGroupElementNo(kpgGetGroupName$(nNew), marrListOfGroupNames)
+		Alter Control KPG_CTRL_GROUP_LIST Title From Variable marrListOfGroupNames Value mnPrevGroup
+	Else
+		mnPrevGroup = nPick	
+	End If
+
+	If mnPrevGroup = 2 Then
+		Alter Control KPG_CTRL_SUBGROUP_LIST 	Value 2			Disable
+		Alter Control KPG_CTRL_ADD_SETTING_BTN					Disable
+		Alter Control KPG_CTRL_REMOVE_SETTING_BTN					Disable
+	Else
+		If mnPrevSubGroup > Ubound(marrListOfSubGroupNames) Then
+			mnPrevSubGroup = Ubound(marrListOfSubGroupNames)
+		End If
+
+		Alter Control KPG_CTRL_SUBGROUP_LIST 	Value mnPrevSubGroup 	Enable
+		Alter Control KPG_CTRL_ADD_SETTING_BTN					Enable
+		Alter Control KPG_CTRL_REMOVE_SETTING_BTN					Enable
+		'Call HandlerShowListOfTables(1)
+		Call HandlerSubGroupNamePickedAll
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Der blev falgt i listen med undergruppenavne...
+'********************************************************
+Sub HandlerSubGroupNamePicked
+
+Dim	nNew, nPick As Integer
+
+OnError GoTo ErrorOccured
+
+	nPick			= ReadControlValue(KPG_CTRL_SUBGROUP_LIST)
+
+	If nPick = 1 Then
+		nNew = kpgShowCreateNewSubGroupDialog()
+		If nNew = 0 Then
+			Alter Control KPG_CTRL_SUBGROUP_LIST Value mnPrevSubGroup
+			Exit Sub
+		End If
+
+		Call kpgCreateListOfSubGroupNames(marrListOfSubGroupNames)
+		mnPrevSubGroup = kpgGetGroupElementNo(kpgGetSubGroupName$(nNew), marrListOfSubGroupNames)
+		Alter Control KPG_CTRL_SUBGROUP_LIST Title From Variable marrListOfSubGroupNames Value mnPrevSubGroup
+	Else
+		mnPrevSubGroup = nPick
+	End If
+
+	mnSubGroupID	= kpgGetSubGroupIDFromElementNo(mnPrevSubGroup)
+	'Print "Udpeget element: " & mnPrevSubGroup & " -> SubgroupID: " & mnSubGroupID
+
+	Call HandlerShowListOfTables(1)
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler - Der blev falgt i listen med undergruppenavne...
+'********************************************************
+Sub HandlerSubGroupNamePickedAll
+
+Dim	nNew, nPick As Integer
+
+OnError GoTo ErrorOccured
+
+	nPick			= ReadControlValue(KPG_CTRL_SUBGROUP_LIST)
+	
+	If nPick = 1 Then
+		nNew = kpgShowCreateNewSubGroupDialog()
+		If nNew = 0 Then
+			Alter Control KPG_CTRL_SUBGROUP_LIST Value mnPrevSubGroup
+			Exit Sub
+		End If
+
+		Call kpgCreateListOfSubGroupNamesAll(marrListOfSubGroupNames)
+		mnPrevSubGroup = kpgGetGroupElementNo(kpgGetSubGroupName$(nNew), marrListOfSubGroupNames)
+		Alter Control KPG_CTRL_SUBGROUP_LIST Title From Variable marrListOfSubGroupNames Value mnPrevSubGroup
+	Else
+		mnPrevSubGroup = nPick
+	End If
+
+	mnSubGroupID	= kpgGetSubGroupIDFromElementNoAll(mnPrevSubGroup)
+	'Print "ALL: Udpeget element: " & mnPrevSubGroup & " -> SubgroupID: " & mnSubGroupID
+
+	If mnSubGroupID = SUBGROUPID_ALL Then
+		Alter Control KPG_CTRL_ADD_SETTING_BTN	Disable
+		'Alter Control KPG_CTRL_REMOVE_SETTING_BTN Disable
+	Else
+		Alter Control KPG_CTRL_ADD_SETTING_BTN	Enable
+		Alter Control KPG_CTRL_REMOVE_SETTING_BTN	Enable
+	End If
+
+	Call HandlerShowListOfTables(1)
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Fjern eksisterende join mellem tabel og gruppe/Subgruppe...
+'********************************************************
+Function kpgRemoveGroupSetting(ByVal nTableID As Integer, ByVal nLayerID As Integer, ByVal nGroupID As Integer, ByVal nSubGroupID As Integer) As Logical
+
+Dim	szQuestion As String,
+	nResult As Integer
+
+OnError GoTo ErrorOccured
+
+kpgRemoveGroupSetting = FALSE
+
+	szQuestion = STYL_ASK_REMOVE_TAB_FROM_GROUP1 + kptGetMapInfoTableName$(nTableID)
+			+ STYL_ASK_REMOVE_TAB_FROM_GROUP2 + kpgGetFullGroupName$(nGroupID, nSubGroupID)
+
+	If Ask(szQuestion, MSG_YES, MSG_NO) Then
+		If kpgRemoveGroupSetup(nTableID, nLayerID, nGroupID, nSubGroupID) <> RESULT_GROUP_SETUP_NOT_ERASED Then
+			kpgRemoveGroupSetting = TRUE
+		End If
+	End If
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Dialog - Grupper/undergrupper...
+'********************************************************
+Sub kpgShowGroupSettingDialog
+
+Dim	bCloseTableTab, bCloseLayerTab, bCloseTGroupTab, bCloseGroupTab, bCloseSubGroupTab As Logical
+
+OnError GoTo ErrorOccured
+
+	bCloseTableTab	= kpaOpenKPTablesTable()
+	bCloseLayerTab	= kpaOpenKPLayersTable()
+	bCloseGroupTab 	= kpaOpenKPGroupTable()
+	bCloseSubGroupTab	= kpaOpenKPSGroupTable()
+	bCloseTGroupTab	= kpaOpenKPTGroupTable()
+
+	If kpgGroupSettingDialog() Then
+		'**User pushed OKButton
+		Commit Table KPGROUP
+		Commit Table KPSGROUP
+		Commit Table KPTGROUP
+	Else
+		'**User pushed CancelButton
+		Rollback Table KPGROUP
+		Rollback Table KPSGROUP
+		Rollback Table KPTGROUP
+	End If 
+
+	If bCloseGroupTab Then
+		Call TABClose("KPGROUP")
+	Else
+		Call TABClose("CUR_LIST_OF_GROUPS")
+	End If
+	If bCloseSubGroupTab Then
+		Close Table KPSGROUP
+	Else
+		Call TABClose("CUR_LIST_OF_SUBGROUPS_ALL")
+	End If
+	If bCloseTableTab Then
+		Call TABClose("KPTABLES")
+	Else
+		Call TABClose("CUR_LIST_OF_GROUP_TABLES")
+	End If
+	If bCloseLayerTab Then
+		Call TABClose("KPLAYERS")
+	Else
+		Call TABClose("CUR_LIST_OF_LAYERS_GROUP")
+	End If
+	If bCloseTGroupTab Then
+		Call TABClose("KPTGROUP")
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Dialog - Grupper/undergrupper...
+'********************************************************
+Function kpgGroupSettingDialog() As Logical
+
+OnError GoTo ErrorOccured
+
+kpgGroupSettingDialog = FALSE
+
+	Call kpgCreateListOfGroupNames(marrListOfGroupNames)
+	If Ubound(marrListOfGroupNames) = 2 Then
+		mnPrevGroup = 2
+	Else
+		mnPrevGroup = 3
+	End If
+	Call kpgCreateListOfSubGroupNamesAll(marrListOfSubGroupNames)
+	If Ubound(marrListOfSubGroupNames) = 2 Then
+		mnPrevSubGroup = 2
+	Else
+		mnPrevSubGroup = 3
+	End If
+
+	Dialog
+		Title STYL_DLG_TITLE_GROUPS
+		Calling HandlerGroupNamePickedAll
+		'--------
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_GROUPS
+		Control PopUpMenu		Position 5,15	Width 190			ID KPG_CTRL_GROUP_LIST
+			Calling HandlerGroupNamePickedAll
+			Title From Variable marrListOfGroupNames
+			Value mnPrevGroup
+		'--------
+		Control StaticText	Position 5,30
+			Title STYL_DLG_TXT_SUBGROUPS
+		Control PopUpMenu		Position 5,40	Width 190			ID KPG_CTRL_SUBGROUP_LIST
+			Calling HandlerSubGroupNamePickedAll
+			Title From Variable marrListOfSubGroupNames
+			Value mnPrevSubGroup
+		'--------
+		Control StaticText	Position 5,57
+			Title STYL_DLG_TXT_TABLES
+		Control ListBox		Position 5,67	Width 190	Height 100	ID KPG_CTRL_TABLES_LIST
+		
+		Control Button		Position 10,170	Width 25			ID KPG_CTRL_ADD_SETTING_BTN
+			Title MSG_ADD
+			Calling HandlerAddGroupSetting
+		Control Button		Position 40,170	Width 25			ID KPG_CTRL_REMOVE_SETTING_BTN
+			Title MSG_REMOVE
+			Calling HandlerRemoveGroupSetting
+		'--------
+		Control OKButton		Position 105,170	Width 40
+		Control CancelButton	Position 150,170	Width 40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+kpgGroupSettingDialog = TRUE
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**********************************************************************************************''
+'Handler - Updating control with "connected" tables
+'**********************************************************************************************''
+Sub HandlerShowListOfTables(ByVal nItem As Integer)
+
+OnError GoTo ErrorOccured
+
+	'Print "GroupID/SubGroupID: " & mnGroupID & "/" & mnSubGroupID
+	'Print "GroupID/SubGroupID: " & kpgGetGroupName$(mnGroupID) & "/" & kpgGetSubGroupName$(mnSubGroupID)
+
+	Call kplCreateListOfLayersByGroup(mnGroupID, mnSubGroupID, marrTableLayerNames)
+
+	If Ubound(marrTableLayerNames) < nItem Then
+		nItem	= Ubound(marrTableLayerNames)			
+	End If
+
+	Alter Control KPG_CTRL_TABLES_LIST Title From Variable marrTableLayerNames Value nItem
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'	Handler - Tilføj én eller flere tabeller til aktuel gruppering
+'**********************************************************************************************''
+Sub HandlerAddGroupSetting
+
+Dim	nTableID, nLayerID As Integer
+
+OnError GoTo ErrorOccured
+
+	'Print "GroupID/SubGroupID: " & kpgGetGroupName$(mnGroupID) & "/" & kpgGetSubGroupName$(mnSubGroupID)
+
+	If kptDialogSelectTableInformation(nTableID, nLayerID) Then
+		Exit Sub
+	End If
+
+	'Print "TableID/LayerID: " & nTableID & "/" & nLayerID
+
+	If kpgCreateGroupSetup(nTableID, nLayerID, mnGroupID, mnSubGroupID) <> RESULT_GROUP_SETUP_NOT_CREATED Then
+		Call HandlerShowListOfTables(1)
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**********************************************************************************************''
+'	Handler - Removing selected table
+'**********************************************************************************************''
+Sub HandlerRemoveGroupSetting
+
+Dim	nItem, nTableID, nLayerID As Integer
+
+OnError GoTo ErrorOccured
+
+	'Print "GroupID/SubGroupID: " & kpgGetGroupName$(mnGroupID) & "/" & kpgGetSubGroupName$(mnSubGroupID)
+
+	nItem		= ReadControlValue(KPG_CTRL_TABLES_LIST)
+	If nItem = 0 Then
+		Exit Sub
+	End If
+
+	nTableID	= kplGetTableIDFromElementNoByGroup(nItem)
+	nLayerID	= kplGetLayerIDFromElementNoByGroup(nItem)
+
+	If kpgRemoveGroupSetup(nTableID, nLayerID, mnGroupID, mnSubGroupID) <> RESULT_GROUP_SETUP_NOT_ERASED Then
+		Call HandlerShowListOfTables(nItem)
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Dialog - Udvælgelse af Grupper/undergrupper...
+'********************************************************
+Function kpgDialogSelectGroupSetting(nGroupId As Integer, nSubGroupId As Integer) As Logical
+
+Dim	bCloseTGroupTab, bCloseGroupTab, bCloseSubGroupTab As Logical
+
+kpgDialogSelectGroupSetting = FALSE
+
+OnError GoTo ErrorOccured
+
+	bCloseGroupTab 	= kpaOpenKPGroupTable()
+	bCloseSubGroupTab	= kpaOpenKPSGroupTable()
+	bCloseTGroupTab	= kpaOpenKPTGroupTable()
+
+	Call kpgCreateListOfGroupNamesLocked(marrListOfGroupNames)
+	If Ubound(marrListOfGroupNames) = 2 Then
+		nGroupID = 2
+	Else
+		nGroupID = 3
+	End If
+
+	Dialog
+		Title STYL_DLG_TITLE_SELECT_GROUPS
+		Calling HandlerGroupNamePickedSelect
+		
+		Control StaticText	Position 5,5
+			Title STYL_DLG_TXT_GROUPS
+		Control PopUpMenu		Position 5,15	Width 190	ID KPG_CTRL_GROUP_LIST
+			Calling HandlerGroupNamePickedSelect
+			Title From Variable marrListOfGroupNames
+			Value nGroupID
+			Into nGroupID
+
+		Control StaticText	Position 5,30
+			Title STYL_DLG_TXT_SUBGROUPS
+		Control PopUpMenu		Position 5,45	Width 190	ID KPG_CTRL_SUBGROUP_LIST
+			Title From Variable marrListOfSubGroupNames
+			Value nSubGroupID
+			Into nSubGroupID
+		
+		Control OKButton
+		Control CancelButton
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		nGroupId	= GROUPID_NONE
+		nSubGroupId	= SUBGROUPID_NONE
+		Rollback Table KPGROUP
+		Rollback Table KPSGROUP
+		Rollback Table KPTGROUP
+	Else
+		nGroupId	= kpgGetGroupID(marrListOfGroupNames(nGroupID))
+		nSubGroupId	= kpgGetSubGroupID(marrListOfSubGroupNames(nSubGroupId))		
+		Commit Table KPGROUP
+		Commit Table KPSGROUP
+		Commit Table KPTGROUP
+	End If
+
+	If bCloseSubGroupTab Then
+		Close Table KPSGROUP
+	Else
+		Call TABClose("CUR_LIST_OF_SUBGROUPS_LOCKED")
+	End If
+	If bCloseTGroupTab Then
+		Call TABClose("KPTGROUP")
+	End If
+	
+kpgDialogSelectGroupSetting = TRUE
+	
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'********************************************************
+'	Handler - Der blev valgt i listen med gruppenavne...
+'********************************************************
+Sub HandlerGroupNamePickedSelect
+
+Dim	nPick As Integer
+
+	nPick = ReadControlValue(KPG_CTRL_GROUP_LIST)
+
+	Call kpgCreateListOfSubGroupNamesLocked(kpgGetGroupIDFromElementNoLocked(nPick), marrListOfSubGroupNames)
+
+	If nPick = 1 Then
+		Alter Control KPG_CTRL_SUBGROUP_LIST Title From Variable marrListOfSubGroupNames Value 1 Disable
+	Else
+		Alter Control KPG_CTRL_SUBGROUP_LIST Title From Variable marrListOfSubGroupNames Value 1 Enable
+	End If
+	
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+

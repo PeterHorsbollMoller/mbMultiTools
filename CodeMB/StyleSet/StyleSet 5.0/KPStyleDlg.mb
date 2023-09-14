@@ -1,0 +1,909 @@
+'********************************************************
+'**	Modul:	Læs / skriv stilart fra stilarttabel
+'**			Opsætning af stilarter i dialog
+'********************************************************
+Include "MapBasic.def"
+
+Include "KPAdminUse.def"
+Include "KPStyleDlg.def"
+Include "KPStyleUse.def"
+Include "KPTableDlg.def"
+Include "KPTableUse.def"
+Include "KPIconDlg.def"
+Include "KPIconUse.def"
+
+Include "Globals.def"
+
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\DLLView\DLLView.def"
+
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+Include "..\..\Language\StyleDef.lng"
+
+'------------
+
+Define	KPS_CTRL_STYLENAMES_LIST	100
+Define	KPS_CTRL_TABLENAMES_LIST	200
+Define	KPS_CTRL_ICONFILES_LIST		400
+Define	KPS_CTRL_ICONNO_EDIT		410
+Define	KPS_CTRL_ICONNO_BTN		411
+
+Define	KPS_CTRL_SYMBOL_PICK		101
+Define	KPS_CTRL_LINE_PICK		102
+Define	KPS_CTRL_FONT_PICK		103
+Define	KPS_CTRL_BRUSH_FILL_PICK	104
+Define	KPS_CTRL_BRUSH_LINE_PICK	105
+
+Define	KPS_CTRL_USE_SYMBOL_CHK		201
+Define	KPS_CTRL_USE_LINE_CHK		202
+Define	KPS_CTRL_USE_FONT_CHK		203
+Define	KPS_CTRL_USE_BRUSH_FILL_CHK	204
+Define	KPS_CTRL_USE_BRUSH_LINE_CHK	205
+
+'------------
+Declare Sub kpsHandlerStyleDialogStartUp
+Declare Sub kpsHandlerSaveStyle
+Declare Sub kpsHandlerSaveSingleStyle(ByVal nElementNo As Integer)
+Declare Sub kpsHandlerChosenStyle
+Declare Sub kpsHandlerUseStyleCheckBox
+Declare Sub kpsHandlerIconFileSelected
+Declare Sub kpsHandlerPickIconNo
+Declare Sub kpsHandlerTableSelected
+Declare Sub kpsAlterStyleNameDialog
+Declare Sub kpsRemoveStyleDialog
+
+Declare Sub kpsHandlerStyleChanged(ByVal nID As Integer)
+
+Declare Sub InsertNewStyleInTable(ByVal nStyleID As Integer, ByVal szStyleName As String)
+
+
+Dim	marrStyleNames(0), marrTableNames(0), marrIconFiles(0) As String,
+	mbSymbolColExists, mbPenColExists, mbLineColExists, mbBrushColExists, mbFontColExists As Logical,
+	mnPrevStyleItem, mnPrevTable, mnPrevIconFile As Integer,
+	mbSaveCurrentSettings As Logical
+
+'********************************************************
+'	Åben Dialogen
+'********************************************************
+Sub kpsShowStylesDialogAllObject
+
+	Call kpsOpenStyleDialog("*")
+
+End Sub
+
+'********************************************************
+'	Åben Dialogen
+'********************************************************
+Sub kpsOpenStyleDialog(ByVal StyleType As String)
+
+'"*" Alle stilarter, "L" Line stilart, "F" Tekst stilart, "S" Symbol stilart, "R" Region stilart
+'"SF" Symbol og tekst stilart		"FS" Tekst og symbol stilart
+'"SR" Symbol og region stilart	"RS" Region og tekst stilart
+'"SL" Symbol og linie stilart		"LS" Linie og symbol stilart
+'"LF" Linie og tekst stilart		"FL" tekst og linie stilart
+'"RL" region og linie stilart		"LR" Linie og region stilart 
+'"RF" region og tekst stilart		"FR" tekst og region stilart 
+'"RU" Region kun udfyldnings stilart 
+
+Dim	i As Integer,
+	penBefore As Pen,
+	brsBefore As Brush,
+	symBefore As Symbol,
+	fntBefore As Font,
+	bCloseKPStylesTab, bCloseKPTablesTab, bCloseKPIconsTab As Logical
+
+	'**Skal menupaletter gendannes ...!!??
+'	gbPolygonCreate	= FALSE
+'	gbLineCreate	= FALSE
+'	gbFontCreate	= FALSE
+'	gbSymbolCreate	= FALSE
+
+	'**Findes kolonnerne til de enkelte stilarter...
+	mbSymbolColExists	= TRUE
+	mbPenColExists	= TRUE
+	mbLineColExists	= TRUE
+	mbBrushColExists	= TRUE
+	mbFontColExists	= TRUE
+
+	penBefore = CurrentPen()
+	brsBefore = CurrentBrush()
+	symBefore = CurrentSymbol()
+	fntBefore = CurrentFont()
+
+	bCloseKPStylesTab = kpaOpenKPStylesTable()
+	bCloseKPTablesTab = kpaOpenKPTablesTable()
+	bCloseKPIconsTab	= kpaOpenKPIconsTable()
+
+	'***Telling dialog that this is first runtrough...
+	mbSaveCurrentSettings = FALSE
+
+	Do Case StyleType
+		Case "R"
+			Note "Region stilart er ikke implementeret endnu!"
+		Case "RU"
+			Call kpsStyleDialogPolygonOnlyFill
+		Case "L"
+			Note "Linie stilart er ikke implementeret endnu!"
+		Case "S"
+			Note "Symbol stilart er ikke implementeret endnu!"
+		Case "F"
+			Note "Tekst stilart er ikke implementeret endnu!"
+		Case "*"
+			Call kpsStyleDialogAllTools
+		Case "LR", "RL"
+			Note "Linie og Region stilart er ikke implementeret endnu!"
+		Case "LS", "SL"
+			Note "Linie og symbol stilart er ikke implementeret endnu!"
+		Case "LF", "FL"
+			Note "Linie og tekst stilart er ikke implementeret endnu!"
+		Case "RS", "SR"
+			Note "Region og symbol stilart er ikke implementeret endnu!"
+		Case "RF", "FR"
+			Note "Region og tekst stilart er ikke implementeret endnu!"
+		Case "SF", "FS" 
+			Note "Symbol og tekst stilart er ikke implementeret endnu!"
+		Case Else
+			Note "Ikke implementeret endnu!"
+	End Case
+
+	Set Style Brush 	brsBefore
+	Set Style Pen 	penBefore
+	Set Style Symbol 	symBefore
+	Set Style Font 	fntBefore
+
+	If bCloseKPStylesTab Then
+		Close Table KPSTYLES
+	Else
+		If TableOpen("CUR_LIST_OF_TABLES") Then
+			Close Table CUR_LIST_OF_TABLES
+		End If
+	End If
+	If bCloseKPTablesTab Then
+		Close Table KPTABLES
+	Else
+		If TableOpen("CUR_LIST_OF_STYLES") Then
+			Close Table CUR_LIST_OF_STYLES
+		End If
+	End If
+	If bCloseKPIconsTab Then
+		Close Table KPICONS
+	Else
+		If TableOpen("CUR_LIST_OF_TABLES") Then
+			Close Table CUR_LIST_OF_ICONFILES
+		End If
+	End If
+
+End Sub
+
+'********************************************************
+'	Dialog for tilføjelse af nyt element
+'********************************************************
+Function kpsDialogAddStyle() As Logical
+
+Dim	nStyleID, nElementNo As Integer,
+	szStyleName As String
+
+kpsDialogAddStyle = FALSE
+
+'-----------------------------------
+ShowDialogAgain:
+
+	Dialog
+		Title STYL_THEME_ADD_POINTS
+		Control StaticText	Position 10,10
+			Title STYL_THEME_NAME
+		Control EditText		Position 10,20	Width 200
+			Value szStyleName
+			Into szStyleName
+
+		Control OKButton
+			Title MSG_TEXT_ADD
+		Control CancelButton
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	ElseIf szStyleName = "" Then
+		Exit Function
+	End If
+
+	If kpsGetStyleIDFromStyleName(szStyleName) = 0 Then
+
+		nStyleID = kpsGetNextStyleID()
+
+		Call InsertNewStyleInTable(nStyleID, szStyleName)
+	
+		'**Laver array med stilartsnavn-filer...
+		Call kpsCreateListOfStyleNames(marrStyleNames)
+
+		nElementNo = kpsGetStyleElementNo(szStyleName, marrStyleNames)
+		Alter Control KPS_CTRL_STYLENAMES_LIST 
+			Title From Variable marrStyleNames
+			Value nElementNo
+
+		Call kpsHandlerStyleChanged(nElementNo)
+
+		mnPrevStyleItem = nElementNo
+		kpsDialogAddStyle = TRUE
+
+	Else
+		Note ERR_STYL_THEME_NAME_EXISTS
+			+ lf + szStyleName
+		GoTo ShowDialogAgain
+	End If
+
+End Function
+
+'********************************************************
+'	Dialog for opsætning af stilarter
+'********************************************************
+Sub kpsStyleDialogAllTools
+
+	Dialog
+		Title STYL_DLG_TITLE_THEMES
+		Calling kpsHandlerStyleDialogStartUp
+		'-----
+		Control StaticText	Position 5,7
+			Title STYL_THEME_THEMES
+		Control PopupMenu		Position 40,5	Width 200			ID KPS_CTRL_STYLENAMES_LIST
+			Calling kpsHandlerChosenStyle
+
+		Control StaticText	Position 5,22
+			Title MSG_TAB_TABLE
+		Control PopUpMenu		Position 40,20	Width 200			ID KPS_CTRL_TABLENAMES_LIST
+			Calling kpsHandlerTableSelected
+		'-----
+		Control StaticText	Position 5,37
+			Title MSG_ICON_FILE
+		Control PopupMenu		Position 40,35	Width 200			ID KPS_CTRL_ICONFILES_LIST
+			Calling kpsHandlerIconFileSelected
+		Control StaticText	Position 175,52
+			Title MSG_ICON_ICONNO
+		Control EditText		Position 200,50	Width 25			ID KPS_CTRL_ICONNO_EDIT
+		Control Button		Position 225,50	Width 15	Height 12
+			Title "..."
+			Calling kpsHandlerPickIconNo
+		'-----
+		Control StaticText	Position 5,50
+			Title STYL_SYMBOL
+		Control SymbolPicker	Position 10,60					ID KPS_CTRL_SYMBOL_PICK
+		Control StaticText	Position 47,50
+			Title STYL_LINE
+		Control PenPicker		Position 50,60					ID KPS_CTRL_LINE_PICK
+		Control StaticText	Position 85,50
+			Title STYL_FONT
+		Control FontPicker	Position 90,60					ID KPS_CTRL_FONT_PICK
+
+		Control GroupBox		Position 5,85	Width 115	Height 45
+			Title STYL_REGION
+		Control StaticText	Position 22,95
+			Title STYL_FILL 
+		Control BrushPicker	Position 30,105					ID KPS_CTRL_BRUSH_FILL_PICK
+		Control StaticText	Position 60,95
+			Title STYL_BORDER
+		Control PenPicker		Position 70,105					ID KPS_CTRL_BRUSH_LINE_PICK
+		'-----
+		Control GroupBox		Position 125,65	Width 80	Height 65	
+			Title MSG_OBJ_KIND
+		Control CheckBox		Position 130,75					ID KPS_CTRL_USE_SYMBOL_CHK
+			Title MSG_OBJ_SYMBOL
+			Calling kpsHandlerUseStyleCheckBox
+		Control CheckBox		Position 130,85					ID KPS_CTRL_USE_LINE_CHK
+			Title MSG_OBJ_LINE
+			Calling kpsHandlerUseStyleCheckBox
+		Control CheckBox		Position 130,95					ID KPS_CTRL_USE_FONT_CHK
+			Title MSG_OBJ_FONT
+			Calling kpsHandlerUseStyleCheckBox
+		Control CheckBox		Position 130,105					ID KPS_CTRL_USE_BRUSH_FILL_CHK
+			Title MSG_OBJ_FILL
+			Calling kpsHandlerUseStyleCheckBox
+		Control CheckBox		Position 130,115					ID KPS_CTRL_USE_BRUSH_LINE_CHK	
+			Title MSG_OBJ_BORDER
+			Calling kpsHandlerUseStyleCheckBox
+		'-----
+		Control Button		Position 5,140	Width 60
+			Title STYL_THEME_ALTER_NAME
+			Calling kpsAlterStyleNameDialog
+		Control Button		Position 70,140	Width 60
+			Title STYL_THEME_REMOVE
+			Calling kpsRemoveStyleDialog
+
+		Control OKButton		Position 150,140
+			Calling kpsHandlerSaveStyle
+			Title MSG_TEXT_SAVE
+		Control CancelButton	Position 190,140
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Rollback Table KPSTYLES
+		Exit Sub
+	End If
+
+	Commit Table KPSTYLES
+
+End Sub
+
+'********************************************************
+'	Dialog for opsætning af region udfyldningsstilart
+'********************************************************
+Sub kpsStyleDialogPolygonOnlyFill
+
+	Dialog
+		Title STYL_DLG_TITLE_THEMES
+		Calling kpsHandlerStyleDialogStartUp
+
+		Control PopupMenu		Position 5,5	Width 200	ID KPS_CTRL_STYLENAMES_LIST
+			Title From Variable marrStyleNames
+			Calling kpsHandlerChosenStyle
+		'-----
+		Control StaticText	Position 25,30
+			Title STYL_FILL
+		Control BrushPicker	Position 25,40			ID KPS_CTRL_FONT_PICK
+		'-----
+		Control Button		Position 120,40	Width 60
+			Title STYL_SAVE_STYLE
+			Calling kpsHandlerSaveStyle
+			Disable
+		Control Button		Position 130,110	Width 60
+			Title STYL_THEME_ALTER_NAME
+			Calling kpsAlterStyleNameDialog
+
+		Control OKButton		Position 20,110
+			Calling kpsHandlerSaveStyle
+			Title MSG_TEXT_SAVE
+		Control CancelButton	Position 70,110
+	
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Rollback Table KPSTYLES
+		Exit Sub
+	End If
+
+	Commit Table KPSTYLES
+
+End Sub
+
+'********************************************************
+'	Handler til visning signatur på knapper i dialog
+'********************************************************
+Sub kpsHandlerStyleDialogStartUp
+
+	'**Laver array med stilartsnavn-filer...
+	Call kpsCreateListOfStyleNames(marrStyleNames)
+	Alter Control KPS_CTRL_STYLENAMES_LIST Title From Variable marrStyleNames
+
+	If Ubound(marrStyleNames) > 1 Then
+		mnPrevStyleItem = 2
+	Else
+		mnPrevStyleItem = 1
+	End If
+
+	'*Laver array med tabelnavne...
+	Call kptCreateListOfTableNames(marrTableNames)
+	Alter Control KPS_CTRL_TABLENAMES_LIST Title From Variable marrTableNames
+
+	'**Laver array med ikon filer...
+	Call kpiCreateListOfIconFileNames(marrIconFiles)
+	Alter Control KPS_CTRL_ICONFILES_LIST Title From Variable marrIconFiles
+
+	If not kpsSymbolColumnsExists() Then
+		mbSymbolColExists	= FALSE
+		Alter Control KPS_CTRL_SYMBOL_PICK Disable Hide
+		Alter Control KPS_CTRL_USE_SYMBOL_CHK Disable
+	End If
+
+	If not kpsLineColumnsExists() Then
+		mbLineColExists	= FALSE
+		Alter Control KPS_CTRL_LINE_PICK Disable Hide
+		Alter Control KPS_CTRL_USE_LINE_CHK Disable
+	End If
+
+	If not kpsFontColumnsExists() Then
+		mbFontColExists	= FALSE
+		Alter Control KPS_CTRL_FONT_PICK Disable Hide
+		Alter Control KPS_CTRL_USE_FONT_CHK Disable
+	End If
+
+	If not kpsBrushColumnsExists() Then
+		mbBrushColExists	= FALSE
+		Alter Control KPS_CTRL_BRUSH_FILL_PICK Disable Hide
+		Alter Control KPS_CTRL_USE_BRUSH_FILL_CHK Disable
+	End If
+
+	If not kpsPenColumnsExists() Then
+		mbPenColExists	= FALSE
+		Alter Control KPS_CTRL_BRUSH_LINE_PICK Disable Hide
+		Alter Control KPS_CTRL_USE_BRUSH_LINE_CHK Disable
+	End If
+
+	'****Start with this style....
+	Alter Control KPS_CTRL_STYLENAMES_LIST Value mnPrevStyleItem
+	Call kpsHandlerChosenStyle
+
+End Sub
+
+'********************************************************
+'	Handler til evt udvælgelse af ikon-fil...
+'********************************************************
+Sub kpsHandlerIconFileSelected
+
+Dim	szFile As String,
+	nElementNo, i, nVal As Integer
+
+	nElementNo = ReadControlValue(KPS_CTRL_ICONFILES_LIST)
+
+	If nElementNo = 1 Then
+		If kpiDialogIconFileInfo() Then
+			'***Creating list of iconfiles..
+			Call kpiCreateListOfIconFileNames(marrIconFiles)
+			mnPrevIconFile = kpiGetIconElementNo(kpiGetIconShortName$(kpiGetMaxIconFileID()), marrIconFiles)
+			Alter Control KPS_CTRL_ICONFILES_LIST Title From Variable marrIconFiles Value mnPrevIconFile
+		Else
+			Alter Control KPS_CTRL_ICONFILES_LIST Value mnPrevIconFile
+		End If
+	Else
+		mnPrevIconFile = nElementNo
+	End If
+
+End Sub
+
+'**********************************************************************************************''
+'	Udpeg icon visuelt med IconPicker
+'**********************************************************************************************''
+Sub kpsHandlerPickIconNo
+
+Dim	nIcon, nFileID As Integer,
+	szDLLFile As String
+
+OnError GoTo ErrorOccured
+
+	nFileID	= kpiGetIconFileIDFromElementNo(ReadControlValue(KPS_CTRL_ICONFILES_LIST))
+	szDLLFile	= kpiGetIconFileName$(nFileID)
+	nIcon		= GetUserPickedIconNoFromDLLAtMouse(szDLLFile)
+	If nIcon = 0 Then
+		Exit Sub
+	End If
+	
+	Alter Control KPS_CTRL_ICONNO_EDIT Value Str$(nIcon)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'********************************************************
+'	Handler til evt. udvælgelse af tabel...
+'********************************************************
+Sub kpsHandlerTableSelected
+
+Dim	szFile As String,
+	i, nVal, nTableID, nLayerID As Integer
+
+	nVal = ReadControlValue(KPS_CTRL_TABLENAMES_LIST)
+	If nVal = 1 Then
+		If NOT kptDialogSelectTableInformation(nTableID, nLayerID) Then
+			'User pushed the CancelButton...
+			Alter Control KPS_CTRL_TABLENAMES_LIST Value mnPrevTable
+			Exit Sub
+		Else
+			'User pushed the OKButton...
+			Call kptCreateListOfTableNames(marrTableNames)
+			nVal = kptGetTableElementNo(kptGetTableName$(nTableID), marrTableNames)
+			Alter Control KPS_CTRL_TABLENAMES_LIST
+				Title From Variable marrTableNames
+				Value nVal
+		End If
+	End If
+
+	mnPrevTable = nVal
+
+End Sub
+
+'********************************************************
+'	Handler til skift af signatur på knapper i dialog
+'********************************************************
+Sub kpsHandlerChosenStyle
+
+Dim	nElementNo As Integer
+
+	If mbSaveCurrentSettings Then
+		Call kpsHandlerSaveSingleStyle(mnPrevStyleItem)
+	Else
+		mbSaveCurrentSettings = TRUE
+	End If
+
+	nElementNo = ReadControlvalue(KPS_CTRL_STYLENAMES_LIST)
+	If nElementNo = 1 Then
+		If not kpsDialogAddStyle() Then
+			Alter Control KPS_CTRL_STYLENAMES_LIST Value mnPrevStyleItem
+		End If
+	Else
+		Call kpsHandlerStyleChanged(nElementNo)
+		mnPrevStyleItem = nElementNo
+	End If
+
+End Sub
+
+'********************************************************
+'	Handler til disable/enable stilartsknapper i dialog
+'********************************************************
+Sub kpsHandlerUseStyleCheckBox
+
+Dim	nVal As Integer
+
+	nVal = TriggerControl()
+
+	Do Case nVal
+		Case KPS_CTRL_USE_SYMBOL_CHK
+			If ReadControlValue(nVal) Then
+				Alter Control KPS_CTRL_SYMBOL_PICK Enable Show
+			Else
+				Alter Control KPS_CTRL_SYMBOL_PICK Disable Hide
+			End If
+		Case KPS_CTRL_USE_LINE_CHK
+			If ReadControlValue(nVal) Then
+				Alter Control KPS_CTRL_LINE_PICK Enable Show
+			Else
+				Alter Control KPS_CTRL_LINE_PICK Disable Hide
+			End If
+		Case KPS_CTRL_USE_FONT_CHK
+			If ReadControlValue(nVal) Then
+				Alter Control KPS_CTRL_FONT_PICK Enable Show
+			Else
+				Alter Control KPS_CTRL_FONT_PICK Disable Hide
+			End If
+		Case KPS_CTRL_USE_BRUSH_FILL_CHK
+			If ReadControlValue(nVal) Then
+				Alter Control KPS_CTRL_BRUSH_FILL_PICK Enable Show
+			Else
+				Alter Control KPS_CTRL_BRUSH_FILL_PICK Disable Hide
+			End If
+		Case KPS_CTRL_USE_BRUSH_LINE_CHK
+			If ReadControlValue(nVal) Then
+				Alter Control KPS_CTRL_BRUSH_LINE_PICK Enable Show
+			Else
+				Alter Control KPS_CTRL_BRUSH_LINE_PICK Disable Hide
+			End If
+	End Case
+
+End Sub
+
+'********************************************************
+'	Skriv til stilart tabel
+'********************************************************
+Sub kpsUpdateItem(ByVal nStyleID As Integer)
+
+	Select * From KPSTYLES
+		Where STYLEID = nStyleID
+		Into TOUPDATE NoSelect
+
+'	If TOUPDATE.ICONFILEID <> kpiGetIconFileIDFromElementNo(ReadControlValue(KPS_CTRL_ICONFILES_LIST)) Then
+'		'Print "Gendan alle paletter"
+'		gbPolygonCreate	= TRUE
+'		gbLineCreate	= TRUE
+'		gbFontCreate	= TRUE
+'		gbSymbolCreate	= TRUE
+'	ElseIf TOUPDATE.ICON <> Val(ReadControlValue(KPS_CTRL_ICONNO_EDIT)) Then
+'		'Print "Gendan alle paletter"
+'		gbPolygonCreate	= TRUE
+'		gbLineCreate	= TRUE
+'		gbFontCreate	= TRUE
+'		gbSymbolCreate	= TRUE
+'	End If
+
+	Update TOUPDATE
+	   Set	TABLEID	= kptGetTableIDFromElementNo(ReadControlValue(KPS_CTRL_TABLENAMES_LIST)),
+			ICONFILEID	= kpiGetIconFileIDFromElementNo(ReadControlValue(KPS_CTRL_ICONFILES_LIST)),
+			ICON		= Val(ReadControlValue(KPS_CTRL_ICONNO_EDIT))
+
+	If mbLineColExists Then
+'		If not TOUPDATE.L_SHOW = ReadControlValue(KPS_CTRL_USE_LINE_CHK) Then
+'			'Print "Gendan linie paletten"
+'			gbLineCreate	= TRUE
+'		End If
+
+		Call kpsSetLineInTable("TOUPDATE", ReadControlValue(KPS_CTRL_LINE_PICK))
+		Update TOUPDATE
+			Set	L_SHOW	= ReadControlValue(KPS_CTRL_USE_LINE_CHK)
+	End If
+
+	If mbPenColExists Then
+'		If not TOUPDATE.P_SHOW = ReadControlValue(KPS_CTRL_USE_BRUSH_LINE_CHK) Then
+'			'Print "Gendan region paletten"
+'			gbPolygonCreate	= TRUE
+'		End If
+
+		Call kpsSetPenInTable("TOUPDATE", ReadControlValue(KPS_CTRL_BRUSH_LINE_PICK))
+		Update TOUPDATE
+			Set	P_SHOW	= ReadControlValue(KPS_CTRL_USE_BRUSH_LINE_CHK)
+	End If
+
+	If mbBrushColExists Then
+'		If not TOUPDATE.B_SHOW = ReadControlValue(KPS_CTRL_USE_BRUSH_FILL_CHK) Then
+'			'Print "Gendan region paletten"
+'			gbPolygonCreate	= TRUE
+'		End If
+
+		Call kpsSetBrushInTable("TOUPDATE", ReadControlValue(KPS_CTRL_BRUSH_FILL_PICK))
+		Update TOUPDATE
+
+			Set	B_PATTERN	= ReadControlValue(KPS_CTRL_USE_BRUSH_FILL_CHK)
+	End If
+
+	If mbFontColExists Then
+'		If not TOUPDATE.F_SHOW = ReadControlValue(KPS_CTRL_USE_FONT_CHK) Then
+'			'Print "Gendan tekst paletten"
+'			gbFontCreate	= TRUE
+'		End If
+
+		Call kpsSetFontInTable("TOUPDATE", ReadControlValue(KPS_CTRL_FONT_PICK))
+		Update TOUPDATE
+			Set	F_SHOW	= ReadControlValue(KPS_CTRL_USE_FONT_CHK)
+	End If
+
+	If mbSymbolColExists Then
+'		If not TOUPDATE.S_SHOW = ReadControlValue(KPS_CTRL_SYMBOL_PICK) Then
+'			'Print "Gendan symbol paletten"
+'			gbSymbolCreate	= TRUE
+'		End If
+
+		Call kpsSetSymbolInTable("TOUPDATE", ReadControlValue(KPS_CTRL_SYMBOL_PICK))
+		Update TOUPDATE
+			Set	S_SHOW	= ReadControlValue(KPS_CTRL_SYMBOL_PICK)
+
+
+	End If
+
+	Close Table TOUPDATE
+
+End Sub
+
+'********************************************************
+'	Handler: Gem ændret stilart
+'********************************************************
+Sub kpsHandlerSaveStyle
+
+	Call kpsHandlerSaveSingleStyle(ReadControlValue(KPS_CTRL_STYLENAMES_LIST))
+
+End Sub
+
+'********************************************************
+'	Handler: Gem ændret stilart
+'********************************************************
+Sub kpsHandlerSaveSingleStyle(ByVal nElementNo As Integer)
+
+Dim	nStyleID as smallint
+
+	nStyleID = kpsGetStyleIDFromElementNo(nElementNo)
+	If nStyleID < 1 Then
+		Exit Sub
+	End If
+
+	Select * From KPSTYLES
+		Where STYLEID = nStyleID
+		Into CUR_STYLE_TOUPDATE
+
+	Call kpsSetFontInTable("CUR_STYLE_TOUPDATE", ReadControlValue(KPS_CTRL_FONT_PICK))
+	Call kpsSetSymbolInTable("CUR_STYLE_TOUPDATE", ReadControlValue(KPS_CTRL_SYMBOL_PICK))
+	Call kpsSetLineInTable("CUR_STYLE_TOUPDATE", ReadControlValue(KPS_CTRL_LINE_PICK))
+	Call kpsSetPenInTable("CUR_STYLE_TOUPDATE", ReadControlValue(KPS_CTRL_BRUSH_LINE_PICK))
+	Call kpsSetBrushInTable("CUR_STYLE_TOUPDATE", ReadControlValue(KPS_CTRL_BRUSH_FILL_PICK))
+
+	Update CUR_STYLE_TOUPDATE
+		Set	S_SHOW	= ReadControlValue(KPS_CTRL_USE_SYMBOL_CHK),
+			L_SHOW	= ReadControlValue(KPS_CTRL_USE_LINE_CHK),
+			F_SHOW	= ReadControlValue(KPS_CTRL_USE_FONT_CHK),
+			B_SHOW	= ReadControlValue(KPS_CTRL_USE_BRUSH_FILL_CHK),
+			P_SHOW	= ReadControlValue(KPS_CTRL_USE_BRUSH_LINE_CHK),
+			ICONFILEID	= kpiGetIconFileIDFromElementNo(ReadControlValue(KPS_CTRL_ICONFILES_LIST)),
+			ICON		= Val(ReadControlValue(KPS_CTRL_ICONNO_EDIT)),
+			TABLEID	= kptGetTableIDFromElementNo(ReadControlValue(KPS_CTRL_TABLENAMES_LIST))
+
+	Close Table CUR_STYLE_TOUPDATE
+
+End Sub
+
+'********************************************************
+'	Handler til visning signatur på knapper i dialog for ID 
+'********************************************************
+Sub kpsHandlerStyleChanged(ByVal nID As Integer)
+
+Dim	i As Integer,
+	penCurPen, penCurLine As Pen,
+	symCurSymbol As Symbol,
+	fntCurFont As Font,
+	brsCurBrush As Brush
+
+	Fetch Rec (nID - 1) From CUR_LIST_OF_STYLES
+
+	brsCurBrush 	= kpsGetBrushFromTable(CUR_LIST_OF_STYLES)
+	penCurPen		= kpsGetPenFromTable(CUR_LIST_OF_STYLES)
+	penCurLine		= kpsGetLineFromTable(CUR_LIST_OF_STYLES)
+	symCurSymbol	= kpsGetSymbolFromTable(CUR_LIST_OF_STYLES)
+	fntCurFont		= kpsGetFontFromTable(CUR_LIST_OF_STYLES)
+
+	Set Style Brush	brsCurBrush
+	Set Style Pen	penCurLine
+	Set Style Symbol	symCurSymbol
+	Set Style Font	fntCurFont
+
+	'**Updating Symbolcontrols...
+	Alter Control KPS_CTRL_SYMBOL_PICK Value symCurSymbol
+	Alter Control KPS_CTRL_LINE_PICK Value penCurLine
+	Alter Control KPS_CTRL_FONT_PICK Value fntCurFont
+	Alter Control KPS_CTRL_BRUSH_FILL_PICK Value brsCurBrush
+	Alter Control KPS_CTRL_BRUSH_LINE_PICK Value penCurPen
+
+	If not CUR_LIST_OF_STYLES.S_SHOW Then
+		Alter Control KPS_CTRL_SYMBOL_PICK Hide
+		Alter Control KPS_CTRL_USE_SYMBOL_CHK Value FALSE
+	Else
+		Alter Control KPS_CTRL_SYMBOL_PICK Show
+		Alter Control KPS_CTRL_USE_SYMBOL_CHK Value TRUE
+	End If
+
+	If not CUR_LIST_OF_STYLES.L_SHOW Then
+		Alter Control KPS_CTRL_LINE_PICK Hide
+		Alter Control KPS_CTRL_USE_LINE_CHK Value FALSE
+	Else
+		Alter Control KPS_CTRL_LINE_PICK Show
+		Alter Control KPS_CTRL_USE_LINE_CHK Value TRUE
+	End If
+
+	If not CUR_LIST_OF_STYLES.F_SHOW Then
+		Alter Control KPS_CTRL_FONT_PICK Hide
+		Alter Control KPS_CTRL_USE_FONT_CHK Value FALSE
+	Else
+		Alter Control KPS_CTRL_FONT_PICK Show
+		Alter Control KPS_CTRL_USE_FONT_CHK Value TRUE
+	End If
+
+	If not CUR_LIST_OF_STYLES.B_SHOW Then
+		Alter Control KPS_CTRL_BRUSH_FILL_PICK Hide
+		Alter Control KPS_CTRL_USE_BRUSH_FILL_CHK Value FALSE
+	Else
+		Alter Control KPS_CTRL_BRUSH_FILL_PICK Show
+		Alter Control KPS_CTRL_USE_BRUSH_FILL_CHK Value TRUE
+	End If
+
+	If not CUR_LIST_OF_STYLES.P_SHOW Then
+		Alter Control KPS_CTRL_BRUSH_LINE_PICK Hide
+		Alter Control KPS_CTRL_USE_BRUSH_LINE_CHK Value FALSE
+	Else
+		Alter Control KPS_CTRL_BRUSH_LINE_PICK Show
+		Alter Control KPS_CTRL_USE_BRUSH_LINE_CHK Value TRUE
+	End If
+
+	mnPrevTable = kptGetTableElementNo(kptGetTableName$(CUR_LIST_OF_STYLES.TABLEID), marrTableNames)
+	mnPrevStyleItem = nID
+	Alter Control KPS_CTRL_TABLENAMES_LIST 
+		Value mnPrevTable
+
+	Alter Control KPS_CTRL_ICONFILES_LIST 
+		Value kpiGetIconElementNo(kpiGetIconShortName$(CUR_LIST_OF_STYLES.ICONFILEID), marrIconFiles)
+
+	Alter Control KPS_CTRL_ICONNO_EDIT Value Str$(CUR_LIST_OF_STYLES.ICON)
+
+End Sub
+
+'********************************************************
+'	Opretter dummy-style... 
+'********************************************************
+Sub InsertNewStyleInTable(ByVal nStyleID As Integer, ByVal szStyleName As String)
+
+	Insert Into KPSTYLES
+	   (	STYLEID, STYLENAME,
+		S_SHOW, L_SHOW, F_SHOW, B_SHOW, P_SHOW,
+		ICONFILEID, ICON,
+		TABLEID)
+	   Values (	nStyleID, szStyleName,
+			FALSE, FALSE, FALSE, FALSE, FALSE,
+			-1, 1,
+			kptMaxTableID())
+
+	Select * From KPSTYLES
+		Where STYLEID = nStyleID
+		Into CUR_STYLE_TOUPDATE
+
+	Call kpsSetFontInTable("CUR_STYLE_TOUPDATE", STYLE_PRE_FONT)
+	Call kpsSetSymbolInTable("CUR_STYLE_TOUPDATE", STYLE_PRE_SYMBOL)
+	Call kpsSetLineInTable("CUR_STYLE_TOUPDATE", STYLE_PRE_LINE)
+	Call kpsSetPenInTable("CUR_STYLE_TOUPDATE", STYLE_PRE_PEN)
+	Call kpsSetBrushInTable("CUR_STYLE_TOUPDATE", STYLE_PRE_BRUSH)
+
+	Close Table CUR_STYLE_TOUPDATE
+End Sub
+
+'********************************************************
+'	Viser dialog til ændring af temanavn... 
+'********************************************************
+Sub kpsAlterStyleNameDialog
+
+Dim	nStyleID, nElementNo As Integer,
+	szStyleName, szNewStyleName As String,
+	bCloseTab As Logical
+
+	nElementNo	= ReadControlValue(KPS_CTRL_STYLENAMES_LIST)
+	nStyleID	= kpsGetStyleIDFromElementNo(nElementNo)
+	szStyleName	= marrStyleNames(nElementNo)
+
+'------------------------
+ShowDialogAgain:
+
+	Dialog
+		Control StaticText	Position 10,10
+			Title STYL_THEME_NAME
+		Control EditText		Position 10,20	Width 200
+			Value szStyleName
+			Into szNewStyleName
+
+		Control OKButton
+		Control CancelButton
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	ElseIf szStyleName = "" Then
+		Exit Sub
+	ElseIf szStyleName = szNewStyleName Then
+		Exit Sub
+	End If
+
+	If kpsGetStyleIDFromStyleName(szNewStyleName) = 0 Then
+
+		'**Replacing the name....
+		Call kpsSetStyleName$(nStyleID, szNewStyleName)
+
+		'**Laver array med stilartsnavn-filer...
+		Call kpsCreateListOfStyleNames(marrStyleNames)
+
+		nElementNo = kpsGetStyleElementNo(szNewStyleName, marrStyleNames)
+		Alter Control KPS_CTRL_STYLENAMES_LIST 
+			Title From Variable marrStyleNames
+			Value nElementNo
+
+	Else
+		Note ERR_STYL_THEME_NAME_EXISTS
+			+ lf + szStyleName
+		GoTo ShowDialogAgain
+	End If
+
+End Sub
+
+'********************************************************
+'	Viser dialog til ændring af temanavn... 
+'********************************************************
+Sub kpsRemoveStyleDialog
+
+Dim	nStyleID, nElementNo As Integer,
+	szStyleName, szNewStyleName As String,
+	bCloseTab As Logical
+
+	nElementNo	= ReadControlValue(KPS_CTRL_STYLENAMES_LIST)
+	nStyleID	= kpsGetStyleIDFromElementNo(nElementNo)
+	szStyleName	= marrStyleNames(nElementNo)
+
+	If Ask(STYL_ASK_REMOVE_THEME + szStyleName + " ?", MSG_NO, MSG_YES) Then
+		Exit Sub
+	End If
+
+	If kpsRemoveStyleRef(nStyleID) Then
+
+		'**Laver array med stilartsnavn-filer...
+		Call kpsCreateListOfStyleNames(marrStyleNames)
+
+		If nElementNo > Ubound(marrStyleNames) Then
+			nElementNo = Ubound(marrStyleNames)
+		End If
+
+		Alter Control KPS_CTRL_STYLENAMES_LIST 
+			Title From Variable marrStyleNames
+			Value nElementNo
+
+		mbSaveCurrentSettings	= FALSE
+		Call kpsHandlerStyleChanged(nElementNo)
+
+	Else
+		Note ERR_STYL_THEME_NOT_REMOVEBLE
+	End If
+
+End Sub

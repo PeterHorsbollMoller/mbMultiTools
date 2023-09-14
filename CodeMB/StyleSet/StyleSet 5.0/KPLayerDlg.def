@@ -1,0 +1,7 @@
+Declare Sub kplShowDialogWriteLayerSettings
+Declare Function kplDialogWriteLayerSettings() As Logical
+
+Declare Sub kplShowDialogSetLayerOrder
+Declare Function kplDialogSetLayerOrder() As Logical
+
+Declare Function kplDialogSelectLayerIDNew(ByVal nTableID As Integer) As Integer

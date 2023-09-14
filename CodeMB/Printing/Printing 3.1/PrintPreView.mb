@@ -1,0 +1,1327 @@
+'*******************************************************************************
+'** 	Program:	Alle med udskriftsfunktionalitet
+'** 	Modul:	PrintPreView.mb
+'**			PreView function.
+'*******************************************************************************
+
+Include "Mapbasic.def"
+Include "Menu.def"
+Include "Icons.def"
+
+Define FILE_BTN_PAD_PREVIEW	ApplicationDirectory$() + "PreView.pad"
+
+Include "..\..\Language\PlotDef.lng"
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+
+Include "Globals.def"
+Include "PrintPreView.def"
+Include "Printing.def"
+Include "PrintValues.def"
+Include "PrintDlg.def"
+
+Include "..\..\Time\Time.def"
+Include "..\..\WinFunc\WinFunc.def"
+Include "..\..\MapFunc\MapFunc.def"
+Include "..\..\GeoFunc\GeoFunc.def"
+Include "..\..\FileFunc\FileFunc.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\PadFunc\PadFunc.def"
+
+Declare Function GetFramePen() As Pen
+
+Dim	arrColAndVal() As T_COL_AND_VALUES,
+	mnMainMID, mnMainLID As Integer,
+	arrAliasText() As T_ROW_AND_VALUES,
+	arrLayoutFrames() As T_LAYOUT_FRAME
+	
+'****************************************
+'Hurtig Udskrift  ...
+'****************************************
+Sub PreViewPrintScaleSetup
+
+Dim	nWID As Integer
+
+OnError GoTo ErrorOccured
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Sub
+	End If
+
+	nWID = FrontWindow()
+	If not WindowInfo(nWID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Sub
+	End If
+
+	If PrintWarnOnNoSelection() Then
+		If SelectionInfo(SEL_INFO_NROWS) = 0 Then
+			If Ask(PLTM_ASK_NO_SELECTION_ABORT, MSG_NO, MSG_YES) Then
+				Exit Sub
+			End If
+		End If
+	End If
+
+	If not PrintingSetupCurrentPrintWithScale() Then
+		Exit Sub
+	End If
+
+	If PrintUsePreView() Then
+		Call PreViewPrintScaleBegin(PrintGetScale())
+	Else
+		Call PrintScale(PrintGetScale())
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'**************************************************************
+' Visning af udprintets dækningsområde...
+'**************************************************************
+Function PreViewShowAreaToPrint(ByVal nMapWin As Integer, ByVal fWidth As Float, ByVal fHeight As Float) As Logical
+
+Dim	nRows As Integer,
+	objPrintArea, oMapExt As Object,
+	fCenterX, fCenterY, fYChange, fXChange  As Float,
+	fMinX, fMinY, fMaxX, fMaxY, fZoom, fZoomChange As Float
+
+OnError GoTo ErrorOccured
+
+PreViewShowAreaToPrint = FALSE
+
+	If not WindowExists(nMapWin) Then
+		Note ERR_WIN_MAP_NOT_FOUND
+		Exit Function
+	End If
+
+	Set Map
+		Window nMapWin
+		ReDraw Off
+
+	Set Window nMapWin
+		Front
+
+	If not TableOpen("KJSDFDFKLKDF") Then
+
+		Create Table KJSDFDFKLKDF
+			(
+			NAME		Char(100),
+			PAPERSIZE	Char(2),
+			ORIENTATION	Char(1),
+			MAPSCALE	Integer,
+			ROTATION	Float
+			)
+			File PathToDirectory$(TempFileName$("")) + "KJSDFDFKLKDF.TAB"
+
+		Create Map
+			For KJSDFDFKLKDF
+			CoordSys Window nMapWin
+	End If
+
+	Set Table KJSDFDFKLKDF
+		UserMap Off
+		UserBrowse Off
+		UserClose Off
+		UserRemoveMap Off
+		UserDisplayMap Off
+
+	If not LayerExists("KJSDFDFKLKDF", nMapWin) Then
+		Add Map
+			Window nMapWin
+			Layer KJSDFDFKLKDF
+	End If
+
+	Set Map
+		Window nMapWin
+		Layer KJSDFDFKLKDF Editable On
+
+	nRows = TableInfo("KJSDFDFKLKDF", TAB_INFO_NROWS)
+
+	Set CoordSys Window nMapWin
+	If nRows = 0 Then
+		If PrintReadCoordinateFromMap() Then
+			fCenterX	= MapperInfo(nMapWin, MAPPER_INFO_CENTERX)
+			fCenterY	= MapperInfo(nMapWin, MAPPER_INFO_CENTERY)
+		Else
+			fCenterX	= PrintGetMapCenterX()
+			fCenterY	= PrintGetMapCenterY()
+		End If
+	Else
+		If not PreViewGetCenterFromArea(nMapWin, fCenterX, fCenterY, FALSE) Then
+			fCenterX	= MapperInfo(nMapWin, MAPPER_INFO_CENTERX)
+			fCenterY	= MapperInfo(nMapWin, MAPPER_INFO_CENTERY)
+		End If
+	End If
+
+	'**Returns object for frame...
+	'objPrintArea 	= GetFrameObject(nMapWin, fWidth, fHeight, fCenterX , fCenterY)
+	objPrintArea 	= GetFrameObjectRotate(nMapWin, fWidth, fHeight, fCenterX , fCenterY, PrintGetRotation())
+
+	If nRows = 0 Then
+		Insert Into KJSDFDFKLKDF
+			(NAME, PAPERSIZE, ORIENTATION, MAPSCALE, ROTATION, obj)
+			Values ("", PrintGetPaperSize$(), PrintGetPageOrientation$(), PrintGetScale(), PrintGetRotation(), objPrintArea)
+	ElseIf nRows = 1 Then
+		Update KJSDFDFKLKDF
+			Set 	NAME		= "",
+				PAPERSIZE	= PrintGetPaperSize$(),
+				ORIENTATION	= PrintGetPageOrientation$(),
+				MAPSCALE	= PrintGetScale(),
+				ROTATION	= PrintGetRotation(),
+				obj		= objPrintArea
+	Else
+		Delete From KJSDFDFKLKDF
+		Insert Into KJSDFDFKLKDF
+			(NAME, PAPERSIZE, ORIENTATION, MAPSCALE, ROTATION, obj)
+			Values ("", PrintGetPaperSize$(), PrintGetPageOrientation$(), PrintGetScale(), PrintGetRotation(), objPrintArea)
+	End If
+
+	Commit Table KJSDFDFKLKDF
+
+	Set Distance Units "m"
+	fMinX		= MapperInfo(nMapWin, MAPPER_INFO_MINX)
+	fMinY		= MapperInfo(nMapWin, MAPPER_INFO_MINY)
+	fMaxX		= MapperInfo(nMapWin, MAPPER_INFO_MAXX)
+	fMaxY		= MapperInfo(nMapWin, MAPPER_INFO_MAXY)
+	
+	Create Pline
+		Into Variable oMapExt
+		5
+		(fMinX, fMinY)
+		(fMaxX, fMinY)
+		(fMaxX, fMaxY)
+		(fMinX, fMaxY)
+		(fMinX, fMinY)
+	oMapExt = ConvertToRegion(oMapExt)
+	
+	'--Altering mapper so that entire preview area is inside the map window
+	If not objPrintArea Entirely Within oMapExt Then
+		Set Map
+			Window nMapWin
+			Center (fCenterX, fCenterY)
+	
+		fMinX		= MapperInfo(nMapWin, MAPPER_INFO_MINX)
+		fMinY		= MapperInfo(nMapWin, MAPPER_INFO_MINY)
+		fMaxX		= MapperInfo(nMapWin, MAPPER_INFO_MAXX)
+		fMaxY		= MapperInfo(nMapWin, MAPPER_INFO_MAXY)
+		fZoom		= MapperInfo(nMapWin, MAPPER_INFO_ZOOM)
+		fZoomChange	= fZoom / 8
+
+		Create Pline
+			Into Variable oMapExt
+			5
+			(fMinX, fMinY)
+			(fMaxX, fMinY)
+			(fMaxX, fMaxY)
+			(fMinX, fMaxY)
+			(fMinX, fMinY)
+		oMapExt = ConvertToRegion(oMapExt)
+
+		Do Until (objPrintArea Entirely Within oMapExt)
+			fMinX		= fMinX - fZoomChange
+			fMinY		= fMinY - fZoomChange
+			fMaxX		= fMaxX + fZoomChange
+			fMaxY		= fMaxY + fZoomChange
+			fZoom		= fZoom + (2 * fZoomChange)
+
+			Create Pline
+				Into Variable oMapExt
+				5
+				(fMinX, fMinY)
+				(fMaxX, fMinY)
+				(fMaxX, fMaxY)
+				(fMinX, fMaxY)
+				(fMinX, fMinY)
+			oMapExt = ConvertToRegion(oMapExt)
+		Loop
+
+		Set Map
+			Window nMapWin
+			Zoom (fZoom * 1.25) Units "m"
+	End If
+
+	Set Map
+		Window nMapWin
+		ReDraw On
+
+	Select * From KJSDFDFKLKDF
+
+	Call PreViewButtonPadEnable
+
+	PreViewShowAreaToPrint = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' returnerer farve og stilart på afgrænsning udfra fra papirstørrelse og retning...
+'**************************************************************
+Function GetFramePen() As Pen
+
+Dim	nPattern, nColor As Integer
+
+OnError GoTo ErrorOccured
+
+	'Portrait = 1, Landscape = 2
+	Do Case PrintGetPageOrientation()
+		Case 1
+			nPattern = 3
+		Case 2
+			nPattern = 9
+	End Case
+
+	'A4 = 1; A3 = 2; A2 = 3; A1 = 4; A0 = 5
+	Do Case PrintGetPaperSize()
+		Case 1
+			nColor = RED
+		Case 2
+			nColor = BLUE
+		Case 3
+			nColor = CYAN
+		Case 4
+			nColor = GREEN
+		Case 5
+			nColor = BLACK
+	End Case
+
+	GetFramePen = MakePen(2, nPattern, nColor)
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' returnerer Rammeobject med nuværende indstillinger...
+'**************************************************************
+Function GetFrameObject(ByVal nMapWin As Integer, ByVal fWidth As Float, ByVal fHeight As Float,
+				ByVal fCenterX As Float, ByVal fCenterY As Float) As Object
+
+Dim	fCentX, fCentY, fScale, fXChange, fYChange As Float,
+	objPrintArea As object
+	
+OnError GoTo ErrorOccured
+
+	Set CoordSys Window nMapWin
+
+	fCentX	= fCenterX
+	fCentY	= fCenterY
+	fScale	= 1	'GetScaleFactor(fCentX, fCentY)
+	fXChange	= ((fWidth)/2) * PrintGetScale() / 100 
+	fYChange	= ((fHeight)/2) * PrintGetScale() / 100
+
+	Create Region
+		Into Variable objPrintArea
+		1
+		5
+		((fCentX - fXChange), (fCentY - fYChange))
+		((fCentX + fXChange), (fCentY - fYChange))
+		((fCentX + fXChange), (fCentY + fYChange))
+		((fCentX - fXChange), (fCentY + fYChange))
+		((fCentX - fXChange), (fCentY - fYChange))
+		Pen GetFramePen()
+		Brush MakeBrush(1,0,0)
+		Center (fCentX, fCentY)
+
+	GetFrameObject	= objPrintArea
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' returnerer ROTERET Rammeobject med nuværende indstillinger...
+'**************************************************************
+Function GetFrameObjectRotate(ByVal nMapWin As Integer, ByVal fWidth As Float, ByVal fHeight As Float,
+					ByVal fCenterX As Float, ByVal fCenterY As Float, ByVal fRotation As Float) As Object
+
+Dim	fCentX, fCentY, fScale, fXChange, fYChange As Float,
+	objPrintArea As object,
+	pStartLine, pEndLine, pUL, pUR, pLL, pLR As T_POINT
+
+OnError GoTo ErrorOccured
+	
+	Set CoordSys Window nMapWin
+
+	fCentX	= fCenterX
+	fCentY	= fCenterY
+	fScale	= 1	'GetScaleFactor(fCentX, fCentY)
+	fXChange	= ((fWidth)/2) * PrintGetScale() / 100 
+	fYChange	= ((fHeight)/2) * PrintGetScale() / 100
+
+	pStartLine.X	= GeoFuncCalcX(fCentX, (fRotation - 180), fXChange)
+	pStartLine.Y	= GeoFuncCalcY(fCentY, (fRotation - 180), fXChange)
+	pEndLine.X		= GeoFuncCalcX(fCentX, fRotation, fXChange)
+	pEndLine.Y		= GeoFuncCalcY(fCentY, fRotation, fXChange)
+
+	If CreateOrthoPoint(pStartLine, pEndLine, 0.0, -1 * fYChange, pUL) Then End If
+	If CreateOrthoPoint(pStartLine, pEndLine, 0.0, fYChange, pLL) Then End If
+	If CreateOrthoPoint(pEndLine, pStartLine, 0.0, -1 * fYChange, pLR) Then End If
+	If CreateOrthoPoint(pEndLine, pStartLine, 0.0, fYChange, pUR) Then End If
+
+	Create Region
+		Into Variable objPrintArea
+		1
+		5
+		(pLL.X, pLL.Y)
+		(pLR.X, pLR.Y)
+		(pUR.X, pUR.Y)
+		(pUL.X, pUL.Y)
+		(pLL.X, pLL.Y)
+		Pen GetFramePen()
+		Brush MakeBrush(1,0,0)
+		Center (fCentX, fCentY)
+
+	GetFrameObjectRotate	= objPrintArea
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'**************************************************************
+' Visning af udprintets dækningsområde...
+'**************************************************************
+Function PreViewGetCenterFromArea(nMapWin As Integer, fXKoord As Float, fYKoord As Float, ByVal bRemoveFrame As Logical) As Logical
+
+Dim	theObj As Object,
+	nRow As Integer,
+	a As Alias,
+	fCentX, fCentY, fScale, fXChange, fYChange As Float
+
+OnError GoTo ErrorOccured
+
+PreViewGetCenterFromArea = FALSE
+
+	If not WindowExists(nMapWin) Then
+		Note ERR_WIN_MAP_NOT_FOUND
+		Exit Function
+	ElseIf not TableOpen("KJSDFDFKLKDF") Then
+		Note ERR_PLT_PREVIEW_TABLE_NOT_OPEN
+		Exit Function
+	ElseIf TableInfo("KJSDFDFKLKDF", TAB_INFO_NROWS) = 0 Then
+		Note ERR_PLT_PREVIEW_TABLE_EMPTY
+		Exit Function
+	End If
+
+	Set CoordSys Window nMapWin
+
+	Fetch First From KJSDFDFKLKDF
+	Do Until EOT(KJSDFDFKLKDF)
+		nRow	= KJSDFDFKLKDF.RowID
+		a 	= "KJSDFDFKLKDF.obj"
+
+		If a Then
+			theObj = a
+
+			If ObjectInfo(theObj, OBJ_INFO_TYPE) = OBJ_TYPE_REGION Then
+				If ObjectInfo(theObj, OBJ_INFO_NPOLYGONS) = 1 Then
+					If ObjectInfo(theObj, OBJ_INFO_NPOLYGONS+1) = 5 Then
+
+						fXKoord	= CentroidX(theObj)
+						fYKoord	= CentroidY(theObj)
+
+						fCentX	= fXKoord
+						fCentY	= fYKoord
+						fScale	= 1'	GetScaleFactor(fCentX, fCentY)
+						fXChange	= (PrintGetFrameWidth()/2) * PrintGetScale() / 100 
+						fYChange	= (PrintGetFrameHeight()/2) * PrintGetScale() / 100
+
+						Create Region
+							Into Variable theObj
+							1
+							5
+							((fCentX - fXChange), (fCentY - fYChange))
+							((fCentX + fXChange), (fCentY - fYChange))
+							((fCentX + fXChange), (fCentY + fYChange))
+							((fCentX - fXChange), (fCentY + fYChange))
+							((fCentX - fXChange), (fCentY - fYChange))
+							Pen GetFramePen()
+							Brush MakeBrush(1,0,0)
+							Center (fCentX, fCentY)
+	
+						Update KJSDFDFKLKDF
+							Set OBJ	= theObj
+							Where RowID	= nRow
+						Commit Table KJSDFDFKLKDF 
+
+						If bRemoveFrame Then
+							If PrintAskSaveFrameToTable() Then
+								Call PreViewSaveFrameToTable(nRow, TRUE, FALSE)
+							End If
+
+							'----------------------
+							OnError GoTo ErrorDroppingTable	
+							If TableOpen("KJSDFDFKLKDF") Then
+								Drop Table KJSDFDFKLKDF
+							End If
+
+							PreViewGetCenterFromArea = TRUE
+							Exit Function
+
+							'----------------------
+							ErrorDroppingTable:
+							OnError GoTo ErrorClosingTable
+							If TableOpen("KJSDFDFKLKDF") Then
+								Close Table KJSDFDFKLKDF
+							End If
+							OnError GoTo 0
+						End If
+
+						PreViewGetCenterFromArea = TRUE
+						Exit Function
+					End If
+				End If
+			End If
+		End If
+
+		Fetch Next From KJSDFDFKLKDF
+	Loop
+
+	Note ERR_PLT_PREVIEW_AREA_NOT_FOUND + lf 
+		+ PLTM_INF_USING_MAP_CENTER
+	fXKoord = MapperInfo(nMapWin, MAPPER_INFO_CENTERX)
+	fYKoord = MapperInfo(nMapWin, MAPPER_INFO_CENTERY)
+	PreViewGetCenterFromArea = TRUE
+
+	OnError GoTo ErrorClosingTable
+	If TableOpen("KJSDFDFKLKDF") Then
+		Close Table KJSDFDFKLKDF
+	End If
+
+	OnError GoTo 0
+	Exit Function
+
+'----------------------
+ErrorClosingTable:
+	Note ERR_ERRORMSG + Error$()
+	OnError GoTo 0
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'****************************************
+'Udskriv i valgt målforhold med PreView - Start
+'****************************************
+Sub PreViewPrintScaleBegin(ByVal nScale As Integer)
+
+Dim	nOrigMID, nClonMID, nLID, nVal As Integer,
+	fX, fY, fWidth, fHeight As Float,
+	szLayout As String,
+	nWin, nTab As Integer
+
+OnError GoTo ErrorOccured
+
+	Call PrintSetScale(nScale)
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Sub
+	End If
+
+	nOrigMID = FrontWindow()
+	If nOrigMID = 0 Then
+		Note ERR_WIN_READING_ID
+		Exit Sub
+	End If
+	If not WindowInfo(nOrigMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Sub
+	End If
+	If not printAlterMapperXYUnits(nOrigMID) Then
+		Note ERR_MAP_UNSUPPORTED_YXUNITS
+		Exit Sub
+	End If
+	Call PrintSetMapWinID(nOrigMID)
+
+	If PrintSpecialPlotIsPossible() And PrintGetWorFileUsingSpecPlot$() <> "" Then
+		szLayout = PrintGetWorFileUsingSpecPlot$()
+	Else
+		szLayout = PrintGetLayoutFileName$()
+	End If
+
+	If szLayout = "" Then
+		Note ERR_PRINTLAYOUT_NOT_NAMED
+		Exit Sub
+	ElseIf not FileExists(szLayout) Then
+		Note ERR_PRINTLAYOUT_NOT_FOUND
+		Exit Sub
+	End if
+
+	nWin = NumWindows()
+	nTab = NumTables()
+
+	nLID = PrintOpenWorkspace(szLayout)
+	If nLID = 0 Then
+		Note ERR_PRINTLAYOUT
+		GoTo BeforeExitSub
+	End If
+
+	Call PrintSetPageOrientationBeforePrinting
+
+	Set Window nLID
+		Min
+		SysMenuClose Off
+
+	Call PrintCreateHiddenOpenedTables(nTab)
+	Call PrintCreateHiddenOpenedWindows(nWin)
+
+	'Print "Læser ramme størrelse"
+	If not PrintGetFrameSize(nLID, fWidth, fHeight) Then
+		Note ERR_PRINTLAYOUT_NO_FRAMES
+		Close Window nLID
+		GoTo BeforeExitSub
+	End If
+
+	'Print "Beregner målforhold, måske!"
+	Do Case PrintGetScaleType()
+		Case SCALETYPE_SELECTION
+			nScale = printCalculateScaleUsingSelection(nOrigMID, fWidth, fHeight)
+			If nScale = 0 Then
+				Close Window nLID
+				GoTo BeforeExitSub
+			End If
+			Call PrintSetScale(nScale)
+		Case SCALETYPE_CURRENT_MAP
+			nScale = printCalculateScaleUsingCurrentMap(nOrigMID, fWidth, fHeight)
+			If nScale = 0 Then
+				Close Window nLID
+				GoTo BeforeExitSub
+			End If
+			Call PrintSetScale(nScale)
+		Case SCALETYPE_KEYED_IN
+			'**Using current scale
+	End Case
+
+	'Print "Læser værdier fra udvælgelse, måske!"
+	ReDim arrColAndVal(0)
+	If PrintReadFromSelection() Then
+		Call PrintReadValuesFromSelection(arrColAndVal)
+	End If
+
+	'**Makes it impossible for the user to close main map window...
+	Call PrintLockMapWindow(nOrigMID)
+
+	'Print "Viser nu udskriftsrammen i kortet"
+	If not PreViewShowAreaToPrint(nOrigMID, fWidth, fHeight) Then
+		Note ERR_PLT_CREATING_PREVIEW_AREA
+		Close Window nLID
+		GoTo BeforeExitSub
+	End If
+
+	Call PrintSetLayoutWinID(nLID)
+	Call PrintSetFrameWidth(fWidth)
+	Call PrintSetFrameHeight(fHeight)
+	Call PrintSetNumberOfWin(nWin)
+	Call PrintSetNumberOfTab(nTab)
+
+	Exit Sub
+
+'----------------------
+BeforeExitSub:
+
+	Do Until NumTables() <= nTab
+		If TableOpen(TableInfo(NumTables(), TAB_INFO_NAME)) Then
+			Close Table TableInfo(NumTables(), TAB_INFO_NAME)
+		Else
+			Exit Do
+		End If
+	Loop
+	Do Until NumWindows() <= nWin
+		If WindowID(NumWindows()) <> nOrigMID Then
+			Close Window WindowID(NumWindows())
+		Else
+			Exit Do
+		End If
+	Loop
+
+	Call PrintCloseHiddenOpenedTables(TRUE)
+	Call PrintCloseHiddenOpenedWindows(TRUE)
+
+	'**Makes it possible for the user to close main map window...
+	Call PrintUnLockMapWindow(nOrigMID)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Udskriv i valgt målforhold med PreView - Slutning
+'****************************************
+Sub PreViewPrintScaleEnd
+
+Dim	nOrigMID, nClonMID, nLID, nVal As Integer,
+	arrAliasValues() As T_ALIAS_AND_VALUE,
+	fX, fY, fWidth, fHeight As Float,
+	nWin, nTab As Integer
+
+OnError GoTo ErrorOccured
+
+	'**Disables PreView Buttons...
+	Call PreViewButtonPadDisable
+
+	nOrigMID	= PrintGetMapWinID()
+	nLID		= PrintGetLayoutWinID()
+	nWin		= PrintGetNumberOfWin()
+	nTab		= PrintGetNumberOfTab()
+	fWidth	= PrintGetFrameWidth()
+	fHeight	= PrintGetFrameHeight()
+
+	'**Makes it possible for the user to close main map window...
+	Call PrintUnLockMapWindow(nOrigMID)
+	
+	If not PreViewGetCenterFromArea(nOrigMID, fX, fY, TRUE) Then
+		Note ERR_PLT_READING_PREVIEWAREA
+		Close Window nLID
+		GoTo BeforeExitSub
+	End If
+
+	'Her var indlæsning af runtime tekster før...
+
+	'Print "Kloner kortvinduet..."
+	If PrintClonMapWindow() Then
+		nClonMID = PrintClonMap(nOrigMID)
+		If nClonMID = 0 Then
+			Note ERR_WIN_MAP_CLON
+			Close Window nLID
+			GoTo BeforeExitSub
+		End If
+		Call PrintCreateHiddenOpenedWindows(nWin)
+	Else
+		nClonMID = nOrigMID
+	End if
+
+	'Print "Ændrer kortvinduets bredde..."
+	If not PrintAlterMapperWidth(nClonMID, fWidth, fHeight) Then
+		Note ERR_WIN_MAP_WIDTH
+		Close Window nLID
+		If PrintClonMapWindow() Then
+			Close Window nClonMID
+		End If
+		GoTo BeforeExitSub
+	End If
+
+	'Print "Ændrer kortvinduets centrum og zoom..."
+	If not PrintAlterMapperZoom(nClonMID, fX, fY, fWidth) Then
+		Note ERR_WIN_MAP_XY_ZOOM
+		Close Window nLID
+		If PrintClonMapWindow() Then
+			Close Window nClonMID
+		End If
+		GoTo BeforeExitSub
+	End If
+
+	'Print "Læser og retter runtimeværdier..."
+	ReDim arrAliasValues(0)
+	If PrintCreateArrayAlias(nLID, arrAliasValues) Then
+		If not PrintEnterAliasValuesDialog(arrAliasValues, arrColAndVal, TRUE) Then
+			Close Window nLID
+			GoTo BeforeExitSub
+		End If
+		If not PrintReplaceAlias(nLID, arrAliasValues) Then
+			Note ERR_PLT_REPLACE_RUNTIME_VAL
+			Close Window nLID
+			GoTo BeforeExitSub
+		End If
+	End If
+
+	If not PrintRotateMapWindow(nClonMID, fX, fY, PrintGetRotation()) Then
+		Note ERR_PLT_ROTATION_MAP
+	End If
+
+	'Print "Minimerer det klonede kortvindue..."
+	If PrintClonMapWindow() Then
+		Set Window nClonMID
+		   Min
+	End If
+
+	Call PrintCheckForHideFrameTable(nClonMID)
+
+	'Print "Indsætter kortet i layoutet..."
+	If not PrintInsertMapInFrame(nLID, nClonMID) Then
+		Note ERR_WIN_LAYOUT_INSERT_MAP
+		Close Window nLID
+		If PrintClonMapWindow() Then
+			Close Window nClonMID
+		End If
+		GoTo BeforeExitSub
+	End If
+
+	If PrintAutoPrint() Then
+		'***Restore
+		Set Window nLID
+			Restore
+
+		PrintWin Window nLID
+		Close Window nLID
+		Call PrintCloseHiddenOpenedTables(TRUE)
+		If PrintClonMapWindow() Then
+			Close Window nClonMID
+
+		End If
+	Else
+		Set Window nLID
+			Restore
+			SysMenuClose On
+		Exit Sub
+	End If
+
+'----------------------
+BeforeExitSub:
+
+	Do Until NumTables() <= nTab
+		If TableOpen(TableInfo(NumTables(), TAB_INFO_NAME)) Then
+			Close Table TableInfo(NumTables(), TAB_INFO_NAME)
+		Else
+			Exit Do
+		End If
+	Loop
+	Do Until NumWindows() <= nWin
+		If WindowID(NumWindows()) <> nOrigMID Then
+			Close Window WindowID(NumWindows())
+		Else
+			Exit Do
+
+		End If
+	Loop
+	Call PrintCloseHiddenOpenedTables(TRUE)
+	Call PrintCloseHiddenOpenedWindows(TRUE)
+	Call PrintSetReadCoordinateFromMap(TRUE)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Opretter palette til brug ved PreView
+'****************************************
+Sub PreViewButtonPadCreate(ByVal btpTitle As String)
+
+OnError GoTo ErrorOccured
+
+	Create ButtonPad btpTitle As
+		PushButton
+			Icon MI_ICON_ZOOM_QUESTION
+			Calling PrintAlterScaleForPreview
+			HelpMsg PLTM_BUT_PREVIEW_CHANGE_SCALE
+		PushButton
+			Icon MI_ICON_PRINT
+			Calling PreViewPrintScaleEnd
+			HelpMsg PLTM_BUT_PREVIEW_CONTINUE_PRINT
+		PushButton
+			Icon MI_ICON_SIGNS_1
+			Calling PreViewAbort
+			HelpMsg PLTM_BUT_PREVIEW_ABORT
+		Separator
+		PushButton
+			Icon MI_ICON_SAVE_FILE
+			Calling PreViewSaveCurrentFrameToTable
+			HelpMsg PLTM_BUT_PREVIEW_SAVE_FRAME
+		Width 10
+		Position (10, 5) Units "cm"
+		Show
+
+	Call PreViewButtonPadDisable
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Disable PreView knapper
+'****************************************
+Sub PreViewButtonPadDisable
+
+OnError GoTo ErrorOccured
+
+	Alter Button PrintAlterScaleForPreview			Disable
+	Alter Button PrintAlterScaleRotationForPreview		Disable
+	Alter Button PreViewPrintScaleEnd				Disable
+	Alter Button PreViewAbort					Disable
+	Alter Button PreViewSaveCurrentFrameToTable		Disable
+
+	Alter Menu Item PrintAlterScaleForPreview			Disable
+	Alter Menu Item PrintAlterScaleRotationForPreview	Disable
+	Alter Menu Item PreViewPrintScaleEnd			Disable
+	Alter Menu Item PreViewAbort					Disable
+	Alter Menu Item PreViewSaveCurrentFrameToTable		Disable
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Enable PreView knapper
+'****************************************
+Sub PreViewButtonPadEnable
+
+OnError GoTo ErrorOccured
+
+	Alter Button PrintAlterScaleForPreview			Enable
+	Alter Button PrintAlterScaleRotationForPreview		Enable
+	Alter Button PreViewPrintScaleEnd				Enable
+	Alter Button PreViewAbort 					Enable
+
+	Alter Menu Item PrintAlterScaleForPreview			Enable
+	Alter Menu Item PrintAlterScaleRotationForPreview	Enable
+	Alter Menu Item PreViewPrintScaleEnd			Enable
+	Alter Menu Item PreViewAbort					Enable
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Enable Save Kortblad til tabel knapper
+'****************************************
+Sub PreViewButtonPadSaveFrameEnable
+
+OnError GoTo ErrorOccured
+	
+	Alter Button PrintAlterScaleForPreview			Enable
+	Alter Button PrintAlterScaleRotationForPreview		Enable
+	Alter Button PreViewAbort 					Enable
+	Alter Button PreViewSaveCurrentFrameToTable		Enable
+
+	Alter Menu Item PrintAlterScaleForPreview			Enable
+	Alter Menu Item PrintAlterScaleRotationForPreview	Enable
+	Alter Menu Item PreViewAbort					Enable
+	Alter Menu Item PreViewSaveCurrentFrameToTable		Enable
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Skriver opsætning af PreView paletten til fil
+'****************************************
+Sub PreViewButtonPadWritePadFile(ByVal btpTitle As String)
+
+OnError GoTo ErrorOccured
+
+	If FileExists(FILE_BTN_PAD_PREVIEW) Then
+		Kill FILE_BTN_PAD_PREVIEW
+	End If
+
+	Open File FILE_BTN_PAD_PREVIEW
+		For Output
+		As #1
+		CharSet "Neutral"
+
+	Call WriteButtonPadSetup (btpTitle, 1)
+
+	Close File #1
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Afbryde udskrivning via PreView
+'****************************************
+Sub PreViewAbort
+
+OnError GoTo ErrorOccured
+
+	If TableOpen("KJSDFDFKLKDF") Then
+		Drop Table KJSDFDFKLKDF
+	End If
+
+	'**Makes it possible for the user to close main map window...
+	Set Window PrintGetMapWinID()
+		SysMenuClose On
+
+	If WindowExists(PrintGetLayoutWinID()) Then
+		Close Window PrintGetLayoutWinID()
+	End If
+
+	Call PrintCloseHiddenOpenedTables(TRUE)
+	Call PrintCloseHiddenOpenedWindows(TRUE)
+	Call PreViewButtonPadDisable
+	Call PrintSetReadCoordinateFromMap(TRUE)
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Gemme ramme i en åben ramme tabel...
+'****************************************
+Sub PreViewSaveFrameToTable(	ByVal nRow As Integer, ByVal bFromTable As Logical, 
+					ByVal bShowAskForMoreFrames As Logical)
+
+Dim	szName, szSize, szOrient, szTitle As String,
+	nTxtLen, nScale As Integer,
+	fRotation As Float,
+	oMapFrame As Object,
+	bContinue As Logical
+
+OnError GoTo ErrorOccured
+
+	If not TableOpen(TAB_STORE_FRAME) Then
+		Exit Sub
+	ElseIf not TableInfo(TAB_STORE_FRAME, TAB_INFO_MAPPABLE) Then
+		Exit Sub
+	ElseIf TableInfo("KJSDFDFKLKDF", TAB_INFO_NROWS) = 0 Then
+		Exit Sub
+	End If
+
+	nTxtLen = ColumnInfo(TAB_STORE_FRAME, "NAME", COL_INFO_WIDTH)
+	szTitle = PLTM_ASK_SAVE_FRAME_TO_TABLE
+
+'-----------------------------------
+DialogAskIfSave:
+
+	If not bShowAskForMoreFrames Then
+		Dialog
+		   Title PLTM_DLG_TITLE_SAVE_FRAME	Width 120
+		   Control StaticText	Position 10,10
+			Title szTitle
+
+		   Control StaticText	Position 10,25
+			Title PLTM_DLG_TXT_FRAMENAME + nTxtLen + PLTM_DLG_TXT_CHARS
+		   Control EditText	Position 10,35	Width 100
+			Value szName
+			Into szName	
+
+		   Control OKButton	Position 15,55	Width 40
+			Title MSG_SAVE
+		   Control CancelButton	Position 65,55	Width 40
+	
+		If not CommandInfo(CMD_INFO_DLG_OK) Then
+			Exit Sub
+		End If
+	
+	Else
+
+		Call PrintSetCreateMoreFrames(TRUE)
+
+		Dialog
+		   Title PLTM_DLG_TITLE_SAVE_FRAME	Width 120
+		   Control StaticText	Position 10,10
+			Title szTitle
+	
+		   Control StaticText	Position 10,25
+			Title PLTM_DLG_TXT_FRAMENAME + nTxtLen + PLTM_DLG_TXT_CHARS
+		   Control EditText	Position 10,35	Width 100
+			Value szName
+			Into szName	
+
+		   Control CheckBox	Position 10,50
+			Title PLTM_DLG_TXT_CREATE_MORE_FRAMES
+			Value PrintCreateMoreFrames()
+			Into bContinue
+
+		   Control OKButton	Position 15,65	Width 40
+			Title MSG_SAVE
+		   Control CancelButton	Position 65,65	Width 40
+
+		If not CommandInfo(CMD_INFO_DLG_OK) Then
+			Exit Sub
+		End If
+
+		Call PrintSetCreateMoreFrames(bContinue)
+
+	End If
+
+	'**removing spaces before and after the name...
+	szName = LTrim$(RTrim$(szName))
+
+	'**Checking whether input is OK...
+	If szName = "" Then
+		szTitle = PLTM_DLG_TXT_NAME_MUST_BE_ENTERED
+		GoTo DialogAskIfSave
+	ElseIf Len(szName) > nTxtLen Then
+		szTitle = PLTM_DLG_TXT_NAME_TO_LONG
+		szName = Left$(szName, nTxtLen)
+		GoTo DialogAskIfSave
+	End If
+
+	'**check whether column is indexed or not...
+	If not ColumnInfo(TAB_STORE_FRAME, "NAME", COL_INFO_INDEXED) Then
+		Create Index On TAB_STORE_FRAME("NAME")
+	End If
+
+	'**Checking whether name allready has been used...
+	If not ColumnInfo(TAB_STORE_FRAME, "NAME", COL_INFO_INDEXED) Then
+		Create Index On TAB_STORE_FRAME (NAME)
+	End If
+	Find Using TAB_STORE_FRAME(NAME)
+	Find szName
+	If CommandInfo(CMD_INFO_FIND_RC) > 0 Then
+		szTitle = PLTM_DLG_TXT_NAME_EXISTS
+		GoTo DialogAskIfSave
+	End If
+
+	If bFromTable Then
+		Fetch Rec nRow From KJSDFDFKLKDF
+
+		szSize	= KJSDFDFKLKDF.PAPERSIZE
+		szOrient	= KJSDFDFKLKDF.ORIENTATION
+		nScale	= KJSDFDFKLKDF.MAPSCALE
+		fRotation	= KJSDFDFKLKDF.ROTATION
+		oMapFrame	= KJSDFDFKLKDF.OBJ
+
+		Insert Into TAB_STORE_FRAME
+			(NAME, PAPERSIZE, ORIENTATION, MAPSCALE, ROTATION, OBJ)
+			Values
+			(szName, szSize, szOrient, nScale, fRotation, oMapFrame)
+
+		Commit Table TAB_STORE_FRAME
+
+	Else
+		Exit Sub		'Not implemented yet...
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Starter oprettelse af flere rammer...
+'****************************************
+Sub PreViewCreateMultiFrames
+
+Dim	nOrigMID, nLID As Integer,
+	fX, fY, fWidth, fHeight As Float,
+	szLayout As String,
+	nWin, nTab As Integer
+
+OnError GoTo ErrorOccured
+
+	If not PrintSetScaleDialog() Then
+		Exit Sub
+	End If
+
+	If NumWindows() = 0 Then
+		Note ERR_WIN_NO_OPEN
+		Exit Sub
+	End If
+
+	nOrigMID = FrontWindow()
+
+	If not WindowInfo(nOrigMID, WIN_INFO_TYPE) = WIN_MAPPER Then
+		Note ERR_WIN_NOT_MAP
+		Exit Sub
+	End If
+
+	szLayout = PrintGetLayoutFileName$()
+
+	If szLayout = "" Then
+
+		Note ERR_PRINTLAYOUT_NOT_NAMED
+		Exit Sub
+	End If
+
+	Call PrintSetPageOrientationBeforePrinting
+
+	nWin = NumWindows()
+	nTab = NumTables()
+
+	nLID = PrintOpenWorkspace(szLayout)
+	If nLID = 0 Then
+		Note ERR_PRINTLAYOUT
+		Exit Sub
+	End If
+
+	Set Window nLID
+		'Min
+		SysMenuClose Off
+
+	'Print "Læser ramme størrelse"
+	If not PrintGetFrameSize(nLID, fWidth, fHeight) Then
+		Note ERR_PRINTLAYOUT_NO_FRAMES
+		Close Window nLID
+		Exit Sub
+	End If
+
+	Close Window nLID
+
+	If not PreViewShowAreaToPrint(nOrigMID, fWidth, fHeight) Then
+		Note ERR_PLT_CREATING_PREVIEW_AREA
+		If TableOpen("KJSDFDFKLKDF") Then
+			Drop Table KJSDFDFKLKDF
+		End If
+		Exit Sub
+	End If
+
+	Call PrintSetMapWinID(nOrigMID)
+	Call PrintSetNumberOfWin(nWin)
+	Call PrintSetNumberOfTab(nTab)
+	Call PrintSetFrameWidth(fWidth)
+	Call PrintSetFrameHeight(fHeight)
+	Call PrintCreateHiddenOpenedTables(nTab)
+
+	'**Makes it impossible for the user to close main map window...
+	Set Window nOrigMID
+		SysMenuClose Off
+
+	Call PreViewButtonPadDisable
+	Call PreViewButtonPadSaveFrameEnable
+
+	Do Until NumTables() <= nTab
+		If TableOpen(TableInfo(NumTables(), TAB_INFO_NAME)) Then
+			If TableInfo(NumTables(), TAB_INFO_NAME) = "KJSDFDFKLKDF" Then
+				Exit Do
+			Else
+				Close Table TableInfo(NumTables(), TAB_INFO_NAME)
+			End If
+		Else
+			Exit Do
+		End If
+	Loop
+	Do Until NumWindows() <= nWin
+		If WindowID(NumWindows()) <> nOrigMID Then
+			Close Window WindowID(NumWindows())
+		Else
+			Exit Do
+		End If
+	Loop
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'****************************************
+'Gem aktuel kortbladsramme til tabel RAMMER...
+'****************************************
+Sub PreViewSaveCurrentFrameToTable
+
+Dim	nMapWin, nRow AS Integer,
+	theObj As Object,
+	a As Alias
+
+OnError GoTo ErrorOccured
+
+	nMapWin	= PrintGetMapWinID()
+
+	If not PrintAskSaveFrameToTable() Then
+		Call PrintSetAskSaveFrameToTable(TRUE)
+	End If
+
+	If not PrintCheckColumnsInFrameTable(TAB_STORE_FRAME) Then
+		Exit Sub
+	End If
+
+	Call PreViewButtonPadDisable
+	Set Window nMapWin
+		SysMenuClose On
+
+	If not WindowExists(nMapWin) Then
+		Note ERR_WIN_MAP_NOT_FOUND
+		If TableOpen("KJSDFDFKLKDF") Then
+			Drop Table KJSDFDFKLKDF
+		End If
+		Exit Sub
+	ElseIf not TableOpen("KJSDFDFKLKDF") Then
+		Note ERR_PLT_PREVIEW_TABLE_NOT_OPEN
+		Exit Sub
+	ElseIf not TableOpen(TAB_STORE_FRAME) Then
+		Note ERR_PLT_FRAME_TABLE_NOT_OPEN
+		Drop Table KJSDFDFKLKDF
+		Exit Sub
+	End If
+
+	Set CoordSys Window nMapWin
+
+	Fetch First From KJSDFDFKLKDF
+	Do Until EOT(KJSDFDFKLKDF)
+		nRow	= KJSDFDFKLKDF.RowID
+		a 	= "KJSDFDFKLKDF.obj"
+
+		If a Then
+			theObj = a
+
+			If ObjectInfo(theObj, OBJ_INFO_TYPE) = OBJ_TYPE_REGION Then
+				If ObjectInfo(theObj, OBJ_INFO_NPOLYGONS) = 1 Then
+					If ObjectInfo(theObj, OBJ_INFO_NPOLYGONS+1) = 5 Then
+	
+						If PrintAskSaveFrameToTable() Then
+							Call PreViewSaveFrameToTable(nRow, TRUE, TRUE)
+						End If
+	
+						Exit Do
+					End If
+				End If
+			End If
+		End If
+
+		Fetch Next From KJSDFDFKLKDF
+	Loop
+
+	'**Continue creating frames...??
+	If PrintCreateMoreFrames() Then
+		If not PreViewShowAreaToPrint(nMapWin, PrintGetFrameWidth(), PrintGetFrameHeight()) Then
+			Note ERR_PLT_CREATING_PREVIEW_AREA
+			If TableOpen("KJSDFDFKLKDF") Then
+				Drop Table KJSDFDFKLKDF
+			End If
+			Exit Sub
+		End If
+		Call PreViewButtonPadDisable
+		Call PreViewButtonPadSaveFrameEnable
+	Else
+		If TableOpen("KJSDFDFKLKDF") Then
+			Drop Table KJSDFDFKLKDF
+		End If
+	End If
+
+	Set Window nMapWin
+		SysMenuClose Off
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub

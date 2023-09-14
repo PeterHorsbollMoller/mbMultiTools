@@ -1,0 +1,13 @@
+Declare Function DialogSelectMapAndLayers() As Logical		'1. Dialog
+Declare Function DialogSelectCuttingEdge() As Logical			'2. Dialog
+Declare Function DialogSelectMapParts() As Logical			'3. Dialog
+Declare Function DialogSelectSelectionMethod() As Logical		'4. Dialog
+Declare Function DialogSelectCuttingMethod() As Logical		'5. Dialog
+Declare Function DialogSelectNumberOfResultTables() As Logical	'6. Dialog
+Declare Function DialogSelectNameForResultTable1() As Logical	'7a. Dialog
+Declare Function DialogSelectNameForResultTable2() As Logical	'7b. Dialog
+Declare Function DialogSelectNameForResultTable3() As Logical	'7c. Dialog
+Declare Function DialogSelectNameForResultTable4() As Logical	'7d. Dialog
+Declare Function DialogSelectColumns() As Logical			'8. Dialog
+Declare Function DialogOverviewOfSettings() As Logical		'9. Dialog
+

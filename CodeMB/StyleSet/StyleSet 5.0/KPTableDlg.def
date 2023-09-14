@@ -1,0 +1,21 @@
+Declare Sub kptShowDialogTableInformation
+Declare Function kptDialogTableInformations() As Logical
+
+Declare Sub kptAutoRegisterTablesDialog
+Declare Sub kptAutoRegisterTables
+
+Declare Function kptAskOverwriteTableSetupDialog(ByVal szTable As String) As Integer
+	'Returnes the following values:
+	' -9	= Quit/Abort the current session
+	' -2	= Allways overwrite
+	' -1	= Overwrite this table
+	'  1	= Don't overwrite this table
+
+
+Declare Sub kptShowDialogOpenTable
+Declare Function kptDialogOpenTable() As Logical
+
+Declare Function kptDialogSelectTable() As Integer
+
+'**Kaldes fra andre dialoger. Returnerer ID på udpeget tabel og lag
+Declare Function kptDialogSelectTableInformation(nTableID As Integer, nLayerID As Integer) As Logical

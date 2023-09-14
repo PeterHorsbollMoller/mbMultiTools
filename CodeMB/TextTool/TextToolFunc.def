@@ -1,0 +1,11 @@
+Declare Function CalculateTextPlacement(	oTxtHusnr As Object, oPntHusnr As Object,
+							pBeg As T_POINT, pEnd As T_POINT,
+							ByVal szHusnr As String, ByVal szLitra As String) As Logical
+
+Declare Function MoveTextObject(ByVal oText As Object, x As Float, y As Float) as Object
+Declare Function RotateTextObject(ByVal oText As Object, fAngle As Float) As Object
+
+Declare Function TXTFCalcWestGon2NorthDegAngle(ByVal nWestGonAngle As Float) As Float
+Declare Function TXTFCalcWestGon2MathDegAngle(ByVal nWestGonAngle As Float) As Float
+Declare Function TXTFNorthDegAngle2WestGon(ByVal nNorthDegAngle As Float) As Float
+Declare Function TXTFMathDegAngle2WestGon(ByVal nMathDegAngle As Float) As Float

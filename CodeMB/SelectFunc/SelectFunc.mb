@@ -1,0 +1,983 @@
+'*******************************************************************************
+'** 	Program:	Several (MultiTools etc...)
+'** 	Modul:	SelectFunc
+'**			Functionality for selecting records using other objects
+'*******************************************************************************
+
+Include "MapBasic.def"
+
+Include "..\IniUtil\IniUtil.def"
+Include "..\TabFunc\TabFunc.def"
+Include "..\ArrayFunc\ArrayFunc.def"
+
+Include "SelectFunc.def"
+
+Include "..\Language\Errors.lng"
+Include "..\Language\Message.lng"
+
+Declare Function SELGetIntersectionCriteria() As Logical
+Declare Sub SELHandlerCheckDialog
+Declare Sub SELHandlerTableSelected
+Declare Sub SELHandlerOverlapTypeSelected
+
+Declare Function SELGetStylesToCompareDialog(szChosenTab As String, ByVal nObjType As Integer) As Logical
+Declare Sub SELHandlerSelectStylesStartup
+Declare Function SELGetObjectDescription$(ByVal oCurrent as object) as string
+
+Dim	marrTitle4(0), marrTitle3(0), marrTitle1(0), marrOpenTabNames(0), mszFromTab, mszCurTab As String
+Dim	mfOverlap As Float
+Dim	mnMethod, mnFromTab, mnNumInRadioGroup1, mnNumInRadioGroup2 As Integer
+
+Dim	mbUseLineObjType, mbUseRegionObjType As Logical,
+	mbUseSymbCode, mbUseSymbColor, mbUseSymbSize, mbUseSymbRotation As Logical,
+	mbUseLineWidth, mbUseLinePattern, mbUseLineColor As Logical,
+	mbUseBrushPattern, mbUseBrushFGColor, mbUseBrushBGColor As Logical,
+	mbUseBrushPenPattern, mbUseBrushPenColor, mbUseBrushPenWidth As Logical,
+	mbUseFontType, mbUseFontSize, mbUseFontColor, mbUseFontStyle, mbUseTextValue As Logical
+
+'******************************************************************************
+Sub SelectInsideRegion_With_Obj
+
+Dim	oCurrent As Object
+
+OnError GoTo ErrorOccured
+
+	If SelectionInfo(SEL_INFO_NROWS) = 0 Then
+		Note ERR_OBJ_NO_SELECTED
+		Exit Sub
+	End If
+
+	If SelectionInfo(SEL_INFO_NROWS) > 1 Then
+		Note ERR_OBJ_MULTI_OBJ_SELECTED
+		Exit Sub
+	End If
+
+	If Not WindowInfo(FrontWindow(),WIN_INFO_TYPE) = 1 Then
+		Note ERR_WIN_NOT_MAP
+		Exit Sub
+	End If
+
+	oCurrent	= Selection.OBJ
+	mszCurTab	= SelectionInfo(SEL_INFO_TABLENAME)
+
+	If Str$(ObjectInfo(oCurrent,1)) = Any("1","3","4","5","6","10") Then
+		mnNumInRadioGroup1 = 1
+	Else
+		mnNumInRadioGroup1 = 4
+	End If
+
+	Set area Units MapperInfo(FrontWindow(),MAPPER_INFO_AREAUNITS)
+
+	If SELGetIntersectionCriteria() Then
+		Do Case mnMethod
+			Case 1
+				Select * From mszFromTab
+					Where OBJ Intersects oCurrent
+			Case 2
+				Select * From mszFromTab
+					Where OBJ Within oCurrent
+			Case 3
+				Select * From mszFromTab
+					Where OBJ Entirely Within oCurrent
+			Case 4
+				OnError Goto ErrorOccured1
+				Select * From mszFromTab
+					Where OBJ Intersects oCurrent
+					AND AreaOverlap(OBJ, oCurrent) >= mfOverlap
+		End Case
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured1:
+	Note "FEJL !" + Chr$(10) + "Der er objekter i tabellen som IKKE er fladeobjekter."
+	Exit Sub
+
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'******************************************************************************
+Sub SelectInsideRegion_With_Table
+
+Dim	oCurrent As Object,
+	arrOpenTabNameAndSelect(0), CmdStr As String,
+	i, nCurTab As Integer
+
+OnError GoTo ErrorOccured
+
+	mszCurTab = GetTableName ("Objekt(er) der skal udvælges med", TRUE, TRUE, TRUE, FALSE, FALSE, 0)
+	If mszCurTab = "" Then
+		Exit Sub
+	End If
+
+	If TableInfo(mszCurTab,TAB_INFO_NROWS) = 0 Then
+		Note "Der er ingen objekter i den valgte tabel"
+		Exit Sub
+	End If
+
+	Set area Units MapperInfo(FrontWindow(),MAPPER_INFO_AREAUNITS)
+
+'	Select * From mszCurTab
+'		Where Str$(ObjectInfo(Obj,1)) = Any("1","3","4","5","6","10")
+'		Into NOT__CLOSED__OBJ NoSelect
+
+'	If TableInfo(NOT__CLOSED__OBJ, TAB_INFO_NROWS) > 0 Then
+'		mnNumInRadioGroup1 = 1
+'	Else
+'		mnNumInRadioGroup1 = 4
+'	End If
+mnNumInRadioGroup1 = 4
+
+	'Hvis der er valgt at vælge fra en selection/queryN skal der kun være 3 punkter i radiogroup
+	If TableInfo(mszCurTab, TAB_INFO_TEMP) Then
+		mnNumInRadioGroup1 = Minimum(mnNumInRadioGroup1, 3)
+	End If
+
+	If SELGetIntersectionCriteria() Then
+		Do Case mnMethod
+			Case 1
+				Select * From mszFromTab
+					Where Obj Intersects ANY (Select Obj From mszCurTab)
+			Case 2
+				Select * From mszFromTab
+					Where Obj Within ANY (Select Obj From mszCurTab)
+			Case 3
+				Select * From mszFromTab
+					Where Obj Entirely Within ANY (Select Obj From mszCurTab)
+			Case 4
+				OnError Goto ErrorOccured1
+				CmdStr = "Select * From " & mszFromTab & "," & mszCurTab
+						& " Where " & mszFromTab & ".Obj Intersects " & mszCurTab & ".Obj"
+						& " And CartesianArea(Overlap(" & mszFromTab & ".Obj, " & mszCurTab & ".Obj), " & eye & MapperInfo(FrontWindow(),MAPPER_INFO_AREAUNITS) & eye & ") >= " & mfOverlap
+				'Print CmdStr
+				Run Command CmdStr
+		End Case
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured1:
+	Note "FEJL !" + Chr$(10) + "Der er objekter i tabellene som IKKE er fladeobjekter."
+	Exit Sub
+
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'******************************************************************************
+Sub SelectInsideRegion_With_Tool
+
+Dim	oCurrent As Object
+
+OnError GoTo ErrorOccured
+
+	oCurrent = CommandInfo(CMD_INFO_CUSTOM_OBJ)
+
+	Set area Units MapperInfo(FrontWindow(), MAPPER_INFO_AREAUNITS)
+
+	mnNumInRadioGroup1 = 4
+
+	If SELGetIntersectionCriteria() Then
+		Do Case mnMethod
+			Case 1
+				Select * From mszFromTab
+					Where OBJ Intersects oCurrent
+			Case 2
+				Select * From mszFromTab
+					Where OBJ Within oCurrent
+			Case 3
+				Select * From mszFromTab
+					Where OBJ Entirely Within oCurrent
+			Case 4
+				OnError Goto ErrorOccured1
+				Select * From mszFromTab
+					Where OBJ Intersects oCurrent
+					AND AreaOverlap(OBJ, oCurrent) >= mfOverlap
+		End Case
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured1:
+	Note "FEJL !" + Chr$(10) + "Der er objekter i tabellen som IKKE er fladeobjekter."
+	Exit Sub
+
+
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'******************************************************************************
+Function SELGetIntersectionCriteria() As Logical
+
+Dim	i, nMetode1, nMetode3, nMetode4 As Integer,
+	szOverlapArea As String
+
+OnError GoTo ErrorOccured
+
+SELGetIntersectionCriteria = FALSE
+
+	If mnMethod = 0 Then
+		mnMethod = 1
+	End If
+
+	If NOT CreateArrayTables(marrOpenTabNames, FALSE, TRUE, TRUE, FALSE, FALSE) Then
+		Exit Sub
+	End If
+
+	mnFromTab = 1
+	For i = 1 To Ubound(marrOpenTabNames)
+		If marrOpenTabNames(i) = mszFromTab Then
+			mnFromTab = i
+		End If
+	Next
+
+	ReDim marrTitle4(4)
+	marrTitle4(1) = "Vælg alt der skærer"
+	marrTitle4(2) = "Vælg alt der har centroid indenfor"
+	marrTitle4(3) = "Vælg alt der er helt indenfor"
+	marrTitle4(4) = "Vælg alt der overlapper med mindst"
+
+	ReDim marrTitle3(3)
+	marrTitle3(1) = "Vælg alt der skærer"
+	marrTitle3(2) = "Vælg alt der har centroid indenfor"
+	marrTitle3(3) = "Vælg alt der er helt indenfor"
+
+	ReDim marrTitle1(1)
+	marrTitle1(1) = "Vælg alt der skærer"
+
+	Dialog
+		Title "Vælg fra hvilken tabel der skal udvælges"
+		Calling SELHandlerCheckDialog
+	Control StaticText	Position 10,10
+		Title		"Tabel:"
+	Control PopupMenu		Position 10,20	Width	100		ID 8
+		Title		From Variable marrOpenTabNames
+		Value		mnFromTab
+		Into		mnFromTab
+		Calling	SELHandlerTableSelected
+	Control RadioGroup 	Position 10,40  				ID 9
+		Title		From Variable marrTitle4
+		Calling 	SELHandlerOverlapTypeSelected
+		Into 		nMetode4
+		Value		mnMethod
+		Hide
+	Control RadioGroup 	Position 10,40  				ID 10
+		Title		From Variable marrTitle3
+		Calling 	SELHandlerOverlapTypeSelected
+		Into 		nMetode3
+		Value		mnMethod
+		Hide
+	Control RadioGroup 	Position 10,40  				ID 11
+		Title		From Variable marrTitle1
+		Calling 	SELHandlerOverlapTypeSelected
+		Into 		nMetode1
+		Value		mnMethod
+		Hide
+	Control EditText		Position 150,80	Width 40		ID 12
+		Value		PointToKomma(Str$(mfOverlap))
+		Into		szOverlapArea
+		Hide
+	Control StaticText	Position 195,82	Width 20		ID 13
+		'Title		"Arealenhed"
+		Hide
+	Control OKButton		Position 120,100	Width 40
+	Control CancelButton	Position 165,100	Width 40
+
+	mfOverlap = Val(KommaToPoint(szOverlapArea))
+	Do Case mnNumInRadioGroup2
+		Case 1
+			mnMethod = nMetode1
+		Case 3
+			mnMethod = nMetode3
+		Case 4
+			mnMethod = nMetode4
+	End Case
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit sub
+	End If
+
+	mszFromTab = marrOpenTabNames(mnFromTab)
+
+SELGetIntersectionCriteria = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End function
+'******************************************************************************
+Sub SELHandlerCheckDialog
+
+Dim szUnit As String
+
+OnError GoTo ErrorOccured
+
+	'Hvis der er ikke lukkede objekter i den tabel der vælges fra, skal der være 3 punkter i radiogroup
+	mszFromTab = marrOpenTabNames(mnFromTab)
+
+'	Select * From mszFromTab
+'		Where Str$(ObjectInfo(Obj,1)) = Any("1","3","4","5","6","10")
+'		Into NOT__CLOSED__OBJ NoSelect
+
+'	If TableInfo(NOT__CLOSED__OBJ,TAB_INFO_NROWS) > 0 Then
+'		mnNumInRadioGroup2 = Minimum(mnNumInRadioGroup1, 3)
+'	Else
+'		mnNumInRadioGroup2 = mnNumInRadioGroup1
+'	End If
+mnNumInRadioGroup2 = mnNumInRadioGroup1
+
+	'Tilretter dialogbox efter mnNumInRadioGroup2
+	Do Case mnNumInRadioGroup2
+		Case 1
+			Alter Control 11 Show
+		Case 3
+			Alter Control 10 Show
+		Case 4
+			Alter Control 9 Show
+	End Case
+
+	'Hvis der tidligere er valgt radiogroup nummer 4
+	If mnMethod = 4 Then
+		If mnNumInRadioGroup2 < 4 Then
+			mnMethod = 1
+		Else
+			Alter Control 12 Show
+			Alter Control 13 Show
+			Alter Control 12 Value 10
+			szUnit = MapperInfo(FrontWindow(),MAPPER_INFO_AREAUNITS)
+			Do Case szUnit
+				Case "sq m"
+					szUnit = "m" & Chr$(178)
+				Case "sq mi"
+					szUnit = "mi" & Chr$(178)
+				Case "sq km"
+					szUnit = "km" & Chr$(178)
+			End Case
+			Alter Control 13 Title szUnit
+		End If
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'******************************************************************************
+Sub SELHandlerTableSelected
+
+OnError GoTo ErrorOccured
+
+	'Hvis der vælges en anden tabel at vælge fra, checkes for om der er ikke lukkede objekter, hvilket medfører
+	'at der skal være max 3 punkter i radiogroup
+	mszFromTab = marrOpenTabNames(ReadControlValue(8))
+
+'	Select * From mszFromTab
+'		Where Str$(ObjectInfo(Obj,1)) = Any("1","3","4","5","6","10")
+'		Into NOT__CLOSED__OBJ NoSelect
+
+'	If TableInfo(NOT__CLOSED__OBJ, TAB_INFO_NROWS) > 0 Then
+'		mnNumInRadioGroup2 = Minimum(mnNumInRadioGroup1, 3)
+'	Else
+'		mnNumInRadioGroup2 = mnNumInRadioGroup1
+'	End If
+mnNumInRadioGroup2 = mnNumInRadioGroup1
+
+	'Tilretter dialogbox efter mnNumInRadioGroup2
+	Do Case mnNumInRadioGroup2
+		Case 1
+			Alter Control 9 Hide
+			Alter Control 10 Hide
+			Alter Control 11 Show
+			Alter Control 12 Hide
+			Alter Control 13 Hide
+		Case 3
+			Alter Control 9 Hide
+			Alter Control 10 Show
+			Alter Control 11 Hide
+			Alter Control 12 Hide
+			Alter Control 13 Hide
+		Case 4
+			Alter Control 9 Show
+			Alter Control 10 Hide
+			Alter Control 11 Hide
+			If mnMethod <> 4 Then
+				Alter Control 12 Hide
+				Alter Control 13 Hide
+			End If
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+'******************************************************************************
+Sub SELHandlerOverlapTypeSelected
+
+Dim	szUnit As String
+
+OnError GoTo ErrorOccured
+
+	If TriggerControl() Then
+		If ReadControlValue(9) = 4 Then
+			Alter Control 12 Show
+			Alter Control 13 Show
+			Alter Control 12 Value 10
+			szUnit = MapperInfo(FrontWindow(),MAPPER_INFO_AREAUNITS)
+			Do Case szUnit
+				Case "sq m"
+					szUnit = "m" & Chr$(178)
+				Case "sq mi"
+					szUnit = "mi" & Chr$(178)
+				Case "sq km"
+					szUnit = "km" & Chr$(178)
+			End Case
+			Alter Control 13 Title szUnit
+		Else
+			Alter Control 12 Hide
+			Alter Control 13 Hide
+		End If
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'******************************************************************************
+'******************************************************************************
+'******************************************************************************
+Sub SelectObjUsingCurSelection
+
+Dim	szSelStr, szBaseTab As String,
+	nSelRows As Integer,
+	aObj As Alias,
+	oSel As Object
+
+OnError GoTo ErrorOccured
+
+	If NumWindows() = 0 Then
+		Note "Der skal først åbnes et kortvindue"
+		Exit sub
+	End If
+
+	If WindowInfo(Frontwindow(), WIN_INFO_TYPE) = WIN_MAPPER Then
+		nSelRows	= SelectionInfo(SEL_INFO_NROWS)
+		If nSelRows = 0 Then
+
+			Note ERR_OBJ_NO_SELECTED
+		ElseIf nSelRows > 1 Then
+			Note ERR_OBJ_MULTI_OBJ_SELECTED
+		Else
+			szBaseTab	= SelectionInfo(SEL_INFO_TABLENAME)
+
+			Fetch First From Selection
+			aObj	= "Selection.OBJ"
+
+			If aObj Then
+				oSel		= Selection.OBJ
+
+				Select * From szBaseTab
+					Where OBJ
+					Into OBJS__IN__TABLE NoSelect
+
+				Do Case ObjectInfo(oSel, OBJ_INFO_TYPE)
+					'---------------
+					Case OBJ_TYPE_ARC, OBJ_TYPE_LINE, OBJ_TYPE_PLINE
+						Select * From OBJS__IN__TABLE
+							Where Str$(ObjectInfo(OBJ, OBJ_INFO_TYPE))
+								In (Str$(OBJ_TYPE_ARC), Str$(OBJ_TYPE_LINE), Str$(OBJ_TYPE_PLINE))
+							Into SELECTED__SAME__TYPE NoSelect
+
+						Select * From SELECTED__SAME__TYPE
+							Where Str$(ObjectInfo(OBJ, OBJ_INFO_PEN)) = Str$(ObjectInfo(oSel, OBJ_INFO_PEN))
+					'---------------
+					Case OBJ_TYPE_POINT
+						Select * From OBJS__IN__TABLE
+							Where Str$(ObjectInfo(oSel, OBJ_INFO_TYPE)) = Str$(OBJ_TYPE_POINT)
+							Into SELECTED__SAME__TYPE NoSelect
+
+						Select * From SELECTED__SAME__TYPE
+							Where Str$(ObjectInfo(OBJ, OBJ_INFO_SYMBOL)) = Str$(ObjectInfo(oSel, OBJ_INFO_SYMBOL))
+					'---------------
+					Case OBJ_TYPE_TEXT
+						Select * From OBJS__IN__TABLE
+							Where Str$(ObjectInfo(OBJ, OBJ_INFO_TYPE)) = Str$(OBJ_TYPE_TEXT)
+							Into SELECTED__SAME__TYPE NoSelect
+
+						Select * From SELECTED__SAME__TYPE
+							Where Str$(ObjectInfo(OBJ, OBJ_INFO_TEXTFONT)) = Str$(ObjectInfo(oSel, OBJ_INFO_TEXTFONT))
+					'---------------
+					Case OBJ_TYPE_ELLIPSE, OBJ_TYPE_RECT, OBJ_TYPE_REGION, OBJ_TYPE_ROUNDRECT
+						Select * From OBJS__IN__TABLE
+							Where Str$(ObjectInfo(OBJ, OBJ_INFO_TYPE))
+								In (Str$(OBJ_TYPE_ELLIPSE), Str$(OBJ_TYPE_RECT), Str$(OBJ_TYPE_REGION), Str$(OBJ_TYPE_ROUNDRECT))
+							Into SELECTED__SAME__TYPE NoSelect
+
+						Select * From SELECTED__SAME__TYPE
+							Where Str$(ObjectInfo(OBJ, OBJ_INFO_BRUSH)) = Str$(ObjectInfo(oSel, OBJ_INFO_BRUSH))
+							AND	Str$(ObjectInfo(OBJ, OBJ_INFO_PEN)) = Str$(ObjectInfo(oSel, OBJ_INFO_PEN))
+				End Case
+
+				Call TABClose("OBJS__IN__TABLE")
+				Call TABClose("SELECTED__SAME__TYPE")
+			Else
+				Note ERR_OBJ_NOT_ATTACHED_TO_RECORD
+			End If
+		End If
+	Else
+		Note ERR_WIN_NOT_MAP
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'******************************************************************************
+'******************************************************************************
+'******************************************************************************
+Sub SelectObjUsingCurSelectionExt
+
+Dim	szSelStr, szBaseTab As String,
+	nSelRows As Integer,
+	aObj As Alias,
+	oSel As Object
+
+OnError GoTo ErrorOccured
+
+	If NumWindows() = 0 Then
+		Note "Der skal først åbnes et kortvindue"
+		Exit sub
+	End If
+
+	If WindowInfo(Frontwindow(), WIN_INFO_TYPE) = WIN_MAPPER Then
+		nSelRows	= SelectionInfo(SEL_INFO_NROWS)
+		If nSelRows = 0 Then
+			Note ERR_OBJ_NO_SELECTED
+		ElseIf nSelRows > 1 Then
+			Note ERR_OBJ_MULTI_OBJ_SELECTED
+		Else
+			szBaseTab	= SelectionInfo(SEL_INFO_TABLENAME)
+
+			Fetch First From Selection
+			aObj	= "Selection.OBJ"
+
+			If aObj Then
+				oSel		= aObj
+
+				If SELGetStylesToCompareDialog(szBaseTab, ObjectInfo(oSel, OBJ_INFO_TYPE)) then
+					szSelStr = SELGetObjectDescription$(oSel)
+
+					'Print "Chosen obj: " & szSelStr
+
+					Select * From szBaseTab
+						Where SELGetObjectDescription$(OBJ) = szSelStr
+				End If
+			Else
+				Note ERR_OBJ_NOT_ATTACHED_TO_RECORD
+			End If
+		End If
+	Else
+		Note ERR_WIN_NOT_MAP
+	End If
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'*******************************************************************
+'Viser dialogboxe hvori man vælger tabel og topografi
+'*******************************************************************
+Function SELGetStylesToCompareDialog(szChosenTab As String, ByVal nObjType As Integer) As Logical
+
+Dim	nTab As Integer,
+	arrTabs(0) As String
+
+OnError GoTo ErrorOccured
+
+SELGetStylesToCompareDialog = FALSE
+
+	If NOT CreateArrayTables(arrTabs, TRUE, TRUE, TRUE, FALSE, FALSE) Then
+		Note ERR_TAB_NO_USABLE
+		Exit Sub
+	End If
+
+	Dialog
+		Title "Vælg objekter med samme topografi"
+		Calling SELHandlerSelectStylesStartup
+
+		'--------------
+		Control StaticText	Position 10,10
+			Title "Vælg i tabel"
+		Control PopupMenu		Position 10,20	Width	160
+			Title	From Variable arrTabs
+			Value	ARRGetItemNoString(szChosenTab, arrTabs)
+			Into 	nTab
+
+		Control StaticText	Position 10,40
+			Title	"Anvend følgende stilartselementer:"
+
+		'--------------
+		Control EditText		Position 10,20	Width 20			ID 200
+			Value Str$(nObjType)
+			Disable Hide
+		'--------------
+		Control Groupbox		Position 10,50	Width 160	Height 55	ID 19
+			Title "Symbolstil:"
+			Hide
+		Control Checkbox		Position 40,60  					ID 10
+			Title "Symbol"
+			Into mbUseSymbCode
+			Value mbUseSymbCode
+			Disable	Hide
+		Control Checkbox		Position 40,70  					ID 11
+			Title "Farve"
+			Into mbUseSymbColor
+			Value mbUseSymbColor
+			Disable	Hide
+		Control Checkbox		Position 40,80  					ID 12
+			Title "Størrelse"
+			Into mbUseSymbSize
+			Value mbUseSymbSize
+			Disable	Hide
+		Control Checkbox		Position 40,90  					ID 13
+			Title "Rotation"
+			Into mbUseSymbRotation
+			Value mbUseSymbRotation
+			Disable	Hide
+
+		'--------------
+		Control Groupbox		Position 10,50	Width 160	Height 55	ID 29
+			Title "Liniestil:"
+			Hide
+		Control Checkbox		Position 40,60  					ID 20
+			Title "Objekttype"
+			Into mbUseLineObjType
+			Value mbUseLineObjType
+			Disable	Hide
+		Control Checkbox		Position 40,70  					ID 21
+			Title "Stilart"
+			Into mbUseLinePattern
+			Value mbUseLinePattern
+			Disable	Hide
+		Control Checkbox		Position 40,80  					ID 22
+			Title "Farve"
+			Into mbUseLineColor
+			Value mbUseLineColor
+			Disable	Hide
+		Control Checkbox		Position 40,90  					ID 23
+			Title "Bredde"
+			Into mbUseLineWidth
+			Value mbUseLineWidth
+			Disable	Hide
+
+		'--------------
+		Control Groupbox		Position 10,50	Width 160	Height 75	ID 39
+			Title "Regionstil:"
+			Hide
+		Control Checkbox		Position 40,60  					ID 30
+			Title "Objekttype"
+			Into mbUseRegionObjType
+			Value mbUseRegionObjType
+			Disable	Hide
+
+		Control Groupbox		Position 20,70	Width 65	Height 45	ID 38
+			Title "Udfyldning:"
+			Hide
+		Control Checkbox		Position 30,80  					ID 31
+			Title "Mønster"
+			Into mbUseBrushPattern
+			Value mbUseBrushPattern
+			Disable	Hide
+		Control Checkbox		Position 30,90  					ID 32
+			Title "Forgrund"
+			Into mbUseBrushFGColor
+			Value mbUseBrushFGColor
+			Disable	Hide
+		Control Checkbox		Position 30,100 					ID 33
+			Title "Baggrund"
+			Into mbUseBrushBGColor
+			Value mbUseBrushBGColor
+			Disable	Hide
+
+		Control Groupbox		Position 95,70 	Width 65	Height 45	ID 37
+			Title "Afgrænsning:"
+			Hide
+		Control Checkbox		Position 105,80					ID 34
+			Title "Stilart"
+			Into mbUseBrushPenPattern
+			Value mbUseBrushPenPattern
+			Disable	Hide
+		Control Checkbox		Position 105,90					ID 35
+			Title "Farve"
+			Into mbUseBrushPenColor
+			Value mbUseBrushPenColor
+			Disable	Hide
+		Control Checkbox		Position 105,100					ID 36
+			Title "Bredde"
+			Into mbUseBrushPenWidth
+			Value mbUseBrushPenWidth
+			Disable	Hide
+
+		'--------------
+		Control Groupbox		Position 10,50 	Width 160	Height 65	ID 49
+			Title "Tekststil:"
+			Hide
+		Control Checkbox		Position 40,60  					ID 40
+			Title "Skrifttype"
+			Into mbUseFonttype
+			Value mbUseFonttype
+			Disable	Hide
+		Control Checkbox		Position 40,70  					ID 41
+			Title "Størrelse"
+			Into mbUseFontSize
+			Value mbUseFontSize
+			Disable	Hide
+		Control Checkbox		Position 40,80  					ID 42
+			Title "Farve"
+			Into mbUseFontColor
+			Value mbUseFontColor
+			Disable	Hide
+		Control Checkbox		Position 40,90  					ID 43
+			Title "Stil"
+			Into mbUseFontStyle
+			Value mbUseFontStyle
+			Disable	Hide
+		Control Checkbox		Position 40,100  					ID 44
+			Title "Indhold"
+			Into mbUseTextValue
+			Value mbUseTextValue
+			Disable	Hide
+
+		'--------------
+		Control OKButton		Position 75,130	Width 40
+		Control CancelButton	Position 120,130	Width 40
+
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit sub
+	End If
+
+	szChosenTab = arrTabs(nTab)
+
+	SELGetStylesToCompareDialog = TRUE
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function
+
+'*******************************************************************
+Sub SELHandlerSelectStylesStartup
+
+OnError GoTo ErrorOccured
+
+	Do Case Val(ReadControlValue(200))
+		Case 5
+			'Print "Objecttype: 5"
+			Alter Control 10 Enable	Show 'Value TRUE
+			Alter Control 11 Enable	Show 'Value TRUE
+			Alter Control 12 Enable	Show 'Value TRUE
+			Alter Control 13 Enable	Show 'Value TRUE
+			Alter Control 19 Show
+'			Alter Control 10 Value True
+'			Alter Control 11 Value True
+'			Alter Control 12 Value True
+'			Alter Control 13 Value True
+		Case 1,3,4
+			'Print "Objecttype: 1,3,4"
+			Alter Control 20 Enable	Show 'Value TRUE
+			Alter Control 21 Enable	Show 'Value TRUE
+			Alter Control 22 Enable	Show 'Value TRUE
+			Alter Control 23 Enable	Show 'Value TRUE
+			Alter Control 29 Show
+'			Alter Control 20 Value True
+'			Alter Control 21 Value True
+'			Alter Control 22 Value True
+'			Alter Control 23 Value True
+		Case 2,7,8,9
+			'Print "Objecttype: 2,7,8,9"
+			Alter Control 30 Enable	Show 'Value TRUE
+			Alter Control 31 Enable	Show 'Value TRUE
+			Alter Control 32 Enable	Show 'Value TRUE
+			Alter Control 33 Enable	Show 'Value TRUE
+			Alter Control 34 Enable	Show 'Value TRUE
+			Alter Control 35 Enable	Show 'Value TRUE
+			Alter Control 36 Enable	Show 'Value TRUE
+			Alter Control 37 Show
+			Alter Control 38 Show
+			Alter Control 39 Show
+'			Alter Control 30 Value True
+'			Alter Control 31 Value True
+'			Alter Control 32 Value True
+'			Alter Control 33 Value True
+'			Alter Control 34 Value True
+'			Alter Control 35 Value True
+'			Alter Control 36 Value True
+		Case 10
+			'Print "Objecttype: 10"
+			Alter Control 40 Enable	Show 'Value TRUE
+			Alter Control 41 Enable	Show 'Value TRUE
+			Alter Control 42 Enable	Show 'Value TRUE
+			Alter Control 43 Enable	Show 'Value TRUE
+			Alter Control 44 Enable	Show 'Value TRUE
+			Alter Control 49 Show
+'			Alter Control 40 Value True
+'			Alter Control 41 Value True
+'			Alter Control 42 Value True
+'			Alter Control 43 Value True
+'			Alter Control 44 Value True
+	End Case
+
+	Exit Sub
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Sub
+
+'*******************************************************************
+'Funktion der henter info omkring de enkelte objekter i Tabellen
+'*******************************************************************
+Function SELGetObjectDescription$(ByVal oCurrent As Object) As String
+
+Dim	nObjType As Integer,
+	szObjDescript, szObjType As String
+
+	'Fang objtype
+OnError GoTo non_obj
+
+	nObjType = ObjectInfo(oCurrent,OBJ_INFO_TYPE)
+
+OnError GoTo ErrorOccured
+
+	'Find objtype navn
+	Do Case nObjType
+		Case OBJ_ARC
+			szObjType = "Arc"
+		Case OBJ_ELLIPSE
+			szObjType = "Ellipse"
+		Case OBJ_LINE
+			szObjType = "Line"
+		Case OBJ_PLINE
+			szObjType = "Polyline"
+		Case OBJ_POINT
+			szObjType = "Point"
+		Case OBJ_FRAME
+			szObjType = "Frame"
+		Case OBJ_REGION
+			szObjType = "Region"
+		Case OBJ_RECT
+			szObjType = "Rectangle"
+		Case OBJ_ROUNDRECT
+			szObjType = "RoundRect"
+		Case OBJ_TEXT
+			szObjType = "Text"
+	End Case
+
+	'Tilføjer objekt - symbol/pen/brush stil
+	szObjDescript = ""
+
+	Do Case nObjType
+		Case OBJ_POINT
+			szObjDescript = szObjType
+			If mbUseSymbCode Then
+				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_SYMBOL),SYMBOL_CODE)
+			End If
+			If mbUseSymbColor Then
+				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_SYMBOL),SYMBOL_COLOR)
+			End If
+ 			If mbUseSymbSize Then
+ 				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_SYMBOL),SYMBOL_POINTSIZE)
+ 			End If
+ 			If mbUseSymbRotation Then
+ 				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_SYMBOL),SYMBOL_ANGLE)
+ 			End If
+		Case OBJ_LINE, OBJ_PLINE, OBJ_ARC
+			If mbUseLineObjType Then
+				szObjDescript = szObjType
+			Else
+				szObjDescript = "LinePlineArc"
+			End If
+  			If mbUseLinePattern Then
+  				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_PEN),PEN_PATTERN)
+  			End If
+			If mbUseLineColor Then
+				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_PEN),PEN_COLOR)
+			End If
+			If mbUseLineWidth Then
+				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_PEN),PEN_WIDTH)
+			End If
+		Case OBJ_REGION, OBJ_ELLIPSE, OBJ_RECT, OBJ_ROUNDRECT, OBJ_FRAME
+			If mbUseRegionObjType Then
+				szObjDescript = szObjType
+			Else
+				szObjDescript = "RegionEllipseRectRoundrect"
+			End If
+			If mbUseBrushPattern Then
+				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_BRUSH),BRUSH_PATTERN)
+			End If
+			If mbUseBrushFGColor Then
+				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_BRUSH),BRUSH_FORECOLOR)
+			End If
+			If mbUseBrushBGColor Then
+				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_BRUSH),BRUSH_BACKCOLOR)
+			End If
+			If mbUseBrushPenPattern Then
+				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_PEN),PEN_PATTERN)
+			End If
+			If mbUseBrushPenColor Then
+				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_PEN),PEN_COLOR)
+			End If
+			If mbUseBrushPenWidth Then
+				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_PEN),PEN_WIDTH)
+			End If
+		Case OBJ_TEXT
+			szObjDescript = szObjType
+			If mbUseFontType Then
+				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_TEXTFONT),FONT_NAME)
+			End If
+			If mbUseFontSize Then
+				szObjDescript = szObjDescript + " " + (ObjectGeography(oCurrent,OBJ_GEO_MAXY) - ObjectGeography(oCurrent,OBJ_GEO_MINY))
+			End If
+			If mbUseFontColor Then
+				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_TEXTFONT),FONT_FORECOLOR)
+			End If
+			If mbUseFontStyle Then
+				szObjDescript = szObjDescript + " " + StyleAttr(ObjectInfo(oCurrent,OBJ_INFO_TEXTFONT),FONT_STYLE)
+			End If
+			If mbUseTextValue Then
+				szObjDescript = szObjDescript + " " + ObjectInfo(oCurrent,OBJ_INFO_TEXTSTRING)
+			End If
+	End Case
+
+	SELGetObjectDescription$ = szObjDescript
+
+	Exit Function
+'------------------
+non_obj:
+
+	Exit Function
+'-------------------------
+ErrorOccured:
+	Note ERR_ERRORMSG & lf & Error$()
+
+End Function

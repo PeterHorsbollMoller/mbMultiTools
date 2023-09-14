@@ -1,0 +1,20 @@
+
+'**Kalder stilartsdialog med alle objekttyper....
+Declare Sub kpsShowStylesDialogAllObject
+
+'Kaldes ved opstart til stilartsdialogen
+Declare Sub kpsOpenStyleDialog(ByVal StyleType As String)
+
+'Læs fra og skriv til stilartstabel
+Declare Sub kpsUpdateItem(ByVal arrID As Integer)
+
+'Stilartsdialogen
+Declare Sub kpsStyleDialogAllTools		'Opsætning for alle tegnestilarter
+Declare Sub kpsStyleDialogPolygonOnlyFill	'Opsætning med kun regionsudfyldningsstilart
+
+'Tilføj lag dialog...
+Declare Function kpsDialogAddStyle() As Logical
+
+'Funktioner til styring af stilartstabel CRUD
+Declare Sub kpsAddStyle
+

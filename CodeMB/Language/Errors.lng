@@ -1,0 +1,238 @@
+Define ERR_ERRORMSG                                      "Fejlmeddelelse :"
+
+
+Define ERR_TXT_PICK_LINES                                "Udvælg først nogle linier."
+Define ERR_TXT_PICK_A_LINE                               "Udvælg først en linie."
+Define ERR_TXT_PICK_REGIONS                              "Udvælg først regioner."
+Define ERR_TXT_PICK_A_REGION                             "Udvælg først en region."
+Define ERR_TXT_PICK_OBJECT                               "Udvælg først et objekt."
+
+Define ERR_TXT_NO_DESCRIPTION_ENTERED                    "Ingen beskrivende tekst angivet!"
+Define ERR_TXT_NO_NAME_ENTERED                           "Intet navn angivet!"
+
+Define ERR_DRAW_HOLD_MOUSE_BTN_DOWN                      "Udtræk en linie mens musetasten er nedtrykket."
+Define ERR_DRAW_LINE_WITHIN_CHOSEN_OBJ                   "Linien skal tegnes indenfor det udvalgte objekt!"
+
+
+Define ERR_TAB_NONE                                      "Ingen tabeller."
+Define ERR_TAB_TO_FEW                                    "For få tabeller."
+Define ERR_TAB_NOT_FOUND                                 "Tabel findes ikke på disken :"
+Define ERR_TAB_NOT_OPEN                                  "Tabel er ikke åben : "
+Define ERR_TAB_NO_COLUMNS                                "Ingen kolonner!"
+Define ERR_TAB_NO_OPEN                                   "Ingen åbne tabeller!"
+Define ERR_TAB_NO_REC                                    "Ingen rækker i tabel!"
+Define ERR_TAB_NO_SUCH_COLUMN                            "Tabellen indeholder ikke denne kolonne : "
+Define ERR_TAB_NO_USABLE                                 "Ingen anvendelige tabeller!"
+Define ERR_TAB_NO_USABLE_COLUMNS                         "Denne tabel indeholder ingen anvendelige kolonner : "
+Define ERR_TAB_NO_USABLE_OBJECTS                         "Den valgte tabel indeholder ingen anvendelige objekter : "
+Define ERR_TAB_NOT_MAPPABLE                              "Tabellen er ikke kortlægningsklar : "
+Define ERR_TAB_READONLY                                  "Tabellen er skrivebeskyttet : "
+Define ERR_TAB_OPENING                                   "Kunne ikke åbne tabellen : "
+Define ERR_TAB_CLOSING                                   "Tabel blev ikke lukket : "
+Define ERR_TAB_NO_NAME_ENTERED                           "Der skal indtastes et tabelnavn!"
+Define ERR_TAB_NO_NAME_GIVEN                             "Der er ikke angivet et tabelnavn!"
+Define ERR_TAB_NON_OPENED                                "Ingen tabeller blev åbnet! kontroller at tabeller og biblioteker er tilgængelige - se listevinduet"
+Define ERR_TAB_SEARCH                                    "Juster opsætningen af søgetabeller"
+Define ERR_NO_TAB_OPEN_IN_THEME                          "Ingen af tabellerne i temaet kunne åbnes. Kontroller opsætningerne i system tabellerne."
+Define ERR_TAB_TOO_MANY_ROWS_MAX_IS                      "Der blev valgt for mange poster. Det største antal er "
+Define ERR_TABS_NO_COMMON_COLUMNS                        "Ingen fælles kolonner i tabellerne!"
+
+
+Define ERR_SEL_NONE                                      "Ingen aktiv udvælgelse!"
+Define ERR_SEL_NOT_MAPPABLE                              "Den aktiv udvælgelse har intet kort tilknyttet!"
+Define ERR_SEL_NOT_FROM_TABLE                            "Den aktiv udvælgelse er ikke valgt fra tabellen "
+
+
+Define ERR_FILE_DOES_NOT_EXIST                           "Fil findes ikke : "
+Define ERR_FILENAME_NOT_GIVEN                            "Filnavn ikke angivet!"
+Define ERR_FILE_WHILE_READING                            "Følgende fejl opstod ved læsning af initieringsfil."
+Define ERR_FILE_WHILE_WRITING                            "Følgende fejl opstod ved skrivning af initieringsfil."
+Define ERR_FILE_CREATING_FOLDER                          "Fejl ved oprettelse af denne mappe: "
+
+Define ERR_COL_NO_USABLE                                 "Ingen anvendelige kolonner"
+
+Define ERR_STYLETAB_NOT_FOUND                            "Stilartstabellen findes ikke på disken :"
+
+Define ERR_ICONFILE_NOT_FOUND                            "Ikon-filen findes ikke på disken : "
+Define ERR_ICONFILE_CONTAINS_NO_ICONS                    "Ikon-filen indeholder ingen ikoner!"
+Define ERR_ICONFILE_UNUSABLE_FOR_ICONS                   "Ikon-filen kan ikke anvendes til ikoner!"
+Define ERR_ICON_LOADING_1                                "Følgende fejl opstod ved indlæsning af ikonnr : "
+Define ERR_ICON_LOADING_2                                " fra ikonfilen : "
+Define ERR_ICONFILE_DESCR_NOT_ENTERED                    "Der skal indtastes en beskrivelse af ikonfilen!"
+
+Define ERR_STYL_LAYERID                                  "Lag ID "
+Define ERR_STYL_NOT_FOUND_IN_TAB                         " findes ikke i stilartstabel "
+Define ERR_STYL_LINE_NOT_SUPPORTED                       " supporterer ikke liniestilart!"
+Define ERR_STYL_SYMBOL_NOT_SUPPORTED                     " supporterer ikke symbolstilart!"
+Define ERR_STYL_FONT_NOT_SUPPORTED                       " supporterer ikke tekststilart!"
+Define ERR_STYL_BRUSH_NOT_SUPPORTED                      " supporterer ikke regionstilart!"
+Define ERR_STYL_NO_LAYER_FOR_THEME                       "Intet lag knyttet til dette tema!"
+Define ERR_STYL_COL_TO_SMALL_FOR_VALUE                   "Hele værdien kan ikke være i kolonne : "
+Define ERR_STYL_ICONFILE_IS_REFERENCED                   "Ikonfilen kan ikke fjernes, da der findes referencer til den!"
+Define ERR_STYL_LAYER_SETUP_ERROR                        "Fejl ved indstilling af laget : "
+Define ERR_STYL_TABLE_REGISTER_ERROR                     "Tabellen blev ikke registreret : "
+Define ERR_STYL_THEME_NAME_EXISTS                        "Der findes allerede et tema med navnet : "
+Define ERR_STYL_THEME_NOT_REMOVEBLE                      "Temaet kunne ikke slettes. Check evt. om systemtabellerne er skrivebeskyttet!"
+Define ERR_STYL_UPDATING_COLUMNS                         "Problem med opdatering af værdier!"
+Define ERR_STYL_ICONSETUP_NAME_EXISTS                    "Der findes allerede et ikonsetup med beskrivelsen :"
+Define ERR_STYL_MULTILAYER_NAME_EXISTS                   "Der findes allerede et MultiLag med beskrivelsen :"
+Define ERR_STYL_NO_TAB_ATTACH_MULTIL                     "Ingen tabeller tilknyttet dette MultiLag-setup!"
+Define ERR_STYL_PATH_NOT_FOUND_SYSTAB1                   "Den angivne placering af systemtabellerne forefindes ikke på din computer : "
+Define ERR_STYL_PATH_NOT_FOUND_SYSTAB2                   "Udpeg venligst en ny placering!"
+
+
+Define ERR_COL_ONLY_CHR_INT_SMALLINT                     "Denne funktion understøtter kun kolonner af typerne Tegn, Heltal og lille heltal"
+Define ERR_COL_NAME_MUST_BE_ENTERED                      "Der skal indtastes navnet på en kolonne!"
+
+Define ERR_SYS_PROGRAM_END                               "Programmet afsluttes!"
+Define ERR_SYS_WINDOWS_APPLICATION                       "Denne applikation kører kun på Windows-platform!"
+Define ERR_SYS_RUN_ONLY_ON_RUNTIME                       "Denne applikation kører kun på MapInfo Runtime!"
+
+
+Define ERR_MAP_EDITABLE_NOT_POSS                         "Laget kunne ikke gøres redigerbart!"
+Define ERR_MAP_NOTSELECTABLE_NOT_POSS                    "Laget kunne ikke gøres ikke-valgbart!!"
+Define ERR_MAP_NOTVISIBLE_NOT_POSS                       "Laget kunne ikke gøres ikke-synligt!"
+Define ERR_MAP_LAYER_NOT_IN_FRONTMAP                     "Laget findes ikke i det aktive kort : "
+Define ERR_MAP_NO_LAYER_TO_USE                           "Ingen anvendelige lag fundet!"
+Define ERR_MAP_NO_EDITABLE_LAYER                         "Intet redigerbart lag i kortvinduet!"
+Define ERR_MAP_LAYER_NOT_EDITABLE                        "Det udvalgte lag er ikke redigerbart!"
+Define ERR_MAP_SELECT_ONE_IN_LIST                        "Udpeg først et kortvindue i listen!"
+Define ERR_MAP_UNSUPPORTED_YXUNITS                       "Ikke understøttet koordinatenhed!"
+
+
+Define ERR_OBJ_THIS_TYPE_CANT_MOVED                      "Denne type objekt kan endnu ikke flyttes!"
+Define ERR_OBJ_MULTI_SEGM_NOT_TURNABLE                   "Objekter med flere segmenter kan ikke vendes!"
+Define ERR_OBJ_MULTI_OBJ_SELECTED                        "Mere end et objekt udvalgt!"
+Define ERR_OBJ_NOT_POLYLINE                              "Udvalgt objekt er ikke et polylinie objekt!"
+Define ERR_OBJ_NOT_REGION                                "Udvalgt objekt er ikke et region objekt!"
+Define ERR_OBJ_MULTI_SEGMENT_NOT_ALLOW                   "Udvalgt objekt har flere delsegmenter!"
+Define ERR_OBJ_READING_COORD                             "Fejl ved læsning af koordinater fra objekt!"
+Define ERR_OBJ_NOT_ATTACHED_TO_RECORD                    "Intet objekt knyttet til den valgte post!"
+Define ERR_OBJ_NO_USABLE_SELECTED                        "Ingen anvendelige objekter udvalgt!"
+Define ERR_OBJ_NO_SELECTED                               "Ingen objekter udvalgt!"
+Define ERR_OBJ_NOT_SELECTED_FROM_TAB                     "De udvalgte objekter er ikke fra tabellen "
+
+Define ERR_PNT_FIRST_AND_LAST_TO_CLOSE                   "Start- og slutpunkt i det tegnede objekt er for tæt på hinanden!"
+
+
+Define ERR_REC_NO_SELECTED                               "Ingen poster udvalgt!"
+
+Define ERR_PRINTLAYOUT                                   "Fejl i arbejdsområdet!"
+Define ERR_PRINTLAYOUT_NOT_FOUND                         "Udskriftslayout findes ikke på disken : "
+Define ERR_PRINTLAYOUT_NOT_NAMED                         "Intet udskriftslayout angivet!"
+Define ERR_PRINTLAYOUT_NO_FRAMES                         "Ingen tomme rammer i layout!"
+
+Define ERR_WOR_NOT_PICKED                                "Intet arbejdsområde udpeget!"
+Define ERR_WOR_NOT_FOUND                                 "Arbejdsområde findes ikke på disken : "
+
+Define ERR_WOR_OPENING_ERROR                             "Følgende fejl skete ved åbning af arbejdsområdet: "
+
+Define ERR_WIN_DOESNT_EXISTS                             "Vinduet eksisterer ikke!"
+Define ERR_WIN_LAYOUT_INSERT_MAP                         "Kunne ikke indsætte kortet i layoutet!"
+Define ERR_WIN_LAYOUT_NOT_FOUND                          "Layoutvindue ikke fundet!"
+Define ERR_WIN_READING_ID                                "Fejl ved læsning af nummer fra aktivt vindue!"
+Define ERR_WIN_MAP_CLON                                  "Kunne ikke klone kortvinduet!"
+Define ERR_WIN_MAP_NOT_FOUND                             "Kortvindue ikke fundet!"
+Define ERR_WIN_MAP_SIZE                                  "Kunne ikke ændre kortets størrelse!"
+Define ERR_WIN_MAP_WIDTH                                 "Kunne ikke ændre kortets bredde!"
+Define ERR_WIN_MAP_XY_OR_SCALE                           "Kunne ikke ændre kortets skala eller centerkoordinater!"
+Define ERR_WIN_MAP_XY_OR_ZOOM                            "Kunne ikke ændre kortets zoom eller centerkoordinater!"
+Define ERR_WIN_MAP_XY                                    "Kunne ikke ændre kortets centerkoordinater!"
+Define ERR_WIN_NOT_LAYOUT                                "Det aktive vindue er ikke et layoutvindue!"
+Define ERR_WIN_NOT_MAP                                   "Det aktive vindue er ikke et kortvindue!"
+Define ERR_WIN_NO_EDIT_LAYER                             "Intet redigerbart kort i kortvinduet!"
+Define ERR_WIN_NO_MAP_OPEN                               "Ingen åbne kortvinduer!"
+Define ERR_WIN_NO_OPEN                                   "Ingen åbne vinduer!"
+
+Define ERR_VALUE_DEMANDED                                "Der skal angives en værdi!"
+
+
+Define ERR_PLT_PRINT_THIS_SCALE                          "Kan ikke skrive ud i dette målforhold: 1 : "
+Define ERR_PLT_REPLACE_RUNTIME_VAL                       "Problemer med erstatning af runtime-værdier!"
+Define ERR_PLT_READ_RUNTIME_VAL                          "Problemer med læsning af runtime-værdier!"
+Define ERR_PLT_RUNTIME_VAL_NO_FOUND_IN                   "Ingen runtime-værdier fundet i "
+Define ERR_PLT_SCALE_MIN_1                               "Målforholdet skal være større end 1!"
+Define ERR_PLT_TITLE_DEMANDED                            "Der skal angives en titel!"
+Define ERR_PLT_TITLE_NO_COMMAS                           "Titlen må ikke indeholde kommaer!"
+Define ERR_PLT_CHANGE_OF_SCALE                           "Fejl ved ændring af målforhold!"
+Define ERR_PLT_MIN_MAX_NOT_GIVEN                         "Største og mindste målforhold er ikke angivet!"
+
+
+Define ERR_PLT_PREVIEW_AREA_NOT_FOUND                    "Kunne ikke finde PreView-området!"
+Define ERR_PLT_PREVIEW_TABLE_NOT_OPEN                    "Tabel med PreView-området er ikke åben!"
+Define ERR_PLT_FRAME_TABLE_NOT_OPEN                      "Tabel med rammer er ikke åben!"
+Define ERR_PLT_PREVIEW_TABLE_EMPTY                       "Tabel med rammer er tom!"
+Define ERR_PLT_PREVIEW_TABLE_DROP_TEMP                   "Tabel med rammer kunne ikke slettes! Prøv evt. at rydde op i dit temp-bibliotek: "
+Define ERR_PLT_CREATING_PREVIEW_AREA                     "Fejl ved oprettelse af Preview-område!"
+Define ERR_PLT_CLOSE_FRAMETABLE_FIRST                    "Luk først tabellen med udskriftsrammer!"
+Define ERR_PLT_NAME_MAY_NOT_BE_CHANGED                   "Navnet må ikke ændres fra det angivne!"
+Define ERR_PLT_READING_PREVIEWAREA                       "Fejl ved læsning af PreView-område!"
+Define ERR_PLT_SPECPLOT_NOT_FOUND                        "Kunne ikke finde special plot med navnet : "
+Define ERR_PLT_ROTATION_MAP                              "Fejl ved rotation af kortvinduet!"
+Define ERR_PLT_FRAMETABLE_NEED_COL                       "Tabellen med udskriftsrammer mangler kolonnen "
+Define ERR_PLT_ENTER_POSITIV_WIDTH                       "Indtast en positiv bredde"
+Define ERR_PLT_ENTER_POSITIV_HEIGHT                      "Indtast en positiv højde"
+Define ERR_PLT_NORTH_ARROW_NOT_FOUND                     "Denne nordpil blev ikke fundet: "
+Define ERR_PLT_SCALEBAR_NOT_FOUND                        "Denne målestok blev ikke fundet: "
+Define ERR_PLT_XTRAVAL_TAB_NOT_CREATED                   "Tabellen til ekstra standard værdier kunne ikke oprettes: "
+Define ERR_PLT_LISTVAL_TAB_NOT_CREATED                   "Tabellen til liste af værdier kunne ikke oprettes: "
+Define ERR_PLT_MULTI_VAL_NOT_FOUND                       "Denne værdi blev ikke fundet i tabellen: "
+Define ERR_PLT_MULTI_FEWER_REC_IN_TAB                    "Der er ikke så mange rækker i tabellen som angivet: "
+Define ERR_PLT_NUM_PLOTS_LARGER_THAN_0                   "Antal udskrifter ad gangen skal være større end 0!"
+Define ERR_PLT_NUM_COPY_LARGER_THAN_0                    "Antal kopier skal være større end 0!"
+Define ERR_PLT_ROWID_LARGER_THAN_0                       "Første RowID skal være større end 0!"
+Define ERR_PLT_START_VALUE_NOT_ENTERED                   "Der skal være angivet et startværdi!"
+Define ERR_PLT_LONG_LAT_NOT_SUPPORTED                    "Kort i længde/bredde kan ikke udskrives!"
+
+
+Define ERR_KPAK_CONSTR_NO_INTERSECTION                   "Ingen skæringspunkter!"
+Define ERR_KPAK_CONSTR_CREATING_POINT                    "Der opstod følgende fejl ved oprettelse af konstruktionspunkt: "
+Define ERR_KPAK_SETTING_UP_SEARCH                        "Fejl i forbindelse med opsætning af find funktion!"
+Define ERR_KPAK_NO_SEARCH_TAB_NAME                       "Der er ikke angivet et navn på søgetabel!"
+Define ERR_KPAK_NO_SEARCH_COL_NAME                       "Der er ikke angivet et navn på søgekolonne!"
+Define ERR_KPAK_SEARCH_TAB_NOT_OPEN                      "Den angivne søgetabel er ikke åben : "
+Define ERR_KPAK_SEARCH_COL_DONT_EXIST                    "Den angivne søgekolonne findes ikke i tabellen : "
+Define ERR_KPAK_CREATING_INDEX_ON_COL1                   "Der kan ikke oprettes søgeindeks på kolonnen "
+Define ERR_KPAK_CREATING_INDEX_ON_COL2                   " i tabellen "
+Define ERR_KPAK_CREATING_INDEX_ON_COL3                   "Søgning på denne kolonne er ikke mulig!"
+Define ERR_KPAK_NO_XCOORD_GIVEN                          "Der blev ikke angivet en værdi for X-koordinaten"
+Define ERR_KPAK_NO_YCOORD_GIVEN                          "Der blev ikke angivet en værdi for Y-koordinaten"
+Define ERR_KPAK_XCOORD_GREATER_THAN                      "X-koordinaten skal være større end "
+Define ERR_KPAK_YCOORD_GREATER_THAN                      "Y-koordinaten skal være større end "
+Define ERR_KPAK_XCOORD_SMALLER_THAN                      "X-koordinaten skal være mindre end "
+Define ERR_KPAK_YCOORD_SMALLER_THAN                      "Y-koordinaten skal være mindre end "
+
+Define ERR_KPAK_UPD_COL_TAB_OPEN_AS1                     "Tabellen med opdater kolonne opsætninger er åben under navnet "
+Define ERR_KPAK_UPD_COL_TAB_OPEN_AS2                     "Luk den og prøv igen!"
+Define ERR_KPAK_UPD_COL_NO_ZUP_PICKED                    "Der skal være udpeget en opsætning, som skal opdateres!"
+Define ERR_KPAK_UPD_COL_ERROR_UPDATING                   "Fejl i forbindelse med opdatering af udvalgt opsætning!"
+Define ERR_KPAK_SPLIT_REGION_NOT_POSS                    "Det var ikke muligt at dele regionen med linien!"
+Define ERR_KPAK_SPLIT_RIGHT_NOT_OBJ                      "Højre objekt er tomt!"
+Define ERR_KPAK_SPLIT_LEFT_NOT_OBJ                       "Venstre objekt er tomt!"
+
+'------- Search functionality -------------------
+Define ERR_SRCH_REFINE_TAB1                              "Afgrænsningstabellen "
+Define ERR_SRCH_REFINE_TAB2                              " er ikke åben. Søgning foretages uden anvendelse af afgrænsningstabellen."
+Define ERR_SRCH_SEARCH_TAB1                              "Tabellen "
+Define ERR_SRCH_SEARCH_TAB2                              " er ikke åben. Det er ikke muligt at foretage søgning på "
+
+
+Define ERR_MCUT_COL_TYPE_NOT_DEFINED                     "Fejl : Typen ikke sat for kolonnen. Anvender Char(50). Kolonne: "
+Define ERR_MCUT_CREATING_DIRECTORY                       "Bibliotek kunne ikke oprettes : "
+Define ERR_MCUT_CUTTING_OBJECTS                          "Følgende fejl opstod ved skæring af objekter: "
+Define ERR_MCUT_TAB_NOT_CREATED                          "Fejl: Måltabel blev ikke oprettet!"
+Define ERR_MCUT_INSERTING_OBJECTS                        "Følgende fejl opstod ved indsættelse af poster i ny tabel: "
+Define ERR_MCUT_CREATING_NEW_TABLE                       "Følgende fejl opstod ved oprettelse af ny tabel: "
+
+
+Define ERR_GMAR_CREATING_WOR_BUTTONS                     "Knapperne til arbejdsområderne blev ikke oprettet!"
+Define ERR_GMAR_PUSHED_BTN_NOT_FOUND                     "Den valgte knap blev ikke genkendt!"
+Define ERR_GMAR_CREATE_BUTTON                            "Knappen kunne ikke oprettes!"
+Define ERR_GMAR_CREATING_BUTTON_ERROR                    "Følgende fejl opstod ved tilføjelse af knap:"
+
+'----------------------------------------------------------------------
+'--- Backwards compatability
+Define ERR_TXT_ERRORMSG                                  ERR_ERRORMSG
+
+
+

@@ -1,0 +1,74 @@
+Type T_LAYOUT_FRAME
+	nRowID	As Integer
+	fWidth	As Float
+	fHeight	As Float
+	nMapID	As Integer
+	nScale	As Integer
+	fRotation	As Float
+End Type
+
+	'PrintReadTextFromTableToArray()
+	'	-> PrintReadTextFromTableToArray()
+
+'**************************************************************************************************************************
+Declare Sub PrintScale(ByVal nScale As integer)
+Declare Sub PrintCheckForHideFrameTable(ByVal nMID As Integer)
+
+Declare Function PrintOpenWorkspace(ByVal szLayoutFile As String) As Integer
+
+Declare Function PrintGetFrameSize(ByVal nLayoutWin As Integer, fWidth As Float, fHeight As Float) As Logical
+Declare Function PrintGetAllFrameSizes(ByVal nLayoutWin As Integer, arrWidth() As Float, arrHeight() As Float) As Logical
+Declare Function PrintGetFrameSizesAndIDs(ByVal nWID As Integer, arrLayoutFrames() As T_LAYOUT_FRAME) As Logical
+'Declare Function PrintGetFrameSizesAndIDs(ByVal nWID As Integer) As Logical
+
+Declare Function PrintCreateArrayAlias(nLayoutWin As Integer, arrAliasValues() As T_ALIAS_AND_VALUE) As Logical
+Declare Function PrintReplaceAlias(nLayoutWin As Integer, arrAliasValues() As T_ALIAS_AND_VALUE) As Logical
+Declare Function PrintReadAliasesFromTable(ByVal szTab As String, arrAliasValues() As T_ALIAS_AND_VALUE) As Logical
+Declare Function PrintReadAliasesFromTextArray(arrAliasText() As T_ROW_AND_VALUES, arrAliasValues() As T_ALIAS_AND_VALUE) As Logical
+Declare Function PrintGetAliasesFromString(ByVal szText As String, arrAliasValues() As T_ALIAS_AND_VALUE) As Integer
+Declare Function printGetColumnNameFromAlias$(ByVal szAlias As String) As String
+
+Declare Function PrintReplaceAliasesInTable(ByVal szTab As String, arrAliasValues() As T_ALIAS_AND_VALUE) As Logical
+
+Declare Function printAlterMapperXYUnits(ByVal nMapWin As Integer) As Logical
+Declare Function PrintAlterMapperSize (nMapWin As Integer, fWidth As Float, fHeight As Float) As Logical
+Declare Function PrintAlterMapperWidth(nMapWin As Integer, fWidth As Float, fHeight As Float) As Logical
+Declare Function PrintAlterMapperScale(nMapWin As Integer, fX As Float, fY As Float) As Logical
+Declare Function PrintAlterMapperZoom (nMapWin As Integer, fX As Float, fY As Float, fWidth As Float) As Logical
+Declare Function PrintRotateMapWindow(ByVal nMapID As Integer, ByVal fX As Float, ByVal fY As Float,
+					ByVal fRotation As Float) As Logical
+Declare Sub PrintUnRotateMapWindow
+
+Declare Sub PrintLockMapWindow(ByVal nMID As Integer)
+Declare Sub PrintUnLockMapWindow(ByVal nMID As Integer)
+
+Declare Function PrintShowAreaToPrint(ByVal nMapWin As Integer, ByVal fWidth As Float, ByVal fHeight As Float) As Logical
+Declare Function PrintGetCenterFromArea(nMapWin As Integer, fXKoord As Float, fYKoord As Float) As Logical
+
+Declare Function printCalculateScaleUsingSelection(	ByVal nMID As Integer,
+									ByVal fWidth As Float, ByVal fHeight As Float) As Integer
+Declare Function printCalculateScaleUsingCurrentMap(	ByVal nMID As Integer,
+									ByVal fWidth As Float, ByVal fHeight As Float) As Integer
+Declare Function printCalculateScaleUsingArea(	ByVal fMapWidth As Float, ByVal fMapHeight As Float,
+								ByVal fWidth As Float, ByVal fHeight As Float) As Integer
+
+Declare Function PrintClonMap(nMapWin As Integer) As Integer
+Declare Function PrintInsertMapInFrame(nLayoutWin As Integer, nMapWin As Integer) As Integer
+Declare Function PrintInsertMapInFrameByRowID(	ByVal nLID As Integer, ByVal nLayoutRowID As Integer,
+								ByVal nMID As Integer) As Integer
+
+Declare Function PrintCheckMapFrameSizeWithLayoutFrameSize(	oMapFrame As Object, 
+										ByVal fLayoutFrameWidth As Float,
+										ByVal fLayoutFrameHeight As Float) As Logical
+
+Declare Sub PrintReadValuesFromSelection(arrColumnAndValues() As T_COL_AND_VALUES)
+Declare Sub PrintReadValuesFromFrameTable(arrColumnAndValues() As T_COL_AND_VALUES)
+Declare Sub PrintReadValuesFromTable(ByVal szTab As String, arrColumnAndValues() As T_COL_AND_VALUES)
+
+Declare Function PrintReadTextFromLayoutToArray(ByVal nLayoutWin As Integer, arrAliasText() As T_ROW_AND_VALUES) As Logical
+Declare Function PrintReadTextFromTableToArray(ByVal szTab As String, arrAliasText() As T_ROW_AND_VALUES) As Logical
+Declare Function PrintWriteTextFromArrayToTable(arrAliasObj() As T_ROW_AND_VALUES, arrAliasValues() As T_ALIAS_AND_VALUE) As Logical
+Declare Function ReplaceAliasesInObjWithValues(ByVal oText As Object, arrAliasValues() As T_ALIAS_AND_VALUE) As Object
+Declare Function ReplaceAliasesInTextWithValues$(ByVal szText As String, arrAliasValues() As T_ALIAS_AND_VALUE) As String
+
+Declare Sub PRINTCloseHiddenOpenedTabsAndWins

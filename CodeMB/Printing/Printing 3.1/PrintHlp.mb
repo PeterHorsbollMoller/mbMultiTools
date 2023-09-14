@@ -1,0 +1,1254 @@
+'*******************************************************************************
+'** 	Program:	Alle med udskriftsfunktionalitet
+'** 	Modul:	PrintHlp.mb
+'**			Functions for printing - extended.
+'*******************************************************************************
+
+Include "Mapbasic.def"
+Include "Menu.def"
+
+Include "..\..\Language\PlotDef.lng"
+Include "..\..\Language\Message.lng"
+Include "..\..\Language\Errors.lng"
+
+Include "PrintHlp.def"
+Include "PrintValues.def"
+
+Include "..\..\Time\Time.def"
+Include "..\..\TabFunc\TabFunc.def"
+Include "..\..\FileFunc\FileFunc.def"
+Include "..\..\GeoFunc\GeoFunc.def"
+
+Type T_NORTH_ARROW
+	oArrowPart	As Object
+	fCenterX	As Float
+	fCenterY	As Float
+End Type
+
+Declare Sub PrintHlpAddItem
+Declare Sub PrintHlpRemoveItem
+Declare Sub PrintHlpMoveItemUp
+Declare Sub PrintHlpMoveItemDown
+
+Declare Sub HandlerSpecPlotDlgStartUp
+Declare Sub HandlerCreateNewTableWithSpecPlot
+Declare Sub HandlerSelectTableWithSpecPlot
+Declare Sub HandlerSelectWorkspaceForSpecPlot
+Declare Sub HandlerSpecPlotSelectedFromList
+Declare Sub HandlerSpecPlotMoveUp
+Declare Sub HandlerSpecPlotMoveDown
+Declare Sub HandlerSpecPlotUpdate
+Declare Sub HandlerSpecPlotRemove
+Declare Sub HandlerSpecPlotAddNew
+
+Declare Sub ShowTableWithSpecPlotInDialog(ByVal szTabFile As String)
+Declare Sub UpdateSpecPlotDialog(ByVal nShowItemNo As Integer)
+
+Declare Function CreateListOfNorthArrowNames(ByVal szTab As String, arrNames() As String) As Logical
+Declare Sub HandlerShowNorthArrowInMap
+Declare Sub CreateNorthArrowTabFile(ByVal szFile As String)
+Declare Sub CreateDefaultNorthArrows(ByVal szTab As String)
+
+Dim	arrTempMenuName(0) As String,
+	arrTempScale(0) As Integer,
+	arrSpecPlotNames() As String
+
+Dim	mbNorthArrowName, mbNorthArrowTabFile As String,
+	marrArrowNames() As String
+'**************************************************************
+' Dialog til definering af udskriftsmenu
+'**************************************************************
+Function PrintHlpDefinePlotMenuItems (	arrMenuName () As String,
+							arrScale() As Integer) As Logical
+
+Dim	i, nTimes As Integer
+
+PrintHlpDefinePlotMenuItems = FALSE
+
+	nTimes	= Ubound(arrMenuName)
+	ReDim arrTempMenuName(nTimes)
+	ReDim arrTempScale(nTimes)
+	For i = 1 To nTimes
+		arrTempMenuName(i) 	= arrMenuName(i)
+		arrTempScale(i)		= arrScale(i)
+	Next
+
+	Dialog
+		Title PLTM_DLG_TITLE_DEFINE_PRINTMENU
+		Control ListBox		Position 10,10	Width 100	Height 50	ID 100
+			Title From Variable arrTempMenuName
+			Value 1
+		Control Button		Position 120,50	Width 40	Height 15
+			Title MSG_ADD
+			Calling PrintHlpAddItem
+		Control Button		Position 120,70	Width 40	Height 15
+			Title MSG_REMOVE
+			Calling PrintHlpRemoveItem
+		Control Button		Position 120,10	Width 40	Height 15
+			Title MSG_UP
+			Calling PrintHlpMoveItemUp
+		Control Button		Position 120,30	Width 40	Height 15
+			Title MSG_DOWN
+			Calling PrintHlpMoveItemDown
+		Control OKButton		Position 10,70	Width 40	Height 15
+		Control CancelButton	Position 60,70	Width 40	Height 15
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Function
+	End If
+
+	nTimes	= Ubound(arrTempMenuName)
+	ReDim arrMenuName(nTimes)
+	ReDim arrScale(nTimes)
+	For i = 1 To nTimes
+		arrMenuName(i) 	= arrTempMenuName(i)
+		arrScale(i)		= arrTempScale(i)
+	Next
+
+PrintHlpDefinePlotMenuItems = TRUE
+
+End Function
+
+'**************************************************************
+'Handler - Tilføj ny menupunkt til array
+'**************************************************************
+Sub PrintHlpAddItem
+
+Dim	szTitle, szScale As String,
+	nTimes As Integer
+
+'-----------
+ShowDialogAgain:
+
+	Dialog
+		Title PLTM_DLG_TITLE_ADD_MENU
+		Control StaticText	Position 10,10
+			Title PLTM_DLG_TXT_MENUTITLE
+		Control EditText	Position 10,20	Width 100
+			'Value PLTM_DLG_TXT_PRINT_SCALE
+			Value szTitle
+			Into szTitle
+		Control StaticText	Position 10,35
+			Title PLTM_DLG_TXT_SCALE_1_TO
+		Control EditText	Position 10,45	Width 100
+			Value szScale
+			Into szScale
+		Control OKButton
+		Control CancelButton
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		Exit Sub
+	End If
+
+	If Val(szScale) < 1 Then
+		Note ERR_PLT_SCALE_MIN_1
+		GoTo ShowDialogAgain
+	ElseIf szTitle = "" Then
+		Note ERR_PLT_TITLE_DEMANDED
+		GoTo ShowDialogAgain
+	ElseIf InStr(1, szTitle, ",") > 0 Then
+		Note ERR_PLT_TITLE_NO_COMMAS
+		GoTo ShowDialogAgain
+	End If
+
+	nTimes = Ubound(arrTempMenuName) + 1
+	ReDim arrTempMenuName(nTimes)
+	ReDim arrTempScale(nTimes)
+
+	arrTempMenuName(nTimes) = szTitle
+	arrTempScale(nTimes)	= Val(szScale)
+
+	Alter Control 100 Title From Variable arrTempMenuName Value nTimes
+
+End Sub
+
+'**************************************************************
+'Handler - Fjern menupunkt fra array
+'**************************************************************
+Sub PrintHlpRemoveItem
+
+Dim	nValue, nTimes, nPicked As SmallInt
+
+	nPicked = ReadControlValue(100)
+
+	If nPicked = 0 Then
+		Exit Sub
+	End If
+
+	If not Ask(PLTM_ASK_REMOVE_MENU + arrTempMenuName(nPicked) + "?",MSG_YES,MSG_NO) Then
+		Exit Sub
+	End If
+
+	nTimes = Ubound(arrTempMenuName)
+
+	If nTimes = nPicked Then
+		Redim arrTempMenuName(nTimes - 1)
+		Redim arrTempScale(nTimes - 1)
+		nValue = nTimes - 1
+	Else
+		nValue = nPicked
+		Do Until nPicked = nTimes
+			arrTempMenuName(nPicked) = arrTempMenuName(nPicked + 1)
+			arrTempScale(nPicked) = arrTempScale(nPicked + 1)
+			nPicked = nPicked + 1
+		Loop
+		Redim arrTempMenuName(nTimes - 1)
+		Redim arrTempScale(nTimes - 1)
+	End If
+
+	Alter Control 100 Title From Variable arrTempMenuName Value nValue
+
+End Sub
+
+'**************************************************************
+'Handler - Flyt menupunkt OP
+'**************************************************************
+Sub PrintHlpMoveItemUp
+
+Dim	nPicked, nScale As Integer,
+	szTitle As String
+
+	nPicked = ReadControlValue(100)
+
+	If nPicked < 2 Then
+		Exit Sub
+	End If
+
+	nScale 	= arrTempScale(nPicked)
+	szTitle	= arrTempMenuName(nPicked)
+
+	arrTempScale(nPicked)		= arrTempScale(nPicked - 1)
+	arrTempMenuName(nPicked)	= arrTempMenuName(nPicked - 1)
+
+	arrTempScale(nPicked - 1)	= nScale
+	arrTempMenuName(nPicked - 1)	= szTitle
+
+	Alter Control 100 Title From Variable arrTempMenuName Value nPicked - 1
+
+End Sub
+
+'**************************************************************
+'Handler - Flyt menupunkt NED
+'**************************************************************
+Sub PrintHlpMoveItemDown
+
+Dim	nPicked, nScale As Integer,
+	szTitle As String
+
+	nPicked = ReadControlValue(100)
+
+	If nPicked = Ubound(arrTempMenuName) Then
+		Exit Sub
+	ElseIf nPicked = 0 Then
+		Exit Sub
+	End If
+
+	nScale 	= arrTempScale(nPicked)
+	szTitle	= arrTempMenuName(nPicked)
+
+	arrTempScale(nPicked)		= arrTempScale(nPicked + 1)
+	arrTempMenuName(nPicked)	= arrTempMenuName(nPicked + 1)
+
+	arrTempScale(nPicked + 1)	= nScale
+	arrTempMenuName(nPicked + 1)	= szTitle
+
+	Alter Control 100 Title From Variable arrTempMenuName Value nPicked + 1
+
+End Sub
+
+'**************************************************************
+'Skriv menuer til inifil
+'**************************************************************
+Sub PrintHlpMenusWriteIniFile (	ByVal FileNum As Integer,
+						arrNames() As String,
+						arrScales() As Integer)
+
+Dim	i As Integer
+
+	Print #fileNum, ""
+	Print #fileNum, "[PRINTMENUES]"
+	Print #fileNum, Ubound(arrNames)
+
+	For i = 1 To Ubound(arrNames)
+		Print #fileNum, arrScales(i)
+		Print #fileNum, arrNames(i)
+	Next
+
+End Sub
+
+'**************************************************************
+'Læs menuer fra inifil
+'**************************************************************
+Sub PrintHlpMenusReadIniFile (	ByVal szIniFile As String,
+						arrNames() As String,
+						arrScales() As Integer)
+
+Dim	szRead As String,
+	nTimes, i As Integer
+
+	If not FileExists(szIniFile) Then
+		Exit Function
+	End If
+
+	Open File szIniFile
+		For Input
+		As #1
+		CharSet "Neutral"
+
+	Do Until EOF(1)
+		Line Input #1, szRead
+
+		If szread = "[PRINTMENUES]" Then
+			Exit Do
+		End If
+	Loop
+
+	Line Input #1, szRead
+	nTimes = Val(szRead)
+	ReDim arrScales(nTimes)
+	ReDim arrNames(nTimes)
+
+	For i = 1 To nTimes
+		If not EOF(1) Then
+
+			Line Input #1, szRead
+
+			arrScales(i) = Val(szRead)
+			Line Input #1, arrNames(i)
+
+		End If
+	Next
+
+	Close File #1
+
+End Sub
+
+'------------------------------------------------------------------------------------------------------------------------
+'**************************************************************
+'GUI for special plots
+'**************************************************************
+Function PrintHlpSetupSpecPlotDialog() As Logical
+
+PrintHlpSetupSpecPlotDialog = FALSE
+
+	Dialog
+		Title PLTM_DLG_TITLE_SPECIAL_PLOT
+		Calling HandlerSpecPlotDlgStartUp
+
+		Control Button		Position 5,5	Width 15	Height 13
+			Title "..."
+			Calling HandlerSelectTableWithSpecPlot
+		Control EditText		Position 20,5	Width 265			ID 100
+		Control Button		Position 285,5	Width 35	Height 13
+			Title MSG_NEW + "..."
+			Calling HandlerCreateNewTableWithSpecPlot
+			'Hide
+
+		'---------------------------------------
+		Control GroupBox		Position 5,15	Width 160	Height 110
+			Title ""
+		Control Listbox		Position 15,25	Width 110	Height 90	ID 200
+			Calling HandlerSpecPlotSelectedFromList
+
+		Control Button		Position 130,30	Width 30			ID 210
+			Title MSG_UP
+			Calling HandlerSpecPlotMoveUp
+		Control Button		Position 130,45	Width 30			ID 211
+			Title MSG_DOWN
+			Calling HandlerSpecPlotMoveDown
+
+		Control Button		Position 130,65	Width 30			ID 220
+			Title "&" + MSG_UPDATE
+			Calling HandlerSpecPlotUpdate
+		Control Button		Position 130,80	Width 30			ID 221
+			Title "&" + MSG_REMOVE
+			Calling HandlerSpecPlotRemove
+		Control Button		Position 130,95	Width 30			ID 222
+			Title "&" + MSG_ADD
+			Calling HandlerSpecPlotAddNew
+
+		'---------------------------------------
+		Control GroupBox		Position 165,15	Width 155	Height 90
+		'	Title PLTM_DLG_TXT_PAPERFORMAT
+		Control StaticText	Position 175,25
+			Title "&" + MSG_NAME
+		Control EditText		Position 175,35	Width 135			ID 301
+		Control PopUpMenu		Position 175,55	Width 70			ID 302
+			Title "A4;A3;A2;A1;A0"
+		Control RadioGroup	Position 250,55					ID 303
+			Title PLTM_DLG_CHOISE_ORIENT_BOTH
+		Control StaticText	Position 175,75
+			Title "&" + MSG_WOR_WORKSPACE
+		Control Button		Position 175,85	Width 15	Height 13
+			Title "..."
+			Calling HandlerSelectWorkspaceForSpecPlot
+		Control EditText		Position 190,85	Width 120			ID 304
+
+		Control OKButton
+		Control CancelButton
+	If not CommandInfo(CMD_INFO_DLG_OK) Then
+		If TableOpen("SPEC__PLOT_CUR") Then
+			Rollback Table SPEC__PLOT_CUR
+		End If
+	Else
+		PrintHlpSetupSpecPlotDialog = TRUE
+		If TableOpen("SPEC__PLOT_CUR") Then
+			Commit Table SPEC__PLOT_CUR
+		End If
+	End If
+
+	If TableOpen("SPEC__PLOT_CUR") Then
+		Close Table SPEC__PLOT_CUR
+	End If
+
+End Function
+
+'**************************************************************
+'Handler - Startup for special plot item dialog
+'**************************************************************
+Sub HandlerSpecPlotDlgStartUp
+
+	Call ShowTableWithSpecPlotInDialog(PrintGetSpecialPlotTabFileName$())
+	
+End Sub
+
+'**************************************************************
+'Handler - Show table with special plot items in the dialog
+'**************************************************************
+Sub ShowTableWithSpecPlotInDialog(ByVal szTabFile As String)
+
+	OnError GoTo ErrorOccured
+
+	Alter Control 100	Value ""	'Name of table with items
+
+	If szTabFile = "" Then
+		Note ERR_FILENAME_NOT_GIVEN
+		Exit Sub
+	ElseIf not FileExists(szTabFile) Then
+		Note ERR_TAB_NOT_FOUND + szTabFile
+		Exit Sub
+	End If
+
+	If TableOpen("SPEC__PLOT_CUR") Then
+		If TableInfo("SPEC__PLOT_CUR", TAB_INFO_EDITED) Then
+			If Ask(MSG_TAB_ASK_SAVE_CHANGES + PathToTableName$(TableInfo("SPEC__PLOT_CUR", TAB_INFO_TABFILE)) + " ?", MSG_YES, MSG_NO) Then
+				Commit Table SPEC__PLOT_CUR
+			Else
+				Rollback Table SPEC__PLOT_CUR
+			End If
+		End If
+		Close Table SPEC__PLOT_CUR
+	End If
+
+	Open Table szTabFile As SPEC__PLOT_CUR
+
+	If not ColExist("SPEC__PLOT_CUR", "NAME") Then
+		Note ERR_TAB_NO_SUCH_COLUMN + "NAME"
+		Close Table SPEC__PLOT_CUR
+		Exit Sub
+	ElseIf not ColExist("SPEC__PLOT_CUR", "WORKSPACEFILE") Then
+		Note ERR_TAB_NO_SUCH_COLUMN + "WORKSPACEFILE"
+		Close Table SPEC__PLOT_CUR
+		Exit Sub
+	ElseIf not ColExist("SPEC__PLOT_CUR", "ORDER") Then
+		Note ERR_TAB_NO_SUCH_COLUMN + "ORDER"
+		Close Table SPEC__PLOT_CUR
+		Exit Sub
+	ElseIf not ColExist("SPEC__PLOT_CUR", "PAGEORIENTATION") Then
+		Note ERR_TAB_NO_SUCH_COLUMN + "PAGEORIENTATION"
+		Close Table SPEC__PLOT_CUR
+		Exit Sub
+	ElseIf not ColExist("SPEC__PLOT_CUR", "PAPERSIZE") Then
+		Note ERR_TAB_NO_SUCH_COLUMN + "PAPERSIZE"
+		Close Table SPEC__PLOT_CUR
+		Exit Sub
+	ElseIf TableInfo("SPEC__PLOT_CUR", TAB_INFO_READONLY) Then
+		Note ERR_TAB_READONLY + lf + szTabFile
+		Close Table SPEC__PLOT_CUR
+		Exit Sub
+	End If
+
+	Call PrintSetSpecialPlotTabFileName(szTabFile)
+	Alter Control 100 Value szTabFile
+	Call UpdateSpecPlotDialog(1)
+
+	Exit Sub
+
+'---------------------
+ErrorOccured:
+	Note ERR_ERRORMSG + Error$()
+
+End Sub
+
+'**************************************************************
+'Handler - Updating controls in the dialog
+'**************************************************************
+Sub UpdateSpecPlotDialog(ByVal nShowItemNo As Integer)
+
+Dim	nCount As Integer
+
+	Set Progressbars Off
+
+	Alter Control 200	Title ""	'List of spec plot items
+	Alter Control 301 Value ""	'Plot Item name
+	Alter Control 302 Value 1	'Paper sizes
+	'Alter Control 303		'Paper orientation
+	Alter Control 304	Value ""	'Workspace file	
+
+	Select * From SPEC__PLOT_CUR
+		Order By ORDER, NAME
+		Into SPEC__PLOT_ORDER NoSelect
+
+	Update SPEC__PLOT_ORDER
+		Set ORDER = RowID
+
+	nCount = GetNumRows("SPEC__PLOT_ORDER")
+	ReDim arrSpecPlotNames(nCount)
+	nCount = 0
+	Fetch First From SPEC__PLOT_ORDER
+	Do Until EOT(SPEC__PLOT_ORDER)
+		nCount = nCount + 1
+		arrSpecPlotNames(nCount) = SPEC__PLOT_ORDER.NAME
+		Fetch Next From SPEC__PLOT_ORDER
+	Loop
+
+	If nShowItemNo > nCount Then
+		nShowItemNo = nCount
+	End If
+	Alter Control 200 Title From Variable arrSpecPlotNames Value nShowItemNo
+	Call HandlerSpecPlotSelectedFromList
+
+	Set Progressbars On
+
+End Sub
+
+'**************************************************************
+'Handler -  Select another table with special plot items
+'**************************************************************
+Sub HandlerSelectTableWithSpecPlot
+
+Dim	szTabFile As String
+
+	szTabFile = FileOpenDlg("", "", "TAB", PLTM_DLG_TXT_PICK_SPECPLOTTABLE)
+	If szTabFile = "" Then
+		Exit Sub
+	End If
+
+	If TableOpen("SPEC__PLOT_CUR") Then
+		If szTabFile = TableInfo("SPEC__PLOT_CUR", TAB_INFO_TABFILE) Then
+			Exit Sub
+		End If
+	End If
+
+	Call ShowTableWithSpecPlotInDialog(szTabFile)
+
+End Sub
+
+'**************************************************************
+'Handler - Create a new table for special plot items
+'**************************************************************
+Sub HandlerCreateNewTableWithSpecPlot
+
+Dim	szNewTabFile As String
+
+	szNewTabFile = FileSaveAsDlg("", "", "TAB", PLTM_DLG_TXT_SAVE_SPECPLOTTABLE)
+	If szNewTabFile = "" Then
+		Exit Sub
+	End If
+
+	Create Table SPEC__PLOT_NEW
+		(
+		NAME			Char(40),
+		WORKSPACEFILE	Char(150),
+		PAGEORIENTATION	Integer,
+		PAPERSIZE		Integer,
+		ORDER			Integer
+		)
+		File szNewTabFile
+	Close Table SPEC__PLOT_NEW
+
+	Call ShowTableWithSpecPlotInDialog(szNewTabFile)
+
+End Sub
+
+'**************************************************************
+'Handler - User picked an item from the list
+'**************************************************************
+Sub HandlerSpecPlotSelectedFromList
+
+'Alter Control 301'Plot Item name
+'Alter Control 302'Paper sizes
+'Alter Control 303'Paper orientation
+'Alter Control 304'Workspace file	
+
+Dim	nPicked As Integer
+
+	nPicked = ReadControlValue(200)
+	If nPicked = 0 Then
+		Exit Sub
+	ElseIf nPicked > GetNumRows(SPEC__PLOT_ORDER) Then
+		Exit Sub
+	End If
+
+	Fetch Rec nPicked From SPEC__PLOT_ORDER
+	Alter Control 301 Value SPEC__PLOT_ORDER.NAME
+	Alter Control 302 Value SPEC__PLOT_ORDER.PAPERSIZE
+	Alter Control 303 Value SPEC__PLOT_ORDER.PAGEORIENTATION
+	Alter Control 304 Value SPEC__PLOT_ORDER.WORKSPACEFILE
+
+End Sub
+
+'**************************************************************
+'Handler - Move slected special plot item UP
+'**************************************************************
+Sub HandlerSpecPlotMoveUp
+
+Dim	nPicked As Integer
+
+	nPicked = ReadControlValue(200)
+	If nPicked < 2 Then
+		Exit Sub
+	ElseIf nPicked > GetNumRows("SPEC__PLOT_ORDER") Then
+		Exit Sub
+	End if
+
+	Update SPEC__PLOT_ORDER
+		Set	ORDER	= (nPicked - 1)
+		Where	RowID = nPicked
+	Update SPEC__PLOT_ORDER
+		Set	ORDER	= nPicked
+		Where	RowID = (nPicked - 1)
+
+	Call UpdateSpecPlotDialog(nPicked - 1)
+
+End Sub
+
+'**************************************************************
+'Handler - Move selected special plot item DOWN
+'**************************************************************
+Sub HandlerSpecPlotMoveDown
+
+Dim	nPicked As Integer
+
+	nPicked = ReadControlValue(200)
+	If nPicked = 0 Then
+		Exit Sub
+	ElseIf nPicked >= GetNumRows("SPEC__PLOT_ORDER") Then
+		Exit Sub
+	End if
+
+	Update SPEC__PLOT_ORDER
+		Set	ORDER	= (nPicked + 1)
+		Where	RowID = nPicked
+	Update SPEC__PLOT_ORDER
+		Set	ORDER	= nPicked
+		Where	RowID = (nPicked + 1)
+
+	Call UpdateSpecPlotDialog(nPicked + 1)
+
+End Sub
+
+'**************************************************************
+'Handler - Update the selected plot item
+'**************************************************************
+Sub HandlerSpecPlotUpdate
+
+Dim	nPicked As Integer
+
+	If ReadControlValue(301) = "" Then
+		Note ERR_TXT_NO_NAME_ENTERED
+		Exit Sub
+	ElseIf ReadControlValue(304) = "" Then
+		Note ERR_PRINTLAYOUT_NOT_NAMED
+		Exit Sub
+	End If
+
+	nPicked = ReadControlValue(200)
+	If nPicked = 0 Then
+		Exit Sub
+	ElseIf nPicked > GetNumRows("SPEC__PLOT_ORDER") Then
+		Exit Sub
+	End if
+
+	Update SPEC__PLOT_ORDER
+		Set	NAME			= ReadControlValue(301),
+			PAPERSIZE		= ReadControlValue(302),	
+			PAGEORIENTATION	= ReadControlValue(303),
+			WORKSPACEFILE	= ReadControlValue(304)
+		Where	RowID			= nPicked
+
+	If arrSpecPlotNames(nPicked) <> ReadControlValue(301) Then
+		arrSpecPlotNames(nPicked) = ReadControlValue(301)
+
+		Alter Control 200 Title From Variable arrSpecPlotNames
+	End If
+
+End Sub
+
+'**************************************************************
+'Handler - Remove the selected special plot item
+'**************************************************************
+Sub HandlerSpecPlotRemove
+
+Dim	nPicked As Integer
+
+	nPicked = ReadControlValue(200)
+	If nPicked = 0 Then
+		Exit Sub
+	ElseIf nPicked > GetNumRows("SPEC__PLOT_ORDER") Then
+		Exit Sub
+	End if
+
+	Delete From SPEC__PLOT_ORDER Where RowID = nPicked
+
+	Call UpdateSpecPlotDialog(nPicked)
+
+End Sub
+
+'**************************************************************
+'Handler - Add a new special plot item
+'**************************************************************
+Sub HandlerSpecPlotAddNew
+
+Dim	nMax As Integer
+
+	If ReadControlValue(301) = "" Then
+		Note ERR_TXT_NO_NAME_ENTERED
+		Exit Sub
+	ElseIf ReadControlValue(304) = "" Then
+		Note ERR_PRINTLAYOUT_NOT_NAMED
+		Exit Sub
+	End If
+
+	nMax = GetNumRows("SPEC__PLOT_ORDER") + 1
+
+	Insert Into SPEC__PLOT_ORDER
+		(	NAME, PAPERSIZE, 
+			PAGEORIENTATION, WORKSPACEFILE, ORDER)
+		Values (	ReadControlValue(301), ReadControlValue(302),
+				ReadControlValue(303), ReadControlValue(304), nMax)
+
+	Call UpdateSpecPlotDialog(nMax)
+
+End Sub
+
+'**************************************************************
+'Handler - Select Workspace to use with this special plot
+'**************************************************************
+Sub HandlerSelectWorkspaceForSpecPlot
+
+Dim	szCurFile, szTabPath, szPath, szName As String
+
+	szTabPath = PathToDirectory$(TableInfo("SPEC__PLOT_CUR", TAB_INFO_TABFILE))
+	szCurFile = GetFileNameAbsolutePath$(ReadControlValue(304), szTabPath)
+	If szCurFile <> "" Then
+		szPath	= PathToDirectory$(szCurFile)
+		szName	= PathToFileName$(szCurFile)
+	End If
+	szCurFile = FileOpenDlg(szPath, szName, "WOR", PLTM_DLG_TITLE_PICK_PRINTWOR)
+	If szCurFile = "" Then
+		Exit Sub
+	End If
+
+	szCurFile = GetFileNameRelativePath$(szCurFile, szTabPath)
+	Alter Control 304 Value szCurFile
+
+End Sub
+
+'**************************************************************
+'Create List of special plot names
+'**************************************************************
+Function SpecPlotGetListOfSpecPlotNames(arrSpecPlot() As String, ByVal bOnlyExistingWor As Logical) As Logical
+
+Dim	szPath As String,
+	nCount As Integer,
+	bAddToList As Logical
+
+SpecPlotGetListOfSpecPlotNames = FALSE
+
+	If FileExists(PrintGetSpecialPlotTabFileName$()) Then
+		Open Table PrintGetSpecialPlotTabFileName$() As SPEC__PLOTS
+
+		szPath = PathToDirectory$(PrintGetSpecialPlotTabFileName$())
+		Select * From SPEC__PLOTS
+			Order By ORDER, NAME
+			INTO SPEC__PLOTS_ORDER NoSelect
+
+		nCount = GetNumRows("SPEC__PLOTS_ORDER")
+		ReDim arrSpecPlot(nCount)
+
+		nCount = 0
+		Fetch First From SPEC__PLOTS_ORDER
+		Do Until EOT(SPEC__PLOTS_ORDER)
+			bAddToList = TRUE
+			If bOnlyExistingWor And not FileExists(GetFileNameAbsolutePath$(SPEC__PLOTS_ORDER.WORKSPACEFILE, szPath)) Then
+				bAddToList = FALSE
+			End If
+
+			If bAddToList Then
+				nCount = nCount + 1
+				arrSpecPlot(nCount) 	= SPEC__PLOTS_ORDER.NAME
+			End If
+	
+			Fetch Next From SPEC__PLOTS_ORDER
+		Loop
+
+		Close Table SPEC__PLOTS
+	End If
+
+	If nCount = 0 Then
+		nCount = 1
+		ReDim arrSpecPlot(nCount)
+		arrSpecPlot(nCount) = "---" + PLTM_TXT_NO_USABLE_FRAMES
+	Else
+		ReDim arrSpecPlot(nCount)
+		SpecPlotGetListOfSpecPlotNames = TRUE
+	End If
+
+	If TableOpen("SPEC__PLOTS") Then
+		Close Table SPEC__PLOTS
+	End If
+
+
+End Function
+
+'**************************************************************
+'Get Workspace filename from Special plot name
+'**************************************************************
+Function SpecPlotSetUpPlotUsingSpecPlot(ByVal szSpecPlotName As String) As Logical
+
+Dim	szFile, szPath As String
+
+SpecPlotSetUpPlotUsingSpecPlot = FALSE
+
+	If FileExists(PrintGetSpecialPlotTabFileName$()) Then
+		Open Table PrintGetSpecialPlotTabFileName$() As SPEC__PLOTS
+
+		szPath = PathToDirectory$(PrintGetSpecialPlotTabFileName$())
+
+		Select * From SPEC__PLOTS
+			Where NAME = szSpecPlotName
+			INTO SPEC__PLOTS_CUR NoSelect
+	
+		If GetNumRows("SPEC__PLOTS_CUR") > 0 Then
+			Fetch First From SPEC__PLOTS_CUR
+			szFile = GetFileNameAbsolutePath$(SPEC__PLOTS_CUR.WORKSPACEFILE, szPath)
+
+			Call PrintSetWorFileUsingSpecPlot(szFile)
+			Call PrintSetPaperSize(SPEC__PLOTS_CUR.PAPERSIZE)
+			Call PrintSetPageOrientation(SPEC__PLOTS_CUR.PAGEORIENTATION)
+			Call PrintSetSpecPlotName(szSpecPlotName)
+		End If
+
+		If TableOpen("SPEC__PLOTS") Then
+			Close Table SPEC__PLOTS
+		End If
+
+		SpecPlotSetUpPlotUsingSpecPlot = TRUE
+	End If
+
+End Function
+
+'------------------------------------------------------------------------------------------------------------------------------
+'**************************************************************
+'Sets name of North arrow
+'**************************************************************
+Sub PrintHlpSetNorthArrowName(ByVal szName As String)
+
+	mbNorthArrowName = szName
+
+End Sub
+
+'**************************************************************
+'returns name of North arrow
+'**************************************************************
+Function PrintHlpGetNorthArrowName() As String
+
+	PrintHlpGetNorthArrowName = mbNorthArrowName
+
+End Function
+
+'**************************************************************
+'Sets name of file with North arrow
+'**************************************************************
+Sub PrintHlpSetNorthArrowTabFile(ByVal szFile As String)
+
+	If not Right$(szFile, 4) = ".TAB" Then
+		szFile	= ""
+	End If
+	mbNorthArrowTabFile = szFile
+
+End Sub
+
+'**************************************************************
+'returns name of file with North arrow
+'**************************************************************
+Function PrintHlpGetNorthArrowTabFile() As String
+
+	PrintHlpGetNorthArrowTabFile = mbNorthArrowTabFile
+
+End Function
+
+'**************************************************************
+'Select North arrow from table
+'**************************************************************
+Function PrintHlpSelectNorthArrowName() As Logical
+
+Dim	szFile As String,
+	nPicked As Integer
+
+PrintHlpSelectNorthArrowName = FALSE
+
+	szFile = PrintHlpGetNorthArrowTabFile()
+	If szFile = "" Then
+		szFile = ApplicationDirectory$() + PLTM_TAB_NORTH_ARROW + ".TAB"
+
+		Call PrintHlpSetNorthArrowTabFile(szFile)
+	End If
+	If not FileExists(szFile) Then
+		Call CreateNorthArrowTabFile(szFile)
+	End If
+
+	Open Table PrintHlpGetNorthArrowTabFile() As "NORTH__ARROW"
+
+	If not CreateListOfNorthArrowNames("NORTH__ARROW", marrArrowNames) Then
+		Call CreateDefaultNorthArrows("NORTH__ARROW")		
+		If not CreateListOfNorthArrowNames("NORTH__ARROW", marrArrowNames) Then
+			'Not possible to create default north arrows ??
+		End If
+	End If
+	
+	Dialog
+		Title PLTM_DLG_TITLE_NORTH_ARROWS
+
+		Control StaticText	Position 5,5
+			Title PLTM_DLG_TXT_USABLE_N_ARROWS
+		Control ListBox		Position 5,15	Width 150	Height 80	ID 100
+			Title From Variable marrArrowNames
+			Value GetElementNoInStringArray(PrintHlpGetNorthArrowName(), marrArrowNames)
+			Into nPicked
+
+		Control Button		Position 5,100	Width 40
+			Title MSG_SHOW
+			Calling HandlerShowNorthArrowInMap
+
+		Control OKButton
+		Control CancelButton
+
+	If CommandInfo(CMD_INFO_DLG_OK) Then
+		Call PrintHlpSetNorthArrowName(marrArrowNames(nPicked))
+		PrintHlpSelectNorthArrowName = TRUE
+	End If
+
+	Close Table NORTH__ARROW
+
+End Function
+
+'**************************************************************
+'Handler - Shows a north arrows in a map window
+'**************************************************************
+Sub HandlerShowNorthArrowInMap
+
+Dim	szName As String
+
+	szName = marrArrowNames(ReadControlValue(100))
+
+	Select * From NORTH__ARROW
+		Where NAME = szName
+		And OBJ
+		Into CUR__ARROW NoSelect
+
+	If GetNumRows("CUR__ARROW") > 0 Then
+		Map From CUR__ARROW
+			Position (1,1) Units "cm"
+			Width 4 Units "cm"
+			Height 4 Units "cm"
+		Set Map
+			Zoom Entire Layer CUR__ARROW
+	End If
+
+End Sub
+
+'**************************************************************
+'Creates a list of existing north arrows in table
+'**************************************************************
+Function CreateListOfNorthArrowNames(ByVal szTab As String, arrNames() As String) As Logical
+
+Dim	i As Integer
+
+CreateListOfNorthArrowNames = FALSE
+
+	Select NAME
+		From szTab
+		Where NAME <> ""
+		And OBJ
+		Order By NAME
+		Group By NAME
+		Into LIST_NORTH_ARROW NoSelect
+
+	i = GetNumRows("LIST_NORTH_ARROW")
+	If i  > 0 Then
+		ReDim arrNames(i)
+		i = 0
+		Fetch First From LIST_NORTH_ARROW
+		Do Until EOT(LIST_NORTH_ARROW)
+			i = i + 1
+			arrNames(i) = LIST_NORTH_ARROW.NAME
+			Fetch Next From LIST_NORTH_ARROW
+		Loop
+		CreateListOfNorthArrowNames = TRUE
+	Else
+		ReDim arrNames(1)
+		arrNames(1)	= MSG_NONE
+	End If
+
+End Function
+
+'**************************************************************
+'Creates a new table with a single default north arrow
+'**************************************************************
+Sub CreateNorthArrowTabFile(ByVal szFile As String)
+
+	Create Table NORTH__ARROW
+		(
+			NAME		Char(30),
+			CENTER_X	Float,
+			CENTER_Y	Float
+		)
+		File szFile
+
+	Create Map
+		For NORTH__ARROW
+		CoordSys NonEarth Units "cm" Bounds (-2000, -2000) (2000, 2000) 
+
+	Call CreateDefaultNorthArrows("NORTH__ARROW")
+
+	Close Table NORTH__ARROW
+
+End Sub
+
+'**************************************************************
+'Creates a new table with a single default north arrow
+'**************************************************************
+Sub CreateDefaultNorthArrows(ByVal szTab As String)
+
+Dim	oArrow As Object,
+	i As Integer,
+	szName As String
+
+	Set CoordSys Table szTab
+
+	'------------------------------------------
+	For i = 1 To 5
+		szName = PLTM_TXT_NORTH_ARROW_SIMPLE + " - " + Right$("000" + (i * 25), 3) + " mm"
+		Create PLine 
+			Into Variable oArrow
+		 	2
+			(0, i * -0.25)  ( 0, i * -1.25)
+			Pen MakePen(3, 2, BLACK)
+
+		Insert Into szTab
+			(NAME, CENTER_X, CENTER_Y, OBJ)
+			Values (szName, 0, 0, oArrow)
+
+		Create Region
+			Into Variable oArrow
+			1
+			4 (0, i * -0.25) (i * 0.25, i * -0.25) (0, i * 0.75) (0, i * 0.25)
+			Pen MakePen(3, 2, BLACK)
+			Brush MakeBrush(2, BLACK, BLACK) 
+
+		Insert Into szTab
+			(NAME, CENTER_X, CENTER_Y, OBJ)
+			Values (szName, 0, 0, oArrow)
+
+		Create Region
+			Into Variable oArrow
+			1
+			4 (0, i * -0.25) (i * -0.25, i * -0.25) (0, i * 0.75) (0, i * 0.25)
+			Pen MakePen(3, 2, BLACK)
+			Brush MakeBrush(2, WHITE, WHITE) 
+
+		Insert Into szTab
+			(NAME, CENTER_X, CENTER_Y, OBJ)
+			Values (szName, 0, 0, oArrow)
+
+		Create Pline 
+			Into Variable oArrow
+		 	4
+			(i * -0.25, i * 0.75) (i * -0.25,i * 1.25) (i * 0.25, I * 0.75) (i * 0.25, i * 1.25)	
+			Pen MakePen(3, 2, BLACK)
+
+		Insert Into szTab
+			(NAME, CENTER_X, CENTER_Y, OBJ)
+			Values (szName, 0, 0, oArrow)
+	Next
+
+	'------------------------------------------
+	For i = 1 To 5
+		szName = PLTM_TXT_NORTH_ARROW_SIMPLE_2 + " - " + Right$("000" + (i * 25), 3) + " mm"
+
+		Create PLine 
+			Into Variable oArrow
+		 	3
+			(0,i * -1.25) (0,i * 0.75) (i * 0.25, i * -0.25)	
+			Pen MakePen(3, 2, BLACK)
+
+		Insert Into szTab
+			(NAME, CENTER_X, CENTER_Y, OBJ)
+			Values (szName, 0, 0, oArrow)
+
+		Create Pline 
+			Into Variable oArrow
+		 	4
+			(i * -0.25, i * 0.75) (i * -0.25,i * 1.25) (i * 0.25, I * 0.75) (i * 0.25, i * 1.25)	
+			Pen MakePen(3, 2, BLACK)
+
+		Insert Into szTab
+			(NAME, CENTER_X, CENTER_Y, OBJ)
+			Values (szName, 0, 0, oArrow)
+	Next
+
+	'------------------------------------------
+
+	For i = 1 To 5
+		szName = PLTM_TXT_NORTH_ARROW_TRIANGLE + " - " + Right$("000" + (i * 15), 3) + " mm"
+
+	  	Create Region
+			Into Variable oArrow
+			1
+			4	(i * -1,i * -0.75) (0,i * 0.25) (0,i * -0.75) (i * -1,i * -0.75)
+		 	Pen MakePen(2,2,0) 
+	    		Brush MakeBrush(2,WHITE,WHITE)
+
+		Insert Into szTab
+			(NAME, CENTER_X, CENTER_Y, OBJ)
+			Values (szName, 0, 0, oArrow)
+
+		Create Region
+			Into Variable oArrow
+			1
+			4	(i * 1,i * -0.75) (0,i * 0.25) (0,i * -0.75) (i * 1,i * -0.75)
+			Pen MakePen(2,2,0) 
+			Brush MakeBrush(2,BLACK,BLACK)
+
+		Insert Into szTab
+			(NAME, CENTER_X, CENTER_Y, OBJ)
+			Values (szName, 0, 0, oArrow)
+
+		Create Pline 
+			Into Variable oArrow
+		 	4
+			(i * -0.25,i * 0.25) (i * -0.25,i * 0.75) (i * 0.25,i * 0.25) (i * 0.25,i * 0.75)	
+			Pen MakePen(3, 2, BLACK)
+
+		Insert Into szTab
+			(NAME, CENTER_X, CENTER_Y, OBJ)
+			Values (szName, 0, 0, oArrow)
+	Next
+
+	'------------------------------------------
+	Commit Table szTab
+
+End Sub
+
+'**************************************************************
+'Inserts NorthArrow into frame
+'**************************************************************
+Sub PrintHlpInsertNorthArrowIntoLayout(	ByVal szArrow As String, ByVal nLID As Integer,
+							ByVal oFrame As Object, ByVal fRotation As Float)
+
+Dim	szFile, szTab As String,
+	arrNorthArrow() As T_NORTH_ARROW,
+	oTemp As Object,
+	i As Integer,
+	fMinX, fMinY, fMaxX, fMaxY, fDX, fDY As Float,
+	pCent As T_POINT
+
+	szFile = PrintHlpGetNorthArrowTabFile()
+	If szFile = "" Then
+		Note ERR_FILENAME_NOT_GIVEN
+		Exit Sub
+	ElseIf not FileExists(szFile) Then
+		Note ERR_TAB_NOT_FOUND + szFile
+		Exit Sub
+	ElseIf szArrow = "" Then
+		szArrow = PrintHlpGetNorthArrowName()
+		If szArrow = "" Then
+			Exit Sub
+		End If
+	End If
+	
+	Open Table szFile As NORTH__ARROW
+
+	Select * From NORTH__ARROW
+		Where NAME = szArrow
+		And OBJ
+		Into CUR_ARROW NoSelect
+
+	i = GetNumRows("CUR_ARROW")
+	If i  > 0 Then
+		fMinX = 99999999
+		fMinY = 99999999
+		fMaxX = -99999999
+		fMaxY = -99999999
+		ReDim arrNorthArrow(i)
+		i	= 0
+
+		Set CoordSys Table CUR_ARROW
+		Set Distance Units "cm"
+		szTab = WindowInfo(nLID, WIN_INFO_TABLE)
+
+		Fetch First From CUR_ARROW
+		Do Until EOT(CUR_ARROW)
+			i			= i + 1
+			oTemp			= CUR_ARROW.OBJ
+			pCent.X		= CUR_ARROW.CENTER_X
+			pCent.Y		= CUR_ARROW.CENTER_Y
+
+			arrNorthArrow(i).oArrowPart	= GeoFuncRotateObject(oTemp, pCent, -1 * fRotation)
+			arrNorthArrow(i).fCenterX	= pCent.X
+			arrNorthArrow(i).fCenterY	= pCent.Y
+
+			fMinX = Minimum(fMinX, ObjectGeography(arrNorthArrow(i).oArrowPart, OBJ_GEO_MINX))
+			fMinY = Minimum(fMinY, ObjectGeography(arrNorthArrow(i).oArrowPart, OBJ_GEO_MINY))
+			fMaxX = Maximum(fMaxX, ObjectGeography(arrNorthArrow(i).oArrowPart, OBJ_GEO_MAXX))
+			fMaxY = Maximum(fMaxY, ObjectGeography(arrNorthArrow(i).oArrowPart, OBJ_GEO_MAXY))
+
+			Fetch Next From CUR_ARROW
+		Loop
+
+		Set CoordSys Layout Units "cm"
+		Set Distance Units "cm"
+
+		'Print "Nordpil Bounds: (" + fMinX + ", " + fMinY + ") (" + fMaxX + ", " + fMaxY + ")"
+		'Print "Frame: MaxX: " + ObjectGeography(oFrame, OBJ_GEO_MAXX) + " MinY: " + ObjectGeography(oFrame, OBJ_GEO_MINY)
+		'Print "Forskel: X: " + ((Abs(fMaxX - fMinX) + 1) / 2) + " Y: " + ((Abs(fMaxY - fMinY) + 1) / 2)
+
+		pCent.X = ObjectGeography(oFrame, OBJ_GEO_MAXX) - ((Abs(fMaxX - fMinX) + 1.3) / 2)
+		pCent.Y = ObjectGeography(oFrame, OBJ_GEO_MINY) + ((Abs(fMaxY - fMinY) + 1.3) / 2)
+
+		'Print "Centrum for nordpil: (" + pCent.X + ", " + pCent.Y + ")"
+
+		szTab = WindowInfo(nLID, WIN_INFO_TABLE)
+		i	= 0
+
+		For i = 1 To Ubound(arrNorthArrow)
+
+			fDX = pCent.X - arrNorthArrow(i).fCenterX
+			fDY = pCent.Y - arrNorthArrow(i).fCenterY
+
+			'Print "Flytning: (" + fDX + ", " + fDY + ")"
+			arrNorthArrow(i).oArrowPart = GeoFuncMoveObject(fDX, fDY, arrNorthArrow(i).oArrowPart)
+
+			Insert Into szTab
+				(OBJ)
+				Values (arrNorthArrow(i).oArrowPart)
+
+		Next
+	Else
+		Note ERR_PLT_NORTH_ARROW_NOT_FOUND + szArrow
+	End If
+
+	Close Table NORTH__ARROW
+
+End Sub
+

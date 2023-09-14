@@ -1,0 +1,6 @@
+Declare Sub TXTTUpdateCenterCoord
+Declare Sub TXTTUpdateAngleAndCenterCoord
+Declare Sub TXTTMoveTextObjects
+Declare Sub TXTTRotateAndMoveTextObjects
+Declare Sub TXTTConvertPointToText
+Declare Sub TXTTConvertAllToPoint

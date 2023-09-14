@@ -1,0 +1,106 @@
+'-----------------------------------------------------------------------
+'Copyright (c) 1996 Software Factory International, Ltd.
+'-----------------------------------------------------------------------
+
+Include "MapBasic.Def"
+Include "Menu.Def"
+Include "exec_lib.Def"
+
+'-----------------------------------------------------------------------
+
+Declare Sub Main
+Declare Sub SetPortrait
+Declare Sub SetLandscape
+Declare Sub Term
+Declare Sub AllOpt
+Declare Sub WhichOrient
+Declare Sub GetOpt
+
+'-----------------------------------------------------------------------
+
+Sub Main
+'  Alter Menu "File" Add
+  Alter Menu ID 1 Add
+    "(-",
+    "Set Portrait"         Calling SetPortrait,
+    "Set Landscape"        Calling SetLandscape,
+    "Set All Options"      Calling AllOpt,
+    "Which orientation..." Calling WhichOrient,
+	"Show all options..."  Calling GetOpt,
+    "Terminate"            Calling Term
+
+	Call SetLibraryLanguage (LANG_DK)
+	'or
+	'Call SetDialogTitle ("Printeropsætning")
+End Sub
+
+'-----------------------------------------------------------------------
+
+Sub SetPortrait
+  Call SetPageOrient(ORIENT_PORTRAIT)
+
+  Run Menu Command M_FILE_PRINT_SETUP  'to see it
+End Sub
+
+'-----------------------------------------------------------------------
+
+Sub SetLandscape
+  Call SetPageOrient(ORIENT_LANDSCAPE)
+
+  Run Menu Command M_FILE_PRINT_SETUP  'to see it
+End Sub
+
+'-----------------------------------------------------------------------
+
+Sub Term
+  End Program
+End Sub
+
+'-----------------------------------------------------------------------
+
+Sub AllOpt
+  Dim Mgn As Margins
+
+  Mgn.Left = ".5"
+  Mgn.Right = "1"
+  Mgn.Top = "1"
+  Mgn.Bottom = ".5"
+
+  Call SetPrinterOptions(ORIENT_LANDSCAPE, 2, 2, Mgn)
+  Print "Orientation set to Landscape."
+  Print "Paper size set to second in list."
+  Print "Paper source set to second in list."
+  Print "Margins set to .5, 1, 1, .5"
+
+  Run Menu Command M_FILE_PRINT_SETUP  'to see it
+End Sub
+
+'-----------------------------------------------------------------------
+
+Sub WhichOrient
+  Run Menu Command M_FILE_PRINT_SETUP  'to set it
+
+  If GetPageOrient() = ORIENT_LANDSCAPE Then
+	Note "Landscape."
+  Else
+	Note "Portrait."
+  End If
+End Sub
+
+'-----------------------------------------------------------------------
+
+Sub GetOpt
+  Dim Mgn As Margins, iOrient, iSize, iSrc As SmallInt
+
+  Run Menu Command M_FILE_PRINT_SETUP
+  Call GetPrinterOptions(iOrient, iSize, iSrc, Mgn)
+  If iOrient = ORIENT_LANDSCAPE Then
+	Print "Orientation is Landscape."
+  Else
+	Print "Orientation is Portrait."
+  End If
+  Print "Paper size is number " + iSize + " in list."
+  Print "Paper source is number " + iSrc + " in list."
+  Print "Margins are " + Mgn.Left + " " + Mgn.Top + " " + Mgn.Right + " " + Mgn.Bottom
+
+End Sub

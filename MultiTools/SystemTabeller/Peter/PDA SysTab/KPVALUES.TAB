@@ -1,0 +1,17 @@
+!table
+!version 300
+!charset WindowsLatin1
+
+Definition Table
+  Type NATIVE Charset "WindowsLatin1"
+  Fields 10
+    VALUEID Integer Index 1 ;
+    STYLEID Integer Index 2 ;
+    COLUMNNAME Char (35) ;
+    VALUE Char (60) ;
+    SHOW Logical ;
+    ACTIVE Logical ;
+    Bem Char (20) ;
+    ORDERBY Integer ;
+    REMEMBERLAST Logical ;
+    DEFAULTVALUE Char (60) ;

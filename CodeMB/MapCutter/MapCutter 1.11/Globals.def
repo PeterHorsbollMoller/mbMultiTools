@@ -1,0 +1,68 @@
+'***********************************************************
+'*	Definitionfile for MapCutter
+'***********************************************************
+
+Define CUTTING_EDGE_NOT_DEFINED			0
+Define CUTTING_EDGE_MAPFRAME				1
+Define CUTTING_EDGE_TABLE				2
+Define CUTTING_EDGE_SELECTED_OBJECT			3
+
+Define CUTTING_KIND_NOT_DEFINED			0
+Define CUTTING_KIND_SOFT				1
+Define CUTTING_KIND_HARD_LINES			2
+Define CUTTING_KIND_HARD_ALL				3
+Define CUTTING_KIND_NO_CUT				4
+
+Define SELECTING_KIND_NOT_DEFINED			0
+Define SELECTING_KIND_PARTLY_WITHIN			1
+Define SELECTING_KIND_CENTROID_WITHIN		2
+Define SELECTING_KIND_ALL_WITHIN			3
+
+Define RESULT_TABLE_NOT_DEFINED			0
+Define RESULT_TABLE_ALL_IN_ONE			1
+Define RESULT_TABLE_ONE_PR_MAPPART			2
+Define RESULT_TABLE_ONE_PR_LAYER			3
+Define RESULT_TABLE_LAYER_MULTI_MAPPART		4
+
+Define RESULT_NAME_KIND_NOT_DEFINED			0
+Define RESULT_NAME_KIND_MAPPART_VALUE		1
+Define RESULT_NAME_KIND_VALUE_MAPPART		2
+Define RESULT_NAME_KIND_DIR_MAPPART_VALUE		3
+Define RESULT_NAME_KIND_LAYER_VALUE			4
+Define RESULT_NAME_KIND_VALUE_LAYER			5
+Define RESULT_NAME_KIND_DIR_LAYER_VALUE		6
+Define RESULT_NAME_KIND_MAPPART_VALUE_LAYER	7
+Define RESULT_NAME_KIND_LAYER_VALUE_MAPPART	8
+Define RESULT_NAME_KIND_DIR_MAPPART_LAYER		9
+Define RESULT_NAME_KIND_DIR_LAYER_MAPPART		10
+
+Define RESULT_COLUMN_NOT_DEFINED			0
+Define RESULT_COLUMN_ALL				1
+Define RESULT_COLUMN_EXISTING				2
+Define RESULT_COLUMN_SHARED				3
+Define RESULT_COLUMN_NONE				4
+Define RESULT_COLUMN_CHOSEN				5
+
+Define FILE_LOG						FILEGetTempDirectory$() + "MapCutter.log"
+
+Type T_COLNAMEANDTYPE
+	Name As String
+	Type As String
+End Type
+
+Global	gnTypeOfCuttingEdge, nPrevPicked, gnMapToCutFrom As Integer,
+		gnCuttingTable, gnNameColumn, gnSelectionType, gnCuttingType As Integer,
+		gnSaveTableMethod As Integer,
+		garrTables(0), garrColumns(0) As String,
+		garrAllColumns(0), garrIncludingColumns(0) As String,
+		garrUseColumns(0), garrSharedColumns(0) As String,
+		garrMapWindows(0), garrAllLayers(0), garrCuttingLayers(0) As String,
+		garrCuttingObjects(0), garrAllObjects(0) As String,
+		gbAddColumnLayerName, gbAnotherCuttingTableSelected, gbMoveBackWards As Logical,
+		gbOtherLayersSelected As Logical,
+		gszResultStartDirectoryName, gszResultTabFileName As String,
+		gszAppendix1, gszAppendix2, gszAppendix3 As String,
+		gsnKindOfResultNameAppendix, gsnColumnType As SmallInt,
+		garrColumnTypes(0) As T_COLNAMEANDTYPE
+
+'szResultTabFileName, 

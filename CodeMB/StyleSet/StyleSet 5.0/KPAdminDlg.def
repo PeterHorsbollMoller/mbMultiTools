@@ -1,0 +1,6 @@
+Declare Sub kpaShowDialogOptionMultiDisplay
+Declare Sub kpaShowDialogOptionEditPads
+Declare Sub kpaShowDialogOptionTables
+Declare Sub kpaShowDialogOptionStyles
+Declare Sub kpaShowDialogOptionLayers
+Declare Sub kpaShowDialogOptionValues
